@@ -1,6 +1,9 @@
 import { Response } from 'express';
 import { env } from '../config/env';
 
+const ACCESS_TOKEN_MAX_AGE = 60 * 60 * 1000;
+const REFRESH_TOKEN_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
+
 export const setTokensInCookies = (
   res: Response,
   accessToken: string,
@@ -10,12 +13,12 @@ export const setTokensInCookies = (
     httpOnly: true,
     secure: env.NODE_ENV === 'production',
     sameSite: 'strict',
-    maxAge: 60 * 60 * 1000,
+    maxAge: ACCESS_TOKEN_MAX_AGE,
   });
   res.cookie('refreshToken', refreshToken, {
     httpOnly: true,
     secure: env.NODE_ENV === 'production',
     sameSite: 'strict',
-    maxAge: 7 * 24 * 60 * 60 * 1000,
+    maxAge: REFRESH_TOKEN_MAX_AGE,
   });
 };
