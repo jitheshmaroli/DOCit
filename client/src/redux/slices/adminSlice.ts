@@ -2,11 +2,38 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { 
   listDoctors, 
   verifyDoctor,
-  listPatients, 
+  listPatients,
+  getPendingPlans,
+  approvePlan,
+  rejectPlan, 
 } from '../thunks/adminThunk';
 import { Doctor, Patient } from '../../types/authTypes';
 
+// Interface for Appointment (adjust based on your schema)
+interface Appointment {
+  _id: string;
+  patientName: string;
+  doctorName: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  status: 'pending' | 'confirmed' | 'cancelled';
+}
+
+// Interface for Subscription Plan (adjust based on your schema)
+interface SubscriptionPlan {
+  _id: string;
+  title: string;
+  description: string;
+  price: number;
+  duration: number;
+  status: 'pending' | 'approved' | 'rejected';
+  doctorName: string;
+}
+
 interface AdminState {
+  appointments: Appointment[];
+  pendingPlans: SubscriptionPlan[];
   doctors: Doctor[];
   patients: Patient[];
   loading: boolean;
@@ -14,6 +41,8 @@ interface AdminState {
 }
 
 const initialState: AdminState = {
+  appointments: [],
+  pendingPlans: [],
   doctors: [],
   patients: [],
   loading: false,
@@ -70,6 +99,47 @@ const adminSlice = createSlice({
         state.loading = false;
         state.error = action.payload as string;
       })
+      // New cases for subscription plans
+      .addCase(getPendingPlans.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getPendingPlans.fulfilled, (state, action) => {
+        state.loading = false;
+        state.pendingPlans = action.payload;
+      })
+      .addCase(getPendingPlans.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to fetch pending plans';
+      })
+      .addCase(approvePlan.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(approvePlan.fulfilled, (state, action) => {
+        state.loading = false;
+        state.pendingPlans = state.pendingPlans.filter(
+          (plan) => plan._id !== action.meta.arg
+        );
+      })
+      .addCase(approvePlan.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to approve plan';
+      })
+      .addCase(rejectPlan.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(rejectPlan.fulfilled, (state, action) => {
+        state.loading = false;
+        state.pendingPlans = state.pendingPlans.filter(
+          (plan) => plan._id !== action.meta.arg
+        );
+      })
+      .addCase(rejectPlan.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to reject plan';
+      });
 
     // Common error handling
     builder

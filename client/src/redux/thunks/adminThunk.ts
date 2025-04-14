@@ -7,6 +7,28 @@ import { API_BASE_URL } from '../../utils/config';
 
 axios.defaults.withCredentials = true;
 
+// Interface for Appointment (adjust based on your schema)
+interface Appointment {
+  _id: string;
+  patientName: string;
+  doctorName: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  status: 'pending' | 'confirmed' | 'cancelled';
+}
+
+// Interface for Subscription Plan (adjust based on your schema)
+interface SubscriptionPlan {
+  _id: string;
+  title: string;
+  description: string;
+  price: number;
+  duration: number;
+  status: 'pending' | 'approved' | 'rejected';
+  doctorName: string;
+}
+
 export const listDoctors = createAsyncThunk<
   Doctor[],
   void,
@@ -219,3 +241,77 @@ export const blockPatient = createAsyncThunk(
     }
   }
 );
+
+// Thunk to fetch all appointments (admin)
+export const getAllAppointments = createAsyncThunk<
+  Appointment[],
+  void,
+  { rejectValue: string }
+>('admin/getAllAppointments', async (_, { rejectWithValue }) => {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/api/admin/appointments`, {
+      withCredentials: true,
+    });
+    return response.data.data; // Adjust based on your API response structure
+  } catch (error: any) {
+    return rejectWithValue(
+      error.response?.data?.message || 'Failed to fetch appointments'
+    );
+  }
+});
+
+// Thunk to fetch pending subscription plans
+export const getPendingPlans = createAsyncThunk<
+  SubscriptionPlan[],
+  void,
+  { rejectValue: string }
+>('admin/getPendingPlans', async (_, { rejectWithValue }) => {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/api/admin/subscription-plans/pending`, {
+      withCredentials: true,
+    });
+    return response.data.data; // Adjust based on your API response structure
+  } catch (error: any) {
+    return rejectWithValue(
+      error.response?.data?.message || 'Failed to fetch pending plans'
+    );
+  }
+});
+
+// Thunk to approve a subscription plan
+export const approvePlan = createAsyncThunk<
+  void,
+  string,
+  { rejectValue: string }
+>('admin/approvePlan', async (planId, { rejectWithValue }) => {
+  try {
+    await axios.put(
+      `${API_BASE_URL}/api/admin/subscription-plans/${planId}/approve`,
+      {},
+      { withCredentials: true }
+    );
+  } catch (error: any) {
+    return rejectWithValue(
+      error.response?.data?.message || 'Failed to approve plan'
+    );
+  }
+});
+
+// Thunk to reject a subscription plan
+export const rejectPlan = createAsyncThunk<
+  void,
+  string,
+  { rejectValue: string }
+>('admin/rejectPlan', async (planId, { rejectWithValue }) => {
+  try {
+    await axios.put(
+      `${API_BASE_URL}/api/admin/subscription-plans/${planId}/reject`,
+      {},
+      { withCredentials: true }
+    );
+  } catch (error: any) {
+    return rejectWithValue(
+      error.response?.data?.message || 'Failed to reject plan'
+    );
+  }
+});

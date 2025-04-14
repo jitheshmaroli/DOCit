@@ -1,7 +1,29 @@
 import { createSlice } from '@reduxjs/toolkit';
 import { Doctor } from '../../types/authTypes';
-import { fetchVerifiedDoctors, getAvailability, setAvailability } from '../thunks/doctorThunk';
+import { createSubscriptionPlan, fetchVerifiedDoctors, getAppointments, getAvailability, getSubscriptionPlans, setAvailability } from '../thunks/doctorThunk';
 import moment from 'moment';
+
+// Interface for Appointment (adjust based on your schema)
+interface Appointment {
+  _id: string;
+  patientName: string;
+  doctorName?: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  status: 'pending' | 'confirmed' | 'cancelled';
+}
+
+// Interface for Subscription Plan (adjust based on your schema)
+interface SubscriptionPlan {
+  _id: string;
+  title: string;
+  description: string;
+  price: number;
+  duration: number;
+  status: 'pending' | 'approved' | 'rejected';
+  doctorName?: string;
+}
 
 interface DoctorState {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -9,9 +31,13 @@ interface DoctorState {
   doctors: Doctor[];
   loading: boolean;
   error: string | null;
+  appointments: Appointment[];
+  plans: SubscriptionPlan[];
 }
 
 const initialState: DoctorState = {
+  appointments: [],
+  plans: [],
   availability: [],
   doctors: [],
   loading: false,
@@ -68,6 +94,43 @@ const doctorSlice = createSlice({
       .addCase(getAvailability.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
+      })
+      .addCase(getAppointments.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getAppointments.fulfilled, (state, action) => {
+        state.loading = false;
+        state.appointments = action.payload;
+      })
+      .addCase(getAppointments.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to fetch appointments';
+      })
+      // New cases for subscription plans
+      .addCase(getSubscriptionPlans.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getSubscriptionPlans.fulfilled, (state, action) => {
+        state.loading = false;
+        state.plans = action.payload || 'Failed to fetch subscription plans';
+      })
+      .addCase(getSubscriptionPlans.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to fetch subscription plans';
+      })
+      .addCase(createSubscriptionPlan.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(createSubscriptionPlan.fulfilled, (state, action) => {
+        state.loading = false;
+        state.plans.push(action.payload);
+      })
+      .addCase(createSubscriptionPlan.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to create subscription plan';
       });
   },
 });

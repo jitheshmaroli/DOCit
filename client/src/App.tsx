@@ -18,9 +18,12 @@ import ProtectedRoute from './components/layout/ProtectionRoute';
 import DoctorProfilePage from './pages/doctor/DoctorProfilePage';
 import DoctorAvailability from './pages/doctor/DoctorAvailabilty';
 import BookAppointment from './pages/patient/BookAppointment';
+import DoctorAppointments from './pages/doctor/DoctorAppointments';
+import AdminAppointments from './pages/admin/AdminAppointments';
+import DoctorPlans from './pages/doctor/DoctorPlans';
+import AdminPlanManagement from './pages/admin/AdminPlanManagement';
 
 const App = () => {
- 
   return (
     <BrowserRouter>
       <Routes>
@@ -46,6 +49,8 @@ const App = () => {
             <Route path="dashboard" element={<DoctorDashboard />} />
             <Route path="profile" element={<DoctorProfilePage />} />
             <Route path="availability" element={<DoctorAvailability />} />
+            <Route path="appointments" element={<DoctorAppointments />} />
+            <Route path="plans" element={<DoctorPlans />} />
           </Route>
         </Route>
 
@@ -55,6 +60,8 @@ const App = () => {
             <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="manage-doctors" element={<ManageDoctors />} />
             <Route path="manage-patients" element={<ManagePatients />} />
+            <Route path="appointments" element={<AdminAppointments />} />
+            <Route path="plan-management" element={<AdminPlanManagement />} />
           </Route>
         </Route>
 
