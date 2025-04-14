@@ -1,0 +1,15 @@
+node_modules/
+backend/dist/
+backend/build/
+.env
+.vscode/
+backend/.env
+backend/uploads/
+client/.env
+client/.env.local
+client/.env.development
+client/.env.production
+client/build/
+client/dist/
+client/public/
+client/src/assets/
