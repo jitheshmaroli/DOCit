@@ -38,8 +38,16 @@ import { AvailabilityRepository } from '../repositories/AvailabilityRepository';
 import { SetAvailabilityUseCase } from '../../core/use-cases/doctor/SetAvailability';
 import { GetAvailabilityUseCase } from '../../core/use-cases/doctor/GetAvailability';
 import { AppointmentRepository } from '../repositories/AppointmentRepository';
+import { SubscriptionPlanRepository } from '../repositories/SubscriptionPlanRepository';
+import { SubscribeToPlanUseCase } from '../../core/use-cases/patient/SubscribeToPlanUseCase';
+import { CreateSubscriptionPlanUseCase } from '../../core/use-cases/doctor/CreateSubscriptionPlanUseCase';
+import { ManageSubscriptionPlanUseCase } from '../../core/use-cases/admin/ManageSubscriptionPlanUseCase';
+import { CancelAppointmentUseCase } from '../../core/use-cases/patient/CancelAppointmentUseCase';
+import { PatientSubscriptionRepository } from '../repositories/PatientSubscriptionRepositroy';
 import { BookAppointmentUseCase } from '../../core/use-cases/patient/BookAppointment';
 import { GetDoctorAvailabilityUseCase } from '../../core/use-cases/patient/GetDoctorAvailability';
+import { GetDoctorAppointmentsUseCase } from '../../core/use-cases/doctor/GetDoctorAppointmentUseCase';
+import { GetAllAppointmentsUseCase } from '../../core/use-cases/admin/GetAllAppointmentsUseCase';
 
 export class Container {
   private static instance: Container;
@@ -52,6 +60,8 @@ export class Container {
     const adminRepository = new AdminRepository();
     const otpRepository = new OTPRepository();
     const availabilityRepository = new AvailabilityRepository();
+    const subscriptionPlanRepository = new SubscriptionPlanRepository();
+    const patientSubscriptionRepository = new PatientSubscriptionRepository();
     const appointmentRepository = new AppointmentRepository();
 
     // Initialize services
@@ -65,6 +75,9 @@ export class Container {
     this.dependencies.set('IAdminRepository', adminRepository);
     this.dependencies.set('IOTPRepository', otpRepository);
     this.dependencies.set('IAvailabilityRepository', availabilityRepository);
+    this.dependencies.set('ISubscriptionPlanRepository', subscriptionPlanRepository);
+    this.dependencies.set('IPatientSubscriptionRepository', patientSubscriptionRepository);
+    this.dependencies.set('IAppointmentRepository', appointmentRepository);
 
     // Register services
     this.dependencies.set('IEmailService', emailService);
@@ -220,18 +233,49 @@ export class Container {
       'GetAvailabilityUseCase',
       new GetAvailabilityUseCase(availabilityRepository)
     );
-    this.dependencies.set('IAppointmentRepository', appointmentRepository);
     this.dependencies.set(
       'BookAppointmentUseCase',
       new BookAppointmentUseCase(
         appointmentRepository,
         availabilityRepository,
-        doctorRepository
+        doctorRepository,
+        patientSubscriptionRepository
       )
     );
     this.dependencies.set(
       'GetDoctorAvailabilityUseCase',
-      new GetDoctorAvailabilityUseCase(availabilityRepository)
+      new GetDoctorAvailabilityUseCase(availabilityRepository, doctorRepository)
+    );
+    this.dependencies.set(
+      'CreateSubscriptionPlanUseCase',
+      new CreateSubscriptionPlanUseCase(
+        subscriptionPlanRepository,
+        doctorRepository
+      )
+    );
+    this.dependencies.set(
+      'SubscribeToPlanUseCase',
+      new SubscribeToPlanUseCase(
+        subscriptionPlanRepository,
+        patientSubscriptionRepository
+      )
+    );
+    this.dependencies.set(
+      'ManageSubscriptionPlanUseCase',
+      new ManageSubscriptionPlanUseCase(subscriptionPlanRepository)
+    );
+    this.dependencies.set(
+      'CancelAppointmentUseCase',
+      new CancelAppointmentUseCase(appointmentRepository)
+    );
+    // New use cases
+    this.dependencies.set(
+      'GetDoctorAppointmentsUseCase',
+      new GetDoctorAppointmentsUseCase(appointmentRepository)
+    );
+    this.dependencies.set(
+      'GetAllAppointmentsUseCase',
+      new GetAllAppointmentsUseCase(appointmentRepository)
     );
   }
 

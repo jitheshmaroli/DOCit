@@ -17,6 +17,9 @@ export class CreateDoctorUseCase {
       name: doctor.name,
       phone: doctor.phone,
       licenseNumber: doctor.licenseNumber,
+      speciality: doctor.speciality || '',
+      experience: doctor.experience || 0,
+      allowFreeBooking: doctor.allowFreeBooking ?? true,
       isVerified: false,
       isBlocked: false,
     };

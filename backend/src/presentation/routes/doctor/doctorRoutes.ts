@@ -35,4 +35,14 @@ router
   .post(authDoctor, doctorController.setAvailability.bind(doctorController))
   .get(authDoctor, doctorController.getAvailability.bind(doctorController));
 
+router.post(
+  '/subscription-plans',
+  authMiddleware(container),
+  roleMiddleware(['doctor']),
+  doctorController.createSubscriptionPlan.bind(doctorController)
+);
+
+// New endpoints
+router.get('/appointments', doctorController.getAppointments.bind(doctorController));
+router.get('/subscription-plans', doctorController.getSubscriptionPlans.bind(doctorController));
 export default router;

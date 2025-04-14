@@ -43,4 +43,60 @@ router.post(
   patientController.bookAppointment.bind(patientController)
 );
 
+router.post(
+  '/subscriptions',
+  authMiddleware(container),
+  roleMiddleware(['patient']),
+  patientController.subscribeToPlan.bind(patientController)
+);
+
+router.get(
+  '/subscriptions',
+  authMiddleware(container),
+  roleMiddleware(['patient']),
+  patientController.getSubscriptions.bind(patientController)
+);
+
+router.post(
+  '/appointments',
+  authMiddleware(container),
+  roleMiddleware(['patient']),
+  patientController.bookAppointment.bind(patientController)
+);
+
+router.delete(
+  '/appointments/:appointmentId',
+  authMiddleware(container),
+  roleMiddleware(['patient']),
+  patientController.cancelAppointment.bind(patientController)
+);
+
+router.get(
+  '/doctors/:doctorId/availability',
+  authMiddleware(container),
+  roleMiddleware(['patient']),
+  patientController.getDoctorAvailability.bind(patientController)
+);
+
+router.get(
+  '/doctors/:doctorId/plans',
+  authMiddleware(container),
+  roleMiddleware(['patient']),
+  patientController.getDoctorPlans.bind(patientController)
+);
+
+router.get(
+  '/doctors/:doctorId',
+  authMiddleware(container),
+  roleMiddleware(['patient']),
+  patientController.getDoctor.bind(patientController)
+);
+
+router.get(
+  '/appointments',
+  authMiddleware(container),
+  roleMiddleware(['patient']),
+  patientController.getAppointments.bind(patientController)
+);
+
 export default router;

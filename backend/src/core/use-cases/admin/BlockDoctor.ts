@@ -5,9 +5,9 @@ import { NotFoundError } from '../../../utils/errors';
 export class BlockDoctorUseCase {
   constructor(private doctorRepository: IDoctorRepository) {}
 
-  async execute(id: string, isBlocked: boolean): Promise<Doctor | null> {
-    const doctor = await this.doctorRepository.findById(id);
-    if (!doctor) throw new NotFoundError('Doctor not found');
-    return this.doctorRepository.update(id, { isBlocked });
+  async execute(id: string, isBlocked: boolean): Promise<Doctor> {
+    const updated = await this.doctorRepository.update(id, { isBlocked });
+    if (!updated) throw new NotFoundError('Doctor not found');
+    return updated;
   }
 }

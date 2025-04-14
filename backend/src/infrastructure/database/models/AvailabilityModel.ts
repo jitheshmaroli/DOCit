@@ -1,16 +1,16 @@
 import mongoose, { Schema } from 'mongoose';
-import { Availability } from '../../../core/entities/Availability';
+import { Availability, TimeSlot } from '../../../core/entities/Availability';
+
+const TimeSlotSchema = new Schema<TimeSlot>({
+  startTime: { type: String, required: true },
+  endTime: { type: String, required: true },
+});
 
 const AvailabilitySchema = new Schema<Availability>(
   {
     doctorId: { type: String, required: true, ref: 'Doctor' },
     date: { type: Date, required: true },
-    timeSlots: [
-      {
-        startTime: { type: String, required: true },
-        endTime: { type: String, required: true },
-      },
-    ],
+    timeSlots: [TimeSlotSchema],
   },
   { timestamps: true }
 );

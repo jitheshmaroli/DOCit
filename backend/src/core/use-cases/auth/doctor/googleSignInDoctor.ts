@@ -22,6 +22,9 @@ export class GoogleSignInDoctorUseCase {
         name,
         isVerified: false,
         isBlocked: false,
+        speciality: '',
+        experience: 0,
+        allowFreeBooking: true
       });
     } else if (!doctor.googleId) {
       doctor = await this.doctorRepository.update(doctor._id!, { googleId });

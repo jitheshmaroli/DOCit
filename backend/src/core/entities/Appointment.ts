@@ -6,6 +6,8 @@ export interface Appointment {
   startTime: string;
   endTime: string;
   status: 'pending' | 'confirmed' | 'cancelled';
+  isFreeBooking: boolean;
+  bookingTime: Date;
   createdAt?: Date;
   updatedAt?: Date;
 }

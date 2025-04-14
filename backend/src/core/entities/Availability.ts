@@ -1,6 +1,7 @@
 export interface TimeSlot {
   startTime: string;
   endTime: string;
+  _id?: string;
 }
 
 export interface Availability {
