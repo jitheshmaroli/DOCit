@@ -2,6 +2,7 @@ import { Availability, TimeSlot } from '../../entities/Availability';
 import { IDoctorRepository } from '../../interfaces/repositories/IDoctorRepository';
 import { IAvailabilityRepository } from '../../interfaces/repositories/IAvailabilityRepository';
 import { NotFoundError, ValidationError } from '../../../utils/errors';
+import moment from 'moment';
 
 export class SetAvailabilityUseCase {
   constructor(
@@ -44,16 +45,23 @@ export class SetAvailabilityUseCase {
       date
     );
     if (existing) {
-      const updated = await this.availabilityRepository.update(existing._id!, {
-        timeSlots,
-      });
-      if (!updated) {
-        throw new NotFoundError(
-          'Failed to update availability; record not found'
+      await this.availabilityRepository.update(existing._id!, { timeSlots });
+      const updatedAvailability =
+        await this.availabilityRepository.findByDoctorAndDate(
+          doctorId,
+          moment(date).startOf('day').toDate()
         );
+      if (!updatedAvailability) {
+        throw new Error('Failed to retrieve updated availability');
       }
-      return updated;
+      return updatedAvailability;
+    } else {
+      const availability: Availability = {
+        doctorId,
+        date: moment(date).startOf('day').toDate(),
+        timeSlots,
+      };
+      return this.availabilityRepository.create(availability);
     }
-    return this.availabilityRepository.create(availability);
   }
 }

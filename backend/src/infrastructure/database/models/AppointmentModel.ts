@@ -13,6 +13,8 @@ const AppointmentSchema = new Schema<Appointment>(
       enum: ['pending', 'confirmed', 'cancelled'],
       default: 'pending',
     },
+    isFreeBooking: { type: Boolean, default: false },
+    bookingTime: { type: Date, default: Date.now },
   },
   { timestamps: true }
 );

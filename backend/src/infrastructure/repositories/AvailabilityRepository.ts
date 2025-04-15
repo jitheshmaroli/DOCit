@@ -1,3 +1,4 @@
+import moment from 'moment';
 import { Availability } from '../../core/entities/Availability';
 import { IAvailabilityRepository } from '../../core/interfaces/repositories/IAvailabilityRepository';
 import { AvailabilityModel } from '../database/models/AvailabilityModel';
@@ -16,11 +17,12 @@ export class AvailabilityRepository implements IAvailabilityRepository {
     doctorId: string,
     date: Date
   ): Promise<Availability | null> {
-    const startOfDay = new Date(date.setHours(0, 0, 0, 0));
-    const endOfDay = new Date(date.setHours(23, 59, 59, 999));
     return AvailabilityModel.findOne({
       doctorId,
-      date: { $gte: startOfDay, $lte: endOfDay },
+      date: {
+        $gte: moment(date).startOf('day').toDate(),
+        $lte: moment(date).endOf('day').toDate(),
+      },
     }).exec();
   }
 
@@ -38,10 +40,8 @@ export class AvailabilityRepository implements IAvailabilityRepository {
   async update(
     id: string,
     updates: Partial<Availability>
-  ): Promise<Availability | null> {
-    return AvailabilityModel.findByIdAndUpdate(id, updates, {
-      new: true,
-    }).exec();
+  ): Promise<void> {
+    await AvailabilityModel.findByIdAndUpdate(id, updates).exec();
   }
 
   async delete(id: string): Promise<void> {

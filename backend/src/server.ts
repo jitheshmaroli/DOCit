@@ -11,6 +11,7 @@ import otpRoutes from './presentation/routes/otp/otpRoutes';
 import { errorMiddleware } from './presentation/middlewares/errorMiddleware';
 import patientRoutes from './presentation/routes/patient/patientRoutes';
 import doctorRoutes from './presentation/routes/doctor/doctorRoutes';
+import adminRoutes from './presentation/routes/admin/adminRoutes';
 import { env } from './config/env';
 
 const app = express();
@@ -31,6 +32,7 @@ app.use('/api/user', userRoutes);
 app.use('/api/otp', otpRoutes);
 app.use('/api/patients', patientRoutes);
 app.use('/api/doctors', doctorRoutes);
+app.use('/api/admin', adminRoutes)
 
 app.get('/', (req: Request, res: Response) => {
   res.send('Doctor Appointment Booking App');

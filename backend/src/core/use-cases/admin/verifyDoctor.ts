@@ -4,10 +4,12 @@ import { IDoctorRepository } from '../../interfaces/repositories/IDoctorReposito
 export class VerifyDoctorUseCase {
   constructor(private doctorRepository: IDoctorRepository) {}
 
-  async execute(doctorId: string): Promise<Doctor | null> {
-    const doctor = await this.doctorRepository.findById(doctorId);
-    if (!doctor) throw new Error('Doctor not found');
+  async execute(doctorId: string): Promise<Doctor> {
+    const updated = await this.doctorRepository.update(doctorId, {
+      isVerified: true,
+    });
+    if (!updated) throw new Error('Doctor not found');
 
-    return this.doctorRepository.update(doctorId, { isVerified: true });
+    return updated;
   }
 }

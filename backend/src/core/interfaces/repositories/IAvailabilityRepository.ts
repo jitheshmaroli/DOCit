@@ -15,6 +15,6 @@ export interface IAvailabilityRepository {
   update(
     id: string,
     updates: Partial<Availability>
-  ): Promise<Availability | null>;
+  ): Promise<void>;
   delete(id: string): Promise<void>;
 }
