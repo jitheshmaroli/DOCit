@@ -43,6 +43,7 @@ export class DoctorController {
     try {
       const doctorId = (req as any).user.id;
       const { startDate, endDate } = req.query;
+      console.log('request body:',req.body)
       if (!startDate || !endDate) {
         throw new ValidationError('startDate and endDate are required');
       }
