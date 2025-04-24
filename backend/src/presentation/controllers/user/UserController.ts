@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { AuthenticationError } from '../../../utils/errors';
 import { Container } from '../../../infrastructure/di/container';
-import { GetCurrentUserUseCase } from '../../../core/use-cases/user/getCurrentUser';
+import { GetCurrentUserUseCase } from '../../../core/use-cases/user/GetCurrentUserUseCase';
 
 export class UserController {
   private getCurrentUserUseCase: GetCurrentUserUseCase;

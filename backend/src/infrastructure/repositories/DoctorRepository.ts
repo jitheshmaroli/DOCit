@@ -16,8 +16,12 @@ export class DoctorRepository implements IDoctorRepository {
     return DoctorModel.findById(id).exec();
   }
 
-  async update(id: string, doctor: Partial<Doctor>): Promise<Doctor | null> {
-    return DoctorModel.findByIdAndUpdate(id, doctor, { new: true }).exec();
+  async update(id: string, updates: Partial<Doctor>): Promise<Doctor | null> {
+    return DoctorModel.findByIdAndUpdate(id, updates, { new: true }).exec();
+  }
+
+  async findByCriteria(criteria: Partial<Doctor>): Promise<Doctor[]> {
+    return DoctorModel.find(criteria).exec();
   }
 
   async delete(id: string): Promise<void> {
@@ -29,11 +33,15 @@ export class DoctorRepository implements IDoctorRepository {
   }
 
   async listVerified(): Promise<Doctor[]> {
-    return DoctorModel.find({ isVerified: true }).exec();
+    return DoctorModel.find({ isVerified: true, isBlocked: false }).exec();
   }
 
   async getDoctorDetails(id: string): Promise<Doctor | null> {
     const doctor = await DoctorModel.findById(id).select('-password').exec();
     return doctor ? (doctor.toObject() as Doctor) : null;
+  }
+
+  async findVerified(): Promise<any[]> {
+    return await DoctorModel.find({ isVerified: true, isBlocked: false }).exec();
   }
 }

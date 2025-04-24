@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import {
-  listDoctors,
-  createDoctor,
-  updateDoctor,
-  deleteDoctor,
-  blockDoctor,
-  verifyDoctor,
+  listDoctorsThunk,
+  createDoctorThunk,
+  updateDoctorThunk,
+  deleteDoctorThunk,
+  blockDoctorThunk,
+  verifyDoctorThunk,
 } from '../../redux/thunks/adminThunk';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -34,13 +34,13 @@ const ManageDoctors: React.FC = () => {
 
   useEffect(() => {
     if (user?.role === 'admin') {
-      dispatch(listDoctors());
+      dispatch(listDoctorsThunk());
     }
   }, [dispatch, user?.role]);
 
   const handleCreateDoctor = async () => {
     try {
-      await dispatch(createDoctor(newDoctor)).unwrap();
+      await dispatch(createDoctorThunk(newDoctor)).unwrap();
       toast.success('Doctor created successfully');
       setIsModalOpen(false);
       setNewDoctor({
@@ -50,7 +50,7 @@ const ManageDoctors: React.FC = () => {
         phone: '',
         licenseNumber: '',
       });
-      dispatch(listDoctors());
+      dispatch(listDoctorsThunk());
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       toast.error('Failed to create doctor');
@@ -61,11 +61,11 @@ const ManageDoctors: React.FC = () => {
     if (!editDoctor) return;
     try {
       await dispatch(
-        updateDoctor({ id: editDoctor._id, updates: editDoctor })
+        updateDoctorThunk({ id: editDoctor._id, updates: editDoctor })
       ).unwrap();
       toast.success('Doctor updated successfully');
       setEditDoctor(null);
-      dispatch(listDoctors());
+      dispatch(listDoctorsThunk());
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       toast.error('Failed to update doctor');
@@ -75,9 +75,9 @@ const ManageDoctors: React.FC = () => {
   const handleDeleteDoctor = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this doctor?')) {
       try {
-        await dispatch(deleteDoctor(id)).unwrap();
+        await dispatch(deleteDoctorThunk(id)).unwrap();
         toast.success('Doctor deleted successfully');
-        dispatch(listDoctors());
+        dispatch(listDoctorsThunk());
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (error) {
         toast.error('Failed to delete doctor');
@@ -89,9 +89,9 @@ const ManageDoctors: React.FC = () => {
     const action = isBlocked ? 'unblock' : 'block';
     if (window.confirm(`Are you sure you want to ${action} this doctor?`)) {
       try {
-        await dispatch(blockDoctor({ id, isBlocked: !isBlocked })).unwrap();
+        await dispatch(blockDoctorThunk({ id, isBlocked: !isBlocked })).unwrap();
         toast.success(`Doctor ${action}ed successfully`);
-        dispatch(listDoctors());
+        dispatch(listDoctorsThunk());
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (error) {
         toast.error(`Failed to ${action} doctor`);
@@ -102,9 +102,9 @@ const ManageDoctors: React.FC = () => {
   const handleVerifyDoctor = async (id: string) => {
     if (window.confirm('Are you sure you want to verify this doctor?')) {
       try {
-        await dispatch(verifyDoctor(id)).unwrap();
+        await dispatch(verifyDoctorThunk(id)).unwrap();
         toast.success('Doctor verified successfully');
-        dispatch(listDoctors());
+        dispatch(listDoctorsThunk());
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (error) {
         toast.error('Failed to verify doctor');
@@ -172,7 +172,7 @@ const ManageDoctors: React.FC = () => {
           <div>
             <p className="text-sm">Error: {error}</p>
             <button
-              onClick={() => dispatch(listDoctors())}
+              onClick={() => dispatch(listDoctorsThunk())}
               className="mt-2 text-sm text-purple-300 hover:text-purple-200"
             >
               Retry

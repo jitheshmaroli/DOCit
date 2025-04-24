@@ -5,7 +5,7 @@ import * as jwt from 'jsonwebtoken';
 export class TokenService implements ITokenService {
   private ACCESS_TOKEN_SECRET: jwt.Secret;
   private REFRESH_TOKEN_SECRET: jwt.Secret;
-  private ACCESS_TOKEN_EXPIRY = '60m';
+  private ACCESS_TOKEN_EXPIRY = '15m';
   private REFRESH_TOKEN_EXPIRY = '7d';
 
   constructor() {

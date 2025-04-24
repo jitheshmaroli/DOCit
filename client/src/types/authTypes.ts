@@ -68,7 +68,7 @@ export interface LoginPayload {
 
 export interface VerifyOtpPayload {
   email: string;
-  role: string,
+  role: string;
   otp?: string;
   password?: string;
   name?: string;
@@ -87,3 +87,69 @@ export interface ResetPasswordPayload {
 }
 
 export type UserRole = 'patient' | 'doctor' | 'admin';
+
+export interface SubscriptionPlan {
+  _id: string;
+  doctorId?: string;
+  name?: string;
+  description: string;
+  appointmentCost: number;
+  duration: number;
+  status: 'pending' | 'approved' | 'rejected';
+  doctorName?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface Appointment {
+  _id: string;
+  patientName: string;
+  doctorName?: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  status: 'pending' | 'confirmed' | 'cancelled';
+}
+
+export interface GetDoctorAvailabilityPayload {
+  doctorId: string;
+  startDate: Date;
+  endDate?: Date;
+}
+
+export interface BookAppointmentPayload {
+  doctorId: string;
+  date: Date;
+  startTime: string;
+  endTime: string;
+  isFreeBooking: boolean;
+}
+
+export interface AvailabilityPayload {
+  startDate: Date;
+  endDate?: Date;
+}
+
+export interface SetAvailabilityPayload {
+  date: Date;
+  timeSlots: { startTime: string; endTime: string }[];
+}
+
+export interface SubscriptionPlanPayload {
+  name: string;
+  description: string;
+  appointmentCost: number;
+  duration: number;
+}
+
+export interface UpdateSubscriptionPlanPayload extends SubscriptionPlanPayload {
+  id: string;
+}
+
+export interface SubscriptionPlan {
+  _id: string;
+  name?: string;
+  description: string;
+  appointmentCost: number;
+  duration: number;
+}

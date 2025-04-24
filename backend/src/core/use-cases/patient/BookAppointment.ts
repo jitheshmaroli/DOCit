@@ -3,12 +3,14 @@ import { IAvailabilityRepository } from '../../interfaces/repositories/IAvailabi
 import { IDoctorRepository } from '../../interfaces/repositories/IDoctorRepository';
 import { ValidationError, NotFoundError } from '../../../utils/errors';
 import { IAppointmentRepository } from '../../interfaces/repositories/IAppointmentRepository';
+import { IPatientSubscriptionRepository } from '../../interfaces/repositories/IPatientSubscriptionRepository';
 
 export class BookAppointmentUseCase {
   constructor(
     private appointmentRepository: IAppointmentRepository,
     private availabilityRepository: IAvailabilityRepository,
-    private doctorRepository: IDoctorRepository
+    private doctorRepository: IDoctorRepository,
+    private patientSubscriptionRepository: IPatientSubscriptionRepository
   ) {}
 
   async execute(
@@ -44,6 +46,33 @@ export class BookAppointmentUseCase {
     if (existingAppointment)
       throw new ValidationError('This time slot is already booked');
 
+    const activeSubscription =
+      await this.patientSubscriptionRepository.findActiveByPatientAndDoctor(
+        patientId,
+        doctorId
+      );
+    let isFreeBooking = false;
+
+    if (!activeSubscription) {
+      if (!doctor.allowFreeBooking) {
+        throw new ValidationError(
+          'This doctor requires a subscription for bookings'
+        );
+      }
+
+      const priorAppointments =
+        await this.appointmentRepository.countByPatientAndDoctor(
+          patientId,
+          doctorId
+        );
+      if (priorAppointments >= 1) {
+        throw new ValidationError(
+          'You must subscribe to book more appointments with this doctor'
+        );
+      }
+      isFreeBooking = true;
+    }
+
     const appointment: Appointment = {
       patientId,
       doctorId,
@@ -51,6 +80,8 @@ export class BookAppointmentUseCase {
       startTime,
       endTime,
       status: 'pending',
+      isFreeBooking,
+      bookingTime: new Date(),
     };
 
     return this.appointmentRepository.create(appointment);

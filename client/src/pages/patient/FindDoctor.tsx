@@ -1,12 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { useAppDispatch, useAppSelector } from '../../redux/hooks';
-import { fetchVerifiedDoctors } from '../../redux/thunks/doctorThunk';
-import { API_BASE_URL } from '../../utils/config';
 import defaultAvatar from '/images/avatar.png';
 import { useNavigate } from 'react-router-dom';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { useAppDispatch, useAppSelector } from '../../redux/hooks';
+import {
+  fetchVerifiedDoctorsThunk,
+} from '../../redux/thunks/doctorThunk';
+import { API_BASE_URL } from '../../utils/config';
+import {
+  clearError as clearDoctorError,
+} from '../../redux/slices/doctorSlice';
 
 interface Filters {
-  availableToday: boolean;
   searchQuery: string;
   speciality: string;
   ageRange: string;
@@ -15,25 +21,17 @@ interface Filters {
 
 const ITEMS_PER_PAGE = 5;
 
-const SPECIALITIES = [
-  'Cardiology',
-  'Neurology',
-  'Pediatrics',
-  'Orthopedics',
-  'Dermatology',
-  'Oncology',
-  'General Practice',
-  'Psychiatry',
-  'Gynecology',
-  'Other',
-];
-
 const FindDoctor: React.FC = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const { doctors, loading, error } = useAppSelector((state) => state.doctors);
+  const { doctors, error: doctorError } =
+    useAppSelector((state) => state.doctors);
+
+  const specialities = Array.from(
+    new Set(doctors.map((doctor) => doctor.speciality).filter(Boolean))
+  ).sort();
+
   const [filters, setFilters] = useState<Filters>({
-    availableToday: false,
     searchQuery: '',
     speciality: '',
     ageRange: '',
@@ -43,16 +41,20 @@ const FindDoctor: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
-    dispatch(fetchVerifiedDoctors());
+    dispatch(fetchVerifiedDoctorsThunk());
   }, [dispatch]);
+
+  useEffect(() => {
+    if (doctorError) {
+      toast.error(doctorError);
+      dispatch(clearDoctorError());
+    }
+  }, [doctorError, dispatch]);
 
   const filteredDoctors = doctors.filter((doctor) => {
     const matchesSearch = doctor.name
       .toLowerCase()
       .includes(filters.searchQuery.toLowerCase());
-    const matchesAvailability = filters.availableToday
-      ? doctor.availability?.toLowerCase().includes('today')
-      : true;
     const matchesSpeciality = filters.speciality
       ? doctor.speciality?.toLowerCase() === filters.speciality.toLowerCase()
       : true;
@@ -74,13 +76,7 @@ const FindDoctor: React.FC = () => {
           }
         })()
       : true;
-    return (
-      matchesSearch &&
-      matchesAvailability &&
-      matchesSpeciality &&
-      matchesGender &&
-      matchesAge
-    );
+    return matchesSearch && matchesSpeciality && matchesGender && matchesAge;
   });
 
   const totalPages = Math.ceil(filteredDoctors.length / ITEMS_PER_PAGE);
@@ -89,55 +85,16 @@ const FindDoctor: React.FC = () => {
     currentPage * ITEMS_PER_PAGE
   );
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleFilterChange = (name: keyof Filters, value: any) => {
+  const handleFilterChange = (name: keyof Filters, value: string) => {
     setFilters((prev) => ({ ...prev, [name]: value }));
     setCurrentPage(1);
   };
 
   const handlePageChange = (page: number) => setCurrentPage(page);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 flex justify-center items-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-300"></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 flex items-center justify-center">
-        <div className="bg-red-500/20 border-l-4 border-red-500 p-4 rounded-lg text-white">
-          <div className="flex items-center">
-            <svg
-              className="h-5 w-5 text-red-300 mr-3"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-            >
-              <path
-                fillRule="evenodd"
-                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                clipRule="evenodd"
-              />
-            </svg>
-            <div>
-              <p className="text-sm">{error}</p>
-              <button
-                onClick={() => dispatch(fetchVerifiedDoctors())}
-                className="mt-2 text-sm text-purple-300 hover:text-purple-200 transition-colors"
-              >
-                Retry
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 py-8">
+      <ToastContainer position="top-right" autoClose={3000} theme="dark" />
       <div className="container mx-auto px-4">
         <div className="bg-white/10 backdrop-blur-lg py-8 rounded-2xl border border-white/20 mb-8">
           <h2 className="text-2xl font-bold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent mb-6 text-center">
@@ -168,37 +125,6 @@ const FindDoctor: React.FC = () => {
             </h3>
             <div className="mb-6">
               <label className="block text-gray-200 text-sm mb-2">
-                Availability
-              </label>
-              <div className="flex items-center">
-                <div
-                  className={`w-6 h-6 border-2 rounded ${filters.availableToday ? 'border-purple-400 bg-purple-400' : 'border-white/20 bg-white/10'} flex items-center justify-center mr-2 cursor-pointer`}
-                  onClick={() =>
-                    handleFilterChange(
-                      'availableToday',
-                      !filters.availableToday
-                    )
-                  }
-                >
-                  {filters.availableToday && (
-                    <div className="w-3 h-3 bg-white rounded-sm"></div>
-                  )}
-                </div>
-                <span
-                  className="text-gray-200 text-sm cursor-pointer"
-                  onClick={() =>
-                    handleFilterChange(
-                      'availableToday',
-                      !filters.availableToday
-                    )
-                  }
-                >
-                  Available today
-                </span>
-              </div>
-            </div>
-            <div className="mb-6">
-              <label className="block text-gray-200 text-sm mb-2">
                 Speciality
               </label>
               <select
@@ -206,11 +132,17 @@ const FindDoctor: React.FC = () => {
                 onChange={(e) =>
                   handleFilterChange('speciality', e.target.value)
                 }
-                className="w-full p-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
+                className="w-full p-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-400 appearance-none"
               >
-                <option value="">All Specialities</option>
-                {SPECIALITIES.map((spec) => (
-                  <option key={spec} value={spec}>
+                <option value="" className="bg-purple-900 text-white">
+                  All Specialities
+                </option>
+                {specialities.map((spec) => (
+                  <option
+                    key={spec}
+                    value={spec}
+                    className="bg-purple-900 text-white"
+                  >
                     {spec}
                   </option>
                 ))}
@@ -223,12 +155,20 @@ const FindDoctor: React.FC = () => {
               <select
                 value={filters.ageRange}
                 onChange={(e) => handleFilterChange('ageRange', e.target.value)}
-                className="w-full p-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
+                className="w-full p-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-400 appearance-none"
               >
-                <option value="">All Ages</option>
-                <option value="0-30">0-30</option>
-                <option value="31-50">31-50</option>
-                <option value="51+">51+</option>
+                <option value="" className="bg-purple-900 text-white">
+                  All Ages
+                </option>
+                <option value="0-30" className="bg-purple-900 text-white">
+                  0-30
+                </option>
+                <option value="31-50" className="bg-purple-900 text-white">
+                  31-50
+                </option>
+                <option value="51+" className="bg-purple-900 text-white">
+                  51+
+                </option>
               </select>
             </div>
             <div className="mb-6">
@@ -236,12 +176,20 @@ const FindDoctor: React.FC = () => {
               <select
                 value={filters.gender}
                 onChange={(e) => handleFilterChange('gender', e.target.value)}
-                className="w-full p-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
+                className="w-full p-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-400 appearance-none"
               >
-                <option value="">All Genders</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-                <option value="Other">Other</option>
+                <option value="" className="bg-purple-900 text-white">
+                  All Genders
+                </option>
+                <option value="Male" className="bg-purple-900 text-white">
+                  Male
+                </option>
+                <option value="Female" className="bg-purple-900 text-white">
+                  Female
+                </option>
+                <option value="Other" className="bg-purple-900 text-white">
+                  Other
+                </option>
               </select>
             </div>
           </div>
@@ -263,7 +211,7 @@ const FindDoctor: React.FC = () => {
                   key={doctor._id}
                   className="bg-gradient-to-r from-white/10 via-white/20 to-white/10 backdrop-blur-lg border border-white/20 p-6 rounded-2xl hover:shadow-2xl hover:from-white/20 hover:to-white/30 transition-all duration-300 transform hover:-translate-y-1"
                 >
-                  <div className="flex flex-col sm:flex-row gap-6">
+                  <div className="flex flex-col sm:flex-row gap-6 items-center">
                     <div className="flex-shrink-0">
                       <img
                         src={
@@ -272,45 +220,28 @@ const FindDoctor: React.FC = () => {
                             : defaultAvatar
                         }
                         alt={doctor.name}
-                        className="w-[150px] h-[150px] rounded-full object-cover shadow-lg border-4 border-purple-500/50"
+                        className="w-[100px] h-[100px] rounded-full object-cover shadow-lg border-4 border-purple-500/50"
                         onError={(e) => {
                           (e.target as HTMLImageElement).src = defaultAvatar;
                         }}
                       />
-                      <div className="mt-2 text-center">
-                        <span className="text-xs text-purple-300 bg-purple-500/20 py-1 px-3 rounded-full">
-                          {doctor.availability || 'Availability TBD'}
-                        </span>
-                      </div>
                     </div>
-                    <div className="flex-1">
-                      <h3 className="text-xl font-bold text-white mb-1">
+                    <div className="flex-1 text-center sm:text-left">
+                      <h3 className="text-lg font-bold text-white mb-1">
                         Dr. {doctor.name}
                       </h3>
                       <p className="text-sm text-purple-300 mb-2">
                         {doctor.speciality || 'Speciality N/A'}
                       </p>
-                      <p className="text-sm text-gray-200 mb-2">
-                        Qualifications:{' '}
-                        {doctor.qualifications?.join(', ') || 'N/A'}
-                      </p>
                       <p className="text-sm text-gray-300 mb-4">
-                        Age: {doctor.age || 'N/A'} | Gender:{' '}
-                        {doctor.gender || 'N/A'}
+                        {doctor.availability || 'Availability TBD'}
                       </p>
-                      <div className="flex gap-3">
-                        <button
-                          onClick={() =>
-                            navigate(`/patient/book-appointment/${doctor._id}`)
-                          }
-                          className="bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold text-sm py-2 px-6 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300 shadow-md hover:shadow-lg"
-                        >
-                          Book Appointment
-                        </button>
-                        <button className="border border-purple-400 text-purple-300 font-bold text-sm py-2 px-6 rounded-lg hover:bg-purple-400/20 transition-all duration-300">
-                          View Profile
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => navigate(`/patient/doctors/${doctor._id}`)}
+                        className="bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold text-sm py-2 px-6 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300 shadow-md hover:shadow-lg"
+                      >
+                        View Details
+                      </button>
                     </div>
                   </div>
                 </div>

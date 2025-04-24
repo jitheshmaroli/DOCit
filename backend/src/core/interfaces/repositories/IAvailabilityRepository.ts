@@ -12,9 +12,12 @@ export interface IAvailabilityRepository {
     startDate: Date,
     endDate: Date
   ): Promise<Availability[]>;
-  update(
-    id: string,
-    updates: Partial<Availability>
-  ): Promise<Availability | null>;
+  update(id: string, updates: Partial<Availability>): Promise<void>;
   delete(id: string): Promise<void>;
+  removeSlot(availabilityId: string, slotIndex: number): Promise<Availability | null>;
+  updateSlot(
+    availabilityId: string,
+    slotIndex: number,
+    newSlot: { startTime: string; endTime: string }
+  ): Promise<Availability | null>;
 }

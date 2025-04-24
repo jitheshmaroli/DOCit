@@ -66,6 +66,16 @@ const Sidebar: React.FC<DoctorSidebarProps> = ({ activePage, onClose }) => {
           <span className="text-[16px]">Availability</span>
         </Link>
         <Link
+          to="/doctor/plans"
+          className={`flex items-center gap-3 py-2 px-4 ${isActive('plans')} transition-all duration-300`}
+          onClick={onClose}
+        >
+          <div className="w-[30px] h-[30px] bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center rounded-md shadow-md">
+            <span className="text-white">💸</span>
+          </div>
+          <span className="text-[16px]">Plans</span>
+        </Link>
+        <Link
           to="/doctor/profile"
           className={`flex items-center gap-3 py-2 px-4 ${isActive('profile')} transition-all duration-300`}
           onClick={onClose}

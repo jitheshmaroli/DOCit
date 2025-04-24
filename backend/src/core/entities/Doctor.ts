@@ -8,6 +8,8 @@ export interface Doctor {
   licenseNumber?: string;
   location?: string;
   speciality?: string;
+  experience?: number;
+  allowFreeBooking: boolean;
   age?: string;
   gender?: string;
   isVerified: boolean;
