@@ -9,39 +9,81 @@ import { ISubscriptionPlanRepository } from '../../../core/interfaces/repositori
 import { IDoctorRepository } from '../../../core/interfaces/repositories/IDoctorRepository';
 import { BookAppointmentUseCase } from '../../../core/use-cases/patient/BookAppointment';
 import { GetDoctorAvailabilityUseCase } from '../../../core/use-cases/patient/GetDoctorAvailability';
+import mongoose from 'mongoose';
+import { GetDoctorUseCase } from '../../../core/use-cases/patient/GetDoctorUseCase';
+import { GetVerifiedDoctorsUseCase } from '../../../core/use-cases/patient/GetVerifiedDoctorsUseCase';
 
 export class PatientController {
   private bookAppointmentUseCase: BookAppointmentUseCase;
   private getDoctorAvailabilityUseCase: GetDoctorAvailabilityUseCase;
   private subscribeToPlanUseCase: SubscribeToPlanUseCase;
   private cancelAppointmentUseCase: CancelAppointmentUseCase;
+  private getDoctorUseCase: GetDoctorUseCase;
+  private getVerifiedDoctorsUseCase: GetVerifiedDoctorsUseCase;
   private patientSubscriptionRepository: IPatientSubscriptionRepository;
   private appointmentRepository: IAppointmentRepository;
   private subscriptionPlanRepository: ISubscriptionPlanRepository;
-  private doctorRepository: IDoctorRepository;
 
   constructor(container: Container) {
     this.bookAppointmentUseCase = container.get('BookAppointmentUseCase');
-    this.getDoctorAvailabilityUseCase = container.get('GetDoctorAvailabilityUseCase');
+    this.getDoctorAvailabilityUseCase = container.get(
+      'GetDoctorAvailabilityUseCase'
+    );
     this.subscribeToPlanUseCase = container.get('SubscribeToPlanUseCase');
     this.cancelAppointmentUseCase = container.get('CancelAppointmentUseCase');
-    this.patientSubscriptionRepository = container.get('IPatientSubscriptionRepository');
+    this.getDoctorUseCase = container.get('GetDoctorUseCase');
+    this.getVerifiedDoctorsUseCase = container.get('GetVerifiedDoctorsUseCase');
+    this.patientSubscriptionRepository = container.get(
+      'IPatientSubscriptionRepository'
+    );
     this.appointmentRepository = container.get('IAppointmentRepository');
-    this.subscriptionPlanRepository = container.get('ISubscriptionPlanRepository');
-    this.doctorRepository = container.get('IDoctorRepository');
+    this.subscriptionPlanRepository = container.get(
+      'ISubscriptionPlanRepository'
+    );
   }
 
-  async getDoctorAvailability(req: Request, res: Response, next: NextFunction): Promise<void> {
+  // async getDoctorAvailability(
+  //   req: Request,
+  //   res: Response,
+  //   next: NextFunction
+  // ): Promise<void> {
+  //   try {
+  //     const { doctorId } = req.params;
+  //     const { startDate, endDate } = req.query;
+  //     if (!doctorId || !startDate || !endDate) {
+  //       throw new ValidationError(
+  //         'doctorId, startDate, and endDate are required'
+  //       );
+  //     }
+  //     const availability = await this.getDoctorAvailabilityUseCase.execute(
+  //       doctorId,
+  //       new Date(startDate as string),
+  //       new Date(endDate as string)
+  //     );
+  //     res.status(200).json(availability || []);
+  //   } catch (error) {
+  //     next(error);
+  //   }
+  // }
+
+  async getDoctorAvailability(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     try {
       const { doctorId } = req.params;
-      const { startDate, endDate } = req.query;
-      if (!doctorId || !startDate || !endDate) {
-        throw new ValidationError('doctorId, startDate, and endDate are required');
+      const date = req.query.startDate;
+      if (!doctorId || !date) {
+        throw new ValidationError('doctorId and date are required');
       }
+      const startDate = new Date(date as string);
+      const endDate = new Date(startDate);
+      endDate.setDate(startDate.getDate() + 30); // Set endDate to next day
       const availability = await this.getDoctorAvailabilityUseCase.execute(
         doctorId,
-        new Date(startDate as string),
-        new Date(endDate as string)
+        startDate,
+        endDate
       );
       res.status(200).json(availability || []);
     } catch (error) {
@@ -49,12 +91,18 @@ export class PatientController {
     }
   }
 
-  async bookAppointment(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async bookAppointment(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     try {
       const patientId = (req as any).user.id;
       const { doctorId, date, startTime, endTime } = req.body;
       if (!doctorId || !date || !startTime || !endTime) {
-        throw new ValidationError('doctorId, date, startTime, and endTime are required');
+        throw new ValidationError(
+          'doctorId, date, startTime, and endTime are required'
+        );
       }
       const appointment = await this.bookAppointmentUseCase.execute(
         patientId,
@@ -69,31 +117,70 @@ export class PatientController {
     }
   }
 
-  async subscribeToPlan(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async getActiveSubscription(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const patientId = (req as any).user.id;
+      const { doctorId } = req.params;
+      if (!doctorId) {
+        throw new ValidationError('doctorId is required');
+      }
+      const subscription =
+        await this.patientSubscriptionRepository.findActiveByPatientAndDoctor(
+          patientId,
+          doctorId
+        );
+      res.status(200).json(subscription || null);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async subscribeToPlan(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     try {
       const patientId = (req as any).user.id;
       const { planId } = req.body;
+      console.log('request recieved', req.body);
       if (!planId) {
         throw new ValidationError('planId is required');
       }
-      const subscription = await this.subscribeToPlanUseCase.execute(patientId, planId);
+      const subscription = await this.subscribeToPlanUseCase.execute(
+        patientId,
+        planId
+      );
       res.status(201).json(subscription);
     } catch (error) {
       next(error);
     }
   }
 
-  async getSubscriptions(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async getSubscriptions(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     try {
       const patientId = (req as any).user.id;
-      const subscriptions = await this.patientSubscriptionRepository.findByPatient(patientId);
+      const subscriptions =
+        await this.patientSubscriptionRepository.findByPatient(patientId);
       res.status(200).json(subscriptions);
     } catch (error) {
       next(error);
     }
   }
 
-  async cancelAppointment(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async cancelAppointment(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     try {
       const patientId = (req as any).user.id;
       const { appointmentId } = req.params;
@@ -107,39 +194,87 @@ export class PatientController {
     }
   }
 
-  async getDoctorPlans(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async getDoctorPlans(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     try {
       const { doctorId } = req.params;
       if (!doctorId) {
         throw new ValidationError('doctorId is required');
       }
-      const plans = await this.subscriptionPlanRepository.findApprovedByDoctor(doctorId);
+      const plans =
+        await this.subscriptionPlanRepository.findApprovedByDoctor(doctorId);
       res.status(200).json(plans);
     } catch (error) {
       next(error);
     }
   }
 
-  async getDoctor(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async getDoctor(req: Request, res: Response): Promise<void> {
     try {
       const { doctorId } = req.params;
-      if (!doctorId) {
-        throw new ValidationError('doctorId is required');
+
+      // Validate doctorId
+      if (!mongoose.Types.ObjectId.isValid(doctorId)) {
+        res.status(400).json({ message: 'Invalid doctor ID' });
+        return;
       }
-      const doctor = await this.doctorRepository.findById(doctorId);
+
+      const doctor = await this.getDoctorUseCase.execute(doctorId);
       if (!doctor) {
-        throw new NotFoundError('Doctor not found');
+        res.status(404).json({ message: 'Doctor not found' });
+        return;
       }
+
       res.status(200).json(doctor);
-    } catch (error) {
-      next(error);
+    } catch (error: any) {
+      console.error('Error fetching doctor:', error);
+      res.status(500).json({ message: 'Internal server error' });
     }
   }
 
-  async getAppointments(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async getVerifiedDoctors(req: Request, res: Response): Promise<void> {
+    try {
+      const doctors = await this.getVerifiedDoctorsUseCase.execute();
+      res.status(200).json(doctors);
+    } catch (error: any) {
+      console.error('Error fetching verified doctors:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  }
+
+  //   async getAppointments(
+  //     req: Request,
+  //     res: Response,
+  //     next: NextFunction
+  //   ): Promise<void> {
+  //     try {
+  //       const patientId = (req as any).user.id;
+  //       const appointments =
+  //         await this.appointmentRepository.findByPatient(patientId);
+  //       res.status(200).json(appointments);
+  //     } catch (error) {
+  //       next(error);
+  //     }
+  //   }
+  // }
+
+  async getAppointments(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     try {
       const patientId = (req as any).user.id;
-      const appointments = await this.appointmentRepository.findByPatient(patientId);
+      const { doctorId } = req.query;
+      const appointments = doctorId
+        ? await this.appointmentRepository.findByPatientAndDoctor(
+            patientId,
+            doctorId as string
+          )
+        : await this.appointmentRepository.findByPatient(patientId);
       res.status(200).json(appointments);
     } catch (error) {
       next(error);

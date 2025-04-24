@@ -1,13 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
-import { RefreshTokenUseCase } from '../../../core/use-cases/auth/shared/refreshToken';
-import { LogoutUseCase } from '../../../core/use-cases/auth/shared/logout';
-import { ForgotPasswordUseCase } from '../../../core/use-cases/auth/shared/forgotPassword';
-import { ResetPasswordUseCase } from '../../../core/use-cases/auth/shared/resetPassword';
-import { VerifySignUpOTPUseCase } from '../../../core/use-cases/auth/shared/verifySignUpOTP';
 import { Container } from '../../../infrastructure/di/container';
 import { AuthenticationError, ValidationError } from '../../../utils/errors';
 import { validateEmail, validatePassword } from '../../../utils/validators';
 import { setTokensInCookies } from '../../../utils/cookieUtils';
+import { RefreshTokenUseCase } from '../../../core/use-cases/auth/shared/RefreshTokenUseCase';
+import { LogoutUseCase } from '../../../core/use-cases/auth/shared/LogoutUseCase';
+import { ForgotPasswordUseCase } from '../../../core/use-cases/auth/shared/ForgotPasswordUseCase';
+import { ResetPasswordUseCase } from '../../../core/use-cases/auth/shared/ResetPasswordUseCase';
+import { VerifySignUpOTPUseCase } from '../../../core/use-cases/auth/shared/VerifySignUpOTPUseCase';
+import { env } from '../../../config/env';
 
 export class SharedAuthController {
   private refreshTokenUseCase: RefreshTokenUseCase;
@@ -33,9 +34,9 @@ export class SharedAuthController {
       const refreshToken = req.cookies.refreshToken;
       if (!refreshToken)
         throw new AuthenticationError('No refresh token provided');
-      const { accessToken, refreshToken: newRefreshToken } = 
+      const { accessToken, refreshToken: newRefreshToken } =
         await this.refreshTokenUseCase.execute(refreshToken);
-      setTokensInCookies(res, accessToken, refreshToken)
+      setTokensInCookies(res, accessToken, newRefreshToken);
       res.status(200).json({ message: 'Token refreshed successfully' });
     } catch (error) {
       next(error);
@@ -46,8 +47,16 @@ export class SharedAuthController {
     try {
       const { id, role } = (req as any).user;
       await this.logoutUseCase.execute(id, role);
-      res.clearCookie('accessToken');
-      res.clearCookie('refreshToken');
+      res.clearCookie('accessToken', {
+        httpOnly: true,
+        secure: env.NODE_ENV === 'production',
+        sameSite: 'strict',
+      });
+      res.clearCookie('refreshToken', {
+        httpOnly: true,
+        secure: env.NODE_ENV === 'production',
+        sameSite: 'strict',
+      });
       res.status(200).json({ message: 'Logged out successfully' });
     } catch (error) {
       next(error);

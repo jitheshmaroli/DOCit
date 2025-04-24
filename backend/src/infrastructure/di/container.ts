@@ -5,35 +5,18 @@ import { OTPRepository } from '../repositories/OTPRepository';
 import { EmailService } from '../services/EmailService';
 import { OTPService } from '../services/OTPService';
 import { TokenService } from '../services/TokenService';
-import { SignupPatientUseCase } from '../../core/use-cases/auth/patient/signupPatient';
-import { LoginPatientUseCase } from '../../core/use-cases/auth/patient/loginPatient';
-import { GoogleSignInPatientUseCase } from '../../core/use-cases/auth/patient/googleSignInPatient';
-import { SignupDoctorUseCase } from '../../core/use-cases/auth/doctor/signupDoctor';
-import { LoginDoctorUseCase } from '../../core/use-cases/auth/doctor/loginDoctor';
-import { LoginAdminUseCase } from '../../core/use-cases/auth/admin/loginAdmin';
-import { RefreshTokenUseCase } from '../../core/use-cases/auth/shared/refreshToken';
-import { LogoutUseCase } from '../../core/use-cases/auth/shared/logout';
-import { ForgotPasswordUseCase } from '../../core/use-cases/auth/shared/forgotPassword';
-import { ResetPasswordUseCase } from '../../core/use-cases/auth/shared/resetPassword';
-import { VerifySignUpOTPUseCase } from '../../core/use-cases/auth/shared/verifySignUpOTP';
-import { GetCurrentUserUseCase } from '../../core/use-cases/user/getCurrentUser';
-import { GoogleSignInDoctorUseCase } from '../../core/use-cases/auth/doctor/googleSignInDoctor';
-import { UpdateDoctorUseCase } from '../../core/use-cases/admin/UpdateDoctor';
-import { DeleteDoctorUseCase } from '../../core/use-cases/admin/DeleteDoctor';
-import { BlockDoctorUseCase } from '../../core/use-cases/admin/BlockDoctor';
-import { UpdatePatientUseCase } from '../../core/use-cases/admin/UpdatePatient';
-import { DeletePatientUseCase } from '../../core/use-cases/admin/DeletePatient';
-import { BlockPatientUseCase } from '../../core/use-cases/admin/BlockPatient';
+import { UpdateDoctorUseCase } from '../../core/use-cases/admin/UpdateDoctorUseCase';
+import { DeleteDoctorUseCase } from '../../core/use-cases/admin/DeleteDoctorUseCase';
+import { BlockDoctorUseCase } from '../../core/use-cases/admin/BlockDoctorUseCase';
+import { UpdatePatientUseCase } from '../../core/use-cases/admin/UpdatePatientUseCase';
+import { DeletePatientUseCase } from '../../core/use-cases/admin/DeletePatientUseCase';
+import { BlockPatientUseCase } from '../../core/use-cases/admin/BlockPatientUseCase';
 import { ViewDoctorProfileUseCase } from '../../core/use-cases/profile/ViewDoctorProfile';
 import { UpdateDoctorProfileUseCase } from '../../core/use-cases/profile/UpdateDoctorProfile';
 import { ViewPatientProfileUseCase } from '../../core/use-cases/profile/ViewPatientProfile';
 import { UpdatePatientProfileUseCase } from '../../core/use-cases/profile/UpdatePatientProfile';
-import { CreateDoctorUseCase } from '../../core/use-cases/admin/CreateDoctor';
-import { ListPatientsUseCase } from '../../core/use-cases/admin/listPatients';
-import { ListDoctorsUseCase } from '../../core/use-cases/admin/listDoctors';
-import { ListVerifiedDoctorsUseCase } from '../../core/use-cases/admin/listVerifiedDoctors';
-import { VerifyDoctorUseCase } from '../../core/use-cases/admin/verifyDoctor';
-import { CreatePatientUseCase } from '../../core/use-cases/admin/CreatePatient';
+import { CreateDoctorUseCase } from '../../core/use-cases/admin/CreateDoctorUseCase';
+import { CreatePatientUseCase } from '../../core/use-cases/admin/CreatePatientUseCase';
 import { AvailabilityRepository } from '../repositories/AvailabilityRepository';
 import { SetAvailabilityUseCase } from '../../core/use-cases/doctor/SetAvailability';
 import { GetAvailabilityUseCase } from '../../core/use-cases/doctor/GetAvailability';
@@ -48,6 +31,26 @@ import { BookAppointmentUseCase } from '../../core/use-cases/patient/BookAppoint
 import { GetDoctorAvailabilityUseCase } from '../../core/use-cases/patient/GetDoctorAvailability';
 import { GetDoctorAppointmentsUseCase } from '../../core/use-cases/doctor/GetDoctorAppointmentUseCase';
 import { GetAllAppointmentsUseCase } from '../../core/use-cases/admin/GetAllAppointmentsUseCase';
+import { GetDoctorUseCase } from '../../core/use-cases/patient/GetDoctorUseCase';
+import { GetVerifiedDoctorsUseCase } from '../../core/use-cases/patient/GetVerifiedDoctorsUseCase';
+import { SignupPatientUseCase } from '../../core/use-cases/auth/patient/SignupPatientUseCase';
+import { LoginPatientUseCase } from '../../core/use-cases/auth/patient/LoginPatientUseCase';
+import { GoogleSignInPatientUseCase } from '../../core/use-cases/auth/patient/GoogleSignInPatientUseCase';
+import { SignupDoctorUseCase } from '../../core/use-cases/auth/doctor/SignupDoctorUseCase';
+import { LoginDoctorUseCase } from '../../core/use-cases/auth/doctor/LoginDoctorUseCase';
+import { GoogleSignInDoctorUseCase } from '../../core/use-cases/auth/doctor/GoogleSignInDoctorUseCase';
+import { LoginAdminUseCase } from '../../core/use-cases/auth/admin/LoginAdminUseCase';
+import { RefreshTokenUseCase } from '../../core/use-cases/auth/shared/RefreshTokenUseCase';
+import { LogoutUseCase } from '../../core/use-cases/auth/shared/LogoutUseCase';
+import { ForgotPasswordUseCase } from '../../core/use-cases/auth/shared/ForgotPasswordUseCase';
+import { ResetPasswordUseCase } from '../../core/use-cases/auth/shared/ResetPasswordUseCase';
+import { VerifySignUpOTPUseCase } from '../../core/use-cases/auth/shared/VerifySignUpOTPUseCase';
+import { GetCurrentUserUseCase } from '../../core/use-cases/user/GetCurrentUserUseCase';
+import { ListPatientsUseCase } from '../../core/use-cases/admin/ListPatientsUseCase';
+import { ListDoctorsUseCase } from '../../core/use-cases/admin/ListDoctorsUseCase';
+import { VerifyDoctorUseCase } from '../../core/use-cases/admin/VerifyDoctorUseCase';
+import { RemoveSlotUseCase } from '../../core/use-cases/doctor/RemoveSlotUseCase';
+import { UpdateSlotUseCase } from '../../core/use-cases/doctor/UpdateSlotUseCase';
 
 export class Container {
   private static instance: Container;
@@ -75,8 +78,14 @@ export class Container {
     this.dependencies.set('IAdminRepository', adminRepository);
     this.dependencies.set('IOTPRepository', otpRepository);
     this.dependencies.set('IAvailabilityRepository', availabilityRepository);
-    this.dependencies.set('ISubscriptionPlanRepository', subscriptionPlanRepository);
-    this.dependencies.set('IPatientSubscriptionRepository', patientSubscriptionRepository);
+    this.dependencies.set(
+      'ISubscriptionPlanRepository',
+      subscriptionPlanRepository
+    );
+    this.dependencies.set(
+      'IPatientSubscriptionRepository',
+      patientSubscriptionRepository
+    );
     this.dependencies.set('IAppointmentRepository', appointmentRepository);
 
     // Register services
@@ -174,10 +183,6 @@ export class Container {
       new ListDoctorsUseCase(doctorRepository)
     );
     this.dependencies.set(
-      'ListVerifiedDoctorsUseCase',
-      new ListVerifiedDoctorsUseCase(doctorRepository)
-    );
-    this.dependencies.set(
       'VerifyDoctorUseCase',
       new VerifyDoctorUseCase(doctorRepository)
     );
@@ -234,6 +239,14 @@ export class Container {
       new GetAvailabilityUseCase(availabilityRepository)
     );
     this.dependencies.set(
+      'RemoveSlotUseCase',
+      new RemoveSlotUseCase(availabilityRepository, appointmentRepository)
+    );
+    this.dependencies.set(
+      'UpdateSlotUseCase',
+      new UpdateSlotUseCase(availabilityRepository, appointmentRepository)
+    );
+    this.dependencies.set(
       'BookAppointmentUseCase',
       new BookAppointmentUseCase(
         appointmentRepository,
@@ -262,13 +275,15 @@ export class Container {
     );
     this.dependencies.set(
       'ManageSubscriptionPlanUseCase',
-      new ManageSubscriptionPlanUseCase(subscriptionPlanRepository)
+      new ManageSubscriptionPlanUseCase(
+        subscriptionPlanRepository,
+        doctorRepository
+      )
     );
     this.dependencies.set(
       'CancelAppointmentUseCase',
       new CancelAppointmentUseCase(appointmentRepository)
     );
-    // New use cases
     this.dependencies.set(
       'GetDoctorAppointmentsUseCase',
       new GetDoctorAppointmentsUseCase(appointmentRepository)
@@ -276,6 +291,15 @@ export class Container {
     this.dependencies.set(
       'GetAllAppointmentsUseCase',
       new GetAllAppointmentsUseCase(appointmentRepository)
+    );
+
+    this.dependencies.set(
+      'GetDoctorUseCase',
+      new GetDoctorUseCase(doctorRepository)
+    );
+    this.dependencies.set(
+      'GetVerifiedDoctorsUseCase',
+      new GetVerifiedDoctorsUseCase(doctorRepository)
     );
   }
 

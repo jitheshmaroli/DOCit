@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
-import { ToastContainer } from 'react-toastify';
+import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { getAllAppointments } from '../../redux/thunks/adminThunk'; // Assume a thunk for fetching all appointments
+import { getAllAppointmentsThunk, cancelAppointmentThunk } from '../../redux/thunks/adminThunk';
+import { Appointment } from '../../types/authTypes';
 
 const AdminAppointments: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -12,17 +13,42 @@ const AdminAppointments: React.FC = () => {
 
   useEffect(() => {
     if (user?.role === 'admin') {
-      dispatch(getAllAppointments());
+      dispatch(getAllAppointmentsThunk());
     }
   }, [dispatch, user?.role]);
 
+  useEffect(() => {
+    console.log('Redux appointments:', appointments); // Debug
+  }, [appointments]);
+
+  const handleCancelAppointment = async (appointmentId: string) => {
+    if (window.confirm('Are you sure you want to cancel this appointment?')) {
+      try {
+        await dispatch(cancelAppointmentThunk(appointmentId)).unwrap();
+        toast.success('Appointment cancelled successfully');
+      } catch (error) {
+        toast.error(`Failed to cancel appointment: ${error}`);
+      }
+    }
+  };
+
   const filteredAppointments = Array.isArray(appointments)
-    ? appointments.filter(
-        (appt) =>
-          appt.patientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          appt.doctorName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          appt.date?.toLowerCase().includes(searchTerm.toLowerCase())
-      )
+    ? appointments.filter((appt): appt is Appointment => {
+        if (!appt || !appt._id) {
+          console.warn('Invalid appointment:', appt); // Debug
+          return false;
+        }
+        const patientName = appt.patientName?.toLowerCase() || '';
+        const doctorName = appt.doctorName?.toLowerCase() || '';
+        const date = appt.date ? new Date(appt.date).toLocaleDateString().toLowerCase() : '';
+        const search = searchTerm.toLowerCase();
+        return (
+          patientName.includes(search) ||
+          doctorName.includes(search) ||
+          date.includes(search) ||
+          !search
+        );
+      })
     : [];
 
   if (loading && (!appointments || appointments.length === 0)) {
@@ -38,7 +64,7 @@ const AdminAppointments: React.FC = () => {
       <div className="bg-red-500/20 border-l-4 border-red-500 p-4 rounded-lg text-white">
         <p className="text-sm">Error: {error}</p>
         <button
-          onClick={() => dispatch(getAllAppointments())}
+          onClick={() => dispatch(getAllAppointmentsThunk())}
           className="mt-2 text-sm text-purple-300 hover:text-purple-200 transition-colors"
         >
           Retry
@@ -57,7 +83,7 @@ const AdminAppointments: React.FC = () => {
         <div className="mb-6">
           <input
             type="text"
-            placeholder="Search by patient or doctor..."
+            placeholder="Search by patient, doctor, or date..."
             className="w-full md:w-1/3 p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -82,6 +108,9 @@ const AdminAppointments: React.FC = () => {
                 <th className="px-4 md:px-6 py-3 text-left text-xs font-bold text-gray-200 uppercase tracking-wider">
                   Status
                 </th>
+                <th className="px-4 md:px-6 py-3 text-left text-xs font-bold text-gray-200 uppercase tracking-wider">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/20">
@@ -98,10 +127,12 @@ const AdminAppointments: React.FC = () => {
                       {appt.doctorName || 'N/A'}
                     </td>
                     <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-200">
-                      {new Date(appt.date).toLocaleDateString()}
+                      {appt.date ? new Date(appt.date).toLocaleDateString() : 'N/A'}
                     </td>
                     <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-200">
-                      {appt.startTime} - {appt.endTime}
+                      {appt.startTime && appt.endTime
+                        ? `${appt.startTime} - ${appt.endTime}`
+                        : 'N/A'}
                     </td>
                     <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                       <span
@@ -116,11 +147,24 @@ const AdminAppointments: React.FC = () => {
                         {appt.status || 'Pending'}
                       </span>
                     </td>
+                    <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm">
+                      {appt.status !== 'cancelled' && (
+                        <button
+                          onClick={() => handleCancelAppointment(appt._id)}
+                          className="bg-gradient-to-r from-red-600 to-red-700 text-white px-3 py-1 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="px-4 md:px-6 py-4 text-center text-gray-200">
+                  <td
+                    colSpan={6}
+                    className="px-4 md:px-6 py-4 text-center text-gray-200"
+                  >
                     No appointments found.
                   </td>
                 </tr>

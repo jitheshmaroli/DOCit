@@ -33,11 +33,15 @@ export class DoctorRepository implements IDoctorRepository {
   }
 
   async listVerified(): Promise<Doctor[]> {
-    return DoctorModel.find({ isVerified: true }).exec();
+    return DoctorModel.find({ isVerified: true, isBlocked: false }).exec();
   }
 
   async getDoctorDetails(id: string): Promise<Doctor | null> {
     const doctor = await DoctorModel.findById(id).select('-password').exec();
     return doctor ? (doctor.toObject() as Doctor) : null;
+  }
+
+  async findVerified(): Promise<any[]> {
+    return await DoctorModel.find({ isVerified: true, isBlocked: false }).exec();
   }
 }

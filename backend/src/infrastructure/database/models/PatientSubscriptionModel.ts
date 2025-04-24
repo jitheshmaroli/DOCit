@@ -12,6 +12,7 @@ const PatientSubscriptionSchema = new Schema<PatientSubscription>(
       enum: ['active', 'expired', 'cancelled'],
       default: 'active',
     },
+    remainingDays: { type: Number },
   },
   { timestamps: true }
 );

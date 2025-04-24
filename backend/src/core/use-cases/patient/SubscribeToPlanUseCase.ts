@@ -10,7 +10,11 @@ export class SubscribeToPlanUseCase {
     private patientSubscriptionRepository: IPatientSubscriptionRepository
   ) {}
 
-  async execute(patientId: string, planId: string): Promise<PatientSubscription> {
+  async execute(
+    patientId: string,
+    planId: string
+  ): Promise<PatientSubscription> {
+    console.log("plan use case")
     const plan = await this.subscriptionPlanRepository.findById(planId);
     if (!plan) {
       throw new NotFoundError('Plan not found');
@@ -19,9 +23,15 @@ export class SubscribeToPlanUseCase {
       throw new ValidationError('Plan is not approved');
     }
 
-    const existing = await this.patientSubscriptionRepository.findActiveByPatientAndDoctor(patientId, plan.doctorId);
+    const existing =
+      await this.patientSubscriptionRepository.findActiveByPatientAndDoctor(
+        patientId,
+        plan.doctorId
+      );
     if (existing) {
-      throw new ValidationError('You are already subscribed to a plan for this doctor');
+      throw new ValidationError(
+        'You are already subscribed to a plan for this doctor'
+      );
     }
 
     const startDate = new Date();
@@ -34,6 +44,7 @@ export class SubscribeToPlanUseCase {
       endDate,
       status: 'active',
     };
+    console.log('this is sub data',subscription)
 
     return this.patientSubscriptionRepository.create(subscription);
   }

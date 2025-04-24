@@ -49,7 +49,6 @@ const AdminDashboard: React.FC = () => {
         ))}
       </div>
 
-      {/* Recent Activity */}
       <div className="bg-white/20 backdrop-blur-lg p-6 rounded-lg border border-white/20 shadow-sm">
         <h3 className="text-lg font-semibold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent mb-4">
           Recent Activity

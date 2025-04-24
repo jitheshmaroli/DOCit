@@ -1,48 +1,29 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { 
-  listDoctors, 
-  verifyDoctor,
-  listPatients,
-  getPendingPlans,
-  approvePlan,
-  rejectPlan, 
+import {
+  listDoctorsThunk,
+  verifyDoctorThunk,
+  listPatientsThunk,
+  getAllPlansThunk,
+  approvePlanThunk,
+  rejectPlanThunk,
+  deletePlanThunk,
+  cancelAppointmentThunk,
+  getAllAppointmentsThunk
 } from '../thunks/adminThunk';
-import { Doctor, Patient } from '../../types/authTypes';
-
-// Interface for Appointment (adjust based on your schema)
-interface Appointment {
-  _id: string;
-  patientName: string;
-  doctorName: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  status: 'pending' | 'confirmed' | 'cancelled';
-}
-
-// Interface for Subscription Plan (adjust based on your schema)
-interface SubscriptionPlan {
-  _id: string;
-  title: string;
-  description: string;
-  price: number;
-  duration: number;
-  status: 'pending' | 'approved' | 'rejected';
-  doctorName: string;
-}
+import { Appointment, Doctor, Patient, SubscriptionPlan } from '../../types/authTypes';
 
 interface AdminState {
   appointments: Appointment[];
-  pendingPlans: SubscriptionPlan[];
+  plans: SubscriptionPlan[];
   doctors: Doctor[];
   patients: Patient[];
   loading: boolean;
-  error: string | null; 
+  error: string | null;
 }
 
 const initialState: AdminState = {
   appointments: [],
-  pendingPlans: [],
+  plans: [],
   doctors: [],
   patients: [],
   loading: false,
@@ -66,97 +47,136 @@ const adminSlice = createSlice({
   extraReducers: (builder) => {
     // Doctors
     builder
-      .addCase(listDoctors.pending, (state) => {
+      .addCase(listDoctorsThunk.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(listDoctors.fulfilled, (state, action) => {
+      .addCase(listDoctorsThunk.fulfilled, (state, action) => {
         state.doctors = action.payload;
         state.loading = false;
       })
-      .addCase(listDoctors.rejected, (state, action) => {
+      .addCase(listDoctorsThunk.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })
-      .addCase(verifyDoctor.fulfilled, (state, action) => {
-        const index = state.doctors.findIndex(d => d._id === action.payload._id);
+      .addCase(verifyDoctorThunk.fulfilled, (state, action) => {
+        const index = state.doctors.findIndex((d) => d._id === action.payload._id);
         if (index !== -1) {
           state.doctors[index] = action.payload;
         }
-      })
+      });
 
     // Patients
     builder
-      .addCase(listPatients.pending, (state) => {
+      .addCase(listPatientsThunk.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(listPatients.fulfilled, (state, action) => {
+      .addCase(listPatientsThunk.fulfilled, (state, action) => {
         state.patients = action.payload;
         state.loading = false;
       })
-      .addCase(listPatients.rejected, (state, action) => {
+      .addCase(listPatientsThunk.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
-      })
-      // New cases for subscription plans
-      .addCase(getPendingPlans.pending, (state) => {
+      });
+
+    // Plans
+    builder
+      .addCase(getAllPlansThunk.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(getPendingPlans.fulfilled, (state, action) => {
+      .addCase(getAllPlansThunk.fulfilled, (state, action) => {
         state.loading = false;
-        state.pendingPlans = action.payload;
+        state.plans = action.payload || [];
       })
-      .addCase(getPendingPlans.rejected, (state, action) => {
+      .addCase(getAllPlansThunk.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload || 'Failed to fetch pending plans';
+        state.error = action.payload || 'Failed to fetch plans';
       })
-      .addCase(approvePlan.pending, (state) => {
+      .addCase(approvePlanThunk.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(approvePlan.fulfilled, (state, action) => {
+      .addCase(approvePlanThunk.fulfilled, (state, action) => {
         state.loading = false;
-        state.pendingPlans = state.pendingPlans.filter(
-          (plan) => plan._id !== action.meta.arg
-        );
+        const plan = state.plans.find((p) => p._id === action.meta.arg);
+        if (plan) {
+          plan.status = 'approved';
+        }
       })
-      .addCase(approvePlan.rejected, (state, action) => {
+      .addCase(approvePlanThunk.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload || 'Failed to approve plan';
       })
-      .addCase(rejectPlan.pending, (state) => {
+      .addCase(rejectPlanThunk.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(rejectPlan.fulfilled, (state, action) => {
+      .addCase(rejectPlanThunk.fulfilled, (state, action) => {
         state.loading = false;
-        state.pendingPlans = state.pendingPlans.filter(
-          (plan) => plan._id !== action.meta.arg
-        );
+        const plan = state.plans.find((p) => p._id === action.meta.arg);
+        if (plan) {
+          plan.status = 'rejected';
+        }
       })
-      .addCase(rejectPlan.rejected, (state, action) => {
+      .addCase(rejectPlanThunk.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload || 'Failed to reject plan';
+      })
+      .addCase(deletePlanThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(deletePlanThunk.fulfilled, (state, action) => {
+        state.loading = false;
+        state.plans = state.plans.filter((plan) => plan._id !== action.payload);
+      })
+      .addCase(deletePlanThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to delete plan';
       });
+      builder
+      .addCase(getAllAppointmentsThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getAllAppointmentsThunk.fulfilled, (state, action) => {
+        state.loading = false;
+        state.appointments = action.payload || [];
+      })
+      .addCase(getAllAppointmentsThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to fetch appointments';
+      })
+      .addCase(cancelAppointmentThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(cancelAppointmentThunk.fulfilled, (state, action) => {
+        state.loading = false;
+        const appointment = state.appointments.find((a) => a._id === action.payload);
+        if (appointment) {
+          appointment.status = 'cancelled';
+        }
+      })
+      .addCase(cancelAppointmentThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to cancel appointment';
+      })
 
     // Common error handling
-    builder
-      .addMatcher(
-        (action) => action.type.endsWith('/rejected'),
-        (state, action: PayloadAction<string | undefined>) => {
-          state.loading = false;
-          state.error = action.payload || 'An error occurred';
-        }
-      );
+    builder.addMatcher(
+      (action) => action.type.endsWith('/rejected'),
+      (state, action: PayloadAction<string | undefined>) => {
+        state.loading = false;
+        state.error = action.payload || 'An error occurred';
+      }
+    );
   },
 });
 
-export const { 
-  setLoading, 
-  setError, 
-  clearError,
-} = adminSlice.actions;
+export const { setLoading, setError, clearError } = adminSlice.actions;
 
 export default adminSlice.reducer;

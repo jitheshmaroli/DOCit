@@ -1,7 +1,4 @@
 import { Request, Response, NextFunction } from 'express';
-import { SignupDoctorUseCase } from '../../../core/use-cases/auth/doctor/signupDoctor';
-import { LoginDoctorUseCase } from '../../../core/use-cases/auth/doctor/loginDoctor';
-import { GoogleSignInDoctorUseCase } from '../../../core/use-cases/auth/doctor/googleSignInDoctor';
 import { Container } from '../../../infrastructure/di/container';
 import {
   validateEmail,
@@ -10,6 +7,9 @@ import {
 } from '../../../utils/validators';
 import { ValidationError } from '../../../utils/errors';
 import { setTokensInCookies } from '../../../utils/cookieUtils';
+import { SignupDoctorUseCase } from '../../../core/use-cases/auth/doctor/SignupDoctorUseCase';
+import { LoginDoctorUseCase } from '../../../core/use-cases/auth/doctor/LoginDoctorUseCase';
+import { GoogleSignInDoctorUseCase } from '../../../core/use-cases/auth/doctor/GoogleSignInDoctorUseCase';
 
 export class DoctorAuthController {
   private signupDoctorUseCase: SignupDoctorUseCase;

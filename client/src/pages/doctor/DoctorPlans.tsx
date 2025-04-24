@@ -3,25 +3,30 @@ import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import {
-  createSubscriptionPlan,
-  getSubscriptionPlans,
-} from '../../redux/thunks/doctorThunk'; // Assume thunks for plans
+  createSubscriptionPlanThunk,
+  getSubscriptionPlansThunk,
+  updateSubscriptionPlanThunk,
+  deleteSubscriptionPlanThunk,
+  withdrawSubscriptionPlanThunk,
+} from '../../redux/thunks/doctorThunk';
 
 const DoctorPlans: React.FC = () => {
   const dispatch = useAppDispatch();
-  const { plans = [], loading, error } = useAppSelector((state) => state.doctors);
+  const { plans = [], } = useAppSelector((state) => state.doctors);
   const { user } = useAppSelector((state) => state.auth);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [isEditMode, setIsEditMode] = useState<boolean>(false);
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [planData, setPlanData] = useState({
-    title: '',
+    name: '',
     description: '',
-    price: '',
+    appointmentCost: '',
     duration: '',
   });
 
   useEffect(() => {
     if (user?.role === 'doctor') {
-      dispatch(getSubscriptionPlans());
+      dispatch(getSubscriptionPlansThunk());
     }
   }, [dispatch, user?.role]);
 
@@ -33,54 +38,95 @@ const DoctorPlans: React.FC = () => {
 
   const handleSubmitPlan = async () => {
     if (
-      !planData.title ||
+      !planData.name ||
       !planData.description ||
-      !planData.price ||
+      !planData.appointmentCost ||
       !planData.duration
     ) {
       toast.error('Please fill in all fields');
       return;
     }
 
+    const appointmentCost = parseFloat(planData.appointmentCost);
+    const duration = parseInt(planData.duration);
+
+    if (appointmentCost <= 0 || duration <= 0) {
+      toast.error('Cost and duration must be positive numbers');
+      return;
+    }
+
     try {
-      await dispatch(
-        createSubscriptionPlan({
-          title: planData.title,
-          description: planData.description,
-          price: parseFloat(planData.price),
-          duration: parseInt(planData.duration),
-        })
-      ).unwrap();
-      toast.success('Plan created successfully');
+      const payload = {
+        name: planData.name,
+        description: planData.description,
+        appointmentCost,
+        duration,
+      };
+
+      if (isEditMode && selectedPlanId) {
+        await dispatch(
+          updateSubscriptionPlanThunk({ id: selectedPlanId, ...payload })
+        ).unwrap();
+        toast.success('Plan updated successfully');
+      } else {
+        await dispatch(createSubscriptionPlanThunk(payload)).unwrap();
+        toast.success('Plan created successfully');
+      }
+
       setIsModalOpen(false);
-      setPlanData({ title: '', description: '', price: '', duration: '' });
-      dispatch(getSubscriptionPlans());
-    } catch (error) {
-      toast.error(`Failed to create plan: ${error}`);
+      setIsEditMode(false);
+      setSelectedPlanId(null);
+      setPlanData({
+        name: '',
+        description: '',
+        appointmentCost: '',
+        duration: '',
+      });
+      dispatch(getSubscriptionPlansThunk());
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      toast.error(`Failed to ${isEditMode ? 'update' : 'create'} plan: ${errorMessage}`);
     }
   };
 
-  if (loading && (!plans || plans.length === 0)) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-300"></div>
-      </div>
-    );
-  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleEditPlan = (plan: any) => {
+    setIsEditMode(true);
+    setSelectedPlanId(plan._id);
+    setPlanData({
+      name: plan.name || '',
+      description: plan.description || '',
+      appointmentCost: plan.appointmentCost.toString(),
+      duration: plan.duration.toString(),
+    });
+    setIsModalOpen(true);
+  };
 
-  if (error) {
-    return (
-      <div className="bg-red-500/20 border-l-4 border-red-500 p-4 rounded-lg text-white">
-        <p className="text-sm">Error: {error}</p>
-        <button
-          onClick={() => dispatch(getSubscriptionPlans())}
-          className="mt-2 text-sm text-purple-300 hover:text-purple-200 transition-colors"
-        >
-          Retry
-        </button>
-      </div>
-    );
-  }
+  const handleDeletePlan = async (planId: string) => {
+    if (window.confirm('Are you sure you want to delete this plan?')) {
+      try {
+        await dispatch(deleteSubscriptionPlanThunk(planId)).unwrap();
+        toast.success('Plan deleted successfully');
+        dispatch(getSubscriptionPlansThunk());
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        toast.error(`Failed to delete plan: ${errorMessage}`);
+      }
+    }
+  };
+
+  const handleWithdrawPlan = async (planId: string) => {
+    if (window.confirm('Are you sure you want to withdraw this plan?')) {
+      try {
+        await dispatch(withdrawSubscriptionPlanThunk(planId)).unwrap();
+        toast.success('Plan withdrawn successfully');
+        dispatch(getSubscriptionPlansThunk());
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        toast.error(`Failed to withdraw plan: ${errorMessage}`);
+      }
+    }
+  };
 
   return (
     <>
@@ -91,7 +137,16 @@ const DoctorPlans: React.FC = () => {
             Subscription Plans
           </h2>
           <button
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => {
+              setIsEditMode(false);
+              setPlanData({
+                name: '',
+                description: '',
+                appointmentCost: '',
+                duration: '',
+              });
+              setIsModalOpen(true);
+            }}
             className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300 shadow-lg hover:shadow-xl"
           >
             + Add Plan
@@ -104,22 +159,40 @@ const DoctorPlans: React.FC = () => {
                 key={plan._id}
                 className="bg-white/20 backdrop-blur-lg p-4 rounded-lg border border-white/20 shadow-lg hover:shadow-xl transition-all duration-300"
               >
-                <h3 className="text-lg font-semibold text-white">{plan.title}</h3>
-                <p className="text-sm text-gray-200 mt-2">{plan.description}</p>
-                <p className="text-sm text-gray-200 mt-2">
-                  ${plan.price} for {plan.duration} days
-                </p>
+                <h3 className="text-lg font-semibold text-white">{plan.name || 'Unnamed Plan'}</h3>
+                <p className="text-sm text-gray-200 mt-2">{plan.description || 'No description'}</p>
+                <p className="text-sm text-gray-200 mt-2">${plan.appointmentCost} for {plan.duration} days</p>
                 <p
                   className={`text-xs mt-2 inline-flex px-2 py-1 rounded-full ${
-                    plan.status === 'approved'
-                      ? 'bg-green-500/20 text-green-300'
-                      : plan.status === 'pending'
-                      ? 'bg-yellow-500/20 text-yellow-300'
-                      : 'bg-red-500/20 text-red-300'
+                    plan.status === 'approved' ? 'bg-green-500/20 text-green-300' :
+                    plan.status === 'pending' ? 'bg-yellow-500/20 text-yellow-300' :
+                    'bg-red-500/20 text-red-300'
                   }`}
                 >
                   {plan.status}
                 </p>
+                <div className="mt-4 flex space-x-2">
+                  <button
+                    onClick={() => handleEditPlan(plan)}
+                    className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-3 py-1 rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-300"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDeletePlan(plan._id)}
+                    className="bg-gradient-to-r from-red-600 to-red-700 text-white px-3 py-1 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300"
+                  >
+                    Delete
+                  </button>
+                  {plan.status === 'pending' && (
+                    <button
+                      onClick={() => handleWithdrawPlan(plan._id)}
+                      className="bg-gradient-to-r from-yellow-600 to-yellow-700 text-white px-3 py-1 rounded-lg hover:from-yellow-700 hover:to-yellow-800 transition-all duration-300"
+                    >
+                      Withdraw
+                    </button>
+                  )}
+                </div>
               </div>
             ))
           ) : (
@@ -133,13 +206,15 @@ const DoctorPlans: React.FC = () => {
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 shadow-xl w-full max-w-md">
-            <h2 className="text-xl font-bold text-white mb-4">Add Subscription Plan</h2>
+            <h2 className="text-xl font-bold text-white mb-4">
+              {isEditMode ? 'Edit Subscription Plan' : 'Add Subscription Plan'}
+            </h2>
             <div className="space-y-4">
               <input
                 type="text"
-                name="title"
-                placeholder="Plan Title"
-                value={planData.title}
+                name="name"
+                placeholder="Plan name"
+                value={planData.name}
                 onChange={handleInputChange}
                 className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
               />
@@ -152,11 +227,13 @@ const DoctorPlans: React.FC = () => {
               />
               <input
                 type="number"
-                name="price"
-                placeholder="Price ($)"
-                value={planData.price}
+                name="appointmentCost"
+                placeholder="Appointment Cost ($)"
+                value={planData.appointmentCost}
                 onChange={handleInputChange}
                 className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                min="0"
+                step="0.01"
               />
               <input
                 type="number"
@@ -165,11 +242,17 @@ const DoctorPlans: React.FC = () => {
                 value={planData.duration}
                 onChange={handleInputChange}
                 className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                min="1"
               />
             </div>
             <div className="flex justify-end space-x-2 mt-6">
               <button
-                onClick={() => setIsModalOpen(false)}
+                onClick={() => {
+                  setIsModalOpen(false);
+                  setIsEditMode(false);
+                  setSelectedPlanId(null);
+                  setPlanData({ name: '', description: '', appointmentCost: '', duration: '' });
+                }}
                 className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
               >
                 Cancel
@@ -178,7 +261,7 @@ const DoctorPlans: React.FC = () => {
                 onClick={handleSubmitPlan}
                 className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
               >
-                Submit
+                {isEditMode ? 'Update' : 'Submit'}
               </button>
             </div>
           </div>

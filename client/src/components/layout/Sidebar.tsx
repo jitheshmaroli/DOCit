@@ -53,11 +53,20 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage }) => {
           </li>
           <li>
             <Link
-              to="/admin/view-appointments"
+              to="/admin/appointments"
               className={`flex items-center px-4 py-3 text-sm font-medium ${isActive('appointments')} transition-all duration-300`}
             >
               <span className="mr-3">📅</span>
               View Appointments
+            </Link>
+          </li>
+          <li>
+            <Link
+              to="/admin/plan-management"
+              className={`flex items-center px-4 py-3 text-sm font-medium ${isActive('plan-management')} transition-all duration-300`}
+            >
+              <span className="mr-3">💼</span>
+              Plan Management
             </Link>
           </li>
           <li>

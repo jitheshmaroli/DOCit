@@ -12,6 +12,7 @@ export interface IAppointmentRepository {
   countByPatientAndDoctor(patientId: string, doctorId: string): Promise<number>;
   update(id: string, updates: Partial<Appointment>): Promise<void>;
   findByPatient(patientId: string): Promise<Appointment[]>;
+  findByPatientAndDoctor(patientId: string, doctorId: string): Promise<Appointment[]>;
   findByDoctor(doctorId: string): Promise<Appointment[]>;
   findAll(): Promise<Appointment[]>;
 }

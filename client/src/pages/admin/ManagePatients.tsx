@@ -1,15 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
-import {
-  listPatients,
-  createPatient,
-  updatePatient,
-  deletePatient,
-  blockPatient,
-} from '../../redux/thunks/adminThunk';
+
 import { formatDate } from '../../utils/helpers';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { blockPatientThunk, createPatientThunk, deletePatientThunk, listPatientsThunk, updatePatientThunk } from '../../redux/thunks/adminThunk';
 
 const ITEMS_PER_PAGE = 5;
 
@@ -32,17 +27,17 @@ const ManagePatients: React.FC = () => {
 
   useEffect(() => {
     if (user?.role === 'admin') {
-      dispatch(listPatients());
+      dispatch(listPatientsThunk());
     }
   }, [dispatch, user?.role]);
 
   const handleCreatePatient = async () => {
     try {
-      await dispatch(createPatient(newPatient)).unwrap();
+      await dispatch(createPatientThunk(newPatient)).unwrap();
       toast.success('Patient created successfully');
       setIsModalOpen(false);
       setNewPatient({ email: '', password: '', name: '', phone: '' });
-      dispatch(listPatients());
+      dispatch(listPatientsThunk());
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       toast.error('Failed to create patient');
@@ -53,11 +48,11 @@ const ManagePatients: React.FC = () => {
     if (!editPatient) return;
     try {
       await dispatch(
-        updatePatient({ id: editPatient._id, updates: editPatient })
+        updatePatientThunk({ id: editPatient._id, updates: editPatient })
       ).unwrap();
       toast.success('Patient updated successfully');
       setEditPatient(null);
-      dispatch(listPatients());
+      dispatch(listPatientsThunk());
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       toast.error('Failed to update patient');
@@ -67,9 +62,9 @@ const ManagePatients: React.FC = () => {
   const handleDeletePatient = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this patient?')) {
       try {
-        await dispatch(deletePatient(id)).unwrap();
+        await dispatch(deletePatientThunk(id)).unwrap();
         toast.success('Patient deleted successfully');
-        dispatch(listPatients());
+        dispatch(listPatientsThunk());
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (error) {
         toast.error('Failed to delete patient');
@@ -81,9 +76,9 @@ const ManagePatients: React.FC = () => {
     const action = isBlocked ? 'unblock' : 'block';
     if (window.confirm(`Are you sure you want to ${action} this patient?`)) {
       try {
-        await dispatch(blockPatient({ id, isBlocked: !isBlocked })).unwrap();
+        await dispatch(blockPatientThunk({ id, isBlocked: !isBlocked })).unwrap();
         toast.success(`Patient ${action}ed successfully`);
-        dispatch(listPatients());
+        dispatch(listPatientsThunk());
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (error) {
         toast.error(`Failed to ${action} patient`);
@@ -148,7 +143,7 @@ const ManagePatients: React.FC = () => {
           <div>
             <p className="text-sm">Error: {error}</p>
             <button
-              onClick={() => dispatch(listPatients())}
+              onClick={() => dispatch(listPatientsThunk())}
               className="mt-2 text-sm text-purple-300 hover:text-purple-200"
             >
               Retry

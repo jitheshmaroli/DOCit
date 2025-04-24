@@ -5,6 +5,7 @@ export interface PatientSubscription {
   startDate: Date;
   endDate: Date;
   status: 'active' | 'expired' | 'cancelled';
+  remainingDays?: number;
   createdAt?: Date;
   updatedAt?: Date;
 }

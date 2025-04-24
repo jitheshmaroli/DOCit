@@ -1,19 +1,19 @@
 import { Request, Response, NextFunction } from 'express';
-import { LoginAdminUseCase } from '../../../core/use-cases/auth/admin/loginAdmin';
-import { ListPatientsUseCase } from '../../../core/use-cases/admin/listPatients';
-import { ListDoctorsUseCase } from '../../../core/use-cases/admin/listDoctors';
-import { VerifyDoctorUseCase } from '../../../core/use-cases/admin/verifyDoctor';
 import { Container } from '../../../infrastructure/di/container';
 import { ValidationError } from '../../../utils/errors';
-import { UpdateDoctorUseCase } from '../../../core/use-cases/admin/UpdateDoctor';
-import { DeleteDoctorUseCase } from '../../../core/use-cases/admin/DeleteDoctor';
-import { BlockDoctorUseCase } from '../../../core/use-cases/admin/BlockDoctor';
-import { UpdatePatientUseCase } from '../../../core/use-cases/admin/UpdatePatient';
-import { DeletePatientUseCase } from '../../../core/use-cases/admin/DeletePatient';
-import { BlockPatientUseCase } from '../../../core/use-cases/admin/BlockPatient';
-import { CreateDoctorUseCase } from '../../../core/use-cases/admin/CreateDoctor';
-import { CreatePatientUseCase } from '../../../core/use-cases/admin/CreatePatient';
+import { UpdateDoctorUseCase } from '../../../core/use-cases/admin/UpdateDoctorUseCase';
+import { DeleteDoctorUseCase } from '../../../core/use-cases/admin/DeleteDoctorUseCase';
+import { BlockDoctorUseCase } from '../../../core/use-cases/admin/BlockDoctorUseCase';
+import { UpdatePatientUseCase } from '../../../core/use-cases/admin/UpdatePatientUseCase';
+import { DeletePatientUseCase } from '../../../core/use-cases/admin/DeletePatientUseCase';
+import { BlockPatientUseCase } from '../../../core/use-cases/admin/BlockPatientUseCase';
+import { CreateDoctorUseCase } from '../../../core/use-cases/admin/CreateDoctorUseCase';
+import { CreatePatientUseCase } from '../../../core/use-cases/admin/CreatePatientUseCase';
 import { setTokensInCookies } from '../../../utils/cookieUtils';
+import { ListPatientsUseCase } from '../../../core/use-cases/admin/ListPatientsUseCase';
+import { ListDoctorsUseCase } from '../../../core/use-cases/admin/ListDoctorsUseCase';
+import { VerifyDoctorUseCase } from '../../../core/use-cases/admin/VerifyDoctorUseCase';
+import { LoginAdminUseCase } from '../../../core/use-cases/auth/admin/LoginAdminUseCase';
 
 export class AdminAuthController {
   private loginAdminUseCase: LoginAdminUseCase;

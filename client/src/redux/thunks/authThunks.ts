@@ -1,6 +1,19 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createAsyncThunk } from '@reduxjs/toolkit';
-import axios from 'axios';
-import { API_BASE_URL } from '../../utils/config';
+import {
+  signUpPatient,
+  signUpDoctor,
+  verifySignUpOtp,
+  login,
+  logout,
+  checkAuth,
+  resetPassword,
+  forgotPassword,
+  googleSignInPatient,
+  googleSignInDoctor,
+  getUserProfile,
+  refreshToken,
+} from '../../services/authService';
 import {
   clearUser,
   otpSentSuccess,
@@ -18,59 +31,27 @@ import {
   VerifyOtpPayload,
 } from '../../types/authTypes';
 
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  withCredentials: true, 
-});
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const handleError = (error: any, thunkAPI: any) => {
-  let message = 'An error occurred';
-  let statusCode = 500;
+  const message = error.message || 'An error occurred';
+  const statusCode = error.status || 500;
 
-  if (error.response) {
-    statusCode = error.response.status;
-    message =
-      error.response.data?.message ||
-      error.response.statusText ||
-      'An error occurred';
-
-    if (statusCode === 401 && error.config.url.includes('/api/auth/me')) {
-      thunkAPI.dispatch(setInitialAuthCheckComplete());
-      return thunkAPI.rejectWithValue(null);
-    }
-  } else if (error.request) {
-    message = 'No response from server';
-  } else {
-    message = error.message || 'Request setup error';
+  if (statusCode === 401 && error.config?.url.includes('/api/user/me')) {
+    thunkAPI.dispatch(setInitialAuthCheckComplete());
+    return thunkAPI.rejectWithValue(null);
   }
 
   thunkAPI.dispatch(setError(message));
   return thunkAPI.rejectWithValue(message);
 };
 
-export const signUpPatient = createAsyncThunk(
+export const signUpPatientThunk = createAsyncThunk(
   'auth/signUp',
-  async (
-    payload: {
-      email: string;
-      password: string;
-      name: string;
-      phone: string;
-      role: string;
-      licenseNumber?: string;
-    },
-    thunkAPI
-  ) => {
+  async (payload: SignUpPayload, thunkAPI) => {
     try {
       thunkAPI.dispatch(setLoading(true));
+      const response = await signUpPatient(payload);
 
-      const response = await api.post(
-        `${API_BASE_URL}/api/auth/patient/signup`,
-        payload
-      );
-
-      if (response.data.message === 'OTP sent to your email') {
+      if (response.message === 'OTP sent to your email') {
         thunkAPI.dispatch(otpSentSuccess());
         thunkAPI.dispatch(setSignupData(payload));
         return { email: payload.email };
@@ -85,18 +66,14 @@ export const signUpPatient = createAsyncThunk(
   }
 );
 
-export const signUpDoctor = createAsyncThunk(
+export const signUpDoctorThunk = createAsyncThunk(
   'auth/signUpDoctor',
   async (payload: SignUpPayload, thunkAPI) => {
     try {
       thunkAPI.dispatch(setLoading(true));
+      const response = await signUpDoctor(payload);
 
-      const response = await api.post(
-        `${API_BASE_URL}/api/auth/doctor/signup`,
-        payload
-      );
-
-      if (response.data.message === 'OTP sent to your email') {
+      if (response.message === 'OTP sent to your email') {
         thunkAPI.dispatch(otpSentSuccess());
         return { email: payload.email };
       }
@@ -110,21 +87,17 @@ export const signUpDoctor = createAsyncThunk(
   }
 );
 
-export const verifySignUpOtp = createAsyncThunk(
+export const verifySignUpOtpThunk = createAsyncThunk(
   'auth/verifySignUpOtp',
   async (payload: VerifyOtpPayload, thunkAPI) => {
     try {
       thunkAPI.dispatch(setLoading(true));
+      const response = await verifySignUpOtp(payload);
 
-      const response = await api.post(
-        `${API_BASE_URL}/api/auth/verify-signup-otp`,
-        payload
-      );
-
-      const user = {
-        _id: response.data._id,
-        email: response.data.email,
-        name: response.data.name,
+      const user: User = {
+        _id: response._id,
+        email: response.email,
+        name: response.name,
         role: payload.role as 'patient' | 'doctor',
       };
 
@@ -138,51 +111,24 @@ export const verifySignUpOtp = createAsyncThunk(
   }
 );
 
-export const login = createAsyncThunk(
+export const loginThunk = createAsyncThunk(
   'auth/login',
   async (
-    payload: {
-      email: string;
-      password: string;
-      role: string;
-    },
+    payload: { email: string; password: string; role: string },
     thunkAPI
   ) => {
     try {
       thunkAPI.dispatch(setLoading(true));
+      const response = await login(payload);
 
-      let endpoint = '';
-      switch (payload.role) {
-        case 'patient':
-          endpoint = '/api/auth/patient/login';
-          break;
-        case 'doctor':
-          endpoint = '/api/auth/doctor/login';
-          break;
-        case 'admin':
-          endpoint = '/api/auth/admin/login';
-          break;
-        default:
-          return thunkAPI.rejectWithValue({
-            message: 'Invalid role',
-            statusCode: 400,
-          });
-      }
-
-      const response = await api.post(`${API_BASE_URL}${endpoint}`, {
-        email: payload.email,
-        password: payload.password,
-      });
-
-
-      if (response.data.message === 'Logged in successfully') {
+      if (response.message === 'Logged in successfully') {
         try {
-          const userResponse = await api.get(`${API_BASE_URL}/api/user/me`);
-          const user = {
-            _id: userResponse.data._id,
-            email: userResponse.data.email,
-            name: userResponse.data.name,
-            role: userResponse.data.role || payload.role,
+          const userResponse = await getUserProfile();
+          const user: User = {
+            _id: userResponse._id,
+            email: userResponse.email,
+            name: userResponse.name,
+            role: userResponse.role || payload.role,
           };
           thunkAPI.dispatch(setUser(user));
           return user;
@@ -207,12 +153,10 @@ export const login = createAsyncThunk(
   }
 );
 
-export const logout = createAsyncThunk('auth/logout', async (_, thunkAPI) => {
+export const logoutThunk = createAsyncThunk('auth/logout', async (_, thunkAPI) => {
   try {
     thunkAPI.dispatch(setLoading(true));
-
-    await api.post(`${API_BASE_URL}/api/auth/logout`);
-
+    await logout();
     thunkAPI.dispatch(clearUser());
   } catch (error) {
     return handleError(error, thunkAPI);
@@ -222,24 +166,43 @@ export const logout = createAsyncThunk('auth/logout', async (_, thunkAPI) => {
   }
 });
 
-export const checkAuth = createAsyncThunk(
+export const checkAuthThunk = createAsyncThunk(
   'auth/checkAuth',
   async (expectedRole: 'patient' | 'doctor' | 'admin' | undefined, thunkAPI) => {
     try {
       thunkAPI.dispatch(setLoading(true));
-      const response = await api.get(`${API_BASE_URL}/api/user/me`);
+      const response = await checkAuth();
 
-      const user = {
-        _id: response.data._id,
-        name: response.data.name,
-        email: response.data.email,
-        role: response.data.role || expectedRole,
-        phone: response.data.phone,
+      const user: User = {
+        _id: response._id,
+        name: response.name,
+        email: response.email,
+        role: response.role || expectedRole,
+        phone: response.phone,
       };
 
       thunkAPI.dispatch(setUser(user));
       return user;
-    } catch (error) {
+    } catch (error: any) {
+      if (error.status === 401) {
+        // Try refreshing the token
+        try {
+          await thunkAPI.dispatch(refreshTokenThunk()).unwrap();
+          const response = await checkAuth();
+          const user: User = {
+            _id: response._id,
+            name: response.name,
+            email: response.email,
+            role: response.role || expectedRole,
+            phone: response.phone,
+          };
+          thunkAPI.dispatch(setUser(user));
+          return user;
+        } catch (refreshError) {
+          thunkAPI.dispatch(clearUser());
+          return handleError(refreshError, thunkAPI);
+        }
+      }
       thunkAPI.dispatch(clearUser());
       return handleError(error, thunkAPI);
     } finally {
@@ -249,50 +212,33 @@ export const checkAuth = createAsyncThunk(
   }
 );
 
-export const resetPassword = createAsyncThunk(
+export const resetPasswordThunk = createAsyncThunk(
   'auth/resetPassword',
   async (payload: ResetPasswordPayload, thunkAPI) => {
     try {
       thunkAPI.dispatch(setLoading(true));
-      const response = await api.post(
-        `${API_BASE_URL}/api/auth/reset-password`,
-        payload
-      );
+      const response = await resetPassword(payload);
 
-      if (response.data.message !== 'Password reset successfully') {
-        throw new Error(response.data.message || 'Failed to reset password');
+      if (response.message !== 'Password reset successfully') {
+        throw new Error(response.message || 'Failed to reset password');
       }
 
-      return response.data;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
-      let message = 'An error occurred';
-      if (error.response) {
-        message =
-          error.response.data?.message ||
-          error.response.statusText ||
-          'Failed to reset password';
-      } else if (error.message) {
-        message = error.message;
-      }
-      thunkAPI.dispatch(setError(message));
-      return thunkAPI.rejectWithValue(message);
+      return response;
+    } catch (error) {
+      return handleError(error, thunkAPI);
     } finally {
       thunkAPI.dispatch(setLoading(false));
     }
   }
 );
 
-export const forgotPassword = createAsyncThunk(
+export const forgotPasswordThunk = createAsyncThunk(
   'auth/forgotPassword',
   async (payload: ForgotPasswordPayload, thunkAPI) => {
     try {
       thunkAPI.dispatch(setLoading(true));
-      const response = await api.post(
-        `${API_BASE_URL}/api/auth/forgot-password`,
-        payload
-      );
-      return response.data;
+      const response = await forgotPassword(payload);
+      return response;
     } catch (error) {
       return handleError(error, thunkAPI);
     } finally {
@@ -301,30 +247,26 @@ export const forgotPassword = createAsyncThunk(
   }
 );
 
-export const googleSignInPatient = createAsyncThunk(
+export const googleSignInPatientThunk = createAsyncThunk(
   'auth/googleSignInPatient',
   async (token: string, thunkAPI) => {
     try {
       thunkAPI.dispatch(setLoading(true));
+      const response = await googleSignInPatient(token);
 
-      const response = await api.post(
-        `${API_BASE_URL}/api/auth/patient/google-signin`,
-        { token }
-      );
-
-      if (response.data.message === 'Logged in successfully') {
-        const userResponse = await api.get(`${API_BASE_URL}/api/user/me`);
+      if (response.message === 'Logged in successfully') {
+        const userResponse = await getUserProfile();
         const user: User = {
-          _id: userResponse.data._id,
+          _id: userResponse._id,
           role: 'patient',
-          email: userResponse.data.email,
-          name: userResponse.data.name,
+          email: userResponse.email,
+          name: userResponse.name,
         };
         thunkAPI.dispatch(setUser(user));
         return user;
       }
 
-      // return response.data;
+      throw new Error('Unexpected response from server');
     } catch (error) {
       return handleError(error, thunkAPI);
     } finally {
@@ -333,31 +275,46 @@ export const googleSignInPatient = createAsyncThunk(
   }
 );
 
-export const googleSignInDoctor = createAsyncThunk(
+export const googleSignInDoctorThunk = createAsyncThunk(
   'auth/googleSignInDoctor',
   async (token: string, thunkAPI) => {
     try {
       thunkAPI.dispatch(setLoading(true));
+      const response = await googleSignInDoctor(token);
 
-      const response = await api.post(
-        `${API_BASE_URL}/api/auth/doctor/google-signin`,
-        { token }
-      );
-
-      if (response.data.message === 'Logged in successfully') {
-        const userResponse = await api.get(`${API_BASE_URL}/api/user/me`);
+      if (response.message === 'Logged in successfully') {
+        const userResponse = await getUserProfile();
         const user: User = {
-          _id: userResponse.data._id,
+          _id: userResponse._id,
           role: 'doctor',
-          email: userResponse.data.email,
-          name: userResponse.data.name,
+          email: userResponse.email,
+          name: userResponse.name,
         };
         thunkAPI.dispatch(setUser(user));
-
         return user;
       }
 
-      return response.data;
+      throw new Error('Unexpected response from server');
+    } catch (error) {
+      return handleError(error, thunkAPI);
+    } finally {
+      thunkAPI.dispatch(setLoading(false));
+    }
+  }
+);
+
+export const refreshTokenThunk = createAsyncThunk(
+  'auth/refreshToken',
+  async (_, thunkAPI) => {
+    try {
+      thunkAPI.dispatch(setLoading(true));
+      const response = await refreshToken();
+
+      if (response.message !== 'Token refreshed successfully') {
+        throw new Error('Failed to refresh token');
+      }
+
+      return response;
     } catch (error) {
       return handleError(error, thunkAPI);
     } finally {
