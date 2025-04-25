@@ -282,7 +282,7 @@ export class Container {
     );
     this.dependencies.set(
       'CancelAppointmentUseCase',
-      new CancelAppointmentUseCase(appointmentRepository)
+      new CancelAppointmentUseCase(appointmentRepository, availabilityRepository)
     );
     this.dependencies.set(
       'GetDoctorAppointmentsUseCase',

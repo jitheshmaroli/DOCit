@@ -12,6 +12,11 @@ export interface IAvailabilityRepository {
     startDate: Date,
     endDate: Date
   ): Promise<Availability[]>;
+  findByDoctorAndDateRangeWithUnbookedSlots(
+    doctorId: string,
+    startDate: Date,
+    endDate: Date
+  ): Promise<Availability[]>;
   update(id: string, updates: Partial<Availability>): Promise<void>;
   delete(id: string): Promise<void>;
   removeSlot(availabilityId: string, slotIndex: number): Promise<Availability | null>;
@@ -20,4 +25,10 @@ export interface IAvailabilityRepository {
     slotIndex: number,
     newSlot: { startTime: string; endTime: string }
   ): Promise<Availability | null>;
+  updateSlotBookingStatus(
+    doctorId: string,
+    date: Date,
+    startTime: string,
+    isBooked: boolean
+  ): Promise<void>;
 }

@@ -171,7 +171,6 @@ export class DoctorController {
     next: NextFunction
   ): Promise<void> {
     try {
-      console.log('appointments', (req as any).user);
       const doctorId = (req as any).user.id;
       const appointments =
         await this.getDoctorAppointmentsUseCase.execute(doctorId);

@@ -2,7 +2,6 @@ import { Availability } from '../../entities/Availability';
 import { IAvailabilityRepository } from '../../interfaces/repositories/IAvailabilityRepository';
 import { IAppointmentRepository } from '../../interfaces/repositories/IAppointmentRepository';
 import { NotFoundError, ValidationError } from '../../../utils/errors';
-import moment from 'moment';
 
 export class RemoveSlotUseCase {
   constructor(
@@ -20,6 +19,10 @@ export class RemoveSlotUseCase {
     }
 
     const slot = availability.timeSlots[slotIndex];
+    if (slot.isBooked) {
+      throw new ValidationError('Cannot delete slot: it is booked by a patient');
+    }
+
     const appointment = await this.appointmentRepository.findByDoctorAndSlot(
       doctorId,
       availability.date,

@@ -12,13 +12,21 @@ export class GetDoctorAvailabilityUseCase {
   async execute(
     doctorId: string,
     startDate: Date,
-    endDate: Date
+    endDate: Date,
+    filterBooked: boolean = false
   ): Promise<Availability[]> {
     const doctor = await this.doctorRepository.findById(doctorId);
     if (!doctor) {
       throw new NotFoundError('Doctor not found');
     }
 
+    if (filterBooked) {
+      return this.availabilityRepository.findByDoctorAndDateRangeWithUnbookedSlots(
+        doctorId,
+        startDate,
+        endDate
+      );
+    }
     return this.availabilityRepository.findByDoctorAndDateRange(
       doctorId,
       startDate,

@@ -6,6 +6,7 @@ import {
   getPatientSubscriptionThunk,
   checkFreeBookingThunk,
   getPatientAppointmentsForDoctorThunk,
+  cancelAppointmentThunk,
 } from '../thunks/patientThunk';
 
 interface TimeSlot {
@@ -40,6 +41,7 @@ interface Appointment {
   startTime: string;
   endTime: string;
   isFreeBooking: boolean;
+  status?: string;
 }
 
 interface PatientState {
@@ -51,8 +53,6 @@ interface PatientState {
   loading: boolean;
   error: string | null;
 }
-
-
 
 const initialState: PatientState = {
   doctorAvailability: [],
@@ -150,6 +150,17 @@ const patientSlice = createSlice({
         state.appointments = action.payload;
       })
       .addCase(getPatientAppointmentsForDoctorThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(cancelAppointmentThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(cancelAppointmentThunk.fulfilled, (state) => {
+        state.loading = false;
+      })
+      .addCase(cancelAppointmentThunk.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       });

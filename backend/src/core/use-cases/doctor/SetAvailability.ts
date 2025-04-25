@@ -21,31 +21,26 @@ export class SetAvailabilityUseCase {
       throw new ValidationError('Cannot set availability for past dates');
     }
 
-    // Validate new slots
     timeSlots.forEach((slot, index) => {
       if (!slot.startTime || !slot.endTime) {
         throw new ValidationError(`Time slot at index ${index} is missing startTime or endTime`);
       }
+      slot.isBooked = false; // Ensure new slots are unbooked
       DateUtils.validateTimeSlot(slot.startTime, slot.endTime, utcDate);
     });
 
-    // Check for overlaps among new slots
     DateUtils.checkOverlappingSlots(timeSlots, utcDate);
 
     const existing = await this.availabilityRepository.findByDoctorAndDate(doctorId, utcDate);
 
     if (existing) {
-      // Combine new slots with existing slots
       const allSlots = [...existing.timeSlots, ...timeSlots];
-      // Check for overlaps in combined slots
       DateUtils.checkOverlappingSlots(allSlots, utcDate);
-      // Update with combined slots (no merging)
       await this.availabilityRepository.update(existing._id!, { timeSlots: allSlots });
       const updatedAvailability = await this.availabilityRepository.findByDoctorAndDate(doctorId, utcDate);
       if (!updatedAvailability) {
         throw new NotFoundError('Failed to retrieve updated availability');
       }
-      console.log('Updated availability:', updatedAvailability); // Debugging log
       return updatedAvailability;
     }
 
@@ -56,7 +51,6 @@ export class SetAvailabilityUseCase {
     };
 
     const createdAvailability = await this.availabilityRepository.create(availability);
-    console.log('Created availability:', createdAvailability); // Debugging log
     return createdAvailability;
   }
 }

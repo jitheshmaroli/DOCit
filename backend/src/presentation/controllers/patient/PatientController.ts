@@ -42,30 +42,6 @@ export class PatientController {
     );
   }
 
-  // async getDoctorAvailability(
-  //   req: Request,
-  //   res: Response,
-  //   next: NextFunction
-  // ): Promise<void> {
-  //   try {
-  //     const { doctorId } = req.params;
-  //     const { startDate, endDate } = req.query;
-  //     if (!doctorId || !startDate || !endDate) {
-  //       throw new ValidationError(
-  //         'doctorId, startDate, and endDate are required'
-  //       );
-  //     }
-  //     const availability = await this.getDoctorAvailabilityUseCase.execute(
-  //       doctorId,
-  //       new Date(startDate as string),
-  //       new Date(endDate as string)
-  //     );
-  //     res.status(200).json(availability || []);
-  //   } catch (error) {
-  //     next(error);
-  //   }
-  // }
-
   async getDoctorAvailability(
     req: Request,
     res: Response,
@@ -79,11 +55,12 @@ export class PatientController {
       }
       const startDate = new Date(date as string);
       const endDate = new Date(startDate);
-      endDate.setDate(startDate.getDate() + 30); // Set endDate to next day
+      endDate.setDate(startDate.getDate() + 30);
       const availability = await this.getDoctorAvailabilityUseCase.execute(
         doctorId,
         startDate,
-        endDate
+        endDate,
+        true // Filter booked slots for patients
       );
       res.status(200).json(availability || []);
     } catch (error) {
@@ -147,7 +124,6 @@ export class PatientController {
     try {
       const patientId = (req as any).user.id;
       const { planId } = req.body;
-      console.log('request recieved', req.body);
       if (!planId) {
         throw new ValidationError('planId is required');
       }
@@ -216,7 +192,6 @@ export class PatientController {
     try {
       const { doctorId } = req.params;
 
-      // Validate doctorId
       if (!mongoose.Types.ObjectId.isValid(doctorId)) {
         res.status(400).json({ message: 'Invalid doctor ID' });
         return;
@@ -244,22 +219,6 @@ export class PatientController {
       res.status(500).json({ message: 'Internal server error' });
     }
   }
-
-  //   async getAppointments(
-  //     req: Request,
-  //     res: Response,
-  //     next: NextFunction
-  //   ): Promise<void> {
-  //     try {
-  //       const patientId = (req as any).user.id;
-  //       const appointments =
-  //         await this.appointmentRepository.findByPatient(patientId);
-  //       res.status(200).json(appointments);
-  //     } catch (error) {
-  //       next(error);
-  //     }
-  //   }
-  // }
 
   async getAppointments(
     req: Request,

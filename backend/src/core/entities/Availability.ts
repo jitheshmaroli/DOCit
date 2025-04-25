@@ -2,6 +2,7 @@ export interface TimeSlot {
   startTime: string;
   endTime: string;
   _id?: string;
+  isBooked?: boolean;
 }
 
 export interface Availability {

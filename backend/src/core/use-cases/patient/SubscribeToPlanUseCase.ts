@@ -14,7 +14,6 @@ export class SubscribeToPlanUseCase {
     patientId: string,
     planId: string
   ): Promise<PatientSubscription> {
-    console.log("plan use case")
     const plan = await this.subscriptionPlanRepository.findById(planId);
     if (!plan) {
       throw new NotFoundError('Plan not found');
@@ -44,7 +43,6 @@ export class SubscribeToPlanUseCase {
       endDate,
       status: 'active',
     };
-    console.log('this is sub data',subscription)
 
     return this.patientSubscriptionRepository.create(subscription);
   }

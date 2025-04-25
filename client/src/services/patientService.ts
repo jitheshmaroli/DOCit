@@ -58,3 +58,8 @@ export const subscribeToPlan = async (planId: string) => {
   const response = await api.post('/api/patients/subscriptions', { planId });
   return response.data;
 };
+
+export const cancelAppointment = async (appointmentId: string) => {
+  const response = await api.delete(`/api/patients/appointments/${appointmentId}`);
+  return response.data;
+};

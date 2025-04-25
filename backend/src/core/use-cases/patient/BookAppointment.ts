@@ -4,6 +4,7 @@ import { IDoctorRepository } from '../../interfaces/repositories/IDoctorReposito
 import { ValidationError, NotFoundError } from '../../../utils/errors';
 import { IAppointmentRepository } from '../../interfaces/repositories/IAppointmentRepository';
 import { IPatientSubscriptionRepository } from '../../interfaces/repositories/IPatientSubscriptionRepository';
+import { DateUtils } from '../../../utils/DateUtils';
 
 export class BookAppointmentUseCase {
   constructor(
@@ -23,23 +24,26 @@ export class BookAppointmentUseCase {
     const doctor = await this.doctorRepository.findById(doctorId);
     if (!doctor) throw new NotFoundError('Doctor not found');
 
+    const startOfDay = DateUtils.startOfDayUTC(date);
     const availability = await this.availabilityRepository.findByDoctorAndDate(
       doctorId,
-      date
+      startOfDay
     );
     if (!availability)
       throw new NotFoundError('No availability found for this date');
 
-    const slotAvailable = availability.timeSlots.some(
+    const slot = availability.timeSlots.find(
       slot => slot.startTime === startTime && slot.endTime === endTime
     );
-    if (!slotAvailable)
+    if (!slot)
       throw new ValidationError('Selected time slot is not available');
+    if (slot.isBooked)
+      throw new ValidationError('Selected time slot is already booked');
 
     const existingAppointment =
       await this.appointmentRepository.findByDoctorAndSlot(
         doctorId,
-        date,
+        startOfDay,
         startTime,
         endTime
       );
@@ -76,7 +80,7 @@ export class BookAppointmentUseCase {
     const appointment: Appointment = {
       patientId,
       doctorId,
-      date,
+      date: startOfDay,
       startTime,
       endTime,
       status: 'pending',
@@ -84,6 +88,15 @@ export class BookAppointmentUseCase {
       bookingTime: new Date(),
     };
 
-    return this.appointmentRepository.create(appointment);
+    const savedAppointment = await this.appointmentRepository.create(appointment);
+
+    await this.availabilityRepository.updateSlotBookingStatus(
+      doctorId,
+      startOfDay,
+      startTime,
+      true
+    );
+
+    return savedAppointment;
   }
 }

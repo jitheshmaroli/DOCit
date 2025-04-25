@@ -121,7 +121,6 @@ export class AdminController {
     try {
       const { appointmentId, patientId } = req.params;
       await this.cancelAppointmentUseCase.execute(appointmentId);
-      console.log('Cancelled appointment:', appointmentId); // Debug
       res.status(200).json({ message: 'Appointment cancelled successfully' });
     } catch (error) {
       console.error('Error cancelling appointment:', error);

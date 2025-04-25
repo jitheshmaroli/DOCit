@@ -1,13 +1,17 @@
 import { IAppointmentRepository } from '../../interfaces/repositories/IAppointmentRepository';
+import { IAvailabilityRepository } from '../../interfaces/repositories/IAvailabilityRepository';
 import { NotFoundError, ValidationError } from '../../../utils/errors';
 import moment from 'moment';
+import { DateUtils } from '../../../utils/DateUtils';
 
 export class CancelAppointmentUseCase {
-  constructor(private appointmentRepository: IAppointmentRepository) {}
+  constructor(
+    private appointmentRepository: IAppointmentRepository,
+    private availabilityRepository: IAvailabilityRepository
+  ) {}
 
   async execute(appointmentId: string, patientId: string): Promise<void> {
-    const appointment =
-      await this.appointmentRepository.findById(appointmentId);
+    const appointment = await this.appointmentRepository.findById(appointmentId);
     if (!appointment) {
       throw new NotFoundError('Appointment not found');
     }
@@ -39,5 +43,12 @@ export class CancelAppointmentUseCase {
     await this.appointmentRepository.update(appointmentId, {
       status: 'cancelled',
     });
+
+    await this.availabilityRepository.updateSlotBookingStatus(
+      appointment.doctorId,
+      DateUtils.startOfDayUTC(appointment.date),
+      appointment.startTime,
+      false
+    );
   }
 }

@@ -5,7 +5,6 @@ export class GetDoctorAppointmentsUseCase {
   constructor(private appointmentRepository: IAppointmentRepository) {}
 
   async execute(doctorId: string): Promise<Appointment[]> {
-    console.log('appointment of :', doctorId);
     return this.appointmentRepository.findByDoctor(doctorId);
   }
 }

@@ -13,7 +13,6 @@ const container = Container.getInstance();
 // Controller instantiation
 const patientController = new PatientController(container);
 const patientProfileController = new PatientProfileController(container);
-const patientAuthController = new PatientAuthController(container);
 
 // Multer setup
 const upload = getMulterUploader('patient-profiles');

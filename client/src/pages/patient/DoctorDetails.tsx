@@ -13,6 +13,7 @@ import {
   bookAppointmentThunk,
   getPatientAppointmentsForDoctorThunk,
   getDoctorAvailabilityThunk,
+  cancelAppointmentThunk,
 } from '../../redux/thunks/patientThunk';
 import { clearError as clearDoctorError } from '../../redux/slices/doctorSlice';
 import { clearError as clearPatientError } from '../../redux/slices/patientSlice';
@@ -234,11 +235,29 @@ const DoctorDetails: React.FC = () => {
     }
   };
 
+  const handleCancelAppointment = async (appointmentId: string) => {
+    if (!doctorId) return;
+    try {
+      await dispatch(cancelAppointmentThunk(appointmentId)).unwrap();
+      toast.success('Appointment cancelled successfully');
+      // Refresh appointments
+      dispatch(getPatientAppointmentsForDoctorThunk(doctorId));
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      toast.error(errorMessage);
+    }
+  };
+
   if (!selectedDoctor) {
     return <div className="text-white text-center py-8">Loading...</div>;
   }
 
   const activeSubscription = doctorId ? activeSubscriptions[doctorId] : null;
+
+  const upcomingAppointments = appointments.filter((appt) => {
+    return appt.status !== 'cancelled';
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 py-8">
@@ -356,42 +375,51 @@ const DoctorDetails: React.FC = () => {
 
         <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">
           <h2 className="text-2xl font-bold text-white mb-6">
-            Previous Bookings
+            Upcoming Appointments
           </h2>
-          {appointments.length > 0 ? (
+          {upcomingAppointments.length > 0 ? (
             <div className="space-y-4">
-              {appointments.map((appt) => (
+              {upcomingAppointments.map((appt) => (
                 <div
                   key={appt._id}
-                  className="bg-white/20 p-4 rounded-lg border border-white/20"
+                  className="bg-white/20 backdrop-blur-lg p-4 rounded-lg border border-white/20 flex justify-between items-center"
                 >
-                  <p className="text-sm text-gray-200">
-                    Date:{' '}
-                    {DateUtils.formatToLocalDisplay(
-                      DateUtils.parseToUTC(appt.date)
-                    )}
-                  </p>
-                  <p className="text-sm text-gray-200">
-                    Time:{' '}
-                    {DateUtils.formatTimeToLocal(
-                      appt.startTime,
-                      DateUtils.parseToUTC(appt.date)
-                    )}{' '}
-                    -{' '}
-                    {DateUtils.formatTimeToLocal(
-                      appt.endTime,
-                      DateUtils.parseToUTC(appt.date)
-                    )}
-                  </p>
-                  <p className="text-sm text-gray-200">
-                    Type:{' '}
-                    {appt.isFreeBooking ? 'Free Booking' : 'Subscribed Booking'}
-                  </p>
+                  <div>
+                    <p className="text-sm text-gray-200">
+                      Date:{' '}
+                      {DateUtils.formatToLocalDisplay(
+                        DateUtils.parseToUTC(appt.date)
+                      )}
+                    </p>
+                    <p className="text-sm text-gray-200">
+                      Time:{' '}
+                      {DateUtils.formatTimeToLocal(
+                        appt.startTime,
+                        DateUtils.parseToUTC(appt.date)
+                      )}{' '}
+                      -{' '}
+                      {DateUtils.formatTimeToLocal(
+                        appt.endTime,
+                        DateUtils.parseToUTC(appt.date)
+                      )}
+                    </p>
+                    <p className="text-sm text-gray-200">
+                      Type:{' '}
+                      {appt.isFreeBooking ? 'Free Booking' : 'Subscribed Booking'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleCancelAppointment(appt._id)}
+                    className="bg-gradient-to-r from-red-600 to-pink-600 text-white py-2 px-4 rounded-lg hover:from-red-700 hover:to-pink-700 transition-all duration-300 disabled:opacity-50"
+                    disabled={patientLoading}
+                  >
+                    Cancel
+                  </button>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-gray-300 text-center">No previous bookings</p>
+            <p className="text-gray-300 text-center">No upcoming appointments</p>
           )}
         </div>
 

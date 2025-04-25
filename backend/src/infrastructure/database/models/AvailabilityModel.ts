@@ -4,6 +4,7 @@ import { Availability, TimeSlot } from '../../../core/entities/Availability';
 const TimeSlotSchema = new Schema<TimeSlot>({
   startTime: { type: String, required: true },
   endTime: { type: String, required: true },
+  isBooked: { type: Boolean, default: false },
 });
 
 const AvailabilitySchema = new Schema<Availability>(

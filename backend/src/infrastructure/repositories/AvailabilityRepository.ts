@@ -2,6 +2,7 @@ import { Availability } from '../../core/entities/Availability';
 import { IAvailabilityRepository } from '../../core/interfaces/repositories/IAvailabilityRepository';
 import { AvailabilityModel } from '../database/models/AvailabilityModel';
 import { DateUtils } from '../../utils/DateUtils';
+import { ValidationError } from '../../utils/errors';
 
 export class AvailabilityRepository implements IAvailabilityRepository {
   async create(availability: Availability): Promise<Availability> {
@@ -42,6 +43,37 @@ export class AvailabilityRepository implements IAvailabilityRepository {
     }).exec();
   }
 
+  async findByDoctorAndDateRangeWithUnbookedSlots(
+    doctorId: string,
+    startDate: Date,
+    endDate: Date
+  ): Promise<Availability[]> {
+    return AvailabilityModel.aggregate([
+      {
+        $match: {
+          doctorId,
+          date: {
+            $gte: DateUtils.startOfDayUTC(startDate),
+            $lte: DateUtils.endOfDayUTC(endDate),
+          },
+        },
+      },
+      {
+        $project: {
+          doctorId: 1,
+          date: 1,
+          timeSlots: {
+            $filter: {
+              input: '$timeSlots',
+              as: 'slot',
+              cond: { $eq: ['$$slot.isBooked', false] },
+            },
+          },
+        },
+      },
+    ]).exec();
+  }
+
   async update(id: string, updates: Partial<Availability>): Promise<void> {
     await AvailabilityModel.findByIdAndUpdate(id, updates).exec();
   }
@@ -59,6 +91,9 @@ export class AvailabilityRepository implements IAvailabilityRepository {
     if (!availability) return null;
     if (slotIndex < 0 || slotIndex >= availability.timeSlots.length) {
       return null;
+    }
+    if (availability.timeSlots[slotIndex].isBooked) {
+      throw new ValidationError('Cannot remove a booked slot');
     }
     availability.timeSlots.splice(slotIndex, 1);
     if (availability.timeSlots.length === 0) {
@@ -80,7 +115,10 @@ export class AvailabilityRepository implements IAvailabilityRepository {
     if (slotIndex < 0 || slotIndex >= availability.timeSlots.length) {
       return null;
     }
-    availability.timeSlots[slotIndex] = newSlot;
+    if (availability.timeSlots[slotIndex].isBooked) {
+      throw new ValidationError('Cannot update a booked slot');
+    }
+    availability.timeSlots[slotIndex] = { ...newSlot, isBooked: false };
     DateUtils.validateTimeSlot(
       newSlot.startTime,
       newSlot.endTime,
@@ -89,5 +127,25 @@ export class AvailabilityRepository implements IAvailabilityRepository {
     DateUtils.checkOverlappingSlots(availability.timeSlots, availability.date);
     await availability.save();
     return availability;
+  }
+
+  async updateSlotBookingStatus(
+    doctorId: string,
+    date: Date,
+    startTime: string,
+    isBooked: boolean
+  ): Promise<void> {
+    const startOfDay = DateUtils.startOfDayUTC(date);
+    await AvailabilityModel.updateOne(
+      { doctorId, date: startOfDay },
+      {
+        $set: {
+          'timeSlots.$[slot].isBooked': isBooked,
+        },
+      },
+      {
+        arrayFilters: [{ 'slot.startTime': startTime }],
+      }
+    ).exec();
   }
 }

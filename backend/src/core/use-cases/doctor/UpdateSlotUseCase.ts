@@ -25,6 +25,10 @@ export class UpdateSlotUseCase {
     }
 
     const currentSlot = availability.timeSlots[slotIndex];
+    if (currentSlot.isBooked) {
+      throw new ValidationError('Cannot update slot: it is booked by a patient');
+    }
+
     const appointment = await this.appointmentRepository.findByDoctorAndSlot(
       doctorId,
       availability.date,
@@ -52,7 +56,6 @@ export class UpdateSlotUseCase {
       throw new ValidationError('Cannot set slot before current time');
     }
 
-    // Validate no overlaps with other slots
     availability.timeSlots.forEach((existingSlot, index) => {
       if (index !== slotIndex) {
         const existingStart = moment(
