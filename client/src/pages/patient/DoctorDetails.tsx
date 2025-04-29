@@ -208,12 +208,12 @@ const DoctorDetails: React.FC = () => {
       return;
     }
 
-    const activeSubscription = activeSubscriptions[doctorId];
-    if (!activeSubscription || activeSubscription.isExpired) {
-      toast.error('Please subscribe to a plan to book an appointment');
-      navigate(`/patient/doctors/${doctorId}`);
-      return;
-    }
+    // const activeSubscription = activeSubscriptions[doctorId];
+    // if (!activeSubscription || activeSubscription.isExpired) {
+    //   toast.error('Please subscribe to a plan to book an appointment');
+    //   navigate(`/patient/doctors/${doctorId}`);
+    //   return;
+    // }
 
     try {
       const bookingDate = DateUtils.parseToUTC(selectedDate);

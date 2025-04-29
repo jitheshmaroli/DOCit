@@ -17,6 +17,9 @@ const SubscriptionPlanSchema = new Schema<SubscriptionPlan>(
   { timestamps: true }
 );
 
+SubscriptionPlanSchema.index({ doctorId: 1 });
+SubscriptionPlanSchema.index({ status: 1 });
+
 export const SubscriptionPlanModel = mongoose.model<SubscriptionPlan>(
   'SubscriptionPlan',
   SubscriptionPlanSchema

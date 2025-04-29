@@ -7,7 +7,6 @@ const PatientSchema = new Schema<Patient>(
     password: { type: String },
     name: { type: String },
     phone: { type: String },
-    bloodGroup: { type: String },
     age: { type: String },
     isSubscribed: { type: Boolean, default: false },
     isBlocked: { type: Boolean, default: false },

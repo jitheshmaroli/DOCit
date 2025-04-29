@@ -6,7 +6,6 @@ import { ValidationError, NotFoundError } from '../../../utils/errors';
 import { IPatientSubscriptionRepository } from '../../../core/interfaces/repositories/IPatientSubscriptionRepository';
 import { IAppointmentRepository } from '../../../core/interfaces/repositories/IAppointmentRepository';
 import { ISubscriptionPlanRepository } from '../../../core/interfaces/repositories/ISubscriptionPlanRepository';
-import { IDoctorRepository } from '../../../core/interfaces/repositories/IDoctorRepository';
 import { BookAppointmentUseCase } from '../../../core/use-cases/patient/BookAppointment';
 import { GetDoctorAvailabilityUseCase } from '../../../core/use-cases/patient/GetDoctorAvailability';
 import mongoose from 'mongoose';

@@ -18,8 +18,12 @@ import {
   approvePlan,
   rejectPlan,
   deletePlan,
+  getAllSpecialities,
+  createSpeciality,
+  updateSpeciality,
+  deleteSpeciality,
 } from '../../services/adminService';
-import { Doctor, Patient, Appointment, SubscriptionPlan } from '../../types/authTypes';
+import { Doctor, Patient, Appointment, SubscriptionPlan, Speciality } from '../../types/authTypes';
 import { RootState, AppDispatch } from '../store';
 
 export const listDoctorsThunk = createAsyncThunk<
@@ -231,5 +235,62 @@ export const deletePlanThunk = createAsyncThunk<
   } catch (error: any) {
     console.error('Error deleting plan:', error);
     return rejectWithValue(error.message || 'Failed to delete plan');
+  }
+});
+
+export const getAllSpecialitiesThunk = createAsyncThunk<
+  Speciality[],
+  void,
+  { rejectValue: string }
+>('admin/getAllSpecialities', async (_, { rejectWithValue }) => {
+  try {
+    const specialities = await getAllSpecialities();
+    if (!Array.isArray(specialities)) {
+      console.error('Expected an array, got:', specialities);
+      return [];
+    }
+    return specialities;
+  } catch (error: any) {
+    console.error('Error fetching specialities:', error);
+    return rejectWithValue(error.message || 'Failed to fetch specialities');
+  }
+});
+
+export const createSpecialityThunk = createAsyncThunk<
+  Speciality,
+  string,
+  { rejectValue: string }
+>('admin/createSpeciality', async (name, { rejectWithValue }) => {
+  try {
+    return await createSpeciality(name);
+  } catch (error: any) {
+    console.error('Error creating speciality:', error);
+    return rejectWithValue(error.message || 'Failed to create speciality');
+  }
+});
+
+export const updateSpecialityThunk = createAsyncThunk<
+  Speciality,
+  { id: string; name: string },
+  { rejectValue: string }
+>('admin/updateSpeciality', async ({ id, name }, { rejectWithValue }) => {
+  try {
+    return await updateSpeciality(id, name);
+  } catch (error: any) {
+    console.error('Error updating speciality:', error);
+    return rejectWithValue(error.message || 'Failed to update speciality');
+  }
+});
+
+export const deleteSpecialityThunk = createAsyncThunk<
+  string,
+  string,
+  { rejectValue: string }
+>('admin/deleteSpeciality', async (specialityId, { rejectWithValue }) => {
+  try {
+    return await deleteSpeciality(specialityId);
+  } catch (error: any) {
+    console.error('Error deleting speciality:', error);
+    return rejectWithValue(error.message || 'Failed to delete speciality');
   }
 });

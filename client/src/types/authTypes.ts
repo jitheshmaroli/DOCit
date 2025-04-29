@@ -153,3 +153,10 @@ export interface SubscriptionPlan {
   appointmentCost: number;
   duration: number;
 }
+
+export interface Speciality {
+  _id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+}

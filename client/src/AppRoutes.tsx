@@ -22,14 +22,13 @@ import DoctorAppointments from './pages/doctor/DoctorAppointments';
 import AdminAppointments from './pages/admin/AdminAppointments';
 import DoctorPlans from './pages/doctor/DoctorPlans';
 import AdminPlanManagement from './pages/admin/AdminPlanManagement';
-import DatePickerValue from './DatePickerValue';
+import AdminSpecialityManagement from './pages/admin/AdminSpecialityManagement';
 
 const AppRoutes = () => {
   return (
     <Routes>
       {/* Public routes */}
       <Route path="/" element={<LandingPage />} />
-      <Route path="/slot" element={<DatePickerValue  />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/admin/login" element={<AdminLoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
@@ -63,6 +62,7 @@ const AppRoutes = () => {
           <Route path="manage-patients" element={<ManagePatients />} />
           <Route path="appointments" element={<AdminAppointments />} />
           <Route path="plan-management" element={<AdminPlanManagement />} />
+          <Route path="specialities" element={<AdminSpecialityManagement />} />
         </Route>
       </Route>
 

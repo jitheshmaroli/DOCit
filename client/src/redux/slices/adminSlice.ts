@@ -8,15 +8,20 @@ import {
   rejectPlanThunk,
   deletePlanThunk,
   cancelAppointmentThunk,
-  getAllAppointmentsThunk
+  getAllAppointmentsThunk,
+  getAllSpecialitiesThunk,
+  createSpecialityThunk,
+  updateSpecialityThunk,
+  deleteSpecialityThunk,
 } from '../thunks/adminThunk';
-import { Appointment, Doctor, Patient, SubscriptionPlan } from '../../types/authTypes';
+import { Appointment, Doctor, Patient, SubscriptionPlan, Speciality } from '../../types/authTypes';
 
 interface AdminState {
   appointments: Appointment[];
   plans: SubscriptionPlan[];
   doctors: Doctor[];
   patients: Patient[];
+  specialities: Speciality[];
   loading: boolean;
   error: string | null;
 }
@@ -26,6 +31,7 @@ const initialState: AdminState = {
   plans: [],
   doctors: [],
   patients: [],
+  specialities: [],
   loading: false,
   error: null,
 };
@@ -137,7 +143,9 @@ const adminSlice = createSlice({
         state.loading = false;
         state.error = action.payload || 'Failed to delete plan';
       });
-      builder
+
+    // Appointments
+    builder
       .addCase(getAllAppointmentsThunk.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -164,7 +172,61 @@ const adminSlice = createSlice({
       .addCase(cancelAppointmentThunk.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload || 'Failed to cancel appointment';
+      });
+
+    // Specialities
+    builder
+      .addCase(getAllSpecialitiesThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
       })
+      .addCase(getAllSpecialitiesThunk.fulfilled, (state, action) => {
+        state.loading = false;
+        state.specialities = action.payload || [];
+      })
+      .addCase(getAllSpecialitiesThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to fetch specialities';
+      })
+      .addCase(createSpecialityThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(createSpecialityThunk.fulfilled, (state, action) => {
+        state.loading = false;
+        state.specialities.push(action.payload);
+      })
+      .addCase(createSpecialityThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to create speciality';
+      })
+      .addCase(updateSpecialityThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateSpecialityThunk.fulfilled, (state, action) => {
+        state.loading = false;
+        const index = state.specialities.findIndex((s) => s._id === action.payload._id);
+        if (index !== -1) {
+          state.specialities[index] = action.payload;
+        }
+      })
+      .addCase(updateSpecialityThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to update speciality';
+      })
+      .addCase(deleteSpecialityThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(deleteSpecialityThunk.fulfilled, (state, action) => {
+        state.loading = false;
+        state.specialities = state.specialities.filter((speciality) => speciality._id !== action.payload);
+      })
+      .addCase(deleteSpecialityThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to delete speciality';
+      });
 
     // Common error handling
     builder.addMatcher(

@@ -1,6 +1,7 @@
 import { IDoctorRepository } from '../../core/interfaces/repositories/IDoctorRepository';
 import { Doctor } from '../../core/entities/Doctor';
 import { DoctorModel } from '../database/models/DoctorModel';
+import { SubscriptionPlanModel } from '../database/models/SubscriptionPlanModel';
 
 export class DoctorRepository implements IDoctorRepository {
   async create(doctor: Doctor): Promise<Doctor> {
@@ -24,6 +25,10 @@ export class DoctorRepository implements IDoctorRepository {
     return DoctorModel.find(criteria).exec();
   }
 
+  async findBySpeciality(specialityId: string): Promise<Doctor[]> {
+    return DoctorModel.find({ specialities: specialityId }).exec();
+  }
+
   async delete(id: string): Promise<void> {
     await DoctorModel.findByIdAndDelete(id).exec();
   }
@@ -43,5 +48,27 @@ export class DoctorRepository implements IDoctorRepository {
 
   async findVerified(): Promise<any[]> {
     return await DoctorModel.find({ isVerified: true, isBlocked: false }).exec();
+  }
+
+  async findDoctorsWithActiveSubscriptions(): Promise<Doctor[]> {
+    const doctorsWithPlans = await SubscriptionPlanModel.distinct('doctorId', {
+      status: 'approved',
+    });
+    return DoctorModel.find({
+      _id: { $in: doctorsWithPlans },
+      isVerified: true,
+      isBlocked: false,
+    }).exec();
+  }
+
+  async updateAllowFreeBooking(
+    doctorId: string,
+    allowFreeBooking: boolean
+  ): Promise<Doctor | null> {
+    return DoctorModel.findByIdAndUpdate(
+      doctorId,
+      { allowFreeBooking },
+      { new: true }
+    ).exec();
   }
 }

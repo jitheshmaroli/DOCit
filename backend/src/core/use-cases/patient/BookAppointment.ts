@@ -27,23 +27,21 @@ export class BookAppointmentUseCase {
     const startOfDay = DateUtils.startOfDayUTC(date);
     const availability = await this.availabilityRepository.findByDoctorAndDate(
       doctorId,
-      startOfDay
+      date = startOfDay
     );
     if (!availability)
       throw new NotFoundError('No availability found for this date');
 
-    const slot = availability.timeSlots.find(
+    const slotAvailable = availability.timeSlots.some(
       slot => slot.startTime === startTime && slot.endTime === endTime
     );
-    if (!slot)
+    if (!slotAvailable)
       throw new ValidationError('Selected time slot is not available');
-    if (slot.isBooked)
-      throw new ValidationError('Selected time slot is already booked');
 
     const existingAppointment =
       await this.appointmentRepository.findByDoctorAndSlot(
         doctorId,
-        startOfDay,
+        date = startOfDay,
         startTime,
         endTime
       );
@@ -59,6 +57,7 @@ export class BookAppointmentUseCase {
 
     if (!activeSubscription) {
       if (!doctor.allowFreeBooking) {
+        console.log('no freebooking')
         throw new ValidationError(
           'This doctor requires a subscription for bookings'
         );
@@ -92,7 +91,7 @@ export class BookAppointmentUseCase {
 
     await this.availabilityRepository.updateSlotBookingStatus(
       doctorId,
-      startOfDay,
+      date = startOfDay,
       startTime,
       true
     );

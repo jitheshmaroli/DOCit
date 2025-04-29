@@ -18,7 +18,6 @@ export class SubscriptionPlanRepository implements ISubscriptionPlanRepository {
 
   async findAll(): Promise<SubscriptionPlan[]> {
     const plans = await SubscriptionPlanModel.find().lean();
-    console.log('Fetched all plans:', plans); // Debug
     return Promise.all(plans.map(plan => this.populateDoctorName(plan)));
   }
 
@@ -39,7 +38,6 @@ export class SubscriptionPlanRepository implements ISubscriptionPlanRepository {
     const plans = await SubscriptionPlanModel.find({
       status: 'pending',
     }).lean();
-    console.log('Fetched pending plans:', plans); // Debug
     return Promise.all(plans.map(plan => this.populateDoctorName(plan)));
   }
 

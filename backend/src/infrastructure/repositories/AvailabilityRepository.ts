@@ -148,4 +148,34 @@ export class AvailabilityRepository implements IAvailabilityRepository {
       }
     ).exec();
   }
+
+  async getAvailableSlotsForSubscribedPatients(
+    doctorId: string,
+    date: Date
+  ): Promise<Availability | null> {
+    const startOfDay = DateUtils.startOfDayUTC(date);
+    const endOfDay = DateUtils.endOfDayUTC(date);
+
+    const availability = await AvailabilityModel.findOne({
+      doctorId,
+      date: { $gte: startOfDay, $lte: endOfDay },
+    }).exec();
+
+    if (!availability) {
+      return null;
+    }
+
+    const availableSlots = availability.timeSlots.filter(
+      slot => !slot.isBooked
+    );
+
+    if (availableSlots.length === 0) {
+      return null;
+    }
+
+    return {
+      ...availability.toObject(),
+      timeSlots: availableSlots,
+    };
+  }
 }

@@ -4,7 +4,6 @@ export interface Patient {
   password?: string;
   name?: string;
   phone?: string;
-  bloodGroup?: string;
   age?: string;
   isSubscribed?: boolean;
   isBlocked?: boolean;

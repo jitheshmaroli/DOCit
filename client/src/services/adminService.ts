@@ -1,5 +1,5 @@
 import api from './api';
-import { Doctor, Patient, Appointment, SubscriptionPlan } from '../types/authTypes';
+import { Doctor, Patient, Appointment, SubscriptionPlan, Speciality } from '../types/authTypes';
 
 export const listDoctors = async (): Promise<Doctor[]> => {
   const response = await api.get('/api/admin/doctors');
@@ -90,4 +90,24 @@ export const rejectPlan = async (planId: string) => {
 export const deletePlan = async (planId: string) => {
   await api.delete(`/api/admin/subscription-plans/${planId}`);
   return planId;
+};
+
+export const getAllSpecialities = async (): Promise<Speciality[]> => {
+  const response = await api.get('/api/admin/specialities');
+  return response.data || [];
+};
+
+export const createSpeciality = async (name: string): Promise<Speciality> => {
+  const response = await api.post('/api/admin/specialities', { name });
+  return response.data;
+};
+
+export const updateSpeciality = async (id: string, name: string): Promise<Speciality> => {
+  const response = await api.patch(`/api/admin/specialities/${id}`, { name });
+  return response.data;
+};
+
+export const deleteSpeciality = async (specialityId: string): Promise<string> => {
+  await api.delete(`/api/admin/specialities/${specialityId}`);
+  return specialityId;
 };

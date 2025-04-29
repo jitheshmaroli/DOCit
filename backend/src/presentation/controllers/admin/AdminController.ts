@@ -5,11 +5,20 @@ import { GetAllAppointmentsUseCase } from '../../../core/use-cases/admin/GetAllA
 import { CreateDoctorUseCase } from '../../../core/use-cases/admin/CreateDoctorUseCase';
 import { CancelAppointmentUseCase } from '../../../core/use-cases/admin/CancelAppointmentUseCase';
 import { ListDoctorsUseCase } from '../../../core/use-cases/admin/ListDoctorsUseCase';
+import { ValidationError } from '../../../utils/errors';
+import { GetSpecialitiesUseCase } from '../../../core/use-cases/admin/GetSpecialityUseCase';
+import { AddSpecialityUseCase } from '../../../core/use-cases/admin/AddSpecialityUseCase';
+import { UpdateSpecialityUseCase } from '../../../core/use-cases/admin/UpdateSpecialityUseCase';
+import { DeleteSpecialityUseCase } from '../../../core/use-cases/admin/DeleteSpecialityUseCase';
 
 export class AdminController {
   private manageSubscriptionPlanUseCase: ManageSubscriptionPlanUseCase;
   private getAllAppointmentsUseCase: GetAllAppointmentsUseCase;
   private cancelAppointmentUseCase: CancelAppointmentUseCase;
+  private getSpecialitiesUseCase: GetSpecialitiesUseCase;
+  private addSpecialityUseCase : AddSpecialityUseCase;
+  private updateSpecialityUseCase: UpdateSpecialityUseCase;
+  private deleteSpecialityUseCase: DeleteSpecialityUseCase;
   private createDoctorUseCase: CreateDoctorUseCase;
   private listDoctorsUseCase: ListDoctorsUseCase;
 
@@ -21,6 +30,10 @@ export class AdminController {
     );
     this.getAllAppointmentsUseCase = container.get('GetAllAppointmentsUseCase');
     this.cancelAppointmentUseCase = container.get('CancelAppointmentUseCase');
+    this. getSpecialitiesUseCase = container.get('GetSpecialitiesUseCase');
+    this.addSpecialityUseCase = container.get('AddSpecialityUseCase');
+    this.updateSpecialityUseCase = container.get('UpdateSpecialityUseCase');
+    this.deleteSpecialityUseCase = container.get('DeleteSpecialityUseCase');
   }
 
   async getAllPlans(
@@ -124,6 +137,48 @@ export class AdminController {
       res.status(200).json({ message: 'Appointment cancelled successfully' });
     } catch (error) {
       console.error('Error cancelling appointment:', error);
+      next(error);
+    }
+  }
+
+  async getSpecialities(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const specialities = await this.getSpecialitiesUseCase.execute();
+      res.status(200).json(specialities);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async addSpeciality(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { name } = req.body;
+      if (!name) throw new ValidationError('Speciality name is required');
+      const speciality = await this.addSpecialityUseCase.execute({ name });
+      res.status(201).json(speciality);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async updateSpeciality(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { name } = req.body;
+      if (!name) throw new ValidationError('Speciality name is required');
+      const speciality = await this.updateSpecialityUseCase.execute(id, { name });
+      res.status(200).json(speciality);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async deleteSpeciality(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params;
+      await this.deleteSpecialityUseCase.execute(id);
+      res.status(204).send();
+    } catch (error) {
       next(error);
     }
   }

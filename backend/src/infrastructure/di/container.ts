@@ -51,6 +51,11 @@ import { ListDoctorsUseCase } from '../../core/use-cases/admin/ListDoctorsUseCas
 import { VerifyDoctorUseCase } from '../../core/use-cases/admin/VerifyDoctorUseCase';
 import { RemoveSlotUseCase } from '../../core/use-cases/doctor/RemoveSlotUseCase';
 import { UpdateSlotUseCase } from '../../core/use-cases/doctor/UpdateSlotUseCase';
+import { SpecialityRepository } from '../repositories/SpecialityRepository';
+import { GetSpecialitiesUseCase } from '../../core/use-cases/admin/GetSpecialityUseCase';
+import { AddSpecialityUseCase } from '../../core/use-cases/admin/AddSpecialityUseCase';
+import { UpdateSpecialityUseCase } from '../../core/use-cases/admin/UpdateSpecialityUseCase';
+import { DeleteSpecialityUseCase } from '../../core/use-cases/admin/DeleteSpecialityUseCase';
 
 export class Container {
   private static instance: Container;
@@ -66,6 +71,7 @@ export class Container {
     const subscriptionPlanRepository = new SubscriptionPlanRepository();
     const patientSubscriptionRepository = new PatientSubscriptionRepository();
     const appointmentRepository = new AppointmentRepository();
+    const specialityRepository = new SpecialityRepository();
 
     // Initialize services
     const emailService = new EmailService();
@@ -188,7 +194,7 @@ export class Container {
     );
     this.dependencies.set(
       'UpdateDoctorUseCase',
-      new UpdateDoctorUseCase(doctorRepository)
+      new UpdateDoctorUseCase(doctorRepository, specialityRepository)
     );
     this.dependencies.set(
       'DeleteDoctorUseCase',
@@ -277,12 +283,15 @@ export class Container {
       'ManageSubscriptionPlanUseCase',
       new ManageSubscriptionPlanUseCase(
         subscriptionPlanRepository,
-        doctorRepository
+        doctorRepository,
       )
     );
     this.dependencies.set(
       'CancelAppointmentUseCase',
-      new CancelAppointmentUseCase(appointmentRepository, availabilityRepository)
+      new CancelAppointmentUseCase(
+        appointmentRepository,
+        availabilityRepository
+      )
     );
     this.dependencies.set(
       'GetDoctorAppointmentsUseCase',
@@ -300,6 +309,22 @@ export class Container {
     this.dependencies.set(
       'GetVerifiedDoctorsUseCase',
       new GetVerifiedDoctorsUseCase(doctorRepository)
+    );
+    this.dependencies.set(
+      'GetSpecialitiesUseCase',
+      new GetSpecialitiesUseCase(specialityRepository)
+    );
+    this.dependencies.set(
+      'AddSpecialityUseCase',
+      new AddSpecialityUseCase(specialityRepository)
+    );
+    this.dependencies.set(
+      'UpdateSpecialityUseCase',
+      new UpdateSpecialityUseCase(specialityRepository)
+    );
+    this.dependencies.set(
+      'DeleteSpecialityUseCase',
+      new DeleteSpecialityUseCase(specialityRepository, doctorRepository)
     );
   }
 

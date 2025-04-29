@@ -41,4 +41,10 @@ router.patch('/patients/:id', adminAuth, adminAuthController.updatePatient.bind(
 router.delete('/patients/:id', adminAuth, adminAuthController.deletePatient.bind(adminAuthController));
 router.patch('/patients/:id/block', adminAuth, adminAuthController.blockPatient.bind(adminAuthController));
 
+//Speciality Routes
+router.get('/specialities', adminAuth, adminController.getSpecialities.bind(adminController));
+router.post('/specialities', adminAuth, adminController.addSpeciality.bind(adminController));
+router.patch('/specialities/:id', adminAuth, adminController.updateSpeciality.bind(adminController));
+router.delete('/specialities/:id', adminAuth, adminController.deleteSpeciality.bind(adminController));
+
 export default router;

@@ -53,6 +53,15 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage }) => {
           </li>
           <li>
             <Link
+              to="/admin/specialities"
+              className={`flex items-center px-4 py-3 text-sm font-medium ${isActive('specialities')} transition-all duration-300`}
+            >
+              <span className="mr-3">🩺</span>
+              Specialities
+            </Link>
+          </li>
+          <li>
+            <Link
               to="/admin/appointments"
               className={`flex items-center px-4 py-3 text-sm font-medium ${isActive('appointments')} transition-all duration-300`}
             >
