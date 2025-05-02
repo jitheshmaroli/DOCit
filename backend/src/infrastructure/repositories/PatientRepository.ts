@@ -1,6 +1,7 @@
 import { IPatientRepository } from '../../core/interfaces/repositories/IPatientRepository';
 import { Patient } from '../../core/entities/Patient';
 import { PatientModel } from '../database/models/PatientModel';
+import { NotFoundError } from '../../utils/errors';
 
 export class PatientRepository implements IPatientRepository {
   async create(patient: Patient): Promise<Patient> {
@@ -39,4 +40,14 @@ export class PatientRepository implements IPatientRepository {
     const patient = await PatientModel.findById(id).select('-password').exec();
     return patient ? (patient.toObject() as Patient) : null;
   }
+
+  async updateSubscriptionStatus(patientId: string, isSubscribed: boolean): Promise<Patient | null> {
+    const patient = await PatientModel.findByIdAndUpdate(
+      patientId,
+      { isSubscribed },
+      { new: true }
+    ).exec();
+    return patient ? (patient.toObject() as Patient) : null;
+  }
+  
 }

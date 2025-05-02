@@ -8,7 +8,7 @@ import { blockPatientThunk, createPatientThunk, deletePatientThunk, listPatients
 
 const ITEMS_PER_PAGE = 5;
 
-const ManagePatients: React.FC = () => {
+const AdminManagePatients: React.FC = () => {
   const dispatch = useAppDispatch();
   const { patients, loading, error } = useAppSelector((state) => state.admin);
   const { user } = useAppSelector((state) => state.auth);
@@ -453,4 +453,4 @@ const ManagePatients: React.FC = () => {
   );
 };
 
-export default ManagePatients;
+export default AdminManagePatients;

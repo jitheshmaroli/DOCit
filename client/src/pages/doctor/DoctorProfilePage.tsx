@@ -11,6 +11,13 @@ import { RootState } from '../../redux/store';
 import { useAppSelector } from '../../redux/hooks';
 import { API_BASE_URL } from '../../utils/config';
 
+interface Speciality {
+  _id: string;
+  name: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 const DoctorProfilePage: React.FC = () => {
   const { user } = useAppSelector((state: RootState) => state.auth);
 
@@ -28,6 +35,7 @@ const DoctorProfilePage: React.FC = () => {
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string | null>>({});
+  const [specialities, setSpecialities] = useState<Speciality[]>([]);
 
   const doctorId = user?._id;
 
@@ -59,7 +67,25 @@ const DoctorProfilePage: React.FC = () => {
         console.error('Error fetching doctor profile:', error);
       }
     };
+
+    const fetchSpecialities = async () => {
+      try {
+        const response = await axios.get(
+          `http://localhost:5000/api/doctors/specialities`,
+          { withCredentials: true }
+        );
+        setSpecialities(response.data);
+      } catch (error) {
+        console.error('Error fetching specialities:', error);
+        toast.error('Failed to load specialities', {
+          position: 'bottom-right',
+          autoClose: 3000,
+        });
+      }
+    };
+
     fetchProfile();
+    fetchSpecialities();
   }, [doctorId]);
 
   const handleChange = (
@@ -428,14 +454,19 @@ const DoctorProfilePage: React.FC = () => {
                     <label className="text-[12px] text-gray-200">
                       Speciality <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="text"
+                    <select
                       name="speciality"
                       value={formData.speciality}
                       onChange={handleChange}
-                      maxLength={50}
                       className="w-full h-[60.93px] bg-white/10 border border-white/20 rounded-lg px-4 mt-1 text-[14px] text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
-                    />
+                    >
+                      <option value="">Select Speciality</option>
+                      {specialities.map((speciality) => (
+                        <option key={speciality._id} value={speciality.name}>
+                          {speciality.name}
+                        </option>
+                      ))}
+                    </select>
                     {errors.speciality && (
                       <p className="text-red-500 text-[12px]">
                         {errors.speciality}

@@ -1,17 +1,20 @@
 import { Appointment } from '../../entities/Appointment';
 import { IAvailabilityRepository } from '../../interfaces/repositories/IAvailabilityRepository';
 import { IDoctorRepository } from '../../interfaces/repositories/IDoctorRepository';
-import { ValidationError, NotFoundError } from '../../../utils/errors';
 import { IAppointmentRepository } from '../../interfaces/repositories/IAppointmentRepository';
 import { IPatientSubscriptionRepository } from '../../interfaces/repositories/IPatientSubscriptionRepository';
+import { CheckFreeBookingUseCase } from '../patient/CheckFreeBookingUseCase';
+import { ValidationError, NotFoundError } from '../../../utils/errors';
 import { DateUtils } from '../../../utils/DateUtils';
+import { MongoServerError } from 'mongodb';
 
 export class BookAppointmentUseCase {
   constructor(
     private appointmentRepository: IAppointmentRepository,
     private availabilityRepository: IAvailabilityRepository,
     private doctorRepository: IDoctorRepository,
-    private patientSubscriptionRepository: IPatientSubscriptionRepository
+    private patientSubscriptionRepository: IPatientSubscriptionRepository,
+    private checkFreeBookingUseCase: CheckFreeBookingUseCase
   ) {}
 
   async execute(
@@ -19,21 +22,24 @@ export class BookAppointmentUseCase {
     doctorId: string,
     date: Date,
     startTime: string,
-    endTime: string
+    endTime: string,
+    isFreeBooking: boolean = false
   ): Promise<Appointment> {
+    // Validate doctor existence
     const doctor = await this.doctorRepository.findById(doctorId);
     if (!doctor) throw new NotFoundError('Doctor not found');
 
+    // Validate slot availability
     const startOfDay = DateUtils.startOfDayUTC(date);
     const availability = await this.availabilityRepository.findByDoctorAndDate(
       doctorId,
-      date = startOfDay
+      startOfDay
     );
     if (!availability)
       throw new NotFoundError('No availability found for this date');
 
     const slotAvailable = availability.timeSlots.some(
-      slot => slot.startTime === startTime && slot.endTime === endTime
+      (slot) => slot.startTime === startTime && slot.endTime === endTime
     );
     if (!slotAvailable)
       throw new ValidationError('Selected time slot is not available');
@@ -41,39 +47,35 @@ export class BookAppointmentUseCase {
     const existingAppointment =
       await this.appointmentRepository.findByDoctorAndSlot(
         doctorId,
-        date = startOfDay,
+        startOfDay,
         startTime,
         endTime
       );
     if (existingAppointment)
       throw new ValidationError('This time slot is already booked');
 
-    const activeSubscription =
-      await this.patientSubscriptionRepository.findActiveByPatientAndDoctor(
+    if (isFreeBooking) {
+      const canBookFree = await this.checkFreeBookingUseCase.execute(
         patientId,
         doctorId
       );
-    let isFreeBooking = false;
-
-    if (!activeSubscription) {
-      if (!doctor.allowFreeBooking) {
-        console.log('no freebooking')
-        throw new ValidationError(
-          'This doctor requires a subscription for bookings'
-        );
+      if (!canBookFree) {
+        throw new ValidationError('Not eligible for free booking');
       }
-
-      const priorAppointments =
-        await this.appointmentRepository.countByPatientAndDoctor(
+    } else {
+      const activeSubscription =
+        await this.patientSubscriptionRepository.findActiveByPatientAndDoctor(
           patientId,
           doctorId
         );
-      if (priorAppointments >= 1) {
+      if (!activeSubscription) {
         throw new ValidationError(
-          'You must subscribe to book more appointments with this doctor'
+          'A subscription is required for non-free bookings'
         );
       }
-      isFreeBooking = true;
+      if (activeSubscription.appointmentsLeft <= 0) {
+        throw new ValidationError('No appointments left in your subscription');
+      }
     }
 
     const appointment: Appointment = {
@@ -87,11 +89,32 @@ export class BookAppointmentUseCase {
       bookingTime: new Date(),
     };
 
-    const savedAppointment = await this.appointmentRepository.create(appointment);
+    let savedAppointment: Appointment;
+    try {
+      savedAppointment = await this.appointmentRepository.create(appointment);
+    } catch (error) {
+      if (error instanceof MongoServerError && error.code === 11000) {
+        throw new ValidationError('This time slot is already booked');
+      }
+      throw error;
+    }
+
+    if (!isFreeBooking) {
+      const activeSubscription =
+        await this.patientSubscriptionRepository.findActiveByPatientAndDoctor(
+          patientId,
+          doctorId
+        );
+      if (activeSubscription) {
+        await this.patientSubscriptionRepository.incrementAppointmentCount(
+          activeSubscription._id!
+        );
+      }
+    }
 
     await this.availabilityRepository.updateSlotBookingStatus(
       doctorId,
-      date = startOfDay,
+      startOfDay,
       startTime,
       true
     );

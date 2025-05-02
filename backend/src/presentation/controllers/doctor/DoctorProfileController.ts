@@ -3,16 +3,19 @@ import { ViewDoctorProfileUseCase } from '../../../core/use-cases/profile/ViewDo
 import { UpdateDoctorProfileUseCase } from '../../../core/use-cases/profile/UpdateDoctorProfile';
 import { Container } from '../../../infrastructure/di/container';
 import { ValidationError } from '../../../utils/errors';
+import { ISpecialityRepository } from '../../../core/interfaces/repositories/ISpecialityRepository';
 
 export class DoctorProfileController {
   private viewDoctorProfileUseCase: ViewDoctorProfileUseCase;
   private updateDoctorProfileUseCase: UpdateDoctorProfileUseCase;
+  private specialityRepository: ISpecialityRepository;
 
   constructor(container: Container) {
     this.viewDoctorProfileUseCase = container.get('ViewDoctorProfileUseCase');
     this.updateDoctorProfileUseCase = container.get(
       'UpdateDoctorProfileUseCase'
     );
+    this.specialityRepository = container.get('ISpecialityRepository');
   }
 
   async viewProfile(
@@ -22,10 +25,8 @@ export class DoctorProfileController {
   ): Promise<void> {
     try {
       const { id } = req.params;
-      const requesterId = (req as any).user.id;
       const doctor = await this.viewDoctorProfileUseCase.execute(
         id,
-        requesterId
       );
       res.status(200).json(doctor);
     } catch (error) {
@@ -40,8 +41,18 @@ export class DoctorProfileController {
   ): Promise<void> {
     try {
       const { id } = req.params;
-      const requesterId = (req as any).user.id;
       const updates = req.body;
+
+      if (updates.speciality) {
+        const speciality = await this.specialityRepository.findAll();
+        const validSpeciality = speciality.find(
+          s => s.name === updates.speciality
+        );
+        if (!validSpeciality) {
+          throw new ValidationError('Invalid speciality');
+        }
+        updates.speciality = validSpeciality._id
+      }
 
       if (req.file) {
         updates.profilePicture = `/uploads/doctor-profiles/${req.file.filename}`;
@@ -51,7 +62,6 @@ export class DoctorProfileController {
         throw new ValidationError('No updates provided');
       const doctor = await this.updateDoctorProfileUseCase.execute(
         id,
-        requesterId,
         updates
       );
       res.status(200).json(doctor);

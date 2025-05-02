@@ -1,9 +1,7 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosError } from 'axios';
 import { API_BASE_URL } from '../utils/config';
 
-// Flag to track if a refresh is in progress
 let isRefreshing = false;
-// Queue to store failed requests during refresh
 type FailedRequest = {
   resolve: (value: unknown) => void;
   reject: (reason?: unknown) => void;
@@ -18,7 +16,6 @@ const api: AxiosInstance = axios.create({
   },
 });
 
-// Response interceptor to handle 401 errors and refresh tokens
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
@@ -33,7 +30,6 @@ api.interceptors.response.use(
       originalRequest._retry = true;
 
       if (isRefreshing) {
-        // Queue the request until refresh completes
         return new Promise((resolve, reject) => {
           failedRequestsQueue.push({ resolve, reject });
         })
@@ -44,31 +40,24 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        // Call refresh token endpoint
         await api.post('/api/auth/refresh-token');
 
-        // Retry the original request
         const retryResponse = await api(originalRequest);
 
-        // Resolve all queued requests
         failedRequestsQueue.forEach(({ resolve }) => resolve(undefined));
         failedRequestsQueue = [];
 
         return retryResponse;
       } catch (refreshError) {
-        // Reject all queued requests
         failedRequestsQueue.forEach(({ reject }) => reject(refreshError));
         failedRequestsQueue = [];
 
-        // Handle refresh token failure
         if (axios.isAxiosError(refreshError) && refreshError.response?.status === 401) {
-          // Optionally call logout to clear cookies
           try {
             await api.post('/api/auth/logout');
           } catch (logoutError) {
             console.error('Logout failed:', logoutError);
           }
-          // Redirect to login page
           window.location.href = '/login';
         }
 
@@ -78,7 +67,6 @@ api.interceptors.response.use(
       }
     }
 
-    // For other errors, return a structured error
     return Promise.reject({ message, status });
   }
 );

@@ -12,6 +12,10 @@ const PatientSubscriptionSchema = new Schema<PatientSubscription>(
       enum: ['active', 'expired', 'cancelled'],
       default: 'active',
     },
+    price: { type: Number, required: true, min: 100 },
+    appointmentsUsed: { type: Number, default: 0, min: 0 },
+    appointmentsLeft: { type: Number, required: true, min: 0 },
+    stripePaymentId: { type: String, unique: true, sparse: true },
     remainingDays: { type: Number },
   },
   { timestamps: true }

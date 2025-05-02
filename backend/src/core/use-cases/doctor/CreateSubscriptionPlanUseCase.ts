@@ -21,11 +21,14 @@ export class CreateSubscriptionPlanUseCase {
       throw new NotFoundError('Doctor not found');
     }
 
-    if (plan.appointmentCost <= 0) {
-      throw new ValidationError('Appointment cost must be positive');
+    if (plan.price < 100) {
+      throw new ValidationError('Plan price must be at least ₹1');
     }
-    if (plan.duration <= 0) {
-      throw new ValidationError('Duration must be positive');
+    if (plan.validityDays < 1) {
+      throw new ValidationError('Validity days must be at least 1');
+    }
+    if (plan.appointmentCount < 1) {
+      throw new ValidationError('Appointment count must be at least 1');
     }
 
     const subscriptionPlan: SubscriptionPlan = {

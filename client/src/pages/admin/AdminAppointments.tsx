@@ -18,7 +18,7 @@ const AdminAppointments: React.FC = () => {
   }, [dispatch, user?.role]);
 
   useEffect(() => {
-    console.log('Redux appointments:', appointments); // Debug
+    console.log('Redux appointments:', appointments); 
   }, [appointments]);
 
   const handleCancelAppointment = async (appointmentId: string) => {
@@ -35,9 +35,10 @@ const AdminAppointments: React.FC = () => {
   const filteredAppointments = Array.isArray(appointments)
     ? appointments.filter((appt): appt is Appointment => {
         if (!appt || !appt._id) {
-          console.warn('Invalid appointment:', appt); // Debug
+          console.warn('Invalid appointment:', appt); 
           return false;
         }
+        console.log('appt',appt)
         const patientName = appt.patientName?.toLowerCase() || '';
         const doctorName = appt.doctorName?.toLowerCase() || '';
         const date = appt.date ? new Date(appt.date).toLocaleDateString().toLowerCase() : '';

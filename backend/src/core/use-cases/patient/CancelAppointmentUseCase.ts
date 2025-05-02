@@ -1,13 +1,14 @@
-import { IAppointmentRepository } from '../../interfaces/repositories/IAppointmentRepository';
-import { IAvailabilityRepository } from '../../interfaces/repositories/IAvailabilityRepository';
-import { NotFoundError, ValidationError } from '../../../utils/errors';
-import moment from 'moment';
-import { DateUtils } from '../../../utils/DateUtils';
+import { DateUtils } from "../../../utils/DateUtils";
+import { NotFoundError, ValidationError } from "../../../utils/errors";
+import { IAppointmentRepository } from "../../interfaces/repositories/IAppointmentRepository";
+import { IAvailabilityRepository } from "../../interfaces/repositories/IAvailabilityRepository";
+import { IPatientSubscriptionRepository } from "../../interfaces/repositories/IPatientSubscriptionRepository";
 
 export class CancelAppointmentUseCase {
   constructor(
     private appointmentRepository: IAppointmentRepository,
-    private availabilityRepository: IAvailabilityRepository
+    private availabilityRepository: IAvailabilityRepository,
+    private patientSubscriptionRepository: IPatientSubscriptionRepository
   ) {}
 
   async execute(appointmentId: string, patientId: string): Promise<void> {
@@ -16,39 +17,30 @@ export class CancelAppointmentUseCase {
       throw new NotFoundError('Appointment not found');
     }
     if (appointment.patientId !== patientId) {
-      throw new ValidationError('Unauthorized');
+      throw new ValidationError('You are not authorized to cancel this appointment');
     }
     if (appointment.status === 'cancelled') {
-      throw new ValidationError('Appointment already cancelled');
+      throw new ValidationError('Appointment is already cancelled');
     }
 
-    const bookingTime = moment(appointment.bookingTime);
-    const now = moment();
-    const minutesSinceBooking = now.diff(bookingTime, 'minutes');
+    await this.appointmentRepository.deleteById(appointmentId);
 
-    if (minutesSinceBooking > 30) {
-      throw new ValidationError('Cannot cancel appointment after 30 minutes');
-    }
-
-    const slotTime = moment(appointment.date).set({
-      hour: parseInt(appointment.startTime.split(':')[0]),
-      minute: parseInt(appointment.startTime.split(':')[1]),
-    });
-    if (slotTime.isBefore(now)) {
-      throw new ValidationError(
-        'Cannot cancel an appointment that has already started'
-      );
-    }
-
-    await this.appointmentRepository.update(appointmentId, {
-      status: 'cancelled',
-    });
-
+    const startOfDay = DateUtils.startOfDayUTC(appointment.date);
     await this.availabilityRepository.updateSlotBookingStatus(
       appointment.doctorId,
-      DateUtils.startOfDayUTC(appointment.date),
+      startOfDay,
       appointment.startTime,
       false
     );
+
+    if (!appointment.isFreeBooking) {
+      const subscription = await this.patientSubscriptionRepository.findActiveByPatientAndDoctor(
+        patientId,
+        appointment.doctorId
+      );
+      if (subscription) {
+        await this.patientSubscriptionRepository.decrementAppointmentCount(subscription._id!);
+      }
+    }
   }
 }

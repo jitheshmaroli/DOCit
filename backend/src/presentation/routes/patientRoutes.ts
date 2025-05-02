@@ -2,7 +2,6 @@ import express from 'express';
 import { Container } from '../../infrastructure/di/container';
 import { PatientController } from '../controllers/patient/PatientController';
 import { PatientProfileController } from '../controllers/patient/PatientProfileController';
-import { PatientAuthController } from '../controllers/auth/PatientAuthController';
 import { getMulterUploader } from '../../utils/multerConfig';
 import { authMiddleware } from '../middlewares/authMiddleware';
 import { roleMiddleware } from '../middlewares/roleMiddleware';

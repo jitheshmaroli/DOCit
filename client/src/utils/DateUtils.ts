@@ -23,10 +23,24 @@ export class DateUtils {
     return dayjs(date).format('MMMM D, YYYY');
   }
 
-  // Format time to display as stored (e.g., HH:mm, no timezone conversion)
-  static formatTimeToLocal(time: string, date: Date): string {
-    console.log('formatTimeToLocal:', { time, date: date.toISOString(), result: time }); // Debugging log
-    return time; // Return raw HH:mm time without conversion
+  static formatToLocal(dateStr: string): string {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-IN', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  }
+
+  static formatTimeToLocal(timeStr: string, date?: string): string {
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    const dateObj = date ? new Date(date) : new Date();
+    dateObj.setHours(hours, minutes);
+    return dateObj.toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
   }
 
   // Get user's timezone
@@ -60,7 +74,7 @@ export class DateUtils {
           (end1.isAfter(start2) && (end1.isSame(end2) || end1.isBefore(end2))) ||
           ((start1.isSame(start2) || start1.isBefore(start2)) && end1.isSameOrAfter(end2))
         ) {
-          return true; // Overlap detected
+          return true;
         }
       }
     }

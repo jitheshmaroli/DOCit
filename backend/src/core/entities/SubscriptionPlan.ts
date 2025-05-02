@@ -3,8 +3,9 @@ export interface SubscriptionPlan {
   doctorId: string;
   name: string;
   description: string;
-  appointmentCost: number;
-  duration: number;
+  price: number; 
+  validityDays: number; 
+  appointmentCount: number;
   status: 'pending' | 'approved' | 'rejected';
   doctorName?: string;
   createdAt?: Date;

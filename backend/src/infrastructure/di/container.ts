@@ -26,8 +26,8 @@ import { SubscribeToPlanUseCase } from '../../core/use-cases/patient/SubscribeTo
 import { CreateSubscriptionPlanUseCase } from '../../core/use-cases/doctor/CreateSubscriptionPlanUseCase';
 import { ManageSubscriptionPlanUseCase } from '../../core/use-cases/admin/ManageSubscriptionPlanUseCase';
 import { CancelAppointmentUseCase } from '../../core/use-cases/patient/CancelAppointmentUseCase';
-import { PatientSubscriptionRepository } from '../repositories/PatientSubscriptionRepositroy';
 import { BookAppointmentUseCase } from '../../core/use-cases/patient/BookAppointment';
+import { CheckFreeBookingUseCase } from '../../core/use-cases/patient/CheckFreeBookingUseCase';
 import { GetDoctorAvailabilityUseCase } from '../../core/use-cases/patient/GetDoctorAvailability';
 import { GetDoctorAppointmentsUseCase } from '../../core/use-cases/doctor/GetDoctorAppointmentUseCase';
 import { GetAllAppointmentsUseCase } from '../../core/use-cases/admin/GetAllAppointmentsUseCase';
@@ -56,6 +56,9 @@ import { GetSpecialitiesUseCase } from '../../core/use-cases/admin/GetSpeciality
 import { AddSpecialityUseCase } from '../../core/use-cases/admin/AddSpecialityUseCase';
 import { UpdateSpecialityUseCase } from '../../core/use-cases/admin/UpdateSpecialityUseCase';
 import { DeleteSpecialityUseCase } from '../../core/use-cases/admin/DeleteSpecialityUseCase';
+import { StripeService } from '../services/StripeService';
+import { PatientSubscriptionRepository } from '../repositories/PatientSubscriptionRepositroy';
+import { GetPatientSubscriptionsUseCase } from '../../core/use-cases/admin/GetpatientSubscriptions';
 
 export class Container {
   private static instance: Container;
@@ -77,6 +80,7 @@ export class Container {
     const emailService = new EmailService();
     const tokenService = new TokenService();
     const otpService = new OTPService(otpRepository, emailService);
+    const stripeService = new StripeService();
 
     // Register repositories
     this.dependencies.set('IPatientRepository', patientRepository);
@@ -84,20 +88,16 @@ export class Container {
     this.dependencies.set('IAdminRepository', adminRepository);
     this.dependencies.set('IOTPRepository', otpRepository);
     this.dependencies.set('IAvailabilityRepository', availabilityRepository);
-    this.dependencies.set(
-      'ISubscriptionPlanRepository',
-      subscriptionPlanRepository
-    );
-    this.dependencies.set(
-      'IPatientSubscriptionRepository',
-      patientSubscriptionRepository
-    );
+    this.dependencies.set('ISubscriptionPlanRepository', subscriptionPlanRepository);
+    this.dependencies.set('IPatientSubscriptionRepository', patientSubscriptionRepository);
     this.dependencies.set('IAppointmentRepository', appointmentRepository);
+    this.dependencies.set('ISpecialityRepository', specialityRepository);
 
     // Register services
     this.dependencies.set('IEmailService', emailService);
     this.dependencies.set('ITokenService', tokenService);
     this.dependencies.set('IOTPService', otpService);
+    this.dependencies.set('StripeService', stripeService);
 
     // Initialize and register use cases
     this.dependencies.set(
@@ -253,12 +253,21 @@ export class Container {
       new UpdateSlotUseCase(availabilityRepository, appointmentRepository)
     );
     this.dependencies.set(
+      'CheckFreeBookingUseCase',
+      new CheckFreeBookingUseCase(
+        doctorRepository,
+        patientSubscriptionRepository,
+        appointmentRepository
+      )
+    );
+    this.dependencies.set(
       'BookAppointmentUseCase',
       new BookAppointmentUseCase(
         appointmentRepository,
         availabilityRepository,
         doctorRepository,
-        patientSubscriptionRepository
+        patientSubscriptionRepository,
+        this.dependencies.get('CheckFreeBookingUseCase')
       )
     );
     this.dependencies.set(
@@ -276,21 +285,24 @@ export class Container {
       'SubscribeToPlanUseCase',
       new SubscribeToPlanUseCase(
         subscriptionPlanRepository,
-        patientSubscriptionRepository
+        patientSubscriptionRepository,
+        patientRepository,
+        stripeService
       )
     );
     this.dependencies.set(
       'ManageSubscriptionPlanUseCase',
       new ManageSubscriptionPlanUseCase(
         subscriptionPlanRepository,
-        doctorRepository,
+        doctorRepository
       )
     );
     this.dependencies.set(
       'CancelAppointmentUseCase',
       new CancelAppointmentUseCase(
         appointmentRepository,
-        availabilityRepository
+        availabilityRepository,
+        patientSubscriptionRepository
       )
     );
     this.dependencies.set(
@@ -301,7 +313,6 @@ export class Container {
       'GetAllAppointmentsUseCase',
       new GetAllAppointmentsUseCase(appointmentRepository)
     );
-
     this.dependencies.set(
       'GetDoctorUseCase',
       new GetDoctorUseCase(doctorRepository)
@@ -325,6 +336,18 @@ export class Container {
     this.dependencies.set(
       'DeleteSpecialityUseCase',
       new DeleteSpecialityUseCase(specialityRepository, doctorRepository)
+    );
+    this.dependencies.set(
+      'GetPatientSubscriptionsUseCase',
+      new GetPatientSubscriptionsUseCase(patientSubscriptionRepository)
+    );
+    this.dependencies.set(
+      'AdminCancelAppointmentUseCase',
+      new CancelAppointmentUseCase(
+        appointmentRepository,
+        availabilityRepository,
+        patientSubscriptionRepository
+      )
     );
   }
 

@@ -26,6 +26,7 @@ import {
 import { Doctor, Patient, Appointment, SubscriptionPlan, Speciality } from '../../types/authTypes';
 import { RootState, AppDispatch } from '../store';
 
+
 export const listDoctorsThunk = createAsyncThunk<
   Doctor[],
   void,

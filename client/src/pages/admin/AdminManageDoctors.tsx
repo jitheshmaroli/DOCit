@@ -13,7 +13,7 @@ import 'react-toastify/dist/ReactToastify.css';
 
 const ITEMS_PER_PAGE = 5;
 
-const ManageDoctors: React.FC = () => {
+const AdminManageDoctors: React.FC = () => {
   const dispatch = useAppDispatch();
   const { doctors, loading, error } = useAppSelector((state) => state.admin);
   const { user } = useAppSelector((state) => state.auth);
@@ -518,4 +518,4 @@ const ManageDoctors: React.FC = () => {
   );
 };
 
-export default ManageDoctors;
+export default AdminManageDoctors;

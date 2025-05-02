@@ -1,4 +1,3 @@
-// src/infrastructure/repositories/AppointmentRepository.ts
 import { Appointment } from '../../core/entities/Appointment';
 import { IAppointmentRepository } from '../../core/interfaces/repositories/IAppointmentRepository';
 import { DateUtils } from '../../utils/DateUtils';
@@ -14,60 +13,6 @@ export class AppointmentRepository implements IAppointmentRepository {
     return newAppointment.save();
   }
 
-  async confirmAppointment(id: string): Promise<Appointment> {
-    const appointment = await AppointmentModel.findByIdAndUpdate(
-      id,
-      { status: 'confirmed' },
-      { new: true }
-    ).exec();
-
-    if (!appointment) throw new Error('Appointment not found');
-
-    if (!appointment.isFreeBooking) {
-      await PatientSubscriptionModel.findOneAndUpdate(
-        {
-          patientId: appointment.patientId,
-          planId: {
-            $in: await AppointmentModel.find({
-              doctorId: appointment.doctorId,
-            }).distinct('_id'),
-          },
-          status: 'active',
-        },
-        { $inc: { appointmentsUsed: 1 } }
-      ).exec();
-    }
-
-    return appointment;
-  }
-
-  async cancelAppointment(id: string): Promise<Appointment> {
-    const appointment = await AppointmentModel.findByIdAndUpdate(
-      id,
-      { status: 'cancelled' },
-      { new: true }
-    ).exec();
-
-    if (!appointment) throw new Error('Appointment not found');
-
-    if (!appointment.isFreeBooking && appointment.status === 'confirmed') {
-      await PatientSubscriptionModel.findOneAndUpdate(
-        {
-          patientId: appointment.patientId,
-          planId: {
-            $in: await AppointmentModel.find({
-              doctorId: appointment.doctorId,
-            }).distinct('_id'),
-          },
-          status: 'active',
-        },
-        { $inc: { appointmentsUsed: -1 } }
-      ).exec();
-    }
-
-    return appointment;
-  }
-
   async findById(id: string): Promise<Appointment | null> {
     return AppointmentModel.findById(id).exec();
   }
@@ -78,11 +23,10 @@ export class AppointmentRepository implements IAppointmentRepository {
     startTime: string,
     endTime: string
   ): Promise<Appointment | null> {
-    const startOfDay = DateUtils.startOfDayUTC(date);
-    const endOfDay = DateUtils.endOfDayUTC(date);
+    const normalizedDate = DateUtils.startOfDayUTC(date);
     return AppointmentModel.findOne({
       doctorId,
-      date: { $gte: startOfDay, $lte: endOfDay },
+      date: normalizedDate,
       startTime,
       endTime,
       status: { $ne: 'cancelled' },
@@ -97,8 +41,21 @@ export class AppointmentRepository implements IAppointmentRepository {
     }).exec();
   }
 
+  async countByPatientAndDoctorWithFreeBooking(patientId: string, doctorId: string): Promise<number> {
+    return AppointmentModel.countDocuments({
+      patientId,
+      doctorId,
+      isFreeBooking: true,
+      status: { $ne: 'cancelled' },
+    }).exec();
+  }
+
   async update(id: string, updates: Partial<Appointment>): Promise<void> {
     await AppointmentModel.findByIdAndUpdate(id, updates).exec();
+  }
+
+  async deleteById(id: string): Promise<void> {
+    await AppointmentModel.findByIdAndDelete(id).exec();
   }
 
   async findByPatient(patientId: string): Promise<Appointment[]> {

@@ -1,4 +1,4 @@
-import { NextFunction, Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { ManageSubscriptionPlanUseCase } from '../../../core/use-cases/admin/ManageSubscriptionPlanUseCase';
 import { Container } from '../../../infrastructure/di/container';
 import { GetAllAppointmentsUseCase } from '../../../core/use-cases/admin/GetAllAppointmentsUseCase';
@@ -10,13 +10,15 @@ import { GetSpecialitiesUseCase } from '../../../core/use-cases/admin/GetSpecial
 import { AddSpecialityUseCase } from '../../../core/use-cases/admin/AddSpecialityUseCase';
 import { UpdateSpecialityUseCase } from '../../../core/use-cases/admin/UpdateSpecialityUseCase';
 import { DeleteSpecialityUseCase } from '../../../core/use-cases/admin/DeleteSpecialityUseCase';
+import { GetPatientSubscriptionsUseCase } from '../../../core/use-cases/admin/GetpatientSubscriptions';
 
 export class AdminController {
   private manageSubscriptionPlanUseCase: ManageSubscriptionPlanUseCase;
   private getAllAppointmentsUseCase: GetAllAppointmentsUseCase;
   private cancelAppointmentUseCase: CancelAppointmentUseCase;
+  private getPatientSubscriptionsUseCase: GetPatientSubscriptionsUseCase;
   private getSpecialitiesUseCase: GetSpecialitiesUseCase;
-  private addSpecialityUseCase : AddSpecialityUseCase;
+  private addSpecialityUseCase: AddSpecialityUseCase;
   private updateSpecialityUseCase: UpdateSpecialityUseCase;
   private deleteSpecialityUseCase: DeleteSpecialityUseCase;
   private createDoctorUseCase: CreateDoctorUseCase;
@@ -29,8 +31,13 @@ export class AdminController {
       'ManageSubscriptionPlanUseCase'
     );
     this.getAllAppointmentsUseCase = container.get('GetAllAppointmentsUseCase');
-    this.cancelAppointmentUseCase = container.get('CancelAppointmentUseCase');
-    this. getSpecialitiesUseCase = container.get('GetSpecialitiesUseCase');
+    this.cancelAppointmentUseCase = container.get(
+      'CancelAppointmentUseCase'
+    );
+    this.getPatientSubscriptionsUseCase = container.get(
+      'GetPatientSubscriptionsUseCase'
+    );
+    this.getSpecialitiesUseCase = container.get('GetSpecialitiesUseCase');
     this.addSpecialityUseCase = container.get('AddSpecialityUseCase');
     this.updateSpecialityUseCase = container.get('UpdateSpecialityUseCase');
     this.deleteSpecialityUseCase = container.get('DeleteSpecialityUseCase');
@@ -118,7 +125,6 @@ export class AdminController {
   ): Promise<void> {
     try {
       const appointments = await this.getAllAppointmentsUseCase.execute();
-      console.log('Sending appointments:', appointments); // Debug
       res.status(200).json({ data: appointments });
     } catch (error) {
       console.error('Error fetching appointments:', error);
@@ -132,7 +138,7 @@ export class AdminController {
     next: NextFunction
   ): Promise<void> {
     try {
-      const { appointmentId, patientId } = req.params;
+      const { appointmentId } = req.params;
       await this.cancelAppointmentUseCase.execute(appointmentId);
       res.status(200).json({ message: 'Appointment cancelled successfully' });
     } catch (error) {
@@ -141,7 +147,25 @@ export class AdminController {
     }
   }
 
-  async getSpecialities(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async getPatientSubscriptions(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const subscriptions = await this.getPatientSubscriptionsUseCase.execute();
+      res.status(200).json({ data: subscriptions });
+    } catch (error) {
+      console.error('Error fetching subscriptions:', error);
+      next(error);
+    }
+  }
+
+  async getSpecialities(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     try {
       const specialities = await this.getSpecialitiesUseCase.execute();
       res.status(200).json(specialities);
@@ -150,7 +174,11 @@ export class AdminController {
     }
   }
 
-  async addSpeciality(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async addSpeciality(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     try {
       const { name } = req.body;
       if (!name) throw new ValidationError('Speciality name is required');
@@ -161,19 +189,29 @@ export class AdminController {
     }
   }
 
-  async updateSpeciality(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async updateSpeciality(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     try {
       const { id } = req.params;
       const { name } = req.body;
       if (!name) throw new ValidationError('Speciality name is required');
-      const speciality = await this.updateSpecialityUseCase.execute(id, { name });
+      const speciality = await this.updateSpecialityUseCase.execute(id, {
+        name,
+      });
       res.status(200).json(speciality);
     } catch (error) {
       next(error);
     }
   }
 
-  async deleteSpeciality(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async deleteSpeciality(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     try {
       const { id } = req.params;
       await this.deleteSpecialityUseCase.execute(id);

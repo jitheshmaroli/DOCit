@@ -9,10 +9,11 @@ import {
   deleteSubscriptionPlanThunk,
   withdrawSubscriptionPlanThunk,
 } from '../../redux/thunks/doctorThunk';
+import { SubscriptionPlan } from '../../types/authTypes';
 
 const DoctorPlans: React.FC = () => {
   const dispatch = useAppDispatch();
-  const { plans = [], } = useAppSelector((state) => state.doctors);
+  const { plans = [], loading } = useAppSelector((state) => state.doctors);
   const { user } = useAppSelector((state) => state.auth);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
@@ -20,8 +21,9 @@ const DoctorPlans: React.FC = () => {
   const [planData, setPlanData] = useState({
     name: '',
     description: '',
-    appointmentCost: '',
-    duration: '',
+    price: '',
+    validityDays: '',
+    appointmentCount: '',
   });
 
   useEffect(() => {
@@ -40,18 +42,20 @@ const DoctorPlans: React.FC = () => {
     if (
       !planData.name ||
       !planData.description ||
-      !planData.appointmentCost ||
-      !planData.duration
+      !planData.price ||
+      !planData.validityDays ||
+      !planData.appointmentCount
     ) {
       toast.error('Please fill in all fields');
       return;
     }
 
-    const appointmentCost = parseFloat(planData.appointmentCost);
-    const duration = parseInt(planData.duration);
+    const price = parseInt(planData.price);
+    const validityDays = parseInt(planData.validityDays);
+    const appointmentCount = parseInt(planData.appointmentCount);
 
-    if (appointmentCost <= 0 || duration <= 0) {
-      toast.error('Cost and duration must be positive numbers');
+    if (price <= 0 || validityDays <= 0 || appointmentCount <= 0) {
+      toast.error('Price, validity days, and appointment count must be positive numbers');
       return;
     }
 
@@ -59,8 +63,9 @@ const DoctorPlans: React.FC = () => {
       const payload = {
         name: planData.name,
         description: planData.description,
-        appointmentCost,
-        duration,
+        price,
+        validityDays,
+        appointmentCount,
       };
 
       if (isEditMode && selectedPlanId) {
@@ -79,8 +84,9 @@ const DoctorPlans: React.FC = () => {
       setPlanData({
         name: '',
         description: '',
-        appointmentCost: '',
-        duration: '',
+        price: '',
+        validityDays: '',
+        appointmentCount: '',
       });
       dispatch(getSubscriptionPlansThunk());
     } catch (error: unknown) {
@@ -89,15 +95,15 @@ const DoctorPlans: React.FC = () => {
     }
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleEditPlan = (plan: any) => {
+  const handleEditPlan = (plan: SubscriptionPlan) => {
     setIsEditMode(true);
     setSelectedPlanId(plan._id);
     setPlanData({
       name: plan.name || '',
       description: plan.description || '',
-      appointmentCost: plan.appointmentCost.toString(),
-      duration: plan.duration.toString(),
+      price: plan.price.toString(),
+      validityDays: plan.validityDays.toString(),
+      appointmentCount: plan.appointmentCount.toString(),
     });
     setIsModalOpen(true);
   };
@@ -142,8 +148,9 @@ const DoctorPlans: React.FC = () => {
               setPlanData({
                 name: '',
                 description: '',
-                appointmentCost: '',
-                duration: '',
+                price: '',
+                validityDays: '',
+                appointmentCount: '',
               });
               setIsModalOpen(true);
             }}
@@ -152,55 +159,61 @@ const DoctorPlans: React.FC = () => {
             + Add Plan
           </button>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {plans.length > 0 ? (
-            plans.map((plan) => (
-              <div
-                key={plan._id}
-                className="bg-white/20 backdrop-blur-lg p-4 rounded-lg border border-white/20 shadow-lg hover:shadow-xl transition-all duration-300"
-              >
-                <h3 className="text-lg font-semibold text-white">{plan.name || 'Unnamed Plan'}</h3>
-                <p className="text-sm text-gray-200 mt-2">{plan.description || 'No description'}</p>
-                <p className="text-sm text-gray-200 mt-2">${plan.appointmentCost} for {plan.duration} days</p>
-                <p
-                  className={`text-xs mt-2 inline-flex px-2 py-1 rounded-full ${
-                    plan.status === 'approved' ? 'bg-green-500/20 text-green-300' :
-                    plan.status === 'pending' ? 'bg-yellow-500/20 text-yellow-300' :
-                    'bg-red-500/20 text-red-300'
-                  }`}
+        {loading ? (
+          <div className="text-center text-gray-200">Loading plans...</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {plans.length > 0 ? (
+              plans.map((plan) => (
+                <div
+                  key={plan._id}
+                  className="bg-white/20 backdrop-blur-lg p-4 rounded-lg border border-white/20 shadow-lg hover:shadow-xl transition-all duration-300"
                 >
-                  {plan.status}
-                </p>
-                <div className="mt-4 flex space-x-2">
-                  <button
-                    onClick={() => handleEditPlan(plan)}
-                    className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-3 py-1 rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-300"
+                  <h3 className="text-lg font-semibold text-white">{plan.name || 'Unnamed Plan'}</h3>
+                  <p className="text-sm text-gray-200 mt-2">{plan.description || 'No description'}</p>
+                  <p className="text-sm text-gray-200 mt-2">Price: ₹{(plan.price / 100).toFixed(2)}</p>
+                  <p className="text-sm text-gray-200 mt-2">Validity: {plan.validityDays} days</p>
+                  <p className="text-sm text-gray-200 mt-2">Appointments: {plan.appointmentCount}</p>
+                  <p
+                    className={`text-xs mt-2 inline-flex px-2 py-1 rounded-full ${
+                      plan.status === 'approved' ? 'bg-green-500/20 text-green-300' :
+                      plan.status === 'pending' ? 'bg-yellow-500/20 text-yellow-300' :
+                      'bg-red-500/20 text-red-300'
+                    }`}
                   >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDeletePlan(plan._id)}
-                    className="bg-gradient-to-r from-red-600 to-red-700 text-white px-3 py-1 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300"
-                  >
-                    Delete
-                  </button>
-                  {plan.status === 'pending' && (
+                    {plan.status}
+                  </p>
+                  <div className="mt-4 flex space-x-2">
                     <button
-                      onClick={() => handleWithdrawPlan(plan._id)}
-                      className="bg-gradient-to-r from-yellow-600 to-yellow-700 text-white px-3 py-1 rounded-lg hover:from-yellow-700 hover:to-yellow-800 transition-all duration-300"
+                      onClick={() => handleEditPlan(plan)}
+                      className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-3 py-1 rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-300"
                     >
-                      Withdraw
+                      Edit
                     </button>
-                  )}
+                    <button
+                      onClick={() => handleDeletePlan(plan._id)}
+                      className="bg-gradient-to-r from-red-600 to-red-700 text-white px-3 py-1 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300"
+                    >
+                      Delete
+                    </button>
+                    {plan.status === 'pending' && (
+                      <button
+                        onClick={() => handleWithdrawPlan(plan._id)}
+                        className="bg-gradient-to-r from-yellow-600 to-yellow-700 text-white px-3 py-1 rounded-lg hover:from-yellow-700 hover:to-yellow-800 transition-all duration-300"
+                      >
+                        Withdraw
+                      </button>
+                    )}
+                  </div>
                 </div>
+              ))
+            ) : (
+              <div className="col-span-full text-center text-gray-200">
+                No plans found. Add a new plan to get started.
               </div>
-            ))
-          ) : (
-            <div className="col-span-full text-center text-gray-200">
-              No plans found. Add a new plan to get started.
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
 
       {isModalOpen && (
@@ -227,22 +240,33 @@ const DoctorPlans: React.FC = () => {
               />
               <input
                 type="number"
-                name="appointmentCost"
-                placeholder="Appointment Cost ($)"
-                value={planData.appointmentCost}
+                name="price"
+                placeholder="Plan price (in paisa)"
+                value={planData.price}
                 onChange={handleInputChange}
                 className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
                 min="0"
-                step="0.01"
+                step="1"
               />
               <input
                 type="number"
-                name="duration"
-                placeholder="Duration (days)"
-                value={planData.duration}
+                name="validityDays"
+                placeholder="Validity (days)"
+                value={planData.validityDays}
                 onChange={handleInputChange}
                 className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
                 min="1"
+                step="1"
+              />
+              <input
+                type="number"
+                name="appointmentCount"
+                placeholder="Number of appointments"
+                value={planData.appointmentCount}
+                onChange={handleInputChange}
+                className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                min="1"
+                step="1"
               />
             </div>
             <div className="flex justify-end space-x-2 mt-6">
@@ -251,7 +275,7 @@ const DoctorPlans: React.FC = () => {
                   setIsModalOpen(false);
                   setIsEditMode(false);
                   setSelectedPlanId(null);
-                  setPlanData({ name: '', description: '', appointmentCost: '', duration: '' });
+                  setPlanData({ name: '', description: '', price: '', validityDays: '', appointmentCount: '' });
                 }}
                 className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
               >

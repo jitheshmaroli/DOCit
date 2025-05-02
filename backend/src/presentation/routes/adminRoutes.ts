@@ -22,6 +22,9 @@ router.put('/subscription-plans/:planId/reject', adminAuth, adminController.reje
 router.get('/subscription-plans', adminAuth, adminController.getAllPlans.bind(adminController));
 router.delete('/subscription-plans/:planId', adminAuth, adminController.deletePlan.bind(adminController));
 
+// Subscription routes
+router.get('/subscriptions', adminAuth, adminController.getPatientSubscriptions.bind(adminController));
+
 // Appointment routes
 router.get('/appointments', adminAuth, adminController.getAllAppointments.bind(adminController));
 router.put('/appointments/:appointmentId/cancel', adminAuth, adminController.cancelAppointment.bind(adminController));
@@ -41,7 +44,7 @@ router.patch('/patients/:id', adminAuth, adminAuthController.updatePatient.bind(
 router.delete('/patients/:id', adminAuth, adminAuthController.deletePatient.bind(adminAuthController));
 router.patch('/patients/:id/block', adminAuth, adminAuthController.blockPatient.bind(adminAuthController));
 
-//Speciality Routes
+// Speciality Routes
 router.get('/specialities', adminAuth, adminController.getSpecialities.bind(adminController));
 router.post('/specialities', adminAuth, adminController.addSpeciality.bind(adminController));
 router.patch('/specialities/:id', adminAuth, adminController.updateSpeciality.bind(adminController));

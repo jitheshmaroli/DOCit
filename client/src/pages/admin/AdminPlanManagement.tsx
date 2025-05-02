@@ -114,10 +114,13 @@ const AdminPlanManagement: React.FC = () => {
                   Doctor
                 </th>
                 <th className="px-4 md:px-6 py-3 text-left text-xs font-bold text-gray-200 uppercase tracking-wider">
-                  Cost
+                  Price
                 </th>
                 <th className="px-4 md:px-6 py-3 text-left text-xs font-bold text-gray-200 uppercase tracking-wider">
-                  Duration
+                  Validity
+                </th>
+                <th className="px-4 md:px-6 py-3 text-left text-xs font-bold text-gray-200 uppercase tracking-wider">
+                  Appointments
                 </th>
                 <th className="px-4 md:px-6 py-3 text-left text-xs font-bold text-gray-200 uppercase tracking-wider">
                   Status
@@ -141,10 +144,13 @@ const AdminPlanManagement: React.FC = () => {
                       {plan.doctorName || plan.doctorId || 'N/A'}
                     </td>
                     <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-200">
-                      ${plan.appointmentCost}
+                      ₹{(plan.price / 100).toFixed(2)}
                     </td>
                     <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-200">
-                      {plan.duration} days
+                      {plan.validityDays} days
+                    </td>
+                    <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-200">
+                      {plan.appointmentCount}
                     </td>
                     <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                       <span
@@ -152,8 +158,8 @@ const AdminPlanManagement: React.FC = () => {
                           plan.status === 'pending'
                             ? 'bg-yellow-500/20 text-yellow-300'
                             : plan.status === 'approved'
-                            ? 'bg-green-500/20 text-green-300'
-                            : 'bg-red-500/20 text-red-300'
+                              ? 'bg-green-500/20 text-green-300'
+                              : 'bg-red-500/20 text-red-300'
                         }`}
                       >
                         {plan.status}
@@ -188,7 +194,7 @@ const AdminPlanManagement: React.FC = () => {
               ) : (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-4 md:px-6 py-4 text-center text-gray-200"
                   >
                     No plans found.

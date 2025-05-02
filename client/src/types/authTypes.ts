@@ -93,12 +93,23 @@ export interface SubscriptionPlan {
   doctorId?: string;
   name?: string;
   description: string;
-  appointmentCost: number;
-  duration: number;
+  price: number; 
+  validityDays: number; 
+  appointmentCount: number;
   status: 'pending' | 'approved' | 'rejected';
   doctorName?: string;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface Subscription {
+  _id: string;
+  plan: SubscriptionPlan;
+  daysUntilExpiration: number;
+  isExpired: boolean;
+  appointmentsLeft: number;
+  status: 'active' | 'inactive';
+  stripePaymentId?: string;
 }
 
 export interface Appointment {
@@ -108,7 +119,9 @@ export interface Appointment {
   date: string;
   startTime: string;
   endTime: string;
+  isFreeBooking: boolean;
   status: 'pending' | 'confirmed' | 'cancelled';
+  createdAt: string;
 }
 
 export interface GetDoctorAvailabilityPayload {
@@ -138,21 +151,22 @@ export interface SetAvailabilityPayload {
 export interface SubscriptionPlanPayload {
   name: string;
   description: string;
-  appointmentCost: number;
-  duration: number;
+  price: number;
+  validityDays: number;
+  appointmentCount: number;
 }
 
 export interface UpdateSubscriptionPlanPayload extends SubscriptionPlanPayload {
   id: string;
 }
 
-export interface SubscriptionPlan {
-  _id: string;
-  name?: string;
-  description: string;
-  appointmentCost: number;
-  duration: number;
-}
+// export interface SubscriptionPlan {
+//   _id: string;
+//   name?: string;
+//   description: string;
+//   appointmentCost: number;
+//   duration: number;
+// }
 
 export interface Speciality {
   _id: string;
@@ -160,3 +174,20 @@ export interface Speciality {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface TimeSlot {
+  startTime: string;
+  endTime: string;
+  _id?: string;
+}
+
+export interface SlotPickerProps {
+  availableDates: string[];
+  patientLoading: boolean;
+  selectedDate: string;
+  currentTimeSlots: TimeSlot[];
+  selectedSlot: TimeSlot | null;
+  onDateChange: (date: string) => void;
+  onSlotSelect: React.Dispatch<React.SetStateAction<TimeSlot | null>>;
+}
+

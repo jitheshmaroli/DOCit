@@ -6,7 +6,6 @@ import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import {
   fetchDoctorByIdThunk,
   fetchDoctorPlansThunk,
-  subscribeToPlanThunk,
 } from '../../redux/thunks/doctorThunk';
 import {
   getPatientSubscriptionThunk,
@@ -21,13 +20,13 @@ import defaultAvatar from '/images/avatar.png';
 import { API_BASE_URL } from '../../utils/config';
 import useAuth from '../../hooks/useAuth';
 import SlotPicker from './SlotPicker';
+import PaymentForm from './PaymentForm';
 import { DateUtils } from '../../utils/DateUtils';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements } from '@stripe/react-stripe-js';
+import { TimeSlot } from '../../types/authTypes';
 
-interface TimeSlot {
-  startTime: string;
-  endTime: string;
-  _id?: string;
-}
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);
 
 interface Availability {
   date?: string;
@@ -48,13 +47,14 @@ const DoctorDetails: React.FC = () => {
   const {
     selectedDoctor,
     doctorPlans,
-    loading: doctorsLoading,
+    loading,
     error: doctorError,
     subscriptionStatus,
   } = useAppSelector((state) => state.doctors);
   const {
     activeSubscriptions,
     appointments,
+    canBookFree,
     loading: patientLoading,
     error: patientError,
   } = useAppSelector((state) => state.patient);
@@ -64,6 +64,8 @@ const DoctorDetails: React.FC = () => {
   const [availableDates, setAvailableDates] = useState<string[]>([]);
   const [availability, setAvailability] = useState<Availability[]>([]);
   const [currentTimeSlots, setCurrentTimeSlots] = useState<TimeSlot[]>([]);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<null | { id: string; price: number }>(null);
 
   useEffect(() => {
     if (doctorId) {
@@ -90,7 +92,6 @@ const DoctorDetails: React.FC = () => {
                   const today = new Date();
                   today.setHours(0, 0, 0, 0);
 
-                  // Only include dates that are today or in the future
                   if (dateObj >= today) {
                     const slots =
                       avail.timeSlots ||
@@ -111,7 +112,6 @@ const DoctorDetails: React.FC = () => {
               })
               .filter((date): date is string => date !== null);
             const uniqueDates = [...new Set(dates)];
-            console.log('uniquedate:', uniqueDates);
             setAvailableDates(uniqueDates);
           } else {
             setAvailableDates([]);
@@ -139,18 +139,21 @@ const DoctorDetails: React.FC = () => {
     if (subscriptionStatus === 'success') {
       toast.success('Successfully subscribed to plan');
       dispatch(getPatientSubscriptionThunk(doctorId!));
+      setIsPaymentModalOpen(false);
+      setSelectedPlan(null);
     } else if (subscriptionStatus === 'failed') {
       toast.error('Failed to subscribe to plan');
     }
   }, [doctorError, patientError, subscriptionStatus, dispatch, doctorId]);
 
-  const handleSubscribe = (planId: string) => {
+  const handleSubscribe = (planId: string, price: number) => {
     if (!user) {
       toast.error('Please log in to subscribe');
       navigate('/login');
       return;
     }
-    dispatch(subscribeToPlanThunk(planId));
+    setSelectedPlan({ id: planId, price });
+    setIsPaymentModalOpen(true);
   };
 
   const handleDateChange = (date: string) => {
@@ -180,19 +183,16 @@ const DoctorDetails: React.FC = () => {
                 ]
               : [])
           ).filter((slot) => {
-            // Filter out slots that have already passed
             if (!slot.startTime || !slot.endTime) return false;
 
             const now = new Date();
             const slotDate = new Date(date);
             const endTime = new Date(`${date}T${slot.endTime}`);
 
-            // If the slot is today, check if it's in the future
             if (slotDate.toDateString() === now.toDateString()) {
               return endTime > now;
             }
 
-            // For future dates, all slots are valid
             return slotDate > now;
           })
         : [];
@@ -202,18 +202,19 @@ const DoctorDetails: React.FC = () => {
     }
   };
 
-  const handleBookAppointment = async () => {
+  const handleBookAppointment = async (isFreeBooking: boolean = false) => {
     if (!selectedSlot || !selectedDate || !doctorId) {
       toast.error('Please select a date and time slot');
       return;
     }
 
-    // const activeSubscription = activeSubscriptions[doctorId];
-    // if (!activeSubscription || activeSubscription.isExpired) {
-    //   toast.error('Please subscribe to a plan to book an appointment');
-    //   navigate(`/patient/doctors/${doctorId}`);
-    //   return;
-    // }
+    const activeSubscription = activeSubscriptions[doctorId];
+    if (!isFreeBooking && (!activeSubscription || activeSubscription.isExpired || activeSubscription.appointmentsLeft <= 0)) {
+      if (!canBookFree[doctorId]) {
+        toast.error('Please subscribe to a plan or check free booking eligibility');
+        return;
+      }
+    }
 
     try {
       const bookingDate = DateUtils.parseToUTC(selectedDate);
@@ -223,10 +224,12 @@ const DoctorDetails: React.FC = () => {
           date: bookingDate,
           startTime: selectedSlot.startTime,
           endTime: selectedSlot.endTime,
-          isFreeBooking: false,
+          isFreeBooking,
         })
       ).unwrap();
       toast.success('Appointment booked successfully');
+      dispatch(getPatientAppointmentsForDoctorThunk(doctorId));
+      dispatch(getPatientSubscriptionThunk(doctorId));
       navigate('/patient/profile');
     } catch (error: unknown) {
       const errorMessage =
@@ -238,10 +241,20 @@ const DoctorDetails: React.FC = () => {
   const handleCancelAppointment = async (appointmentId: string) => {
     if (!doctorId) return;
     try {
+      const appointment = appointments.find((appt) => appt._id === appointmentId);
+      if (!appointment) {
+        throw new Error('Appointment not found');
+      }
+      const createdAt = new Date(appointment.createdAt);
+      const now = new Date();
+      const minutesSinceBooking = (now.getTime() - createdAt.getTime()) / (1000 * 60);
+      if (minutesSinceBooking > 30) {
+        throw new Error('Cancellation is only allowed within 30 minutes of booking');
+      }
       await dispatch(cancelAppointmentThunk(appointmentId)).unwrap();
       toast.success('Appointment cancelled successfully');
-      // Refresh appointments
       dispatch(getPatientAppointmentsForDoctorThunk(doctorId));
+      dispatch(getPatientSubscriptionThunk(doctorId));
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
@@ -249,202 +262,254 @@ const DoctorDetails: React.FC = () => {
     }
   };
 
-  if (!selectedDoctor) {
-    return <div className="text-white text-center py-8">Loading...</div>;
+  if (loading) {
+    return <div className="text-white text-center py-8">Loading doctor details...</div>;
   }
 
+  if (!selectedDoctor) {
+    return <div className="text-white text-center py-8">Doctor not found</div>;
+  }
+
+  console.log('subs:', activeSubscriptions)
+  console.log(doctorId)
   const activeSubscription = doctorId ? activeSubscriptions[doctorId] : null;
+  console.log('sub:', activeSubscription)
+  const plans = doctorId ? doctorPlans[doctorId] || [] : [];
+  console.log('plans:', plans)
+  const canBookFreeAppointment = doctorId ? canBookFree[doctorId] : false;
+  console.log('free:', canBookFreeAppointment)
 
   const upcomingAppointments = appointments.filter((appt) => {
     return appt.status !== 'cancelled';
   });
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 py-8">
-      <ToastContainer position="top-right" autoClose={3000} theme="dark" />
-      <div className="container mx-auto px-4">
-        <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">
-          <h2 className="text-2xl font-bold text-white mb-6">Doctor Details</h2>
-          <div className="flex flex-col md:flex-row gap-6">
-            <img
-              src={
-                selectedDoctor.profilePicture
-                  ? `${API_BASE_URL}${selectedDoctor.profilePicture}`
-                  : defaultAvatar
-              }
-              alt={selectedDoctor.name}
-              className="w-[150px] h-[150px] rounded-full object-cover shadow-lg border-4 border-purple-500/50"
-              onError={(e) => {
-                (e.target as HTMLImageElement).src = defaultAvatar;
-              }}
-            />
-            <div>
-              <h3 className="text-xl font-bold text-white mb-2">
-                Dr. {selectedDoctor.name}
-              </h3>
-              <p className="text-sm text-purple-300 mb-2">
-                {selectedDoctor.speciality || 'Speciality N/A'}
-              </p>
-              <p className="text-sm text-gray-200 mb-2">
-                Qualifications:{' '}
-                {selectedDoctor.qualifications?.join(', ') || 'N/A'}
-              </p>
-              <p className="text-sm text-gray-200 mb-2">
-                Age: {selectedDoctor.age || 'N/A'} | Gender:{' '}
-                {selectedDoctor.gender || 'N/A'}
-              </p>
-              <p className="text-sm text-gray-200">
-                Availability: {selectedDoctor.availability || 'TBD'}
-              </p>
+    <Elements stripe={stripePromise}>
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 py-8">
+        <ToastContainer position="top-right" autoClose={3000} theme="dark" />
+        <div className="container mx-auto px-4">
+          <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">
+            <h2 className="text-2xl font-bold text-white mb-6">Doctor Details</h2>
+            <div className="flex flex-col md:flex-row gap-6">
+              <img
+                src={
+                  selectedDoctor.profilePicture
+                    ? `${API_BASE_URL}${selectedDoctor.profilePicture}`
+                    : defaultAvatar
+                }
+                alt={selectedDoctor.name}
+                className="w-[150px] h-[150px] rounded-full object-cover shadow-lg border-4 border-purple-500/50"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = defaultAvatar;
+                }}
+              />
+              <div>
+                <h3 className="text-xl font-bold text-white mb-2">
+                  Dr. {selectedDoctor.name}
+                </h3>
+                <p className="text-sm text-purple-300 mb-2">
+                  {selectedDoctor.speciality || 'Speciality N/A'}
+                </p>
+                <p className="text-sm text-gray-200 mb-2">
+                  Qualifications:{' '}
+                  {selectedDoctor.qualifications?.join(', ') || 'N/A'}
+                </p>
+                <p className="text-sm text-gray-200 mb-2">
+                  Age: {selectedDoctor.age || 'N/A'} | Gender:{' '}
+                  {selectedDoctor.gender || 'N/A'}
+                </p>
+                <p className="text-sm text-gray-200">
+                  Availability: {selectedDoctor.availability || 'TBD'}
+                </p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">
-          <h2 className="text-2xl font-bold text-white mb-6">
-            Subscription Plans
-          </h2>
-          {patientLoading ? (
-            <p className="text-gray-300 text-center">Loading subscription...</p>
-          ) : activeSubscription &&
-            activeSubscription.plan &&
-            !activeSubscription.isExpired ? (
-            <div className="bg-blue-500/20 border border-blue-500 rounded-lg p-4">
-              <h4 className="text-lg font-semibold text-white">
-                Active Plan: {activeSubscription.plan.name}
-              </h4>
-              <p className="text-sm text-gray-300 mb-2">
-                {activeSubscription.plan.description ||
-                  'No description available'}
-              </p>
-              <p className="text-sm text-purple-300">
-                Cost: ${activeSubscription.plan.appointmentCost} / appointment
-              </p>
-              <p className="text-sm text-green-300">
-                Days Remaining: {activeSubscription.daysUntilExpiration}
-              </p>
-            </div>
-          ) : (
-            <>
-              {activeSubscription && activeSubscription.isExpired ? (
-                <p className="text-gray-300 text-center mb-4">
-                  Your subscription has expired. Please subscribe to a new plan.
+          <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">
+            <h2 className="text-2xl font-bold text-white mb-6">
+              Subscription Plans
+            </h2>
+            {patientLoading ? (
+              <p className="text-gray-300 text-center">Loading subscription...</p>
+            ) : activeSubscription &&
+              activeSubscription.plan &&
+              !activeSubscription.isExpired ? (
+              <div className="bg-blue-500/20 border border-blue-500 rounded-lg p-4">
+                <h4 className="text-lg font-semibold text-white">
+                  Active Plan: {activeSubscription.plan.name}
+                </h4>
+                <p className="text-sm text-gray-200 mt-2">
+                  Description: {activeSubscription.plan.description || 'N/A'}
                 </p>
-              ) : (
-                <p className="text-gray-300 text-center mb-4">
-                  No active subscription. Choose a plan below to subscribe.
+                <p className="text-sm text-gray-200 mt-2">
+                  Price: ₹{(activeSubscription.plan.price / 100).toFixed(2)}
                 </p>
-              )}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {doctorId && doctorPlans[doctorId]?.length > 0 ? (
-                  doctorPlans[doctorId].map((plan) => (
+                <p className="text-sm text-gray-200 mt-2">
+                  Validity: {activeSubscription.daysUntilExpiration} days remaining
+                </p>
+                <p className="text-sm text-gray-200 mt-2">
+                  Appointments Left: {activeSubscription.appointmentsLeft} /{' '}
+                  {activeSubscription.plan.appointmentCount}
+                </p>
+                <p className="text-sm text-gray-200 mt-2">
+                  Status: {activeSubscription.status}
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {plans.length > 0 ? (
+                  plans.map((plan) => (
                     <div
                       key={plan._id}
-                      className="bg-gradient-to-br from-purple-800/20 to-blue-800/20 p-4 rounded-lg border border-white/20 hover:shadow-lg hover:scale-105 transition-all duration-300"
+                      className="bg-white/20 backdrop-blur-lg p-4 rounded-lg border border-white/20 shadow-lg hover:shadow-xl transition-all duration-300"
                     >
                       <h3 className="text-lg font-semibold text-white">
-                        {plan.name || 'Standard Plan'}
+                        {plan.name || 'Unnamed Plan'}
                       </h3>
-                      <p className="text-gray-300 text-sm mb-2">
-                        {plan.description || 'No description available'}
+                      <p className="text-sm text-gray-200 mt-2">
+                        {plan.description || 'No description'}
                       </p>
-                      <p className="text-purple-300 font-bold mb-2">
-                        ${plan.appointmentCost} / appointment
+                      <p className="text-sm text-gray-200 mt-2">
+                        Price: ₹{(plan.price / 100).toFixed(2)}
                       </p>
-                      <p className="text-gray-300 text-sm mb-4">
-                        Duration: {plan.duration} days
+                      <p className="text-sm text-gray-200 mt-2">
+                        Validity: {plan.validityDays} days
                       </p>
-                      <button
-                        onClick={() => handleSubscribe(plan._id)}
-                        className="w-full bg-gradient-to-r from-green-600 to-teal-600 text-white py-2 rounded-lg hover:from-green-700 hover:to-teal-700 transition-all duration-300"
-                        disabled={doctorsLoading}
+                      <p className="text-sm text-gray-200 mt-2">
+                        Appointments: {plan.appointmentCount}
+                      </p>
+                      <p
+                        className={`text-xs mt-2 inline-flex px-2 py-1 rounded-full ${
+                          plan.status === 'approved'
+                            ? 'bg-green-500/20 text-green-300'
+                            : 'bg-gray-500/20 text-gray-300'
+                        }`}
                       >
-                        {doctorsLoading ? 'Subscribing...' : 'Subscribe Now'}
-                      </button>
+                        {plan.status}
+                      </p>
+                      {plan.status === 'approved' && (
+                        <button
+                          onClick={() => handleSubscribe(plan._id, plan.price)}
+                          className="mt-4 w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-2 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
+                        >
+                          Subscribe
+                        </button>
+                      )}
                     </div>
                   ))
                 ) : (
-                  <p className="text-gray-300 col-span-2 text-center">
-                    No plans available for this doctor.
+                  <p className="col-span-full text-center text-gray-200">
+                    No subscription plans available.
                   </p>
                 )}
               </div>
-            </>
-          )}
-        </div>
+            )}
+          </div>
 
-        <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">
-          <h2 className="text-2xl font-bold text-white mb-6">
-            Upcoming Appointments
-          </h2>
-          {upcomingAppointments.length > 0 ? (
-            <div className="space-y-4">
-              {upcomingAppointments.map((appt) => (
-                <div
-                  key={appt._id}
-                  className="bg-white/20 backdrop-blur-lg p-4 rounded-lg border border-white/20 flex justify-between items-center"
-                >
-                  <div>
-                    <p className="text-sm text-gray-200">
-                      Date:{' '}
-                      {DateUtils.formatToLocalDisplay(
-                        DateUtils.parseToUTC(appt.date)
-                      )}
-                    </p>
-                    <p className="text-sm text-gray-200">
-                      Time:{' '}
-                      {DateUtils.formatTimeToLocal(
-                        appt.startTime,
-                        DateUtils.parseToUTC(appt.date)
-                      )}{' '}
-                      -{' '}
-                      {DateUtils.formatTimeToLocal(
-                        appt.endTime,
-                        DateUtils.parseToUTC(appt.date)
-                      )}
-                    </p>
-                    <p className="text-sm text-gray-200">
-                      Type:{' '}
-                      {appt.isFreeBooking ? 'Free Booking' : 'Subscribed Booking'}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => handleCancelAppointment(appt._id)}
-                    className="bg-gradient-to-r from-red-600 to-pink-600 text-white py-2 px-4 rounded-lg hover:from-red-700 hover:to-pink-700 transition-all duration-300 disabled:opacity-50"
-                    disabled={patientLoading}
-                  >
-                    Cancel
-                  </button>
+          {(activeSubscription && !activeSubscription.isExpired) || canBookFreeAppointment ? (
+            <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">
+              <h2 className="text-2xl font-bold text-white mb-6">
+                Book an Appointment
+              </h2>
+              <SlotPicker
+                availableDates={availableDates}
+                selectedDate={selectedDate}
+                currentTimeSlots={currentTimeSlots}
+                selectedSlot={selectedSlot}
+                onDateChange={handleDateChange}
+                onSlotSelect={setSelectedSlot}
+                patientLoading={patientLoading}
+              />
+              {selectedSlot && (
+                <div className="flex gap-4 mt-4">
+                  {(activeSubscription && !activeSubscription.isExpired) && (
+                    <button
+                      onClick={() => handleBookAppointment(false)}
+                      className="w-full bg-gradient-to-r from-green-600 to-teal-600 text-white py-2 rounded-lg hover:from-green-700 hover:to-teal-700 transition-all duration-300"
+                    >
+                      Confirm Appointment (Subscribed)
+                    </button>
+                  )}
+                  {canBookFreeAppointment && (
+                    <button
+                      onClick={() => handleBookAppointment(true)}
+                      className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-2 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-300"
+                    >
+                      Book Free Appointment
+                    </button>
+                  )}
                 </div>
-              ))}
+              )}
             </div>
-          ) : (
-            <p className="text-gray-300 text-center">No upcoming appointments</p>
+          ) : null}
+
+          {upcomingAppointments.length > 0 && (
+            <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20">
+              <h2 className="text-2xl font-bold text-white mb-6">
+                Upcoming Appointments
+              </h2>
+              <div className="space-y-4">
+                {upcomingAppointments.map((appt) => (
+                  <div
+                    key={appt._id}
+                    className="bg-white/20 p-4 rounded-lg border border-white/20"
+                  >
+                    <p className="text-sm text-gray-200">
+                      Date: {DateUtils.formatToLocal(appt.date)}
+                    </p>
+                    <p className="text-sm text-gray-200">
+                      Time: {DateUtils.formatTimeToLocal(appt.startTime)} - {DateUtils.formatTimeToLocal(appt.endTime)}
+                    </p>
+                    <p className="text-sm text-gray-200">
+                      Status: {appt.status}
+                    </p>
+                    <p className="text-sm text-gray-200">
+                      Type: {appt.isFreeBooking ? 'Free' : 'Subscribed'}
+                    </p>
+                    <button
+                      onClick={() => handleCancelAppointment(appt._id)}
+                      className="mt-2 bg-gradient-to-r from-red-600 to-red-700 text-white px-3 py-1 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
         </div>
 
-        <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20">
-          <h2 className="text-2xl font-bold text-white mb-6">
-            Book Appointment
-          </h2>
-          <SlotPicker
-            timeSlots={currentTimeSlots}
-            patientLoading={patientLoading}
-            onDateChange={handleDateChange}
-            onSlotSelect={setSelectedSlot}
-            availableDates={availableDates}
-            selectedDate={selectedDate}
-          />
-          <button
-            onClick={handleBookAppointment}
-            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-2 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300 mt-4"
-            disabled={patientLoading || !selectedSlot}
-          >
-            {patientLoading ? 'Booking...' : 'Book Appointment'}
-          </button>
-        </div>
+        {isPaymentModalOpen && selectedPlan && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 shadow-xl w-full max-w-md">
+              <h2 className="text-xl font-bold text-white mb-4">
+                Complete Payment
+              </h2>
+              <PaymentForm
+                planId={selectedPlan.id}
+                price={selectedPlan.price}
+                onSuccess={() => {
+                  setIsPaymentModalOpen(false);
+                  setSelectedPlan(null);
+                }}
+                onError={(error) => {
+                  toast.error(error);
+                }}
+              />
+              <button
+                onClick={() => {
+                  setIsPaymentModalOpen(false);
+                  setSelectedPlan(null);
+                }}
+                className="mt-4 w-full bg-gray-600 text-white py-2 rounded-lg hover:bg-gray-700 transition-all duration-300"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </div>
-    </div>
+    </Elements>
   );
 };
 

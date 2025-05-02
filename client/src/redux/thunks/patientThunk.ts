@@ -29,7 +29,9 @@ export const getDoctorAvailabilityThunk = createAsyncThunk(
       });
     } catch (error: unknown) {
       const errorMessage =
-        error instanceof Error ? error.message : 'Failed to fetch doctor availability';
+        error instanceof Error
+          ? error.message
+          : 'Failed to fetch doctor availability';
       return rejectWithValue(errorMessage);
     }
   }
@@ -50,7 +52,9 @@ export const getDoctorAvailabilityForDateThunk = createAsyncThunk(
       return timeSlots;
     } catch (error: unknown) {
       const errorMessage =
-        error instanceof Error ? error.message : 'Failed to fetch availability for date';
+        error instanceof Error
+          ? error.message
+          : 'Failed to fetch availability for date';
       return rejectWithValue(errorMessage);
     }
   }
@@ -87,31 +91,22 @@ export const getPatientSubscriptionThunk = createAsyncThunk(
           _id: subscription.planId._id,
           name: subscription.planId.name,
           description: subscription.planId.description,
-          appointmentCost: subscription.planId.appointmentCost,
-          duration: subscription.planId.duration,
+          price: subscription.planId.price,
+          validityDays: subscription.planId.validityDays,
+          appointmentCount: subscription.planId.appointmentCount,
         },
         daysUntilExpiration: subscription.remainingDays,
         isExpired:
           subscription.status !== 'active' ||
           DateUtils.parseToUTC(subscription.endDate) < new Date(),
+        appointmentsLeft: subscription.appointmentsLeft,
+        status: subscription.status,
       };
     } catch (error: unknown) {
       const errorMessage =
-        error instanceof Error ? error.message : 'Failed to fetch patient subscription';
-      return rejectWithValue(errorMessage);
-    }
-  }
-);
-
-export const checkFreeBookingThunk = createAsyncThunk(
-  'patient/checkFreeBooking',
-  async (_: void, { rejectWithValue }) => {
-    try {
-      // Placeholder: Implement free booking check logic if needed
-      return false;
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Failed to check free booking';
+        error instanceof Error
+          ? error.message
+          : 'Failed to fetch patient subscription';
       return rejectWithValue(errorMessage);
     }
   }
@@ -121,7 +116,11 @@ export const getPatientAppointmentsForDoctorThunk = createAsyncThunk(
   'patient/getPatientAppointmentsForDoctor',
   async (doctorId: string, { rejectWithValue }) => {
     try {
-      return await getPatientAppointmentsForDoctor(doctorId);
+      const response = await getPatientAppointmentsForDoctor(doctorId);
+      return {
+        appointments: response.appointments,
+        canBookFree: response.canBookFree || false,
+      };
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to fetch appointments';
@@ -137,7 +136,9 @@ export const getPatientAppointmentsThunk = createAsyncThunk(
       return await getPatientAppointments();
     } catch (error: unknown) {
       const errorMessage =
-        error instanceof Error ? error.message : 'Failed to fetch patient appointments';
+        error instanceof Error
+          ? error.message
+          : 'Failed to fetch patient appointments';
       return rejectWithValue(errorMessage);
     }
   }

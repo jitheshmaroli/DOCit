@@ -5,12 +5,8 @@ import { SubscriptionPlanModel } from '../database/models/SubscriptionPlanModel'
 import moment from 'moment';
 import mongoose from 'mongoose';
 
-export class PatientSubscriptionRepository
-  implements IPatientSubscriptionRepository
-{
-  async create(
-    subscription: PatientSubscription
-  ): Promise<PatientSubscription> {
+export class PatientSubscriptionRepository implements IPatientSubscriptionRepository {
+  async create(subscription: PatientSubscription): Promise<PatientSubscription> {
     const newSubscription = new PatientSubscriptionModel(subscription);
     await newSubscription.save();
     return this.calculateSubscriptionDetails(newSubscription.toObject());
@@ -25,10 +21,12 @@ export class PatientSubscriptionRepository
     return this.calculateSubscriptionDetails(subscription);
   }
 
-  async findByStripeSubscriptionId(subscriptionId: string): Promise<PatientSubscription | null> {
-    const subscription = await PatientSubscriptionModel.findOne({ 
-      stripeSubscriptionId: subscriptionId 
-    }).populate('planId').lean();
+  async findByStripePaymentId(stripePaymentId: string): Promise<PatientSubscription | null> {
+    const subscription = await PatientSubscriptionModel.findOne({
+      stripePaymentId,
+    })
+      .populate('planId')
+      .lean();
     if (!subscription) return null;
     return this.calculateSubscriptionDetails(subscription);
   }
@@ -59,10 +57,30 @@ export class PatientSubscriptionRepository
     return subscriptions.map(sub => this.calculateSubscriptionDetails(sub));
   }
 
+  async findAll(): Promise<PatientSubscription[]> {
+    const subscriptions = await PatientSubscriptionModel.find()
+      .populate('planId')
+      .lean();
+    return subscriptions.map(sub => this.calculateSubscriptionDetails(sub));
+  }
+
   async incrementAppointmentCount(subscriptionId: string): Promise<PatientSubscription | null> {
     const subscription = await PatientSubscriptionModel.findByIdAndUpdate(
       subscriptionId,
-      { $inc: { appointmentsUsed: 1 } },
+      { $inc: { appointmentsUsed: 1, appointmentsLeft: -1 } },
+      { new: true }
+    )
+      .populate('planId')
+      .lean();
+
+    if (!subscription) return null;
+    return this.calculateSubscriptionDetails(subscription);
+  }
+
+  async decrementAppointmentCount(subscriptionId: string): Promise<PatientSubscription | null> {
+    const subscription = await PatientSubscriptionModel.findByIdAndUpdate(
+      subscriptionId,
+      { $inc: { appointmentsUsed: -1, appointmentsLeft: 1 } },
       { new: true }
     )
       .populate('planId')
@@ -120,7 +138,7 @@ export class PatientSubscriptionRepository
     if (subscription.planId) {
       subscription.appointmentsLeft = Math.max(
         0,
-        subscription.planId.appointmentCount - (subscription.appointmentsUsed || 0)
+        subscription.appointmentsLeft
       );
     }
 

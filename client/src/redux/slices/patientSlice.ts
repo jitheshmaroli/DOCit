@@ -1,65 +1,60 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import {
-  bookAppointmentThunk,
   getDoctorAvailabilityThunk,
   getDoctorAvailabilityForDateThunk,
+  bookAppointmentThunk,
   getPatientSubscriptionThunk,
-  checkFreeBookingThunk,
   getPatientAppointmentsForDoctorThunk,
+  getPatientAppointmentsThunk,
   cancelAppointmentThunk,
-} from '../thunks/patientThunk';
+} from '../../redux/thunks/patientThunk';
+import { AvailabilityPayload, TimeSlot } from '../../types/authTypes';
 
-interface TimeSlot {
-  startTime: string;
-  endTime: string;
-  _id?: string;
-}
-
-interface Availability {
-  _id?: string;
-  doctorId: string;
-  date: string | Date;
-  timeSlots: TimeSlot[];
-}
-
-interface Subscription {
+interface PatientSubscription {
   _id: string;
   plan: {
     _id: string;
     name: string;
-    description?: string;
-    appointmentCost: number;
-    duration: number;
+    description: string;
+    price: number;
+    validityDays: number;
+    appointmentCount: number;
   };
   daysUntilExpiration: number;
   isExpired: boolean;
+  appointmentsLeft: number;
+  status: string;
 }
 
 interface Appointment {
   _id: string;
+  patientId: string;
+  doctorId: string;
   date: string;
   startTime: string;
   endTime: string;
+  status: string;
   isFreeBooking: boolean;
-  status?: string;
+  bookingTime: string;
+  createdAt: string;
 }
 
 interface PatientState {
-  doctorAvailability: Availability[];
-  activeSubscriptions: { [doctorId: string]: Subscription | null };
-  timeSlots: TimeSlot[];
+  activeSubscriptions: { [doctorId: string]: PatientSubscription | null };
   appointments: Appointment[];
-  hasFreeBooking: boolean;
+  availability: AvailabilityPayload[];
+  timeSlots: TimeSlot[];
+  canBookFree: { [doctorId: string]: boolean };
   loading: boolean;
   error: string | null;
 }
 
 const initialState: PatientState = {
-  doctorAvailability: [],
   activeSubscriptions: {},
-  timeSlots: [],
   appointments: [],
-  hasFreeBooking: false,
+  availability: [],
+  timeSlots: [],
+  canBookFree: {},
   loading: false,
   error: null,
 };
@@ -78,46 +73,49 @@ const patientSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      .addCase(getDoctorAvailabilityThunk.fulfilled, (state, action: PayloadAction<Availability[]>) => {
-        state.loading = false;
-        state.doctorAvailability = action.payload;
-      })
+      .addCase(
+        getDoctorAvailabilityThunk.fulfilled,
+        (state, action: PayloadAction<AvailabilityPayload[]>) => {
+          state.availability = action.payload;
+          state.loading = false;
+        }
+      )
       .addCase(getDoctorAvailabilityThunk.rejected, (state, action) => {
-        state.loading = false;
         state.error = action.payload as string;
+        state.loading = false;
       })
       .addCase(getDoctorAvailabilityForDateThunk.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(getDoctorAvailabilityForDateThunk.fulfilled, (state, action: PayloadAction<TimeSlot[]>) => {
-        state.loading = false;
-        console.log('action payloda:', action.payload)
-        state.timeSlots = action.payload;
-      })
+      .addCase(
+        getDoctorAvailabilityForDateThunk.fulfilled,
+        (state, action: PayloadAction<TimeSlot[]>) => {
+          state.timeSlots = action.payload;
+          state.loading = false;
+        }
+      )
       .addCase(getDoctorAvailabilityForDateThunk.rejected, (state, action) => {
-        state.loading = false;
         state.error = action.payload as string;
+        state.loading = false;
       })
       .addCase(bookAppointmentThunk.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(bookAppointmentThunk.fulfilled, (state) => {
+      .addCase(bookAppointmentThunk.fulfilled, (state, action) => {
+        state.appointments.push(action.payload);
         state.loading = false;
-        if (state.hasFreeBooking && !Object.values(state.activeSubscriptions).some(sub => sub && !sub.isExpired)) {
-          state.hasFreeBooking = false;
-        }
       })
       .addCase(bookAppointmentThunk.rejected, (state, action) => {
-        state.loading = false;
         state.error = action.payload as string;
+        state.loading = false;
       })
       .addCase(getPatientSubscriptionThunk.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(getPatientSubscriptionThunk.fulfilled, (state, action: PayloadAction<Subscription | null, string, { arg: string }>) => {
+      .addCase(getPatientSubscriptionThunk.fulfilled, (state, action: PayloadAction<PatientSubscription | null, string, { arg: string }>) => {
         state.loading = false;
         if (action.meta.arg) {
           state.activeSubscriptions[action.meta.arg] = action.payload;
@@ -126,43 +124,53 @@ const patientSlice = createSlice({
         }
       })
       .addCase(getPatientSubscriptionThunk.rejected, (state, action) => {
-        state.loading = false;
         state.error = action.payload as string;
-      })
-      .addCase(checkFreeBookingThunk.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(checkFreeBookingThunk.fulfilled, (state, action: PayloadAction<boolean>) => {
         state.loading = false;
-        state.hasFreeBooking = action.payload;
-      })
-      .addCase(checkFreeBookingThunk.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload as string;
       })
       .addCase(getPatientAppointmentsForDoctorThunk.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(getPatientAppointmentsForDoctorThunk.fulfilled, (state, action: PayloadAction<Appointment[]>) => {
-        state.loading = false;
-        state.appointments = action.payload;
-      })
+      .addCase(
+        getPatientAppointmentsForDoctorThunk.fulfilled,
+        (state, action: PayloadAction<{ appointments: Appointment[]; canBookFree: boolean }>) => {
+          state.appointments = action.payload.appointments;
+          state.canBookFree[action.payload.appointments[0]?.doctorId || ''] = action.payload.canBookFree;
+          state.loading = false;
+        }
+      )
       .addCase(getPatientAppointmentsForDoctorThunk.rejected, (state, action) => {
-        state.loading = false;
         state.error = action.payload as string;
+        state.loading = false;
+      })
+      .addCase(getPatientAppointmentsThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(
+        getPatientAppointmentsThunk.fulfilled,
+        (state, action: PayloadAction<Appointment[]>) => {
+          state.appointments = action.payload;
+          state.loading = false;
+        }
+      )
+      .addCase(getPatientAppointmentsThunk.rejected, (state, action) => {
+        state.error = action.payload as string;
+        state.loading = false;
       })
       .addCase(cancelAppointmentThunk.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(cancelAppointmentThunk.fulfilled, (state) => {
+      .addCase(cancelAppointmentThunk.fulfilled, (state, action) => {
+        state.appointments = state.appointments.filter(
+          (appt) => appt._id !== action.meta.arg
+        );
         state.loading = false;
       })
       .addCase(cancelAppointmentThunk.rejected, (state, action) => {
-        state.loading = false;
         state.error = action.payload as string;
+        state.loading = false;
       });
   },
 });

@@ -9,6 +9,7 @@ import { GetDoctorAppointmentsUseCase } from '../../../core/use-cases/doctor/Get
 import { RemoveSlotUseCase } from '../../../core/use-cases/doctor/RemoveSlotUseCase';
 import { UpdateSlotUseCase } from '../../../core/use-cases/doctor/UpdateSlotUseCase';
 import { DateUtils } from '../../../utils/DateUtils';
+import { ISpecialityRepository } from '../../../core/interfaces/repositories/ISpecialityRepository';
 
 export class DoctorController {
   private setAvailabilityUseCase: SetAvailabilityUseCase;
@@ -18,6 +19,7 @@ export class DoctorController {
   private createSubscriptionPlanUseCase: CreateSubscriptionPlanUseCase;
   private getDoctorAppointmentsUseCase: GetDoctorAppointmentsUseCase;
   private subscriptionPlanRepository: ISubscriptionPlanRepository;
+  private specialityRepository: ISpecialityRepository;
 
   constructor(container: Container) {
     this.setAvailabilityUseCase = container.get('SetAvailabilityUseCase');
@@ -33,6 +35,7 @@ export class DoctorController {
     this.subscriptionPlanRepository = container.get(
       'ISubscriptionPlanRepository'
     );
+    this.specialityRepository = container.get('ISpecialityRepository');
   }
 
   async setAvailability(
@@ -99,11 +102,9 @@ export class DoctorController {
         doctorId
       );
       if (!availability) {
-        res
-          .status(200)
-          .json({
-            message: 'Slot removed and availability deleted (no slots remain)',
-          });
+        res.status(200).json({
+          message: 'Slot removed and availability deleted (no slots remain)',
+        });
         return;
       }
       res.status(200).json(availability);
@@ -150,13 +151,15 @@ export class DoctorController {
   ): Promise<void> {
     try {
       const doctorId = (req as any).user.id;
-      const { name, description, appointmentCost, duration } = req.body;
+      const { name, description, price, validityDays, appointmentCount } =
+        req.body;
 
       const plan = await this.createSubscriptionPlanUseCase.execute(doctorId, {
         name,
         description,
-        appointmentCost,
-        duration,
+        price,
+        validityDays,
+        appointmentCount,
       });
 
       res.status(201).json(plan);
@@ -187,7 +190,6 @@ export class DoctorController {
   ): Promise<void> {
     try {
       const doctorId = (req as any).user.id;
-
       const plans =
         await this.subscriptionPlanRepository.findByDoctor(doctorId);
       res.status(200).json(plans);
@@ -204,7 +206,8 @@ export class DoctorController {
     try {
       const doctorId = (req as any).user.id;
       const { id } = req.params;
-      const { name, description, appointmentCost, duration } = req.body;
+      const { name, description, price, validityDays, appointmentCount } =
+        req.body;
 
       const plan = await this.subscriptionPlanRepository.findById(id);
       if (!plan) {
@@ -217,9 +220,10 @@ export class DoctorController {
       const updatedPlan = await this.subscriptionPlanRepository.update(id, {
         name,
         description,
-        appointmentCost,
-        duration,
-        status: 'pending', // Reset to pending for admin approval
+        price,
+        validityDays,
+        appointmentCount,
+        status: 'pending',
       });
 
       res.status(200).json(updatedPlan);
@@ -247,6 +251,19 @@ export class DoctorController {
 
       await this.subscriptionPlanRepository.delete(id);
       res.status(200).json({ message: 'Plan deleted successfully' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getAllSpecialities(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const specialities = await this.specialityRepository.findAll();
+      res.status(200).json(specialities);
     } catch (error) {
       next(error);
     }

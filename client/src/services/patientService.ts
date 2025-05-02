@@ -1,5 +1,9 @@
 import api from './api';
-import { BookAppointmentPayload, GetDoctorAvailabilityPayload, SubscriptionPlan } from '../types/authTypes';
+import {
+  BookAppointmentPayload,
+  GetDoctorAvailabilityPayload,
+  SubscriptionPlan,
+} from '../types/authTypes';
 import { DateUtils } from '../utils/DateUtils';
 
 export const getDoctors = async () => {
@@ -7,23 +11,46 @@ export const getDoctors = async () => {
   return response.data;
 };
 
-export const getDoctorAvailability = async ({ doctorId, startDate, endDate }: GetDoctorAvailabilityPayload) => {
-  const params: { startDate: string; endDate?: string } = { startDate: DateUtils.formatToISO(startDate) };
+export const getDoctorAvailability = async ({
+  doctorId,
+  startDate,
+  endDate,
+}: GetDoctorAvailabilityPayload) => {
+  const params: { startDate: string; endDate?: string } = {
+    startDate: DateUtils.formatToISO(startDate),
+  };
   if (endDate) params.endDate = DateUtils.formatToISO(endDate);
-  const response = await api.get(`/api/patients/doctors/${doctorId}/availability`, { params });
+  const response = await api.get(
+    `/api/patients/doctors/${doctorId}/availability`,
+    { params }
+  );
   return response.data;
 };
 
-export const getDoctorAvailabilityForDate = async ({ doctorId, date }: { doctorId: string; date: string }) => {
-  const response = await api.get(`/api/patients/doctors/${doctorId}/availability`, {
-    params: { date: DateUtils.formatToISO(DateUtils.parseToUTC(date)) },
-  });
-  const timeSlots = Array.isArray(response.data) && response.data.length > 0 ? response.data[0].timeSlots || [] : [];
+export const getDoctorAvailabilityForDate = async ({
+  doctorId,
+  date,
+}: {
+  doctorId: string;
+  date: string;
+}) => {
+  const response = await api.get(
+    `/api/patients/doctors/${doctorId}/availability`,
+    {
+      params: { date: DateUtils.formatToISO(DateUtils.parseToUTC(date)) },
+    }
+  );
+  const timeSlots =
+    Array.isArray(response.data) && response.data.length > 0
+      ? response.data[0].timeSlots || []
+      : [];
   return timeSlots;
 };
 
 export const getPatientSubscription = async (doctorId: string) => {
-  const response = await api.get(`/api/patients/doctors/${doctorId}/subscription`);
+  const response = await api.get(
+    `/api/patients/doctors/${doctorId}/subscription`
+  );
   return response.data || null;
 };
 
@@ -33,11 +60,19 @@ export const getPatientAppointments = async () => {
 };
 
 export const getPatientAppointmentsForDoctor = async (doctorId: string) => {
-  const response = await api.get('/api/patients/appointments', { params: { doctorId } });
+  const response = await api.get('/api/patients/appointments', {
+    params: { doctorId },
+  });
   return response.data;
 };
 
-export const bookAppointment = async ({ doctorId, date, startTime, endTime, isFreeBooking }: BookAppointmentPayload) => {
+export const bookAppointment = async ({
+  doctorId,
+  date,
+  startTime,
+  endTime,
+  isFreeBooking,
+}: BookAppointmentPayload) => {
   const payload = {
     doctorId,
     date: DateUtils.formatToISO(date),
@@ -49,17 +84,27 @@ export const bookAppointment = async ({ doctorId, date, startTime, endTime, isFr
   return response.data;
 };
 
-export const getDoctorPlans = async (doctorId: string): Promise<SubscriptionPlan[]> => {
+export const getDoctorPlans = async (
+  doctorId: string
+): Promise<SubscriptionPlan[]> => {
   const response = await api.get(`/api/patients/doctors/${doctorId}/plans`);
   return response.data;
 };
 
-export const subscribeToPlan = async (planId: string) => {
-  const response = await api.post('/api/patients/subscriptions', { planId });
+export const subscribeToPlan = async (
+  planId: string,
+  paymentMethodId: string
+) => {
+  const response = await api.post('/api/patients/subscriptions', {
+    planId,
+    paymentMethodId,
+  });
   return response.data;
 };
 
 export const cancelAppointment = async (appointmentId: string) => {
-  const response = await api.delete(`/api/patients/appointments/${appointmentId}`);
+  const response = await api.delete(
+    `/api/patients/appointments/${appointmentId}`
+  );
   return response.data;
 };

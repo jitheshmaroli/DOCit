@@ -5,6 +5,10 @@ export interface PatientSubscription {
   startDate: Date;
   endDate: Date;
   status: 'active' | 'expired' | 'cancelled';
+  price: number; 
+  appointmentsUsed: number; 
+  appointmentsLeft: number;
+  stripePaymentId?: string;
   remainingDays?: number;
   createdAt?: Date;
   updatedAt?: Date;

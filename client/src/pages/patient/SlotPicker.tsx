@@ -6,31 +6,16 @@ import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { styled } from '@mui/material/styles';
 import { PickersDay, PickersDayProps } from '@mui/x-date-pickers/PickersDay';
+import { SlotPickerProps, TimeSlot } from '../../types/authTypes';
 
-interface TimeSlot {
-  startTime: string;
-  endTime: string;
-  _id?: string;
-}
-
-interface SlotPickerProps {
-  timeSlots: TimeSlot[];
-  patientLoading: boolean;
-  onDateChange: (date: string) => void;
-  onSlotSelect: (slot: TimeSlot | null) => void;
-  availableDates: string[];
-  selectedDate: string;
-}
-
-// Styled components
 const HighlightedDay = styled(PickersDay)(({ theme }) => ({
-  background: `linear-gradient(135deg, ${theme.palette.primary.main}80, ${theme.palette.secondary.main}80)`, // Semi-transparent primary/secondary
+  background: `linear-gradient(135deg, ${theme.palette.primary.main}80, ${theme.palette.secondary.main}80)`,
   borderRadius: '50%',
   width: '36px',
   height: '36px',
   color: theme.palette.primary.contrastText,
   backdropFilter: 'blur(5px)',
-  border: `1px solid ${theme.palette.divider}40`, // Subtle divider-based border
+  border: `1px solid ${theme.palette.divider}40`,
   boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
   '&:hover': {
     background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
@@ -44,7 +29,7 @@ const HighlightedDay = styled(PickersDay)(({ theme }) => ({
 
 const CalendarContainer = styled('div')({
   '& .MuiPaper-root': {
-    background: 'rgba(17, 24, 39, 0.6)', // Dark semi-transparent background
+    background: 'rgba(17, 24, 39, 0.6)',
     backdropFilter: 'blur(12px)',
     border: '1px solid rgba(255, 255, 255, 0.15)',
     borderRadius: '12px',
@@ -86,16 +71,17 @@ const CalendarContainer = styled('div')({
 });
 
 const SlotPicker: React.FC<SlotPickerProps> = ({
-  timeSlots,
+  currentTimeSlots,
   patientLoading,
   onDateChange,
   onSlotSelect,
   availableDates,
-  selectedDate
+  selectedDate,
 }) => {
-  const [value, setValue] = React.useState<Dayjs | null>(null);
+  const [value, setValue] = React.useState<Dayjs | null>(
+    selectedDate ? dayjs(selectedDate) : null
+  );
 
-  // Handle date selection
   const handleDateChange = (newValue: Dayjs | null) => {
     setValue(newValue);
     const formattedDate = newValue ? dayjs(newValue).format('YYYY-MM-DD') : '';
@@ -105,7 +91,6 @@ const SlotPicker: React.FC<SlotPickerProps> = ({
     }
   };
 
-  // Custom PickersDay component
   const CustomPickersDay = (props: PickersDayProps) => {
     const { day, ...other } = props;
 
@@ -126,7 +111,6 @@ const SlotPicker: React.FC<SlotPickerProps> = ({
     );
   };
 
-  // Handle slot selection
   const handleSlotSelect = (slot: TimeSlot) => {
     onSlotSelect(slot);
   };
@@ -176,13 +160,13 @@ const SlotPicker: React.FC<SlotPickerProps> = ({
         </CalendarContainer>
       </LocalizationProvider>
 
-      {timeSlots.length > 0 ? (
+      {currentTimeSlots.length > 0 ? (
         <div className="bg-[rgba(17,24,39,0.6)] backdrop-blur-lg p-4 rounded-lg border border-[rgba(255,255,255,0.15)] shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
           <h3 className="text-lg font-semibold text-white mb-4">
             Available Time Slots
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-            {timeSlots.map((slot, index) => (
+            {currentTimeSlots.map((slot, index) => (
               <button
                 key={index}
                 onClick={() => handleSlotSelect(slot)}

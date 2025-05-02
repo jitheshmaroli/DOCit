@@ -8,6 +8,7 @@ import { IAppointmentRepository } from '../../../core/interfaces/repositories/IA
 import { ISubscriptionPlanRepository } from '../../../core/interfaces/repositories/ISubscriptionPlanRepository';
 import { BookAppointmentUseCase } from '../../../core/use-cases/patient/BookAppointment';
 import { GetDoctorAvailabilityUseCase } from '../../../core/use-cases/patient/GetDoctorAvailability';
+import { CheckFreeBookingUseCase } from '../../../core/use-cases/patient/CheckFreeBookingUseCase';
 import mongoose from 'mongoose';
 import { GetDoctorUseCase } from '../../../core/use-cases/patient/GetDoctorUseCase';
 import { GetVerifiedDoctorsUseCase } from '../../../core/use-cases/patient/GetVerifiedDoctorsUseCase';
@@ -17,6 +18,7 @@ export class PatientController {
   private getDoctorAvailabilityUseCase: GetDoctorAvailabilityUseCase;
   private subscribeToPlanUseCase: SubscribeToPlanUseCase;
   private cancelAppointmentUseCase: CancelAppointmentUseCase;
+  private checkFreeBookingUseCase: CheckFreeBookingUseCase;
   private getDoctorUseCase: GetDoctorUseCase;
   private getVerifiedDoctorsUseCase: GetVerifiedDoctorsUseCase;
   private patientSubscriptionRepository: IPatientSubscriptionRepository;
@@ -25,20 +27,15 @@ export class PatientController {
 
   constructor(container: Container) {
     this.bookAppointmentUseCase = container.get('BookAppointmentUseCase');
-    this.getDoctorAvailabilityUseCase = container.get(
-      'GetDoctorAvailabilityUseCase'
-    );
+    this.getDoctorAvailabilityUseCase = container.get('GetDoctorAvailabilityUseCase');
     this.subscribeToPlanUseCase = container.get('SubscribeToPlanUseCase');
     this.cancelAppointmentUseCase = container.get('CancelAppointmentUseCase');
+    this.checkFreeBookingUseCase = container.get('CheckFreeBookingUseCase');
     this.getDoctorUseCase = container.get('GetDoctorUseCase');
     this.getVerifiedDoctorsUseCase = container.get('GetVerifiedDoctorsUseCase');
-    this.patientSubscriptionRepository = container.get(
-      'IPatientSubscriptionRepository'
-    );
+    this.patientSubscriptionRepository = container.get('IPatientSubscriptionRepository');
     this.appointmentRepository = container.get('IAppointmentRepository');
-    this.subscriptionPlanRepository = container.get(
-      'ISubscriptionPlanRepository'
-    );
+    this.subscriptionPlanRepository = container.get('ISubscriptionPlanRepository');
   }
 
   async getDoctorAvailability(
@@ -59,7 +56,7 @@ export class PatientController {
         doctorId,
         startDate,
         endDate,
-        true // Filter booked slots for patients
+        true
       );
       res.status(200).json(availability || []);
     } catch (error) {
@@ -74,21 +71,32 @@ export class PatientController {
   ): Promise<void> {
     try {
       const patientId = (req as any).user.id;
-      const { doctorId, date, startTime, endTime } = req.body;
+      const { doctorId, date, startTime, endTime, isFreeBooking } = req.body;
       if (!doctorId || !date || !startTime || !endTime) {
         throw new ValidationError(
           'doctorId, date, startTime, and endTime are required'
         );
+      }
+      if (isFreeBooking) {
+        const canBookFree = await this.checkFreeBookingUseCase.execute(patientId, doctorId);
+        if (!canBookFree) {
+          throw new ValidationError('Not eligible for free booking');
+        }
       }
       const appointment = await this.bookAppointmentUseCase.execute(
         patientId,
         doctorId,
         new Date(date),
         startTime,
-        endTime
+        endTime,
+        isFreeBooking || false
       );
       res.status(201).json(appointment);
     } catch (error) {
+      if (error instanceof ValidationError) {
+        res.status(400).json({ message: error.message });
+        return;
+      }
       next(error);
     }
   }
@@ -122,13 +130,14 @@ export class PatientController {
   ): Promise<void> {
     try {
       const patientId = (req as any).user.id;
-      const { planId } = req.body;
-      if (!planId) {
-        throw new ValidationError('planId is required');
+      const { planId, paymentMethodId } = req.body;
+      if (!planId || !paymentMethodId) {
+        throw new ValidationError('planId and paymentMethodId are required');
       }
       const subscription = await this.subscribeToPlanUseCase.execute(
         patientId,
-        planId
+        planId,
+        paymentMethodId
       );
       res.status(201).json(subscription);
     } catch (error) {
@@ -233,7 +242,12 @@ export class PatientController {
             doctorId as string
           )
         : await this.appointmentRepository.findByPatient(patientId);
-      res.status(200).json(appointments);
+      const response: { appointments: any[]; canBookFree?: boolean } = { appointments };
+      if (doctorId) {
+        const canBookFree = await this.checkFreeBookingUseCase.execute(patientId, doctorId as string);
+        response.canBookFree = canBookFree;
+      }
+      res.status(200).json(response);
     } catch (error) {
       next(error);
     }

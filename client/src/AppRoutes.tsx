@@ -10,8 +10,6 @@ import DoctorLayout from './layouts/DoctorLayout';
 import DoctorDashboard from './pages/doctor/DoctorDashboard';
 import NotFoundPage from './pages/public/NotFoundPage';
 import AdminLayout from './layouts/AdminLayout';
-import ManageDoctors from './pages/admin/ManageDoctors';
-import ManagePatients from './pages/admin/ManagePatients';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import ProfilePage from './pages/patient/ProfilePage';
 import AdminLoginPage from './pages/admin/AdminLoginPage';
@@ -23,6 +21,8 @@ import AdminAppointments from './pages/admin/AdminAppointments';
 import DoctorPlans from './pages/doctor/DoctorPlans';
 import AdminPlanManagement from './pages/admin/AdminPlanManagement';
 import AdminSpecialityManagement from './pages/admin/AdminSpecialityManagement';
+import AdminManagePatients from './pages/admin/AdminManagePatients';
+import AdminManageDoctors from './pages/admin/AdminManageDoctors';
 
 const AppRoutes = () => {
   return (
@@ -58,8 +58,8 @@ const AppRoutes = () => {
       <Route element={<ProtectedRoute roles={['admin']} />}>
         <Route path="/admin" element={<AdminLayout />}>
           <Route path="dashboard" element={<AdminDashboard />} />
-          <Route path="manage-doctors" element={<ManageDoctors />} />
-          <Route path="manage-patients" element={<ManagePatients />} />
+          <Route path="manage-doctors" element={<AdminManageDoctors />} />
+          <Route path="manage-patients" element={<AdminManagePatients />} />
           <Route path="appointments" element={<AdminAppointments />} />
           <Route path="plan-management" element={<AdminPlanManagement />} />
           <Route path="specialities" element={<AdminSpecialityManagement />} />

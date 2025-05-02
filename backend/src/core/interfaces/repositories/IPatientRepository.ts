@@ -7,5 +7,9 @@ export interface IPatientRepository {
   update(id: string, patient: Partial<Patient>): Promise<Patient | null>;
   delete(id: string): Promise<void>;
   list(): Promise<Patient[]>;
+  updateSubscriptionStatus(
+    patientId: string,
+    isSubscribed: boolean
+  ): Promise<Patient | null>;
   getPateintDetails(id: string): Promise<Patient | null>;
 }

@@ -71,10 +71,13 @@ const doctorSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      .addCase(fetchDoctorByIdThunk.fulfilled, (state, action: PayloadAction<Doctor>) => {
-        state.loading = false;
-        state.selectedDoctor = action.payload;
-      })
+      .addCase(
+        fetchDoctorByIdThunk.fulfilled,
+        (state, action: PayloadAction<Doctor>) => {
+          state.loading = false;
+          state.selectedDoctor = action.payload;
+        }
+      )
       .addCase(fetchDoctorByIdThunk.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
@@ -241,5 +244,4 @@ const doctorSlice = createSlice({
 });
 
 export const { clearError, resetSubscriptionStatus } = doctorSlice.actions;
-
 export default doctorSlice.reducer;
