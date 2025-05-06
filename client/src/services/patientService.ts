@@ -91,13 +91,21 @@ export const getDoctorPlans = async (
   return response.data;
 };
 
-export const subscribeToPlan = async (
-  planId: string,
-  paymentMethodId: string
-) => {
+export const subscribeToPlan = async (planId: string, price: number) => {
   const response = await api.post('/api/patients/subscriptions', {
     planId,
-    paymentMethodId,
+    price,
+  });
+  return response.data;
+};
+
+export const confirmSubscription = async (
+  planId: string,
+  paymentIntentId: string
+) => {
+  const response = await api.post('/api/patients/subscriptions/confirm', {
+    planId,
+    paymentIntentId,
   });
   return response.data;
 };

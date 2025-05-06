@@ -1,38 +1,72 @@
-import React, { useEffect, useState } from 'react';
+import React, {
+  useState,
+  useCallback,
+  useMemo,
+  useEffect,
+  useRef,
+} from 'react';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
-import { toast, ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
 import {
   getAllSpecialitiesThunk,
   createSpecialityThunk,
   updateSpecialityThunk,
   deleteSpecialityThunk,
 } from '../../redux/thunks/adminThunk';
+import DataTable from '../../components/common/DataTable';
+import SearchBar from '../../components/common/SearchBar';
+import Pagination from '../../components/common/Pagination';
+import Modal from '../../components/common/Modal';
 import { Speciality } from '../../types/authTypes';
+import { toast } from 'react-toastify';
 
 const AdminSpecialityManagement: React.FC = () => {
   const dispatch = useAppDispatch();
-  const { specialities = [], loading, error } = useAppSelector((state) => state.admin);
+  const {
+    specialities = [],
+    loading,
+    error,
+    totalPages: totalPagesFromState,
+  } = useAppSelector((state) => state.admin);
   const { user } = useAppSelector((state) => state.auth);
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedSpeciality, setSelectedSpeciality] = useState<Speciality | null>(null);
+  const [selectedSpeciality, setSelectedSpeciality] =
+    useState<Speciality | null>(null);
   const [specialityName, setSpecialityName] = useState('');
+  const itemsPerPage = 5;
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (user?.role === 'admin') {
-      dispatch(getAllSpecialitiesThunk());
+      dispatch(
+        getAllSpecialitiesThunk({
+          page: currentPage,
+          limit: itemsPerPage,
+          search: searchTerm,
+        })
+      );
     }
-  }, [dispatch, user?.role]);
+  }, [dispatch, user?.role, currentPage, searchTerm]);
 
-  const handleCreateOrUpdateSpeciality = async () => {
+  useEffect(() => {
+    setTotalPages(totalPagesFromState.specialities);
+  }, [totalPagesFromState.specialities]);
+
+  const handleCreateOrUpdateSpeciality = useCallback(async () => {
     if (!specialityName.trim()) {
       toast.error('Speciality name is required');
       return;
     }
     try {
       if (selectedSpeciality) {
-        await dispatch(updateSpecialityThunk({ id: selectedSpeciality._id, name: specialityName })).unwrap();
+        await dispatch(
+          updateSpecialityThunk({
+            id: selectedSpeciality._id,
+            name: specialityName,
+          })
+        ).unwrap();
         toast.success('Speciality updated successfully');
       } else {
         await dispatch(createSpecialityThunk(specialityName)).unwrap();
@@ -41,178 +75,151 @@ const AdminSpecialityManagement: React.FC = () => {
       setIsModalOpen(false);
       setSpecialityName('');
       setSelectedSpeciality(null);
-    } catch (error) {
-      toast.error(`Failed to ${selectedSpeciality ? 'update' : 'create'} speciality: ${error}`);
+    } catch (err) {
+      toast.error(
+        `Failed to ${selectedSpeciality ? 'update' : 'create'} speciality: ${err}`
+      );
     }
-  };
+  }, [dispatch, selectedSpeciality, specialityName]);
 
-  const handleEditSpeciality = (speciality: Speciality) => {
+  const handleEditSpeciality = useCallback((speciality: Speciality) => {
     setSelectedSpeciality(speciality);
     setSpecialityName(speciality.name);
     setIsModalOpen(true);
-  };
+  }, []);
 
-  const handleDeleteSpeciality = async (specialityId: string) => {
-    if (window.confirm('Are you sure you want to delete this speciality?')) {
-      try {
-        await dispatch(deleteSpecialityThunk(specialityId)).unwrap();
-        toast.success('Speciality deleted successfully');
-      } catch (error) {
-        toast.error(`Failed to delete speciality: ${error}`);
-      }
-    }
-  };
-
-  const filteredSpecialities = Array.isArray(specialities)
-    ? specialities.filter((speciality): speciality is NonNullable<Speciality> => {
-        if (!speciality || !speciality._id || !speciality.name) {
-          console.warn('Invalid speciality:', speciality);
-          return false;
+  const handleDeleteSpeciality = useCallback(
+    async (speciality: Speciality) => {
+      if (window.confirm('Are you sure you want to delete this speciality?')) {
+        try {
+          await dispatch(deleteSpecialityThunk(speciality._id)).unwrap();
+          toast.success('Speciality deleted successfully');
+        } catch (err) {
+          toast.error(`Failed to delete speciality: ${err}`);
         }
-        return speciality.name.toLowerCase().includes(searchTerm.toLowerCase()) || !searchTerm;
-      })
-    : [];
+      }
+    },
+    [dispatch]
+  );
 
-  if (loading && (!specialities || specialities.length === 0)) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-300"></div>
-      </div>
-    );
-  }
+  const handleAddSpeciality = useCallback(() => {
+    setSelectedSpeciality(null);
+    setSpecialityName('');
+    setIsModalOpen(true);
+  }, []);
 
-  if (error) {
-    return (
-      <div className="bg-red-500/20 border-l-4 border-red-500 p-4 rounded-lg text-white">
-        <p className="text-sm">Error: {error}</p>
-        <button
-          onClick={() => dispatch(getAllSpecialitiesThunk())}
-          className="mt-2 text-sm text-purple-300 hover:text-purple-200 transition-colors"
-        >
-          Retry
-        </button>
-      </div>
-    );
-  }
+  const columns = useMemo(
+    () => [
+      {
+        header: 'Name',
+        accessor: 'name' as keyof Speciality,
+      },
+      {
+        header: 'Created At',
+        accessor: (speciality: Speciality): React.ReactNode =>
+          new Date(speciality.createdAt).toLocaleDateString(),
+      },
+    ],
+    []
+  );
+
+  const actions = useMemo(
+    () => [
+      {
+        label: 'Edit',
+        onClick: handleEditSpeciality,
+        className: 'bg-blue-600 hover:bg-blue-700',
+      },
+      {
+        label: 'Delete',
+        onClick: handleDeleteSpeciality,
+        className: 'bg-red-600 hover:bg-red-700',
+      },
+    ],
+    [handleEditSpeciality, handleDeleteSpeciality]
+  );
+
+  const handlePageChange = useCallback((page: number) => {
+    setCurrentPage(page);
+  }, []);
+
+  const handleSearch = useCallback((term: string) => {
+    setSearchTerm(term);
+    setCurrentPage(1);
+  }, []);
 
   return (
-    <>
-      <ToastContainer position="top-right" autoClose={3000} theme="dark" />
-      <div className="bg-white/10 backdrop-blur-lg p-4 md:p-6 rounded-2xl border border-white/20 shadow-xl">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent">
-            Speciality Management
-          </h2>
-          <button
-            onClick={() => {
-              setSelectedSpeciality(null);
-              setSpecialityName('');
-              setIsModalOpen(true);
-            }}
-            className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
-          >
-            Add Speciality
-          </button>
-        </div>
-        <div className="mb-6">
-          <input
-            type="text"
-            placeholder="Search specialities..."
-            className="w-full md:w-1/3 p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full bg-white/20 backdrop-blur-lg border border-white/20 rounded-lg">
-            <thead>
-              <tr className="bg-white/10 border-b border-white/20">
-                <th className="px-4 md:px-6 py-3 text-left text-xs font-bold text-gray-200 uppercase tracking-wider">
-                  Name
-                </th>
-                <th className="px-4 md:px-6 py-3 text-left text-xs font-bold text-gray-200 uppercase tracking-wider">
-                  Created At
-                </th>
-                <th className="px-4 md:px-6 py-3 text-left text-xs font-bold text-gray-200 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/20">
-              {filteredSpecialities.length > 0 ? (
-                filteredSpecialities.map((speciality) => (
-                  <tr
-                    key={speciality._id}
-                    className="hover:bg-white/30 transition-all duration-300"
-                  >
-                    <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-white">
-                      {speciality.name}
-                    </td>
-                    <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-200">
-                      {new Date(speciality.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm space-x-2">
-                      <button
-                        onClick={() => handleEditSpeciality(speciality)}
-                        className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-3 py-1 rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-300"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDeleteSpeciality(speciality._id)}
-                        className="bg-gradient-to-r from-red-600 to-red-700 text-white px-3 py-1 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td
-                    colSpan={3}
-                    className="px-4 md:px-6 py-4 text-center text-gray-200"
-                  >
-                    No specialities found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+    <div className="bg-white/10 backdrop-blur-lg p-4 md:p-6 rounded-2xl border border-white/20 shadow-xl">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-xl font-semibold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent">
+          Speciality Management
+        </h2>
+        <button
+          onClick={handleAddSpeciality}
+          className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
+        >
+          Add Speciality
+        </button>
       </div>
-
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 w-full max-w-md">
-            <h3 className="text-lg font-semibold text-white mb-4">
-              {selectedSpeciality ? 'Edit Speciality' : 'Add Speciality'}
-            </h3>
-            <input
-              type="text"
-              placeholder="Speciality name"
-              className="w-full p-3 mb-4 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-              value={specialityName}
-              onChange={(e) => setSpecialityName(e.target.value)}
-            />
-            <div className="flex justify-end space-x-2">
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="bg-gradient-to-r from-gray-600 to-gray-700 text-white px-4 py-2 rounded-lg hover:from-gray-700 hover:to-gray-800 transition-all duration-300"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreateOrUpdateSpeciality}
-                className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
-              >
-                {selectedSpeciality ? 'Update' : 'Create'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
+      <div className="flex flex-col md:flex-row gap-4 mb-6">
+        <SearchBar
+          value={searchTerm}
+          onChange={handleSearch}
+          placeholder="Search specialities..."
+        />
+      </div>
+      <DataTable
+        data={specialities}
+        columns={columns}
+        actions={actions}
+        isLoading={loading}
+        error={error}
+        onRetry={() =>
+          dispatch(
+            getAllSpecialitiesThunk({
+              page: currentPage,
+              limit: itemsPerPage,
+              search: searchTerm,
+            })
+          )
+        }
+      />
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={handlePageChange}
+      />
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={selectedSpeciality ? 'Edit Speciality' : 'Add Speciality'}
+        footer={
+          <>
+            <button
+              onClick={() => setIsModalOpen(false)}
+              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleCreateOrUpdateSpeciality}
+              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
+            >
+              {selectedSpeciality ? 'Update' : 'Create'}
+            </button>
+          </>
+        }
+      >
+        <input
+          ref={inputRef}
+          type="text"
+          placeholder="Speciality name"
+          className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+          value={specialityName}
+          onChange={(e) => setSpecialityName(e.target.value)}
+        />
+      </Modal>
+    </div>
   );
 };
 

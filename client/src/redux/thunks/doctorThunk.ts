@@ -14,7 +14,11 @@ import {
   deleteSubscriptionPlan,
   withdrawSubscriptionPlan,
 } from '../../services/doctorService';
-import { getDoctorPlans, subscribeToPlan } from '../../services/patientService';
+import {
+  confirmSubscription,
+  getDoctorPlans,
+  subscribeToPlan,
+} from '../../services/patientService';
 import {
   AvailabilityPayload,
   SetAvailabilityPayload,
@@ -122,11 +126,11 @@ export const getAppointmentsThunk = createAsyncThunk(
 export const subscribeToPlanThunk = createAsyncThunk(
   'doctors/subscribeToPlan',
   async (
-    { planId, paymentMethodId }: { planId: string; paymentMethodId: string },
+    { planId, price }: { planId: string; price: number },
     { rejectWithValue }
   ) => {
     try {
-      return await subscribeToPlan(planId, paymentMethodId);
+      return await subscribeToPlan(planId, price);
     } catch (error: any) {
       if (error.response && error.response.status === 400) {
         return rejectWithValue(
@@ -134,6 +138,20 @@ export const subscribeToPlanThunk = createAsyncThunk(
         );
       }
       return rejectWithValue(error.message || 'Failed to subscribe to plan');
+    }
+  }
+);
+
+export const confirmSubscriptionThunk = createAsyncThunk(
+  'doctors/confirmSubscription',
+  async (
+    { planId, paymentIntentId }: { planId: string; paymentIntentId: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      return await confirmSubscription(planId, paymentIntentId);
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to confirm subscription');
     }
   }
 );

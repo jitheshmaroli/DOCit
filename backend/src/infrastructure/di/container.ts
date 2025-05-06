@@ -59,6 +59,7 @@ import { DeleteSpecialityUseCase } from '../../core/use-cases/admin/DeleteSpecia
 import { StripeService } from '../services/StripeService';
 import { PatientSubscriptionRepository } from '../repositories/PatientSubscriptionRepositroy';
 import { GetPatientSubscriptionsUseCase } from '../../core/use-cases/admin/GetpatientSubscriptions';
+import { ConfirmSubscriptionUseCase } from '../../core/use-cases/patient/ConfirmSubscriptionUseCase';
 
 export class Container {
   private static instance: Container;
@@ -88,8 +89,14 @@ export class Container {
     this.dependencies.set('IAdminRepository', adminRepository);
     this.dependencies.set('IOTPRepository', otpRepository);
     this.dependencies.set('IAvailabilityRepository', availabilityRepository);
-    this.dependencies.set('ISubscriptionPlanRepository', subscriptionPlanRepository);
-    this.dependencies.set('IPatientSubscriptionRepository', patientSubscriptionRepository);
+    this.dependencies.set(
+      'ISubscriptionPlanRepository',
+      subscriptionPlanRepository
+    );
+    this.dependencies.set(
+      'IPatientSubscriptionRepository',
+      patientSubscriptionRepository
+    );
     this.dependencies.set('IAppointmentRepository', appointmentRepository);
     this.dependencies.set('ISpecialityRepository', specialityRepository);
 
@@ -284,6 +291,15 @@ export class Container {
     this.dependencies.set(
       'SubscribeToPlanUseCase',
       new SubscribeToPlanUseCase(
+        subscriptionPlanRepository,
+        patientSubscriptionRepository,
+        patientRepository,
+        stripeService
+      )
+    );
+    this.dependencies.set(
+      'ConfirmSubscriptionUseCase',
+      new ConfirmSubscriptionUseCase(
         subscriptionPlanRepository,
         patientSubscriptionRepository,
         patientRepository,

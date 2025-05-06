@@ -7,7 +7,7 @@ import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import {
   fetchVerifiedDoctorsThunk,
 } from '../../redux/thunks/doctorThunk';
-import { API_BASE_URL } from '../../utils/config';
+import { getImageUrl } from '../../utils/config';
 import {
   clearError as clearDoctorError,
 } from '../../redux/slices/doctorSlice';
@@ -214,11 +214,7 @@ const FindDoctor: React.FC = () => {
                   <div className="flex flex-col sm:flex-row gap-6 items-center">
                     <div className="flex-shrink-0">
                       <img
-                        src={
-                          doctor.profilePicture
-                            ? `${API_BASE_URL}${doctor.profilePicture}`
-                            : defaultAvatar
-                        }
+                        src={getImageUrl(doctor.profilePicture)}
                         alt={doctor.name}
                         className="w-[100px] h-[100px] rounded-full object-cover shadow-lg border-4 border-purple-500/50"
                         onError={(e) => {

@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { SubscribeToPlanUseCase } from '../../../core/use-cases/patient/SubscribeToPlanUseCase';
+import { ConfirmSubscriptionUseCase } from '../../../core/use-cases/patient/ConfirmSubscriptionUseCase';
 import { CancelAppointmentUseCase } from '../../../core/use-cases/patient/CancelAppointmentUseCase';
 import { Container } from '../../../infrastructure/di/container';
 import { ValidationError, NotFoundError } from '../../../utils/errors';
@@ -17,6 +18,7 @@ export class PatientController {
   private bookAppointmentUseCase: BookAppointmentUseCase;
   private getDoctorAvailabilityUseCase: GetDoctorAvailabilityUseCase;
   private subscribeToPlanUseCase: SubscribeToPlanUseCase;
+  private confirmSubscriptionUseCase: ConfirmSubscriptionUseCase;
   private cancelAppointmentUseCase: CancelAppointmentUseCase;
   private checkFreeBookingUseCase: CheckFreeBookingUseCase;
   private getDoctorUseCase: GetDoctorUseCase;
@@ -29,6 +31,7 @@ export class PatientController {
     this.bookAppointmentUseCase = container.get('BookAppointmentUseCase');
     this.getDoctorAvailabilityUseCase = container.get('GetDoctorAvailabilityUseCase');
     this.subscribeToPlanUseCase = container.get('SubscribeToPlanUseCase');
+    this.confirmSubscriptionUseCase = container.get('ConfirmSubscriptionUseCase');
     this.cancelAppointmentUseCase = container.get('CancelAppointmentUseCase');
     this.checkFreeBookingUseCase = container.get('CheckFreeBookingUseCase');
     this.getDoctorUseCase = container.get('GetDoctorUseCase');
@@ -130,14 +133,36 @@ export class PatientController {
   ): Promise<void> {
     try {
       const patientId = (req as any).user.id;
-      const { planId, paymentMethodId } = req.body;
-      if (!planId || !paymentMethodId) {
-        throw new ValidationError('planId and paymentMethodId are required');
+      const { planId, price } = req.body;
+      if (!planId || !price) {
+        throw new ValidationError('planId and price are required');
       }
-      const subscription = await this.subscribeToPlanUseCase.execute(
+      const result = await this.subscribeToPlanUseCase.execute(
         patientId,
         planId,
-        paymentMethodId
+        price
+      );
+      res.status(201).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async confirmSubscription(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const patientId = (req as any).user.id;
+      const { planId, paymentIntentId } = req.body;
+      if (!planId || !paymentIntentId) {
+        throw new ValidationError('planId and paymentIntentId are required');
+      }
+      const subscription = await this.confirmSubscriptionUseCase.execute(
+        patientId,
+        planId,
+        paymentIntentId
       );
       res.status(201).json(subscription);
     } catch (error) {

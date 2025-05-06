@@ -6,7 +6,7 @@ import { NotFoundError, ValidationError } from '../../../utils/errors';
 import moment from 'moment';
 import { StripeService } from '../../../infrastructure/services/StripeService';
 
-export class SubscribeToPlanUseCase {
+export class ConfirmSubscriptionUseCase {
   constructor(
     private subscriptionPlanRepository: ISubscriptionPlanRepository,
     private patientSubscriptionRepository: IPatientSubscriptionRepository,
@@ -17,8 +17,8 @@ export class SubscribeToPlanUseCase {
   async execute(
     patientId: string,
     planId: string,
-    price: number
-  ): Promise<{ clientSecret: string; paymentIntentId: string }> {
+    paymentIntentId: string
+  ): Promise<PatientSubscription> {
     const plan = await this.subscriptionPlanRepository.findById(planId);
     if (!plan) {
       throw new NotFoundError('Plan not found');
@@ -37,10 +37,32 @@ export class SubscribeToPlanUseCase {
       );
     }
 
-    // Create PaymentIntent without immediate confirmation
-    const clientSecret = await this.stripeService.createPaymentIntent(price);
-    const paymentIntentId = clientSecret.split('_secret_')[0]; // Extract paymentIntentId from client_secret
+    // Verify PaymentIntent status
+    await this.stripeService.confirmPaymentIntent(paymentIntentId);
 
-    return { clientSecret, paymentIntentId };
+    const startDate = new Date();
+    const endDate = moment(startDate).add(plan.validityDays, 'days').toDate();
+
+    const subscription: PatientSubscription = {
+      patientId,
+      planId,
+      startDate,
+      endDate,
+      status: 'active',
+      price: plan.price,
+      appointmentsUsed: 0,
+      appointmentsLeft: plan.appointmentCount,
+      stripePaymentId: paymentIntentId,
+    };
+
+    const savedSubscription = await this.patientSubscriptionRepository.create(subscription);
+
+    const activeSubscriptions = await this.patientSubscriptionRepository.findActiveSubscriptions();
+    const hasActiveSubscriptions = activeSubscriptions.some(
+      (sub) => sub.patientId === patientId
+    );
+    await this.patientRepository.updateSubscriptionStatus(patientId, hasActiveSubscriptions);
+
+    return savedSubscription;
   }
 }

@@ -26,14 +26,23 @@ import {
 import { Doctor, Patient, Appointment, SubscriptionPlan, Speciality } from '../../types/authTypes';
 import { RootState, AppDispatch } from '../store';
 
+interface PaginationParams {
+  page: number;
+  limit: number;
+  search?: string;
+  status?: string;
+  specialty?: string;
+}
 
 export const listDoctorsThunk = createAsyncThunk<
-  Doctor[],
-  void,
+  { doctors: Doctor[]; totalPages: number },
+  PaginationParams,
   { state: RootState; dispatch: AppDispatch; rejectValue: string }
->('admin/listDoctors', async (_, { rejectWithValue }) => {
+>('admin/listDoctors', async ({ page, limit, search, status, specialty }, { rejectWithValue }) => {
   try {
-    return await listDoctors();
+    const response = await listDoctors({ page, limit, search, status, specialty });
+    console.log('thunk fishing:', response)
+    return response;
   } catch (error: any) {
     return rejectWithValue(error.message || 'Failed to fetch doctors');
   }
@@ -96,12 +105,13 @@ export const verifyDoctorThunk = createAsyncThunk<
 });
 
 export const listPatientsThunk = createAsyncThunk<
-  Patient[],
-  void,
+  { patients: Patient[]; totalPages: number },
+  PaginationParams,
   { state: RootState; dispatch: AppDispatch; rejectValue: string }
->('admin/listPatients', async (_, { rejectWithValue }) => {
+>('admin/listPatients', async ({ page, limit, search, status }, { rejectWithValue }) => {
   try {
-    return await listPatients();
+    const response = await listPatients({ page, limit, search, status });
+    return response;
   } catch (error: any) {
     return rejectWithValue(error.message || 'Failed to fetch patients');
   }
@@ -152,19 +162,14 @@ export const blockPatientThunk = createAsyncThunk(
 );
 
 export const getAllAppointmentsThunk = createAsyncThunk<
-  Appointment[],
-  void,
+  { appointments: Appointment[]; totalPages: number },
+  PaginationParams,
   { rejectValue: string }
->('admin/getAllAppointments', async (_, { rejectWithValue }) => {
+>('admin/getAllAppointments', async ({ page, limit, search }, { rejectWithValue }) => {
   try {
-    const appointments = await getAllAppointments();
-    if (!Array.isArray(appointments)) {
-      console.error('Expected an array, got:', appointments);
-      return [];
-    }
-    return appointments;
+    const response = await getAllAppointments({ page, limit, search });
+    return response;
   } catch (error: any) {
-    console.error('Error fetching appointments:', error);
     return rejectWithValue(error.message || 'Failed to fetch appointments');
   }
 });
@@ -177,25 +182,19 @@ export const cancelAppointmentThunk = createAsyncThunk<
   try {
     return await cancelAppointment(appointmentId);
   } catch (error: any) {
-    console.error('Error cancelling appointment:', error);
     return rejectWithValue(error.message || 'Failed to cancel appointment');
   }
 });
 
 export const getAllPlansThunk = createAsyncThunk<
-  SubscriptionPlan[],
-  void,
+  { plans: SubscriptionPlan[]; totalPages: number },
+  PaginationParams,
   { rejectValue: string }
->('admin/getAllPlans', async (_, { rejectWithValue }) => {
+>('admin/getAllPlans', async ({ page, limit, search }, { rejectWithValue }) => {
   try {
-    const plans = await getAllPlans();
-    if (!Array.isArray(plans)) {
-      console.error('Expected an array, got:', plans);
-      return [];
-    }
-    return plans;
+    const response = await getAllPlans({ page, limit, search });
+    return response;
   } catch (error: any) {
-    console.error('Error fetching plans:', error);
     return rejectWithValue(error.message || 'Failed to fetch plans');
   }
 });
@@ -208,7 +207,6 @@ export const approvePlanThunk = createAsyncThunk<
   try {
     await approvePlan(planId);
   } catch (error: any) {
-    console.error('Error approving plan:', error);
     return rejectWithValue(error.message || 'Failed to approve plan');
   }
 });
@@ -221,7 +219,6 @@ export const rejectPlanThunk = createAsyncThunk<
   try {
     await rejectPlan(planId);
   } catch (error: any) {
-    console.error('Error rejecting plan:', error);
     return rejectWithValue(error.message || 'Failed to reject plan');
   }
 });
@@ -234,25 +231,19 @@ export const deletePlanThunk = createAsyncThunk<
   try {
     return await deletePlan(planId);
   } catch (error: any) {
-    console.error('Error deleting plan:', error);
     return rejectWithValue(error.message || 'Failed to delete plan');
   }
 });
 
 export const getAllSpecialitiesThunk = createAsyncThunk<
-  Speciality[],
-  void,
+  { specialities: Speciality[]; totalPages: number },
+  PaginationParams,
   { rejectValue: string }
->('admin/getAllSpecialities', async (_, { rejectWithValue }) => {
+>('admin/getAllSpecialities', async ({ page, limit, search }, { rejectWithValue }) => {
   try {
-    const specialities = await getAllSpecialities();
-    if (!Array.isArray(specialities)) {
-      console.error('Expected an array, got:', specialities);
-      return [];
-    }
-    return specialities;
+    const response = await getAllSpecialities({ page, limit, search });
+    return response;
   } catch (error: any) {
-    console.error('Error fetching specialities:', error);
     return rejectWithValue(error.message || 'Failed to fetch specialities');
   }
 });
@@ -265,7 +256,6 @@ export const createSpecialityThunk = createAsyncThunk<
   try {
     return await createSpeciality(name);
   } catch (error: any) {
-    console.error('Error creating speciality:', error);
     return rejectWithValue(error.message || 'Failed to create speciality');
   }
 });
@@ -278,7 +268,6 @@ export const updateSpecialityThunk = createAsyncThunk<
   try {
     return await updateSpeciality(id, name);
   } catch (error: any) {
-    console.error('Error updating speciality:', error);
     return rejectWithValue(error.message || 'Failed to update speciality');
   }
 });
@@ -291,7 +280,6 @@ export const deleteSpecialityThunk = createAsyncThunk<
   try {
     return await deleteSpeciality(specialityId);
   } catch (error: any) {
-    console.error('Error deleting speciality:', error);
     return rejectWithValue(error.message || 'Failed to delete speciality');
   }
 });

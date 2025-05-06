@@ -44,7 +44,7 @@ interface PatientState {
   appointments: Appointment[];
   availability: AvailabilityPayload[];
   timeSlots: TimeSlot[];
-  canBookFree: { [doctorId: string]: boolean };
+  canBookFree:  boolean ;
   loading: boolean;
   error: string | null;
 }
@@ -54,7 +54,7 @@ const initialState: PatientState = {
   appointments: [],
   availability: [],
   timeSlots: [],
-  canBookFree: {},
+  canBookFree: true,
   loading: false,
   error: null,
 };
@@ -135,7 +135,7 @@ const patientSlice = createSlice({
         getPatientAppointmentsForDoctorThunk.fulfilled,
         (state, action: PayloadAction<{ appointments: Appointment[]; canBookFree: boolean }>) => {
           state.appointments = action.payload.appointments;
-          state.canBookFree[action.payload.appointments[0]?.doctorId || ''] = action.payload.canBookFree;
+          state.canBookFree = action.payload.canBookFree;
           state.loading = false;
         }
       )

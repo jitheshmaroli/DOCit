@@ -65,7 +65,7 @@ export class AdminAuthController {
   ): Promise<void> {
     try {
       const patients = await this.listPatientsUseCase.execute();
-      res.status(200).json(patients);
+      res.status(200).json({ data: patients });
     } catch (error) {
       next(error);
     }
@@ -92,7 +92,7 @@ export class AdminAuthController {
   ): Promise<void> {
     try {
       const doctors = await this.listDoctorsUseCase.execute();
-      res.status(200).json(doctors);
+      res.status(200).json({ data: doctors });
     } catch (error) {
       next(error);
     }

@@ -31,9 +31,7 @@ export class AdminController {
       'ManageSubscriptionPlanUseCase'
     );
     this.getAllAppointmentsUseCase = container.get('GetAllAppointmentsUseCase');
-    this.cancelAppointmentUseCase = container.get(
-      'CancelAppointmentUseCase'
-    );
+    this.cancelAppointmentUseCase = container.get('CancelAppointmentUseCase');
     this.getPatientSubscriptionsUseCase = container.get(
       'GetPatientSubscriptionsUseCase'
     );
@@ -168,7 +166,7 @@ export class AdminController {
   ): Promise<void> {
     try {
       const specialities = await this.getSpecialitiesUseCase.execute();
-      res.status(200).json(specialities);
+      res.status(200).json({ data: specialities });
     } catch (error) {
       next(error);
     }

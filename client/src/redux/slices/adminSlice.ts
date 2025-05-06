@@ -1,8 +1,16 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import {
   listDoctorsThunk,
+  createDoctorThunk,
+  updateDoctorThunk,
+  deleteDoctorThunk,
+  blockDoctorThunk,
   verifyDoctorThunk,
   listPatientsThunk,
+  createPatientThunk,
+  updatePatientThunk,
+  deletePatientThunk,
+  blockPatientThunk,
   getAllPlansThunk,
   approvePlanThunk,
   rejectPlanThunk,
@@ -22,6 +30,13 @@ interface AdminState {
   doctors: Doctor[];
   patients: Patient[];
   specialities: Speciality[];
+  totalPages: {
+    appointments: number;
+    plans: number;
+    doctors: number;
+    patients: number;
+    specialities: number;
+  };
   loading: boolean;
   error: string | null;
 }
@@ -32,6 +47,13 @@ const initialState: AdminState = {
   doctors: [],
   patients: [],
   specialities: [],
+  totalPages: {
+    appointments: 1,
+    plans: 1,
+    doctors: 1,
+    patients: 1,
+    specialities: 1,
+  },
   loading: false,
   error: null,
 };
@@ -58,18 +80,83 @@ const adminSlice = createSlice({
         state.error = null;
       })
       .addCase(listDoctorsThunk.fulfilled, (state, action) => {
-        state.doctors = action.payload;
+        console.log("slice dodtors:", action.payload)
+        state.doctors = action.payload.doctors;
+        state.totalPages.doctors = action.payload.totalPages;
         state.loading = false;
       })
       .addCase(listDoctorsThunk.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })
+      .addCase(createDoctorThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(createDoctorThunk.fulfilled, (state, action) => {
+        state.doctors.push(action.payload);
+        state.loading = false;
+      })
+      .addCase(createDoctorThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(updateDoctorThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateDoctorThunk.fulfilled, (state, action) => {
+        const index = state.doctors.findIndex((d) => d._id === action.payload._id);
+        if (index !== -1) {
+          state.doctors[index] = action.payload;
+        }
+        state.loading = false;
+      })
+      .addCase(updateDoctorThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(deleteDoctorThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(deleteDoctorThunk.fulfilled, (state, action) => {
+        state.doctors = state.doctors.filter((d) => d._id !== action.payload);
+        state.loading = false;
+      })
+      .addCase(deleteDoctorThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(blockDoctorThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(blockDoctorThunk.fulfilled, (state, action) => {
+        const index = state.doctors.findIndex((d) => d._id === action.payload._id);
+        if (index !== -1) {
+          state.doctors[index] = action.payload;
+        }
+        state.loading = false;
+      })
+      .addCase(blockDoctorThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(verifyDoctorThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
       .addCase(verifyDoctorThunk.fulfilled, (state, action) => {
         const index = state.doctors.findIndex((d) => d._id === action.payload._id);
         if (index !== -1) {
           state.doctors[index] = action.payload;
         }
+        state.loading = false;
+      })
+      .addCase(verifyDoctorThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
       });
 
     // Patients
@@ -79,10 +166,65 @@ const adminSlice = createSlice({
         state.error = null;
       })
       .addCase(listPatientsThunk.fulfilled, (state, action) => {
-        state.patients = action.payload;
+        state.patients = action.payload.patients;
+        state.totalPages.patients = action.payload.totalPages;
         state.loading = false;
       })
       .addCase(listPatientsThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(createPatientThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(createPatientThunk.fulfilled, (state, action) => {
+        state.patients.push(action.payload);
+        state.loading = false;
+      })
+      .addCase(createPatientThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(updatePatientThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updatePatientThunk.fulfilled, (state, action) => {
+        const index = state.patients.findIndex((p) => p._id === action.payload._id);
+        if (index !== -1) {
+          state.patients[index] = action.payload;
+        }
+        state.loading = false;
+      })
+      .addCase(updatePatientThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(deletePatientThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(deletePatientThunk.fulfilled, (state, action) => {
+        state.patients = state.patients.filter((p) => p._id !== action.payload);
+        state.loading = false;
+      })
+      .addCase(deletePatientThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(blockPatientThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(blockPatientThunk.fulfilled, (state, action) => {
+        const index = state.patients.findIndex((p) => p._id === action.payload._id);
+        if (index !== -1) {
+          state.patients[index] = action.payload;
+        }
+        state.loading = false;
+      })
+      .addCase(blockPatientThunk.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       });
@@ -94,8 +236,9 @@ const adminSlice = createSlice({
         state.error = null;
       })
       .addCase(getAllPlansThunk.fulfilled, (state, action) => {
+        state.plans = action.payload.plans;
+        state.totalPages.plans = action.payload.totalPages;
         state.loading = false;
-        state.plans = action.payload || [];
       })
       .addCase(getAllPlansThunk.rejected, (state, action) => {
         state.loading = false;
@@ -151,8 +294,9 @@ const adminSlice = createSlice({
         state.error = null;
       })
       .addCase(getAllAppointmentsThunk.fulfilled, (state, action) => {
+        state.appointments = action.payload.appointments;
+        state.totalPages.appointments = action.payload.totalPages;
         state.loading = false;
-        state.appointments = action.payload || [];
       })
       .addCase(getAllAppointmentsThunk.rejected, (state, action) => {
         state.loading = false;
@@ -181,8 +325,9 @@ const adminSlice = createSlice({
         state.error = null;
       })
       .addCase(getAllSpecialitiesThunk.fulfilled, (state, action) => {
+        state.specialities = action.payload.specialities;
+        state.totalPages.specialities = action.payload.totalPages;
         state.loading = false;
-        state.specialities = action.payload || [];
       })
       .addCase(getAllSpecialitiesThunk.rejected, (state, action) => {
         state.loading = false;
@@ -221,24 +366,14 @@ const adminSlice = createSlice({
       })
       .addCase(deleteSpecialityThunk.fulfilled, (state, action) => {
         state.loading = false;
-        state.specialities = state.specialities.filter((speciality) => speciality._id !== action.payload);
+        state.specialities = state.specialities.filter((s) => s._id !== action.payload);
       })
       .addCase(deleteSpecialityThunk.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload || 'Failed to delete speciality';
       });
-
-    // Common error handling
-    builder.addMatcher(
-      (action) => action.type.endsWith('/rejected'),
-      (state, action: PayloadAction<string | undefined>) => {
-        state.loading = false;
-        state.error = action.payload || 'An error occurred';
-      }
-    );
   },
 });
 
 export const { setLoading, setError, clearError } = adminSlice.actions;
-
 export default adminSlice.reducer;

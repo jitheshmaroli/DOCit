@@ -11,26 +11,36 @@ export class StripeService {
     });
   }
 
-  async createPaymentIntent(amount: number, paymentMethodId: string): Promise<string> {
+  async createPaymentIntent(amount: number): Promise<string> {
     try {
       const paymentIntent = await this.stripe.paymentIntents.create({
         amount, // In paisa
         currency: 'INR',
-        payment_method: paymentMethodId,
-        confirm: true,
         automatic_payment_methods: {
           enabled: true,
           allow_redirects: 'never', // Disable redirect-based methods
         },
       });
 
-      if (paymentIntent.status !== 'succeeded') {
-        throw new ValidationError('Payment failed');
+      if (!paymentIntent.client_secret) {
+        throw new ValidationError('Failed to create PaymentIntent');
       }
 
-      return paymentIntent.id;
+      return paymentIntent.client_secret;
     } catch (error: any) {
-      throw new ValidationError(`Payment error: ${error.message}`);
+      throw new ValidationError(`PaymentIntent creation error: ${error.message}`);
+    }
+  }
+
+  async confirmPaymentIntent(paymentIntentId: string): Promise<void> {
+    try {
+      const paymentIntent = await this.stripe.paymentIntents.retrieve(paymentIntentId);
+
+      if (paymentIntent.status !== 'succeeded') {
+        throw new ValidationError('Payment not completed');
+      }
+    } catch (error: any) {
+      throw new ValidationError(`Payment confirmation error: ${error.message}`);
     }
   }
 }

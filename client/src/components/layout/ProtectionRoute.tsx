@@ -34,8 +34,6 @@ const ProtectedRoute = ({
       />
     );
   }
-  console.log('user', user);
-  console.log('roles', roles);
 
   if (roles && !roles.includes(user.role)) {
     return (

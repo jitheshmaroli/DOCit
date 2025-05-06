@@ -51,6 +51,7 @@ export class PatientAuthController {
       const { accessToken, refreshToken } =
         await this.loginPatientUseCase.execute(email, password);
       setTokensInCookies(res, accessToken, refreshToken);
+      console.log('cookie', res.cookie)
       res.status(200).json({ message: 'Logged in successfully' });
     } catch (error) {
       next(error);

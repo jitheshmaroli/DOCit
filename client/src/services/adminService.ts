@@ -1,113 +1,259 @@
-import api from './api';
-import { Doctor, Patient, Appointment, SubscriptionPlan, Speciality } from '../types/authTypes';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { AxiosError } from 'axios';
+import api from './api'; // Import the custom Axios instance
+import { Appointment, Doctor, Patient, SubscriptionPlan, Speciality } from '../types/authTypes';
 
-export const listDoctors = async (): Promise<Doctor[]> => {
-  const response = await api.get('/api/admin/doctors');
-  return response.data;
+interface ApiError {
+  message: string;
+  status?: number;
+}
+
+interface PaginationParams {
+  page: number;
+  limit: number;
+  search?: string;
+  status?: string;
+  specialty?: string;
+}
+
+interface PaginatedResponse<T> {
+  data: T[];
+  totalPages: number;
+  currentPage: number;
+  totalItems: number;
+}
+
+// Doctors
+export const listDoctors = async (params: PaginationParams): Promise<{ doctors: Doctor[]; totalPages: number }> => {
+  try {
+    const response = await api.get<PaginatedResponse<Doctor>>('/api/admin/doctors', { params });
+    return {
+      doctors: response.data.data,
+      totalPages: response.data.totalPages,
+    };
+  } catch (error) {
+    const axiosError = error as AxiosError<ApiError>;
+    throw new Error(axiosError.response?.data.message || 'Failed to fetch doctors');
+  }
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const createDoctor = async (doctor: any) => {
-  const response = await api.post('/api/admin/doctors', doctor);
-  return response.data;
+export const createDoctor = async (doctor: any): Promise<Doctor> => {
+  try {
+    const response = await api.post<Doctor>('/api/admin/doctors', doctor);
+    return response.data;
+  } catch (error) {
+    const axiosError = error as AxiosError<ApiError>;
+    throw new Error(axiosError.response?.data.message || 'Failed to create doctor');
+  }
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const updateDoctor = async (id: string, updates: any) => {
-  const response = await api.patch(`/api/admin/doctors/${id}`, updates);
-  return response.data;
+export const updateDoctor = async (id: string, updates: any): Promise<Doctor> => {
+  try {
+    const response = await api.patch<Doctor>(`/api/admin/doctors/${id}`, updates);
+    return response.data;
+  } catch (error) {
+    const axiosError = error as AxiosError<ApiError>;
+    throw new Error(axiosError.response?.data.message || 'Failed to update doctor');
+  }
 };
 
-export const deleteDoctor = async (id: string) => {
-  await api.delete(`/api/admin/doctors/${id}`);
-  return id;
+export const deleteDoctor = async (id: string): Promise<string> => {
+  try {
+    await api.delete(`/api/admin/doctors/${id}`);
+    return id;
+  } catch (error) {
+    const axiosError = error as AxiosError<ApiError>;
+    throw new Error(axiosError.response?.data.message || 'Failed to delete doctor');
+  }
 };
 
-export const blockDoctor = async (id: string, isBlocked: boolean) => {
-  const response = await api.patch(`/api/admin/doctors/${id}/block`, {
-    isBlocked,
-  });
-  return response.data;
+export const blockDoctor = async (id: string, isBlocked: boolean): Promise<Doctor> => {
+  try {
+    const response = await api.patch<Doctor>(`/api/admin/doctors/${id}/block`, { isBlocked });
+    return response.data;
+  } catch (error) {
+    const axiosError = error as AxiosError<ApiError>;
+    throw new Error(axiosError.response?.data.message || 'Failed to block/unblock doctor');
+  }
 };
 
-export const verifyDoctor = async (doctorId: string): Promise<Doctor> => {
-  const response = await api.patch(`/api/admin/verify-doctor/${doctorId}`);
-  return response.data;
+export const verifyDoctor = async (id: string): Promise<Doctor> => {
+  try {
+    const response = await api.patch<Doctor>(`/api/admin/doctors/${id}/verify`);
+    return response.data;
+  } catch (error) {
+    const axiosError = error as AxiosError<ApiError>;
+    throw new Error(axiosError.response?.data.message || 'Failed to verify doctor');
+  }
 };
 
-export const listPatients = async (): Promise<Patient[]> => {
-  const response = await api.get('/api/admin/patients');
-  return response.data;
+// Patients
+export const listPatients = async (params: PaginationParams): Promise<{ patients: Patient[]; totalPages: number }> => {
+  try {
+    const response = await api.get<PaginatedResponse<Patient>>('/api/admin/patients', { params });
+    console.log(response.data)
+    return {
+      patients: response.data.data,
+      totalPages: response.data.totalPages,
+    };
+  } catch (error) {
+    const axiosError = error as AxiosError<ApiError>;
+    throw new Error(axiosError.response?.data.message || 'Failed to fetch patients');
+  }
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const createPatient = async (patient: any) => {
-  const response = await api.post('/api/admin/patients', patient);
-  return response.data;
+export const createPatient = async (patient: any): Promise<Patient> => {
+  try {
+    const response = await api.post<Patient>('/api/admin/patients', patient);
+    return response.data;
+  } catch (error) {
+    const axiosError = error as AxiosError<ApiError>;
+    throw new Error(axiosError.response?.data.message || 'Failed to create patient');
+  }
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const updatePatient = async (id: string, updates: any) => {
-  const response = await api.patch(`/api/admin/patients/${id}`, updates);
-  return response.data;
+export const updatePatient = async (id: string, updates: any): Promise<Patient> => {
+  try {
+    const response = await api.put<Patient>(`/api/admin/patients/${id}`, updates);
+    return response.data;
+  } catch (error) {
+    const axiosError = error as AxiosError<ApiError>;
+    throw new Error(axiosError.response?.data.message || 'Failed to update patient');
+  }
 };
 
-export const deletePatient = async (id: string) => {
-  await api.delete(`/api/admin/patients/${id}`);
-  return id;
+export const deletePatient = async (id: string): Promise<string> => {
+  try {
+    await api.delete(`/api/admin/patients/${id}`);
+    return id;
+  } catch (error) {
+    const axiosError = error as AxiosError<ApiError>;
+    throw new Error(axiosError.response?.data.message || 'Failed to delete patient');
+  }
 };
 
-export const blockPatient = async (id: string, isBlocked: boolean) => {
-  const response = await api.patch(`/api/admin/patients/${id}/block`, {
-    isBlocked,
-  });
-  return response.data;
+export const blockPatient = async (id: string, isBlocked: boolean): Promise<Patient> => {
+  try {
+    const response = await api.patch<Patient>(`/api/admin/patients/${id}/block`, { isBlocked });
+    return response.data;
+  } catch (error) {
+    const axiosError = error as AxiosError<ApiError>;
+    throw new Error(axiosError.response?.data.message || 'Failed to block/unblock patient');
+  }
 };
 
-export const getAllAppointments = async (): Promise<Appointment[]> => {
-  const response = await api.get('/api/admin/appointments');
-  return response.data.data || [];
+// Appointments
+export const getAllAppointments = async (
+  params: PaginationParams
+): Promise<{ appointments: Appointment[]; totalPages: number }> => {
+  try {
+    const response = await api.get<PaginatedResponse<Appointment>>('/api/admin/appointments', { params });
+    return {
+      appointments: response.data.data,
+      totalPages: response.data.totalPages,
+    };
+  } catch (error) {
+    const axiosError = error as AxiosError<ApiError>;
+    throw new Error(axiosError.response?.data.message || 'Failed to fetch appointments');
+  }
 };
 
-export const cancelAppointment = async (appointmentId: string) => {
-  await api.put(`/api/admin/appointments/${appointmentId}/cancel`, {});
-  return appointmentId;
+export const cancelAppointment = async (id: string): Promise<string> => {
+  try {
+    await api.patch(`/api/admin/appointments/${id}/cancel`);
+    return id;
+  } catch (error) {
+    const axiosError = error as AxiosError<ApiError>;
+    throw new Error(axiosError.response?.data.message || 'Failed to cancel appointment');
+  }
 };
 
-export const getAllPlans = async (): Promise<SubscriptionPlan[]> => {
-  const response = await api.get('/api/admin/subscription-plans');
-  return response.data.data || [];
+// Plans
+export const getAllPlans = async (
+  params: PaginationParams
+): Promise<{ plans: SubscriptionPlan[]; totalPages: number }> => {
+  try {
+    const response = await api.get<PaginatedResponse<SubscriptionPlan>>('/api/admin/subscription-plans', { params });
+    return {
+      plans: response.data.data,
+      totalPages: response.data.totalPages,
+    };
+  } catch (error) {
+    const axiosError = error as AxiosError<ApiError>;
+    throw new Error(axiosError.response?.data.message || 'Failed to fetch plans');
+  }
 };
 
-export const approvePlan = async (planId: string) => {
-  await api.put(`/api/admin/subscription-plans/${planId}/approve`, {});
+export const approvePlan = async (id: string): Promise<void> => {
+  try {
+    await api.patch(`/api/admin/plans/${id}/approve`);
+  } catch (error) {
+    const axiosError = error as AxiosError<ApiError>;
+    throw new Error(axiosError.response?.data.message || 'Failed to approve plan');
+  }
 };
 
-export const rejectPlan = async (planId: string) => {
-  await api.put(`/api/admin/subscription-plans/${planId}/reject`, {});
+export const rejectPlan = async (id: string): Promise<void> => {
+  try {
+    await api.patch(`/api/admin/plans/${id}/reject`);
+  } catch (error) {
+    const axiosError = error as AxiosError<ApiError>;
+    throw new Error(axiosError.response?.data.message || 'Failed to reject plan');
+  }
 };
 
-export const deletePlan = async (planId: string) => {
-  await api.delete(`/api/admin/subscription-plans/${planId}`);
-  return planId;
+export const deletePlan = async (id: string): Promise<string> => {
+  try {
+    await api.delete(`/api/admin/plans/${id}`);
+    return id;
+  } catch (error) {
+    const axiosError = error as AxiosError<ApiError>;
+    throw new Error(axiosError.response?.data.message || 'Failed to delete plan');
+  }
 };
 
-export const getAllSpecialities = async (): Promise<Speciality[]> => {
-  const response = await api.get('/api/admin/specialities');
-  return response.data || [];
+// Specialities
+export const getAllSpecialities = async (
+  params: PaginationParams
+): Promise<{ specialities: Speciality[]; totalPages: number }> => {
+  try {
+    const response = await api.get<PaginatedResponse<Speciality>>('/api/admin/specialities', { params });
+    return {
+      specialities: response.data.data,
+      totalPages: response.data.totalPages,
+    };
+  } catch (error) {
+    const axiosError = error as AxiosError<ApiError>;
+    throw new Error(axiosError.response?.data.message || 'Failed to fetch specialities');
+  }
 };
 
 export const createSpeciality = async (name: string): Promise<Speciality> => {
-  const response = await api.post('/api/admin/specialities', { name });
-  return response.data;
+  try {
+    const response = await api.post<Speciality>('/api/admin/specialities', { name });
+    return response.data;
+  } catch (error) {
+    const axiosError = error as AxiosError<ApiError>;
+    throw new Error(axiosError.response?.data.message || 'Failed to create speciality');
+  }
 };
 
 export const updateSpeciality = async (id: string, name: string): Promise<Speciality> => {
-  const response = await api.patch(`/api/admin/specialities/${id}`, { name });
-  return response.data;
+  try {
+    const response = await api.put<Speciality>(`/api/admin/specialities/${id}`, { name });
+    return response.data;
+  } catch (error) {
+    const axiosError = error as AxiosError<ApiError>;
+    throw new Error(axiosError.response?.data.message || 'Failed to update speciality');
+  }
 };
 
-export const deleteSpeciality = async (specialityId: string): Promise<string> => {
-  await api.delete(`/api/admin/specialities/${specialityId}`);
-  return specialityId;
+export const deleteSpeciality = async (id: string): Promise<string> => {
+  try {
+    await api.delete(`/api/admin/specialities/${id}`);
+    return id;
+  } catch (error) {
+    const axiosError = error as AxiosError<ApiError>;
+    throw new Error(axiosError.response?.data.message || 'Failed to delete speciality');
+  }
 };

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { toast } from 'react-toastify';
 import { useAppDispatch } from '../../redux/hooks';
-import { subscribeToPlanThunk } from '../../redux/thunks/doctorThunk';
-import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { confirmSubscriptionThunk } from '../../redux/thunks/doctorThunk';
+import { PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import useAuth from '../../hooks/useAuth';
 
 interface PaymentFormProps {
@@ -28,44 +28,53 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     event.preventDefault();
 
     if (!stripe || !elements || !user) {
-      onError('Stripe or user not initialized');
+      onError('Stripe, elements, or user not initialized');
       return;
     }
 
     setIsProcessing(true);
 
     try {
-      const cardElement = elements.getElement(CardElement);
-      if (!cardElement) {
-        throw new Error('Card element not found');
-      }
+      // Store for redirect handling
+      sessionStorage.setItem('planId', planId);
 
-      const { paymentMethod, error: paymentMethodError } =
-        await stripe.createPaymentMethod({
-          type: 'card',
-          card: cardElement,
-          billing_details: {
-            address: {
-              country: 'IN',
+      // Confirm the payment with PaymentElement
+      const { error, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: `${window.location.origin}/payment-success?planId=${planId}`,
+          payment_method_data: {
+            billing_details: {
+              address: {
+                country: 'IN', // Hardcode country as India
+              },
             },
           },
-        });
+        },
+        redirect: 'if_required',
+      });
 
-      if (paymentMethodError) {
-        throw new Error(
-          paymentMethodError.message || 'Failed to create payment method'
-        );
+      if (error) {
+        throw new Error(error.message || 'Payment confirmation failed');
       }
 
-      await dispatch(
-        subscribeToPlanThunk({
-          planId,
-          paymentMethodId: paymentMethod.id,
-        })
-      ).unwrap();
+      if (paymentIntent?.status === 'succeeded') {
+        // Confirm subscription on the backend
+        await dispatch(
+          confirmSubscriptionThunk({
+            planId,
+            paymentIntentId: paymentIntent.id,
+          })
+        ).unwrap();
 
-      onSuccess();
-      toast.success('Payment successful! Subscribed to plan.');
+        // Clear session storage
+        sessionStorage.removeItem('planId');
+
+        onSuccess();
+        toast.success('Payment successful! Subscribed to plan.');
+      } else {
+        throw new Error('Payment not completed');
+      }
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
@@ -79,17 +88,21 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="bg-white/10 p-4 rounded-lg border border-white/20">
-        <CardElement
+        <PaymentElement
           options={{
-            style: {
-              base: {
-                color: '#fff',
-                fontSize: '16px',
-                '::placeholder': { color: '#a0aec0' },
+            layout: 'tabs',
+            paymentMethodOrder: ['card', 'upi', 'netbanking'],
+            fields: {
+              billingDetails: {
+                address: {
+                  country: 'never', // Avoid collecting country in UI
+                },
               },
-              invalid: { color: '#e53e3e' },
             },
-            hidePostalCode: true,
+            wallets: {
+              applePay: 'auto',
+              googlePay: 'auto',
+            },
           }}
         />
       </div>

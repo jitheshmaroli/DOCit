@@ -1,35 +1,35 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import { AxiosError } from 'axios';
 import { useAppSelector } from '../../../redux/hooks';
 import { RootState } from '../../../redux/store';
-import { API_BASE_URL } from '../../../utils/config';
+import { getImageUrl } from '../../../utils/config';
+import { Patient } from '../../../types/authTypes';
+import { toast } from 'react-toastify';
+import api from '../../../services/api';
+
+interface ApiError {
+  message: string;
+  status?: number;
+}
 
 const ProfileCard = () => {
   const { user } = useAppSelector((state: RootState) => state.auth);
   const [profileImage, setProfileImage] = useState<string>('');
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [patientData, setPatientData] = useState<any>(null);
+  const [patientData, setPatientData] = useState<Patient | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
       if (!user?._id) return;
       try {
-        const response = await axios.get(
-          `http://localhost:5000/api/patients/${user?._id}`,
-          {
-            withCredentials: true,
-          }
-        );
+        const response = await api.get<Patient>(`/api/patients/${user._id}`);
         setPatientData(response.data);
-        const imageUrl = response.data.profilePicture
-          ? `${API_BASE_URL}${response.data.profilePicture}`
-          : '/images/avatar.png';
-        setProfileImage(imageUrl);
+        setProfileImage(getImageUrl(response.data.profilePicture));
       } catch (error) {
-        console.error('Error fetching profile:', error);
+        const axiosError = error as AxiosError<ApiError>;
+        toast.error(axiosError.response?.data.message || 'Error fetching profile');
       }
     };
     fetchProfile();
@@ -41,7 +41,6 @@ const ProfileCard = () => {
       const previewUrl = URL.createObjectURL(file);
       setPreviewImage(previewUrl);
       setSelectedFile(file);
-      console.log('File selected:', file.name);
     }
   };
 
@@ -54,23 +53,23 @@ const ProfileCard = () => {
     formData.append('profilePicture', selectedFile);
 
     try {
-      console.log('Uploading file:', selectedFile.name);
-      const response = await axios.patch(
-        `http://localhost:5000/api/patients/${user._id}`,
+      const response = await api.patch<Patient>(
+        `/api/patients/${user._id}`,
         formData,
         {
-          withCredentials: true,
           headers: {
             'Content-Type': 'multipart/form-data',
           },
         }
       );
-      console.log('Upload response:', response.data);
-      setProfileImage(response.data.profilePicture || null);
+      setProfileImage(getImageUrl(response.data.profilePicture));
+      setPatientData(response.data);
       setPreviewImage(null);
       setSelectedFile(null);
+      toast.success('Profile picture updated successfully');
     } catch (error) {
-      console.error('Error uploading photo:', error);
+      const axiosError = error as AxiosError<ApiError>;
+      toast.error(axiosError.response?.data.message || 'Error uploading photo');
     } finally {
       setLoading(false);
     }
@@ -94,7 +93,7 @@ const ProfileCard = () => {
         <div className="w-32 h-32 mb-4 bg-gray-200 rounded-full overflow-hidden shadow-md relative">
           {previewImage || profileImage ? (
             <img
-              src={previewImage || profileImage || undefined}
+              src={previewImage || profileImage}
               alt="Profile"
               className="w-full h-full object-cover"
             />
@@ -107,12 +106,11 @@ const ProfileCard = () => {
         <h2 className="text-lg font-bold text-white">
           {patientData?.name || 'Loading...'}
         </h2>
-        <p className="text-sm text-gray-200">{patientData?.address || 'N/A'}</p>
         <p className="text-sm text-gray-200">
-          Joined:{' '}
-          {patientData?.createdAt
-            ? new Date(patientData.createdAt).toLocaleDateString()
-            : 'N/A'}
+          Joined:{
+            patientData?.createdAt
+              ? new Date(patientData.createdAt).toLocaleDateString()
+              : 'N/A'}
         </p>
       </div>
       <div className="w-full px-4 pb-6">
