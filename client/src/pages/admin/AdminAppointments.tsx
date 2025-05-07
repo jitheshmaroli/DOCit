@@ -28,20 +28,12 @@ const AdminAppointments: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  // Debug log for Redux state and appointments data
-  useEffect(() => {
-    console.log('Redux State:', {
-      appointments,
-      loading,
-      error,
-      totalPages: totalPagesFromState.appointments,
-    });
-    console.log('Appointments Data:', appointments); // Log raw appointments
-  }, [appointments, loading, error, totalPagesFromState.appointments]);
-
   useEffect(() => {
     if (user?.role === 'admin') {
-      const [sortBy, sortOrder] = sortFilter.split(':') as [string, 'asc' | 'desc'];
+      const [sortBy, sortOrder] = sortFilter.split(':') as [
+        string,
+        'asc' | 'desc',
+      ];
       const params: PaginationParams = {
         page: currentPage,
         limit: ITEMS_PER_PAGE,
@@ -133,26 +125,32 @@ const AdminAppointments: React.FC = () => {
     [handleCancelAppointment]
   );
 
-  const statusOptions = useMemo(() => [
-    { value: 'all', label: 'All Statuses' },
-    { value: 'pending', label: 'Pending' },
-    { value: 'confirmed', label: 'Confirmed' },
-    { value: 'cancelled', label: 'Cancelled' },
-  ], []);
+  const statusOptions = useMemo(
+    () => [
+      { value: 'all', label: 'All Statuses' },
+      { value: 'pending', label: 'Pending' },
+      { value: 'confirmed', label: 'Confirmed' },
+      { value: 'cancelled', label: 'Cancelled' },
+    ],
+    []
+  );
 
-  const sortOptions = useMemo(() => [
-    { value: 'createdAt:desc', label: 'Newest First' },
-    { value: 'createdAt:asc', label: 'Oldest First' },
-    { value: 'date:asc', label: 'Date (Earliest First)' },
-    { value: 'date:desc', label: 'Date (Latest First)' },
-  ], []);
+  const sortOptions = useMemo(
+    () => [
+      { value: 'createdAt:desc', label: 'Newest First' },
+      { value: 'createdAt:asc', label: 'Oldest First' },
+      { value: 'date:asc', label: 'Date (Earliest First)' },
+      { value: 'date:desc', label: 'Date (Latest First)' },
+    ],
+    []
+  );
 
   const handlePageChange = useCallback((page: number) => {
     setCurrentPage(page);
   }, []);
 
   const handleSearch = useCallback((term: string) => {
-    console.log('Search Term:', term); // Debug log
+    console.log('Search Term:', term);
     setSearchTerm(term);
     setCurrentPage(1);
   }, []);
@@ -190,7 +188,10 @@ const AdminAppointments: React.FC = () => {
         isLoading={loading}
         error={error}
         onRetry={() => {
-          const [sortBy, sortOrder] = sortFilter.split(':') as [string, 'asc' | 'desc'];
+          const [sortBy, sortOrder] = sortFilter.split(':') as [
+            string,
+            'asc' | 'desc',
+          ];
           const params: PaginationParams = {
             page: currentPage,
             limit: ITEMS_PER_PAGE,

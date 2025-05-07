@@ -35,7 +35,7 @@ const DoctorProfilePage: React.FC = () => {
   });
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
-  const [file, setFile] = useState<File | null>(null); // Track selected file
+  const [file, setFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<Record<string, string | null>>({});
   const [specialities, setSpecialities] = useState<Speciality[]>([]);
 
@@ -60,7 +60,6 @@ const DoctorProfilePage: React.FC = () => {
           age: data.age || '',
           gender: data.gender || '',
         });
-        // Use getImageUrl to handle Cloudinary or fallback
         const imageUrl = getImageUrl(data.profilePicture);
         setProfilePicture(imageUrl);
         setPreviewImage(imageUrl);
@@ -110,10 +109,10 @@ const DoctorProfilePage: React.FC = () => {
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
-      setFile(selectedFile); // Store file for upload
+      setFile(selectedFile);
       const reader = new FileReader();
       reader.onloadend = () => {
-        setPreviewImage(reader.result as string); // Show preview
+        setPreviewImage(reader.result as string);
       };
       reader.readAsDataURL(selectedFile);
     }
@@ -131,21 +130,22 @@ const DoctorProfilePage: React.FC = () => {
           headers: { 'Content-Type': 'multipart/form-data' },
         }
       );
-      const imageUrl = getImageUrl(response.data.profilePicture); // Use Cloudinary URL
+      const imageUrl = getImageUrl(response.data.profilePicture);
       setProfilePicture(imageUrl);
       setPreviewImage(imageUrl);
-      setFile(null); // Clear file after upload
+      setFile(null);
       toast.success('Profile picture updated successfully!', {
         position: 'bottom-right',
         autoClose: 3000,
       });
     } catch (error: any) {
-      toast.error('Error uploading profile picture', {
+      const message = error.message || 'Error uploading profile picture';
+      toast.error(message, {
         position: 'bottom-right',
         autoClose: 3000,
       });
       console.error('Error uploading photo:', error);
-      setPreviewImage(profilePicture); // Revert to original on error
+      setPreviewImage(profilePicture);
       throw error;
     }
   };
@@ -246,12 +246,10 @@ const DoctorProfilePage: React.FC = () => {
           <button
             onClick={async () => {
               try {
-                // Upload photo if a new file is selected
                 if (file) {
                   await uploadPhoto(file);
                 }
 
-                // Update profile data
                 const response = await axios.patch(
                   `${API_BASE_URL}/api/doctors/${doctorId}`,
                   {
@@ -276,8 +274,8 @@ const DoctorProfilePage: React.FC = () => {
                   }
                 );
                 console.error('Error updating profile:', error);
-                setPreviewImage(profilePicture); // Revert preview on error
-                setFile(null); // Clear file on error
+                setPreviewImage(profilePicture);
+                setFile(null);
               }
               closeToast();
             }}
@@ -288,7 +286,7 @@ const DoctorProfilePage: React.FC = () => {
           <button
             onClick={() => {
               setPreviewImage(profilePicture);
-              setFile(null); // Clear file on cancel
+              setFile(null);
               closeToast();
             }}
             className="bg-red-500 text-white px-2 py-1 rounded"

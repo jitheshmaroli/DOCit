@@ -13,6 +13,8 @@ import { CheckFreeBookingUseCase } from '../../../core/use-cases/patient/CheckFr
 import mongoose from 'mongoose';
 import { GetDoctorUseCase } from '../../../core/use-cases/patient/GetDoctorUseCase';
 import { GetVerifiedDoctorsUseCase } from '../../../core/use-cases/patient/GetVerifiedDoctorsUseCase';
+import { ISpecialityRepository } from '../../../core/interfaces/repositories/ISpecialityRepository';
+import logger from '../../../utils/logger';
 
 export class PatientController {
   private bookAppointmentUseCase: BookAppointmentUseCase;
@@ -26,19 +28,29 @@ export class PatientController {
   private patientSubscriptionRepository: IPatientSubscriptionRepository;
   private appointmentRepository: IAppointmentRepository;
   private subscriptionPlanRepository: ISubscriptionPlanRepository;
+  private specialityRepository: ISpecialityRepository;
 
   constructor(container: Container) {
     this.bookAppointmentUseCase = container.get('BookAppointmentUseCase');
-    this.getDoctorAvailabilityUseCase = container.get('GetDoctorAvailabilityUseCase');
+    this.getDoctorAvailabilityUseCase = container.get(
+      'GetDoctorAvailabilityUseCase'
+    );
     this.subscribeToPlanUseCase = container.get('SubscribeToPlanUseCase');
-    this.confirmSubscriptionUseCase = container.get('ConfirmSubscriptionUseCase');
+    this.confirmSubscriptionUseCase = container.get(
+      'ConfirmSubscriptionUseCase'
+    );
     this.cancelAppointmentUseCase = container.get('CancelAppointmentUseCase');
     this.checkFreeBookingUseCase = container.get('CheckFreeBookingUseCase');
     this.getDoctorUseCase = container.get('GetDoctorUseCase');
     this.getVerifiedDoctorsUseCase = container.get('GetVerifiedDoctorsUseCase');
-    this.patientSubscriptionRepository = container.get('IPatientSubscriptionRepository');
+    this.patientSubscriptionRepository = container.get(
+      'IPatientSubscriptionRepository'
+    );
     this.appointmentRepository = container.get('IAppointmentRepository');
-    this.subscriptionPlanRepository = container.get('ISubscriptionPlanRepository');
+    this.subscriptionPlanRepository = container.get(
+      'ISubscriptionPlanRepository'
+    );
+    this.specialityRepository = container.get('ISpecialityRepository');
   }
 
   async getDoctorAvailability(
@@ -81,7 +93,10 @@ export class PatientController {
         );
       }
       if (isFreeBooking) {
-        const canBookFree = await this.checkFreeBookingUseCase.execute(patientId, doctorId);
+        const canBookFree = await this.checkFreeBookingUseCase.execute(
+          patientId,
+          doctorId
+        );
         if (!canBookFree) {
           throw new ValidationError('Not eligible for free booking');
         }
@@ -221,7 +236,11 @@ export class PatientController {
     }
   }
 
-  async getDoctor(req: Request, res: Response): Promise<void> {
+  async getDoctor(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     try {
       const { doctorId } = req.params;
 
@@ -238,18 +257,30 @@ export class PatientController {
 
       res.status(200).json(doctor);
     } catch (error: any) {
-      console.error('Error fetching doctor:', error);
-      res.status(500).json({ message: 'Internal server error' });
+      next(error);
     }
   }
 
-  async getVerifiedDoctors(req: Request, res: Response): Promise<void> {
+  async getVerifiedDoctors(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     try {
-      const doctors = await this.getVerifiedDoctorsUseCase.execute();
-      res.status(200).json(doctors);
+      const params: any = {
+        page: req.query.page,
+        limit: req.query.limit,
+        search: req.query.search,
+        sortBy: req.query.sortBy,
+        sortOrder: req.query.sortOrder,
+        speciality: req.query.speciality,
+        ageRange: req.query.ageRange,
+        gender: req.query.gender,
+      };
+      const result = await this.getVerifiedDoctorsUseCase.execute(params);
+      res.status(200).json(result);
     } catch (error: any) {
-      console.error('Error fetching verified doctors:', error);
-      res.status(500).json({ message: 'Internal server error' });
+      next(error);
     }
   }
 
@@ -267,12 +298,30 @@ export class PatientController {
             doctorId as string
           )
         : await this.appointmentRepository.findByPatient(patientId);
-      const response: { appointments: any[]; canBookFree?: boolean } = { appointments };
+      const response: { appointments: any[]; canBookFree?: boolean } = {
+        appointments,
+      };
       if (doctorId) {
-        const canBookFree = await this.checkFreeBookingUseCase.execute(patientId, doctorId as string);
+        const canBookFree = await this.checkFreeBookingUseCase.execute(
+          patientId,
+          doctorId as string
+        );
         response.canBookFree = canBookFree;
       }
       res.status(200).json(response);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getAllSpecialities(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const specialities = await this.specialityRepository.findAll();
+      res.status(200).json(specialities);
     } catch (error) {
       next(error);
     }

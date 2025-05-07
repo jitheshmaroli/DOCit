@@ -116,3 +116,4 @@ export const cancelAppointment = async (appointmentId: string) => {
   );
   return response.data;
 };
+

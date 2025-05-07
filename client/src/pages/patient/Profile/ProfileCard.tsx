@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from 'react';
 import { AxiosError } from 'axios';
 import { useAppSelector } from '../../../redux/hooks';
@@ -29,7 +30,9 @@ const ProfileCard = () => {
         setProfileImage(getImageUrl(response.data.profilePicture));
       } catch (error) {
         const axiosError = error as AxiosError<ApiError>;
-        toast.error(axiosError.response?.data.message || 'Error fetching profile');
+        toast.error(
+          axiosError.response?.data.message || 'Error fetching profile'
+        );
       }
     };
     fetchProfile();
@@ -67,9 +70,13 @@ const ProfileCard = () => {
       setPreviewImage(null);
       setSelectedFile(null);
       toast.success('Profile picture updated successfully');
-    } catch (error) {
-      const axiosError = error as AxiosError<ApiError>;
-      toast.error(axiosError.response?.data.message || 'Error uploading photo');
+    } catch (error: any) {
+      const message =
+        error.message || 'Error uploading profile picture';
+      toast.error(message, {
+        position: 'bottom-right',
+        autoClose: 3000,
+      });
     } finally {
       setLoading(false);
     }
@@ -107,10 +114,10 @@ const ProfileCard = () => {
           {patientData?.name || 'Loading...'}
         </h2>
         <p className="text-sm text-gray-200">
-          Joined:{
-            patientData?.createdAt
-              ? new Date(patientData.createdAt).toLocaleDateString()
-              : 'N/A'}
+          Joined:
+          {patientData?.createdAt
+            ? new Date(patientData.createdAt).toLocaleDateString()
+            : 'N/A'}
         </p>
       </div>
       <div className="w-full px-4 pb-6">

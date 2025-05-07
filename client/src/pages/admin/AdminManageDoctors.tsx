@@ -1,4 +1,10 @@
-import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import React, {
+  useState,
+  useCallback,
+  useMemo,
+  useEffect,
+  useRef,
+} from 'react';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import {
   listDoctorsThunk,
@@ -19,10 +25,15 @@ import { Doctor, QueryParams } from '../../types/authTypes';
 import { toast } from 'react-toastify';
 import { ITEMS_PER_PAGE } from '../../utils/constants';
 
-
 const AdminManageDoctors: React.FC = () => {
   const dispatch = useAppDispatch();
-  const { doctors, specialities, loading, error, totalPages: totalPagesFromState } = useAppSelector((state) => state.admin);
+  const {
+    doctors,
+    specialities,
+    loading,
+    error,
+    totalPages: totalPagesFromState,
+  } = useAppSelector((state) => state.admin);
   const { user } = useAppSelector((state) => state.auth);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -41,22 +52,23 @@ const AdminManageDoctors: React.FC = () => {
   });
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch specialties on mount
   useEffect(() => {
-    dispatch(getAllSpecialitiesThunk({ page: 1, limit: 100 }));
+    dispatch(getAllSpecialitiesThunk({ page: 1, limit: 10 }));
   }, [dispatch]);
 
-  // Fetch doctors based on filters, search, sort, and pagination
   useEffect(() => {
     if (user?.role === 'admin') {
-      const [sortBy, sortOrder] = sortFilter.split(':') as [string, 'asc' | 'desc'];
+      const [sortBy, sortOrder] = sortFilter.split(':') as [
+        string,
+        'asc' | 'desc',
+      ];
       const params: QueryParams = {
         page: currentPage,
         limit: ITEMS_PER_PAGE,
         search: searchTerm,
         sortBy,
         sortOrder,
-        specialty: specialtyFilter !== 'all' ? specialtyFilter : undefined,
+        speciality: specialtyFilter !== 'all' ? specialtyFilter : undefined,
       };
 
       if (statusFilter !== 'all') {
@@ -68,9 +80,16 @@ const AdminManageDoctors: React.FC = () => {
 
       dispatch(listDoctorsThunk(params));
     }
-  }, [dispatch, user?.role, currentPage, searchTerm, statusFilter, specialtyFilter, sortFilter]);
+  }, [
+    dispatch,
+    user?.role,
+    currentPage,
+    searchTerm,
+    statusFilter,
+    specialtyFilter,
+    sortFilter,
+  ]);
 
-  // Update total pages
   useEffect(() => {
     setTotalPages(totalPagesFromState.doctors);
   }, [totalPagesFromState.doctors]);
@@ -80,7 +99,13 @@ const AdminManageDoctors: React.FC = () => {
       await dispatch(createDoctorThunk(newDoctor)).unwrap();
       toast.success('Doctor created successfully');
       setIsModalOpen(false);
-      setNewDoctor({ email: '', password: '', name: '', phone: '', licenseNumber: '' });
+      setNewDoctor({
+        email: '',
+        password: '',
+        name: '',
+        phone: '',
+        licenseNumber: '',
+      });
     } catch (err) {
       toast.error(`Failed to create doctor: ${err}`);
     }
@@ -89,7 +114,9 @@ const AdminManageDoctors: React.FC = () => {
   const handleUpdateDoctor = useCallback(async () => {
     if (!editDoctor) return;
     try {
-      await dispatch(updateDoctorThunk({ id: editDoctor._id, updates: editDoctor })).unwrap();
+      await dispatch(
+        updateDoctorThunk({ id: editDoctor._id, updates: editDoctor })
+      ).unwrap();
       toast.success('Doctor updated successfully');
       setEditDoctor(null);
     } catch (err) {
@@ -97,134 +124,166 @@ const AdminManageDoctors: React.FC = () => {
     }
   }, [dispatch, editDoctor]);
 
-  const handleDeleteDoctor = useCallback(async (doctor: Doctor) => {
-    if (window.confirm('Are you sure you want to delete this doctor?')) {
-      try {
-        await dispatch(deleteDoctorThunk(doctor._id)).unwrap();
-        toast.success('Doctor deleted successfully');
-      } catch (err) {
-        toast.error(`Failed to delete doctor: ${err}`);
+  const handleDeleteDoctor = useCallback(
+    async (doctor: Doctor) => {
+      if (window.confirm('Are you sure you want to delete this doctor?')) {
+        try {
+          await dispatch(deleteDoctorThunk(doctor._id)).unwrap();
+          toast.success('Doctor deleted successfully');
+        } catch (err) {
+          toast.error(`Failed to delete doctor: ${err}`);
+        }
       }
-    }
-  }, [dispatch]);
+    },
+    [dispatch]
+  );
 
-  const handleBlockDoctor = useCallback(async (doctor: Doctor) => {
-    const action = doctor.isBlocked ? 'unblock' : 'block';
-    if (window.confirm(`Are you sure you want to ${action} this doctor?`)) {
-      try {
-        await dispatch(blockDoctorThunk({ id: doctor._id, isBlocked: !doctor.isBlocked })).unwrap();
-        toast.success(`Doctor ${action}ed successfully`);
-      } catch (err) {
-        toast.error(`Failed to ${action} doctor: ${err}`);
+  const handleBlockDoctor = useCallback(
+    async (doctor: Doctor) => {
+      const action = doctor.isBlocked ? 'unblock' : 'block';
+      if (window.confirm(`Are you sure you want to ${action} this doctor?`)) {
+        try {
+          await dispatch(
+            blockDoctorThunk({ id: doctor._id, isBlocked: !doctor.isBlocked })
+          ).unwrap();
+          toast.success(`Doctor ${action}ed successfully`);
+        } catch (err) {
+          toast.error(`Failed to ${action} doctor: ${err}`);
+        }
       }
-    }
-  }, [dispatch]);
+    },
+    [dispatch]
+  );
 
-  const handleVerifyDoctor = useCallback(async (doctor: Doctor) => {
-    if (window.confirm('Are you sure you want to verify this doctor?')) {
-      try {
-        await dispatch(verifyDoctorThunk(doctor._id)).unwrap();
-        toast.success('Doctor verified successfully');
-      } catch (err) {
-        toast.error(`Failed to verify doctor: ${err}`);
+  const handleVerifyDoctor = useCallback(
+    async (doctor: Doctor) => {
+      if (window.confirm('Are you sure you want to verify this doctor?')) {
+        try {
+          await dispatch(verifyDoctorThunk(doctor._id)).unwrap();
+          toast.success('Doctor verified successfully');
+        } catch (err) {
+          toast.error(`Failed to verify doctor: ${err}`);
+        }
       }
-    }
-  }, [dispatch]);
+    },
+    [dispatch]
+  );
 
-  const columns = useMemo(() => [
-    {
-      header: 'Name',
-      accessor: (doctor: Doctor): React.ReactNode => (
-        <div className="flex items-center">
-          <Avatar name={doctor.name} id={doctor._id} profilePicture={doctor.profilePicture} />
-          <span className="ml-4 text-sm font-medium text-white">{doctor.name}</span>
-        </div>
-      ),
-    },
-    {
-      header: 'Email',
-      accessor: 'email' as keyof Doctor,
-    },
-    {
-      header: 'Phone',
-      accessor: 'phone' as keyof Doctor,
-    },
-    {
-      header: 'License',
-      accessor: 'licenseNumber' as keyof Doctor,
-    },
-    {
-      header: 'Status',
-      accessor: (doctor: Doctor): React.ReactNode => (
-        <div className="flex flex-col space-y-1">
-          <span
-            className={`px-2 py-1 text-xs font-semibold rounded-full ${doctor.isVerified ? 'bg-green-500/20 text-green-300' : 'bg-gray-500/20 text-gray-300'}`}
-          >
-            {doctor.isVerified ? 'Verified' : 'Unverified'}
-          </span>
-          <span
-            className={`px-2 py-1 text-xs font-semibold rounded-full ${doctor.isBlocked ? 'bg-red-500/20 text-red-300' : 'bg-gray-500/20 text-gray-300'}`}
-          >
-            {doctor.isBlocked ? 'Blocked' : 'Active'}
-          </span>
-        </div>
-      ),
-    },
-  ], []);
+  const columns = useMemo(
+    () => [
+      {
+        header: 'Name',
+        accessor: (doctor: Doctor): React.ReactNode => (
+          <div className="flex items-center">
+            <Avatar
+              name={doctor.name}
+              id={doctor._id}
+              profilePicture={doctor.profilePicture}
+            />
+            <span className="ml-4 text-sm font-medium text-white">
+              {doctor.name}
+            </span>
+          </div>
+        ),
+      },
+      {
+        header: 'Email',
+        accessor: 'email' as keyof Doctor,
+      },
+      {
+        header: 'Phone',
+        accessor: 'phone' as keyof Doctor,
+      },
+      {
+        header: 'License',
+        accessor: 'licenseNumber' as keyof Doctor,
+      },
+      {
+        header: 'Status',
+        accessor: (doctor: Doctor): React.ReactNode => (
+          <div className="flex flex-col space-y-1">
+            <span
+              className={`px-2 py-1 text-xs font-semibold rounded-full ${doctor.isVerified ? 'bg-green-500/20 text-green-300' : 'bg-gray-500/20 text-gray-300'}`}
+            >
+              {doctor.isVerified ? 'Verified' : 'Unverified'}
+            </span>
+            <span
+              className={`px-2 py-1 text-xs font-semibold rounded-full ${doctor.isBlocked ? 'bg-red-500/20 text-red-300' : 'bg-gray-500/20 text-gray-300'}`}
+            >
+              {doctor.isBlocked ? 'Blocked' : 'Active'}
+            </span>
+          </div>
+        ),
+      },
+    ],
+    []
+  );
 
-  const actions = useMemo(() => [
-    {
-      label: 'Edit',
-      onClick: (doctor: Doctor) => setEditDoctor(doctor),
-      className: 'bg-purple-600 hover:bg-purple-700',
-    },
-    {
-      label: 'Delete',
-      onClick: handleDeleteDoctor,
-      className: 'bg-red-600 hover:bg-red-700',
-    },
-    {
-      label: 'Block',
-      onClick: handleBlockDoctor,
-      className: 'bg-yellow-600 hover:bg-yellow-700',
-      condition: (doctor: Doctor) => !doctor.isBlocked,
-    },
-    {
-      label: 'Unblock',
-      onClick: handleBlockDoctor,
-      className: 'bg-green-600 hover:bg-green-700',
-      condition: (doctor: Doctor) => doctor.isBlocked,
-    },
-    {
-      label: 'Verify',
-      onClick: handleVerifyDoctor,
-      className: 'bg-purple-600 hover:bg-purple-700',
-      condition: (doctor: Doctor) => !doctor.isVerified,
-    },
-  ], [handleDeleteDoctor, handleBlockDoctor, handleVerifyDoctor]);
+  const actions = useMemo(
+    () => [
+      {
+        label: 'Edit',
+        onClick: (doctor: Doctor) => setEditDoctor(doctor),
+        className: 'bg-purple-600 hover:bg-purple-700',
+      },
+      {
+        label: 'Delete',
+        onClick: handleDeleteDoctor,
+        className: 'bg-red-600 hover:bg-red-700',
+      },
+      {
+        label: 'Block',
+        onClick: handleBlockDoctor,
+        className: 'bg-yellow-600 hover:bg-yellow-700',
+        condition: (doctor: Doctor) => !doctor.isBlocked,
+      },
+      {
+        label: 'Unblock',
+        onClick: handleBlockDoctor,
+        className: 'bg-green-600 hover:bg-green-700',
+        condition: (doctor: Doctor) => doctor.isBlocked,
+      },
+      {
+        label: 'Verify',
+        onClick: handleVerifyDoctor,
+        className: 'bg-purple-600 hover:bg-purple-700',
+        condition: (doctor: Doctor) => !doctor.isVerified,
+      },
+    ],
+    [handleDeleteDoctor, handleBlockDoctor, handleVerifyDoctor]
+  );
 
-  const statusOptions = useMemo(() => [
-    { value: 'all', label: 'All Statuses' },
-    { value: 'verified', label: 'Verified' },
-    { value: 'unverified', label: 'Unverified' },
-    { value: 'blocked', label: 'Blocked' },
-    { value: 'active', label: 'Active' },
-  ], []);
+  const statusOptions = useMemo(
+    () => [
+      { value: 'all', label: 'All Statuses' },
+      { value: 'verified', label: 'Verified' },
+      { value: 'unverified', label: 'Unverified' },
+      { value: 'blocked', label: 'Blocked' },
+      { value: 'active', label: 'Active' },
+    ],
+    []
+  );
 
-  const specialtyOptions = useMemo(() => [
-    { value: 'all', label: 'All Specialties' },
-    ...specialities.map((specialty) => ({
-      value: specialty._id,
-      label: specialty.name,
-    })),
-  ], [specialities]);
+  const specialtyOptions = useMemo(
+    () => [
+      { value: 'all', label: 'All Specialties' },
+      ...specialities.map((specialty) => ({
+        value: specialty.name,
+        label: specialty.name,
+      })),
+    ],
+    [specialities]
+  );
 
-  const sortOptions = useMemo(() => [
-    { value: 'createdAt:desc', label: 'Newest First' },
-    { value: 'createdAt:asc', label: 'Oldest First' },
-    { value: 'name:asc', label: 'Name (A-Z)' },
-    { value: 'name:desc', label: 'Name (Z-A)' },
-  ], []);
+  const sortOptions = useMemo(
+    () => [
+      { value: 'createdAt:desc', label: 'Newest First' },
+      { value: 'createdAt:asc', label: 'Oldest First' },
+      { value: 'name:asc', label: 'Name (A-Z)' },
+      { value: 'name:desc', label: 'Name (Z-A)' },
+    ],
+    []
+  );
 
   const handlePageChange = useCallback((page: number) => {
     setCurrentPage(page);
@@ -238,7 +297,11 @@ const AdminManageDoctors: React.FC = () => {
   return (
     <div className="bg-white/10 backdrop-blur-lg p-4 md:p-6 rounded-2xl border border-white/20 shadow-xl">
       <div className="flex flex-col md:flex-row justify-between mb-6 gap-4">
-        <SearchBar value={searchTerm} onChange={handleSearch} placeholder="Search doctors..." />
+        <SearchBar
+          value={searchTerm}
+          onChange={handleSearch}
+          placeholder="Search doctors..."
+        />
         <div className="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-4">
           <FilterSelect
             value={statusFilter}
@@ -273,14 +336,17 @@ const AdminManageDoctors: React.FC = () => {
         isLoading={loading}
         error={error}
         onRetry={() => {
-          const [sortBy, sortOrder] = sortFilter.split(':') as [string, 'asc' | 'desc'];
+          const [sortBy, sortOrder] = sortFilter.split(':') as [
+            string,
+            'asc' | 'desc',
+          ];
           const params: QueryParams = {
             page: currentPage,
             limit: ITEMS_PER_PAGE,
             search: searchTerm,
             sortBy,
             sortOrder,
-            specialty: specialtyFilter !== 'all' ? specialtyFilter : undefined,
+            speciality: specialtyFilter !== 'all' ? specialtyFilter : undefined,
           };
 
           if (statusFilter !== 'all') {
@@ -332,28 +398,36 @@ const AdminManageDoctors: React.FC = () => {
           placeholder="Email"
           className="w-full p-3 mb-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
           value={newDoctor.email}
-          onChange={(e) => setNewDoctor({ ...newDoctor, email: e.target.value })}
+          onChange={(e) =>
+            setNewDoctor({ ...newDoctor, email: e.target.value })
+          }
         />
         <input
           type="password"
           placeholder="Password"
           className="w-full p-3 mb-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
           value={newDoctor.password}
-          onChange={(e) => setNewDoctor({ ...newDoctor, password: e.target.value })}
+          onChange={(e) =>
+            setNewDoctor({ ...newDoctor, password: e.target.value })
+          }
         />
         <input
           type="text"
           placeholder="Phone"
           className="w-full p-3 mb-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
           value={newDoctor.phone}
-          onChange={(e) => setNewDoctor({ ...newDoctor, phone: e.target.value })}
+          onChange={(e) =>
+            setNewDoctor({ ...newDoctor, phone: e.target.value })
+          }
         />
         <input
           type="text"
           placeholder="License Number"
           className="w-full p-3 mb-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
           value={newDoctor.licenseNumber}
-          onChange={(e) => setNewDoctor({ ...newDoctor, licenseNumber: e.target.value })}
+          onChange={(e) =>
+            setNewDoctor({ ...newDoctor, licenseNumber: e.target.value })
+          }
         />
       </Modal>
       {editDoctor && (
@@ -383,28 +457,36 @@ const AdminManageDoctors: React.FC = () => {
             placeholder="Name"
             className="w-full p-3 mb-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
             value={editDoctor.name}
-            onChange={(e) => setEditDoctor({ ...editDoctor, name: e.target.value })}
+            onChange={(e) =>
+              setEditDoctor({ ...editDoctor, name: e.target.value })
+            }
           />
           <input
             type="email"
             placeholder="Email"
             className="w-full p-3 mb-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
             value={editDoctor.email}
-            onChange={(e) => setEditDoctor({ ...editDoctor, email: e.target.value })}
+            onChange={(e) =>
+              setEditDoctor({ ...editDoctor, email: e.target.value })
+            }
           />
           <input
             type="text"
             placeholder="Phone"
             className="w-full p-3 mb-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
             value={editDoctor.phone}
-            onChange={(e) => setEditDoctor({ ...editDoctor, phone: e.target.value })}
+            onChange={(e) =>
+              setEditDoctor({ ...editDoctor, phone: e.target.value })
+            }
           />
           <input
             type="text"
             placeholder="License Number"
             className="w-full p-3 mb-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
             value={editDoctor.licenseNumber}
-            onChange={(e) => setEditDoctor({ ...editDoctor, licenseNumber: e.target.value })}
+            onChange={(e) =>
+              setEditDoctor({ ...editDoctor, licenseNumber: e.target.value })
+            }
           />
         </Modal>
       )}

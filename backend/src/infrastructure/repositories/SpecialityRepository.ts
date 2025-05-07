@@ -1,9 +1,8 @@
-import { Speciality } from '../../core/entities/Speciality';
 import { ISpecialityRepository } from '../../core/interfaces/repositories/ISpecialityRepository';
-import { QueryParams } from '../../types/authTypes';
-import { NotFoundError } from '../../utils/errors';
-import { QueryBuilder } from '../../utils/queryBuilder';
+import { Speciality } from '../../core/entities/Speciality';
 import { SpecialityModel } from '../database/models/SpecialityModel';
+import { QueryParams } from '../../types/authTypes';
+import { QueryBuilder } from '../../utils/queryBuilder';
 
 export class SpecialityRepository implements ISpecialityRepository {
   async create(speciality: Speciality): Promise<Speciality> {
@@ -45,12 +44,13 @@ export class SpecialityRepository implements ISpecialityRepository {
     const speciality = await SpecialityModel.findByIdAndUpdate(id, updates, {
       new: true,
     }).exec();
-    if (!speciality) throw new NotFoundError('Speciality not found');
+    if (!speciality) {
+      throw new Error('Speciality not found');
+    }
     return speciality;
   }
 
   async delete(id: string): Promise<void> {
-    const speciality = await SpecialityModel.findByIdAndDelete(id).exec();
-    if (!speciality) throw new NotFoundError('Speciality not found');
+    await SpecialityModel.findByIdAndDelete(id).exec();
   }
 }

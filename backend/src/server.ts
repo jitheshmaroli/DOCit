@@ -1,4 +1,4 @@
-import express, { Request, Response } from 'express';
+import express, { NextFunction, Request, Response } from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { connectMongoDB } from './infrastructure/database/mongoConnection';
@@ -12,6 +12,7 @@ import userRoutes from './presentation/routes/userRoutes';
 import { env } from './config/env';
 import Stripe from 'stripe';
 import { Container } from './infrastructure/di/container';
+import logger from './utils/logger';
 import { PatientSubscriptionRepository } from './infrastructure/repositories/PatientSubscriptionRepositroy';
 
 const app = express();
@@ -21,7 +22,9 @@ const CLIENT_URL = env.CLIENT_URL;
 const STRIPE_SECRET_KEY = env.STRIPE_SECRET_KEY;
 const STRIPE_WEBHOOK_SECRET = env.STRIPE_WEBHOOK_SECRET;
 
-const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: '2023-10-16' as any });
+const stripe = new Stripe(STRIPE_SECRET_KEY, {
+  apiVersion: '2023-10-16' as any,
+});
 const container = Container.getInstance();
 const patientSubscriptionRepository =
   container.get<PatientSubscriptionRepository>(
@@ -31,9 +34,12 @@ const patientSubscriptionRepository =
 // Middleware setup
 app.use(cors({ origin: CLIENT_URL, credentials: true }));
 app.use(express.json());
-app.use(express.raw({ type: 'application/json' })); 
+app.use(express.raw({ type: 'application/json' })); // For Stripe webhook
 app.use(cookieParser());
-app.use('/uploads', express.static('uploads'));
+app.use((req: Request, res: Response, next: NextFunction) => {
+  logger.info(`${req.method} ${req.url}`, { ip: req.ip });
+  next();
+});
 
 // Mount routes
 app.use('/api/auth', authRoutes);
@@ -61,25 +67,27 @@ app.post('/api/webhook/stripe', async (req: Request, res: Response) => {
           paymentIntent.id
         );
       if (subscription && subscription.status === 'active') {
-        // Payment already processed
+        logger.info(
+          `Payment already processed for payment intent: ${paymentIntent.id}`
+        );
         res.status(200).json({ received: true });
         return;
       }
-      // Handle edge case or log if subscription not found
-      console.warn(
+      logger.warn(
         `Subscription not found for payment intent: ${paymentIntent.id}`
       );
     }
 
     res.status(200).json({ received: true });
   } catch (err: any) {
-    console.error(`Webhook error: ${err.message}`);
+    logger.error(`Webhook error: ${err.message}`, err);
     res.status(400).send(`Webhook Error: ${err.message}`);
   }
 });
 
 // Root route
 app.get('/', (req: Request, res: Response) => {
+  logger.info('Root endpoint accessed');
   res.send('Doctor Appointment Booking App');
 });
 
@@ -91,10 +99,10 @@ const startServer = async () => {
   try {
     await connectMongoDB(MONGO_URI);
     app.listen(PORT, () => {
-      console.log(`Server running on http://localhost:${PORT}`);
+      logger.info(`Server running on http://localhost:${PORT}`);
     });
   } catch (error) {
-    console.error('Failed to start server:', error);
+    logger.error('Failed to start server:', error);
     process.exit(1);
   }
 };

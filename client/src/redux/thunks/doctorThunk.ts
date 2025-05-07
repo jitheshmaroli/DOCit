@@ -24,14 +24,16 @@ import {
   SetAvailabilityPayload,
   SubscriptionPlanPayload,
   UpdateSubscriptionPlanPayload,
+  QueryParams,
 } from '../../types/authTypes';
 import { DateUtils } from '../../utils/DateUtils';
 
 export const fetchVerifiedDoctorsThunk = createAsyncThunk(
   'doctors/fetchVerifiedDoctors',
-  async (_, { rejectWithValue }) => {
+  async (params: QueryParams = {}, { rejectWithValue }) => {
     try {
-      return await fetchVerifiedDoctors();
+      console.log('params',params)
+      return await fetchVerifiedDoctors(params);
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to fetch doctors');
     }

@@ -23,7 +23,7 @@ export interface Doctor {
   isBlocked: boolean;
   profilePicture?: string;
   availability?: string;
-  speciality?: string;
+  speciality?: [];
   qualifications?: string[];
   age?: string;
   gender?: string;
@@ -327,16 +327,16 @@ export interface Appointment {
 export interface QueryParams {
   page?: number;
   limit?: number;
-  search?: string; // For text-based search (e.g., name, email)
-  sortBy?: string; // Field to sort by (e.g., createdAt, name)
-  sortOrder?: 'asc' | 'desc'; // Sort direction
-  status?: string; // For filtering by status (e.g., pending, approved)
-  specialty?: string; // For filtering doctors by speciality
-  isBlocked?: boolean; // For filtering by block status
-  isVerified?: boolean; // For filtering doctors by verification status
+  search?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc'; 
+  status?: string; 
+  speciality?: string;
+  isBlocked?: boolean;
+  isVerified?: boolean; 
   isSubscribed?: boolean;
-  dateFrom?: string; // For date range filtering (appointments)
-  dateTo?: string; // For date range filtering (appointments)
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 export interface PaginatedResponse<T> {

@@ -1,9 +1,9 @@
 import api from './api';
-import { AvailabilityPayload, SetAvailabilityPayload, SubscriptionPlanPayload, UpdateSubscriptionPlanPayload } from '../types/authTypes';
+import { AvailabilityPayload, SetAvailabilityPayload, SubscriptionPlanPayload, UpdateSubscriptionPlanPayload, QueryParams } from '../types/authTypes';
 import { DateUtils } from '../utils/DateUtils';
 
-export const fetchVerifiedDoctors = async () => {
-  const response = await api.get('/api/patients/doctors/verified');
+export const fetchVerifiedDoctors = async (params: QueryParams = {}) => {
+  const response = await api.get('/api/patients/doctors/verified', { params });
   return response.data;
 };
 
@@ -69,4 +69,9 @@ export const deleteSubscriptionPlan = async (id: string) => {
 export const withdrawSubscriptionPlan = async (id: string) => {
   await api.patch(`/api/doctors/subscription-plans/${id}/withdraw`, {});
   return { id };
+};
+
+export const fetchSpecialities = async () => {
+  const response = await api.get('/api/doctors/specialities');
+  return response.data;
 };

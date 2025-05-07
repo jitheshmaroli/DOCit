@@ -264,14 +264,26 @@ const PersonalInformation = ({ patientId }: { patientId: string }) => {
                 name="gender"
                 value={formData.gender}
                 onChange={handleChange}
-                className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400 appearance-none"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23ffffff' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`,
+                  backgroundPosition: 'right 0.75rem center',
+                  backgroundSize: '1.25rem',
+                  backgroundRepeat: 'no-repeat',
+                }}
               >
-                <option value="" className="text-gray-400">
+                <option value="" className="text-gray-400 bg-gray-800">
                   Select Gender
                 </option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-                <option value="Other">Other</option>
+                <option value="Male" className="bg-gray-800">
+                  Male
+                </option>
+                <option value="Female" className="bg-gray-800">
+                  Female
+                </option>
+                <option value="Other" className="bg-gray-800">
+                  Other
+                </option>
               </select>
               {errors.gender && (
                 <p className="text-red-500 text-sm">{errors.gender}</p>

@@ -28,7 +28,7 @@ export class DoctorRepository implements IDoctorRepository {
   }
 
   async findBySpeciality(specialityId: string): Promise<Doctor[]> {
-    return DoctorModel.find({ specialities: specialityId }).exec();
+    return DoctorModel.find({ speciality: specialityId }).exec();
   }
 
   async delete(id: string): Promise<void> {
@@ -38,17 +38,71 @@ export class DoctorRepository implements IDoctorRepository {
   async findAllWithQuery(
     params: QueryParams
   ): Promise<{ data: Doctor[]; totalItems: number }> {
-    const query = QueryBuilder.buildQuery(params);
+    const query = QueryBuilder.buildQuery(params, 'doctor');
     const sort = QueryBuilder.buildSort(params);
     const { page, limit } = QueryBuilder.validateParams(params);
 
-    const doctors = await DoctorModel.find(query)
-      .sort(sort)
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .exec();
+    const pipeline = [
+      {
+        $lookup: {
+          from: 'specialities',
+          localField: 'speciality',
+          foreignField: '_id',
+          as: 'specialityObjects',
+        },
+      },
+      {
+        $match: query,
+      },
+      {
+        $project: {
+          _id: 1,
+          name: 1,
+          email: 1,
+          phone: 1,
+          qualifications: 1,
+          licenseNumber: 1,
+          location: 1,
+          speciality: {
+            $map: {
+              input: '$specialityObjects',
+              as: 'spec',
+              in: '$$spec.name',
+            },
+          },
+          experience: 1,
+          allowFreeBooking: 1,
+          age: 1,
+          gender: 1,
+          isVerified: 1,
+          isBlocked: 1,
+          profilePicture: 1,
+          profilePicturePublicId: 1,
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      },
+      { $sort: sort },
+      { $skip: (page - 1) * limit },
+      { $limit: limit },
+    ];
 
-    const totalItems = await DoctorModel.countDocuments(query).exec();
+    const countPipeline = [
+      {
+        $lookup: {
+          from: 'specialities',
+          localField: 'speciality',
+          foreignField: '_id',
+          as: 'specialityObjects',
+        },
+      },
+      { $match: query },
+      { $count: 'totalItems' },
+    ];
+
+    const doctors = await DoctorModel.aggregate(pipeline).exec();
+    const countResult = await DoctorModel.aggregate(countPipeline).exec();
+    const totalItems = countResult[0]?.totalItems || 0;
 
     return { data: doctors, totalItems };
   }
@@ -62,11 +116,83 @@ export class DoctorRepository implements IDoctorRepository {
     return doctor ? (doctor.toObject() as Doctor) : null;
   }
 
-  async findVerified(): Promise<any[]> {
-    return await DoctorModel.find({
-      isVerified: true,
-      isBlocked: false,
-    }).exec();
+  async findVerified(
+    params: QueryParams = {}
+  ): Promise<{ data: any[]; totalItems: number }> {
+    const query = QueryBuilder.buildQuery(params, 'doctor');
+    const sort = QueryBuilder.buildSort(params);
+    const { page, limit } = QueryBuilder.validateParams(params);
+
+    const pipeline = [
+      {
+        $match: {
+          isVerified: true,
+          isBlocked: false,
+        },
+      },
+      {
+        $lookup: {
+          from: 'specialities',
+          localField: 'speciality',
+          foreignField: '_id',
+          as: 'specialityObjects',
+        },
+      },
+      {
+        $match: query,
+      },
+      {
+        $project: {
+          _id: 1,
+          name: 1,
+          email: 1,
+          phone: 1,
+          qualifications: 1,
+          licenseNumber: 1,
+          location: 1,
+          speciality: {
+            $map: {
+              input: '$specialityObjects',
+              as: 'spec',
+              in: '$$spec.name',
+            },
+          },
+          experience: 1,
+          allowFreeBooking: 1,
+          age: 1,
+          gender: 1,
+          isVerified: 1,
+          isBlocked: 1,
+          profilePicture: 1,
+          profilePicturePublicId: 1,
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      },
+      { $sort: sort },
+      { $skip: (page - 1) * limit },
+      { $limit: limit },
+    ];
+
+    const countPipeline = [
+      { $match: { isVerified: true, isBlocked: false } },
+      {
+        $lookup: {
+          from: 'specialities',
+          localField: 'speciality',
+          foreignField: '_id',
+          as: 'specialityObjects',
+        },
+      },
+      { $match: query },
+      { $count: 'totalItems' },
+    ];
+
+    const doctors = await DoctorModel.aggregate(pipeline).exec();
+    const countResult = await DoctorModel.aggregate(countPipeline).exec();
+    const totalItems = countResult[0]?.totalItems || 0;
+
+    return { data: doctors, totalItems };
   }
 
   async findDoctorsWithActiveSubscriptions(): Promise<Doctor[]> {
