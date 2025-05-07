@@ -476,9 +476,9 @@ const DoctorProfilePage: React.FC = () => {
                       onChange={handleChange}
                       className="w-full h-[60.93px] bg-white/10 border border-white/20 rounded-lg px-4 mt-1 text-[14px] text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
                     >
-                      <option value="">Select Speciality</option>
+                      <option value='' className='bg-gray-800 text-white'>Select Speciality</option>
                       {specialities.map((speciality) => (
-                        <option key={speciality._id} value={speciality.name}>
+                        <option key={speciality._id} value={speciality.name} className='bg-gray-800 text-white'>
                           {speciality.name}
                         </option>
                       ))}

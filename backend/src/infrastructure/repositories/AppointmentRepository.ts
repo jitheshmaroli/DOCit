@@ -93,7 +93,10 @@ export class AppointmentRepository implements IAppointmentRepository {
 
   async findByDoctor(doctorId: string): Promise<Appointment[]> {
     return AppointmentModel.find({ doctorId })
-      .populate('patientId', 'name')
+      .populate({
+        path: 'patientId',
+        select: '-refreshToken -password',
+      })
       .populate('doctorId', 'name')
       .exec();
   }
@@ -104,10 +107,10 @@ export class AppointmentRepository implements IAppointmentRepository {
     const { search } = params;
     const sort = QueryBuilder.buildSort(params);
     const { page, limit } = QueryBuilder.validateParams(params);
-  
+
     const query = QueryBuilder.buildQuery(params);
     delete query.$or;
-  
+
     if (search) {
       const patientIds = await PatientModel.find(
         { name: { $regex: search, $options: 'i' } },
@@ -117,15 +120,15 @@ export class AppointmentRepository implements IAppointmentRepository {
         { name: { $regex: search, $options: 'i' } },
         '_id'
       ).exec();
-  
+
       query.$or = [
-        { patientId: { $in: patientIds.map((p:any) => p._id) } },
-        { doctorId: { $in: doctorIds.map((d:any) => d._id) } },
+        { patientId: { $in: patientIds.map((p: any) => p._id) } },
+        { doctorId: { $in: doctorIds.map((d: any) => d._id) } },
         { name: { $regex: search, $options: 'i' } },
         { email: { $regex: search, $options: 'i' } },
       ];
     }
-  
+
     const appointments = await AppointmentModel.find(query)
       .populate({ path: 'patientId', select: 'name' })
       .populate({ path: 'doctorId', select: 'name' })
@@ -133,9 +136,9 @@ export class AppointmentRepository implements IAppointmentRepository {
       .skip((page - 1) * limit)
       .limit(limit)
       .exec();
-  
+
     const totalItems = await AppointmentModel.countDocuments(query).exec();
-  
+
     return { data: appointments, totalItems };
   }
 

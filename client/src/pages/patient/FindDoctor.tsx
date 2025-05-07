@@ -249,7 +249,7 @@ const FindDoctor: React.FC = () => {
                           {doctor.availability || 'Availability TBD'}
                         </p>
                         <button
-                          onClick={() => navigate(`/patient/doctors/${doctor._id}`)}
+                          onClick={() => navigate(`/patient/doctors/${doctor._id}`, { state: { speciality: doctor.speciality } })}
                           className="bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold text-sm py-2 px-6 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300 shadow-md hover:shadow-lg"
                         >
                           View Details

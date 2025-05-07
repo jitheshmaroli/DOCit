@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
@@ -38,6 +38,7 @@ const DoctorDetails: React.FC = () => {
   const { doctorId } = useParams<{ doctorId: string }>();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const {
     selectedDoctor,
@@ -60,8 +61,15 @@ const DoctorDetails: React.FC = () => {
   const [availability, setAvailability] = useState<Availability[]>([]);
   const [currentTimeSlots, setCurrentTimeSlots] = useState<TimeSlot[]>([]);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<null | { id: string; price: number }>(null);
+  const [selectedPlan, setSelectedPlan] = useState<null | {
+    id: string;
+    price: number;
+  }>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [bookingConfirmed, setBookingConfirmed] = useState(false);
+
+  // Get speciality from location state
+  const specialityFromState = (location.state as { speciality?: string[] })?.speciality;
 
   useEffect(() => {
     if (doctorId) {
@@ -73,19 +81,18 @@ const DoctorDetails: React.FC = () => {
         getDoctorAvailabilityThunk({ doctorId, startDate: new Date() })
       ).then((result) => {
         if (getDoctorAvailabilityThunk.fulfilled.match(result)) {
-          const payload = result.payload as { date: string; timeSlots: TimeSlot[] }[];
-
+          const payload = result.payload as {
+            date: string;
+            timeSlots: TimeSlot[];
+          }[];
           if (Array.isArray(payload)) {
-            // Filter out entries with empty timeSlots and set availability
             const validAvailability = payload
               .filter((entry) => entry.timeSlots.length > 0)
               .map((entry) => ({
-                date: entry.date.split('T')[0], // Normalize to YYYY-MM-DD
-                timeSlots: entry.timeSlots.filter((slot) => !slot.isBooked), // Exclude booked slots
+                date: entry.date.split('T')[0],
+                timeSlots: entry.timeSlots.filter((slot) => !slot.isBooked),
               }));
             setAvailability(validAvailability);
-
-            // Set available dates
             const dates = validAvailability
               .map((entry) => {
                 const dateStr = entry.date;
@@ -96,7 +103,6 @@ const DoctorDetails: React.FC = () => {
                   const dateObj = new Date(normalizedDate);
                   const today = new Date();
                   today.setHours(0, 0, 0, 0);
-
                   if (dateObj >= today) {
                     return normalizedDate;
                   }
@@ -112,7 +118,9 @@ const DoctorDetails: React.FC = () => {
             toast.warn('No available dates found for this doctor');
           }
         } else {
-          toast.error(result.payload as string || 'Failed to load available dates');
+          toast.error(
+            (result.payload as string) || 'Failed to load available dates'
+          );
           setAvailableDates([]);
           setAvailability([]);
         }
@@ -146,7 +154,6 @@ const DoctorDetails: React.FC = () => {
       navigate('/login');
       return;
     }
-
     try {
       const response = await dispatch(
         subscribeToPlanThunk({
@@ -154,7 +161,6 @@ const DoctorDetails: React.FC = () => {
           price,
         })
       ).unwrap();
-
       setSelectedPlan({ id: planId, price });
       setClientSecret(response.clientSecret);
       setIsPaymentModalOpen(true);
@@ -168,20 +174,18 @@ const DoctorDetails: React.FC = () => {
   const handleDateChange = (date: string) => {
     setSelectedDate(date);
     setSelectedSlot(null);
+    setBookingConfirmed(false);
     if (date) {
       const selectedAvail = availability.find((avail) => avail.date === date);
       const slots = selectedAvail
         ? selectedAvail.timeSlots.filter((slot) => {
             if (!slot.startTime || !slot.endTime) return false;
-
             const now = new Date();
             const slotDate = new Date(date);
             const endTime = new Date(`${date}T${slot.endTime}`);
-
             if (slotDate.toDateString() === now.toDateString()) {
               return endTime > now;
             }
-
             return slotDate >= now;
           })
         : [];
@@ -196,15 +200,20 @@ const DoctorDetails: React.FC = () => {
       toast.error('Please select a date and time slot');
       return;
     }
-
     const activeSubscription = activeSubscriptions[doctorId];
-    if (!isFreeBooking && (!activeSubscription || activeSubscription.isExpired || activeSubscription.appointmentsLeft <= 0)) {
+    if (
+      !isFreeBooking &&
+      (!activeSubscription ||
+        activeSubscription.isExpired ||
+        activeSubscription.appointmentsLeft <= 0)
+    ) {
       if (!canBookFree) {
-        toast.error('Please subscribe to a plan or check free booking eligibility');
+        toast.error(
+          'Please subscribe to a plan or check free booking eligibility'
+        );
         return;
       }
     }
-
     try {
       const bookingDate = DateUtils.parseToUTC(selectedDate);
       await dispatch(
@@ -216,10 +225,59 @@ const DoctorDetails: React.FC = () => {
           isFreeBooking,
         })
       ).unwrap();
-      toast.success('Appointment booked successfully');
+      toast.success('Appointment booked successfully', {
+        position: 'top-right',
+        autoClose: 3000,
+        theme: 'dark',
+      });
+      setBookingConfirmed(true);
       dispatch(getPatientAppointmentsForDoctorThunk(doctorId));
       dispatch(getPatientSubscriptionThunk(doctorId));
-      navigate('/patient/profile');
+      setSelectedDate('');
+      setSelectedSlot(null);
+      setCurrentTimeSlots([]);
+      dispatch(
+        getDoctorAvailabilityThunk({ doctorId, startDate: new Date() })
+      ).then((result) => {
+        if (getDoctorAvailabilityThunk.fulfilled.match(result)) {
+          const payload = result.payload as {
+            date: string;
+            timeSlots: TimeSlot[];
+          }[];
+          if (Array.isArray(payload)) {
+            const validAvailability = payload
+              .filter((entry) => entry.timeSlots.length > 0)
+              .map((entry) => ({
+                date: entry.date.split('T')[0],
+                timeSlots: entry.timeSlots.filter((slot) => !slot.isBooked),
+              }));
+            setAvailability(validAvailability);
+            const dates = validAvailability
+              .map((entry) => {
+                const dateStr = entry.date;
+                if (dateStr && !isNaN(new Date(dateStr).getTime())) {
+                  const normalizedDate = DateUtils.formatToISO(
+                    DateUtils.parseToUTC(dateStr)
+                  ).split('T')[0];
+                  const dateObj = new Date(normalizedDate);
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  if (dateObj >= today) {
+                    return normalizedDate;
+                  }
+                }
+                return null;
+              })
+              .filter((date): date is string => date !== null);
+            const uniqueDates = [...new Set(dates)];
+            setAvailableDates(uniqueDates);
+          } else {
+            setAvailableDates([]);
+            setAvailability([]);
+            toast.warn('No available dates found for this doctor');
+          }
+        }
+      });
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
@@ -228,19 +286,36 @@ const DoctorDetails: React.FC = () => {
   };
 
   const handleCancelAppointment = async (appointmentId: string) => {
-    if (!doctorId) return;
+    if (!doctorId || !user?._id) {
+      toast.error('User not authenticated');
+      return;
+    }
+    // Add confirmation prompt
+    const confirmCancel = window.confirm(
+      'Are you sure you want to cancel this appointment?'
+    );
+    if (!confirmCancel) {
+      return;
+    }
     try {
-      const appointment = appointments.find((appt) => appt._id === appointmentId);
+      const appointment = appointments.find(
+        (appt) => appt._id === appointmentId
+      );
       if (!appointment) {
         throw new Error('Appointment not found');
       }
       const createdAt = new Date(appointment.createdAt);
       const now = new Date();
-      const minutesSinceBooking = (now.getTime() - createdAt.getTime()) / (1000 * 60);
+      const minutesSinceBooking =
+        (now.getTime() - createdAt.getTime()) / (1000 * 60);
       if (minutesSinceBooking > 30) {
-        throw new Error('Cancellation is only allowed within 30 minutes of booking');
+        throw new Error(
+          'Cancellation is only allowed within 30 minutes of booking'
+        );
       }
-      await dispatch(cancelAppointmentThunk(appointmentId)).unwrap();
+      await dispatch(
+        cancelAppointmentThunk(appointmentId)
+      ).unwrap();
       toast.success('Appointment cancelled successfully');
       dispatch(getPatientAppointmentsForDoctorThunk(doctorId));
       dispatch(getPatientSubscriptionThunk(doctorId));
@@ -252,7 +327,11 @@ const DoctorDetails: React.FC = () => {
   };
 
   if (loading) {
-    return <div className="text-white text-center py-8">Loading doctor details...</div>;
+    return (
+      <div className="text-white text-center py-8">
+        Loading doctor details...
+      </div>
+    );
   }
 
   if (!selectedDoctor) {
@@ -267,9 +346,17 @@ const DoctorDetails: React.FC = () => {
     return appt.status !== 'cancelled';
   });
 
+  // Use speciality from state if available, otherwise fallback to selectedDoctor.speciality
+  const displaySpeciality = specialityFromState || selectedDoctor.speciality;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 py-8">
-      <ToastContainer position="top-right" autoClose={3000} theme="dark" />
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        theme="dark"
+        className="fixed top-4 right-4 z-60"
+      />
       <div className="container mx-auto px-4">
         <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">
           <h2 className="text-2xl font-bold text-white mb-6">Doctor Details</h2>
@@ -287,7 +374,7 @@ const DoctorDetails: React.FC = () => {
                 Dr. {selectedDoctor.name}
               </h3>
               <p className="text-sm text-purple-300 mb-2">
-                {selectedDoctor.speciality || 'Speciality N/A'}
+                {displaySpeciality?.length ? displaySpeciality.join(', ') : 'Speciality N/A'}
               </p>
               <p className="text-sm text-gray-200 mb-2">
                 Qualifications:{' '}
@@ -324,7 +411,8 @@ const DoctorDetails: React.FC = () => {
                 Price: ₹{(activeSubscription.plan.price / 100).toFixed(2)}
               </p>
               <p className="text-sm text-gray-200 mt-2">
-                Validity: {activeSubscription.daysUntilExpiration} days remaining
+                Validity: {activeSubscription.daysUntilExpiration} days
+                remaining
               </p>
               <p className="text-sm text-gray-200 mt-2">
                 Appointments Left: {activeSubscription.appointmentsLeft} /{' '}
@@ -385,11 +473,20 @@ const DoctorDetails: React.FC = () => {
           )}
         </div>
 
-        {(activeSubscription && !activeSubscription.isExpired) || canBookFreeAppointment ? (
+        {(activeSubscription && !activeSubscription.isExpired) ||
+        canBookFreeAppointment ? (
           <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">
             <h2 className="text-2xl font-bold text-white mb-6">
               Book an Appointment
             </h2>
+            {bookingConfirmed && (
+              <div className="bg-green-500/20 border border-green-500 rounded-lg p-4 mb-6">
+                <p className="text-green-300 text-sm">
+                  Appointment booked successfully! You can book another
+                  appointment or view details below.
+                </p>
+              </div>
+            )}
             <SlotPicker
               availableDates={availableDates}
               selectedDate={selectedDate}
@@ -401,7 +498,7 @@ const DoctorDetails: React.FC = () => {
             />
             {selectedSlot && (
               <div className="flex gap-4 mt-4">
-                {(activeSubscription && !activeSubscription.isExpired) && (
+                {activeSubscription && !activeSubscription.isExpired && (
                   <button
                     onClick={() => handleBookAppointment(false)}
                     className="w-full bg-gradient-to-r from-green-600 to-teal-600 text-white py-2 rounded-lg hover:from-green-700 hover:to-teal-700 transition-all duration-300"
@@ -437,11 +534,10 @@ const DoctorDetails: React.FC = () => {
                     Date: {DateUtils.formatToLocal(appt.date)}
                   </p>
                   <p className="text-sm text-gray-200">
-                    Time: {DateUtils.formatTimeToLocal(appt.startTime)} - {DateUtils.formatTimeToLocal(appt.endTime)}
+                    Time: {DateUtils.formatTimeToLocal(appt.startTime)} -{' '}
+                    {DateUtils.formatTimeToLocal(appt.endTime)}
                   </p>
-                  <p className="text-sm text-gray-200">
-                    Status: {appt.status}
-                  </p>
+                  <p className="text-sm text-gray-200">Status: {appt.status}</p>
                   <p className="text-sm text-gray-200">
                     Type: {appt.isFreeBooking ? 'Free' : 'Subscribed'}
                   </p>

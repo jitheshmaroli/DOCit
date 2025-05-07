@@ -215,18 +215,7 @@ export interface User {
 //   updatedAt?: string;
 // }
 
-export interface Patient {
-  _id: string;
-  name: string;
-  email: string;
-  phone: string;
-  address: string;
-  isBlocked: boolean;
-  isSubscribed: boolean;
-  profilePicture?: string;
-  createdAt: string;
-  updatedAt: string;
-}
+
 
 // export interface Doctor {
 //   _id: string;
@@ -310,9 +299,27 @@ export interface Speciality {
 //   updatedAt?: string;
 // }
 
+export interface Patient {
+  _id: string;
+  email: string;
+  name: string;
+  phone: string;
+  isSubscribed: boolean;
+  isBlocked: boolean;
+  address?: string;
+  age?: string;
+  gender?: string;
+  pincode?: string;
+  profilePicture?: string;
+  profilePicturePublicId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+
 export interface Appointment {
   _id: string;
-  patientId: { _id: string; name: string };
+  patientId: Patient;
   patientName: string;
   doctorId: { _id: string; name: string };
   doctorName: string;
@@ -336,7 +343,7 @@ export interface QueryParams {
   isVerified?: boolean; 
   isSubscribed?: boolean;
   dateFrom?: string;
-  dateTo?: string;
+  dateTo?: string; 
 }
 
 export interface PaginatedResponse<T> {
