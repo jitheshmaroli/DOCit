@@ -23,28 +23,27 @@ import {
   updateSpeciality,
   deleteSpeciality,
 } from '../../services/adminService';
-import { Doctor, Patient, Appointment, SubscriptionPlan, Speciality } from '../../types/authTypes';
+import {
+  Doctor,
+  Patient,
+  Appointment,
+  SubscriptionPlan,
+  Speciality,
+  PaginatedResponse,
+  QueryParams,
+  PaginationParams,
+} from '../../types/authTypes';
 import { RootState, AppDispatch } from '../store';
 
-interface PaginationParams {
-  page: number;
-  limit: number;
-  search?: string;
-  status?: string;
-  specialty?: string;
-}
 
 export const listDoctorsThunk = createAsyncThunk<
-  { doctors: Doctor[]; totalPages: number },
-  PaginationParams,
-  { state: RootState; dispatch: AppDispatch; rejectValue: string }
->('admin/listDoctors', async ({ page, limit, search, status, specialty }, { rejectWithValue }) => {
+  PaginatedResponse<Doctor>,
+  QueryParams
+>('admin/listDoctors', async (params, { rejectWithValue }) => {
   try {
-    const response = await listDoctors({ page, limit, search, status, specialty });
-    console.log('thunk fishing:', response)
-    return response;
+    return await listDoctors(params);
   } catch (error: any) {
-    return rejectWithValue(error.message || 'Failed to fetch doctors');
+    return rejectWithValue(error.message);
   }
 });
 
@@ -61,7 +60,10 @@ export const createDoctorThunk = createAsyncThunk(
 
 export const updateDoctorThunk = createAsyncThunk(
   'admin/updateDoctor',
-  async ({ id, updates }: { id: string; updates: any }, { rejectWithValue }) => {
+  async (
+    { id, updates }: { id: string; updates: any },
+    { rejectWithValue }
+  ) => {
     try {
       return await updateDoctor(id, updates);
     } catch (error: any) {
@@ -83,7 +85,10 @@ export const deleteDoctorThunk = createAsyncThunk(
 
 export const blockDoctorThunk = createAsyncThunk(
   'admin/blockDoctor',
-  async ({ id, isBlocked }: { id: string; isBlocked: boolean }, { rejectWithValue }) => {
+  async (
+    { id, isBlocked }: { id: string; isBlocked: boolean },
+    { rejectWithValue }
+  ) => {
     try {
       return await blockDoctor(id, isBlocked);
     } catch (error: any) {
@@ -105,15 +110,13 @@ export const verifyDoctorThunk = createAsyncThunk<
 });
 
 export const listPatientsThunk = createAsyncThunk<
-  { patients: Patient[]; totalPages: number },
-  PaginationParams,
-  { state: RootState; dispatch: AppDispatch; rejectValue: string }
->('admin/listPatients', async ({ page, limit, search, status }, { rejectWithValue }) => {
+  PaginatedResponse<Patient>,
+  PaginationParams
+>('admin/listPatients', async (params, { rejectWithValue }) => {
   try {
-    const response = await listPatients({ page, limit, search, status });
-    return response;
+    return await listPatients(params);
   } catch (error: any) {
-    return rejectWithValue(error.message || 'Failed to fetch patients');
+    return rejectWithValue(error.message);
   }
 });
 
@@ -130,7 +133,10 @@ export const createPatientThunk = createAsyncThunk(
 
 export const updatePatientThunk = createAsyncThunk(
   'admin/updatePatient',
-  async ({ id, updates }: { id: string; updates: any }, { rejectWithValue }) => {
+  async (
+    { id, updates }: { id: string; updates: any },
+    { rejectWithValue }
+  ) => {
     try {
       return await updatePatient(id, updates);
     } catch (error: any) {
@@ -152,27 +158,30 @@ export const deletePatientThunk = createAsyncThunk(
 
 export const blockPatientThunk = createAsyncThunk(
   'admin/blockPatient',
-  async ({ id, isBlocked }: { id: string; isBlocked: boolean }, { rejectWithValue }) => {
+  async (
+    { id, isBlocked }: { id: string; isBlocked: boolean },
+    { rejectWithValue }
+  ) => {
     try {
       return await blockPatient(id, isBlocked);
     } catch (error: any) {
-      return rejectWithValue(error.message || 'Failed to block/unblock patient');
+      return rejectWithValue(
+        error.message || 'Failed to block/unblock patient'
+      );
     }
   }
 );
 
-export const getAllAppointmentsThunk = createAsyncThunk<
-  { appointments: Appointment[]; totalPages: number },
-  PaginationParams,
-  { rejectValue: string }
->('admin/getAllAppointments', async ({ page, limit, search }, { rejectWithValue }) => {
-  try {
-    const response = await getAllAppointments({ page, limit, search });
-    return response;
-  } catch (error: any) {
-    return rejectWithValue(error.message || 'Failed to fetch appointments');
+export const getAllAppointmentsThunk = createAsyncThunk<PaginatedResponse<Appointment>, PaginationParams>(
+  'admin/getAllAppointments',
+  async (params, { rejectWithValue }) => {
+    try {
+      return await getAllAppointments(params);
+    } catch (error: any) {
+      return rejectWithValue(error.message);
+    }
   }
-});
+);
 
 export const cancelAppointmentThunk = createAsyncThunk<
   string,
@@ -239,14 +248,17 @@ export const getAllSpecialitiesThunk = createAsyncThunk<
   { specialities: Speciality[]; totalPages: number },
   PaginationParams,
   { rejectValue: string }
->('admin/getAllSpecialities', async ({ page, limit, search }, { rejectWithValue }) => {
-  try {
-    const response = await getAllSpecialities({ page, limit, search });
-    return response;
-  } catch (error: any) {
-    return rejectWithValue(error.message || 'Failed to fetch specialities');
+>(
+  'admin/getAllSpecialities',
+  async ({ page, limit, search }, { rejectWithValue }) => {
+    try {
+      const response = await getAllSpecialities({ page, limit, search });
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to fetch specialities');
+    }
   }
-});
+);
 
 export const createSpecialityThunk = createAsyncThunk<
   Speciality,

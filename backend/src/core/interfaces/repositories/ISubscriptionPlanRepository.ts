@@ -1,9 +1,12 @@
+import { QueryParams } from '../../../types/authTypes';
 import { SubscriptionPlan } from '../../entities/SubscriptionPlan';
 
 export interface ISubscriptionPlanRepository {
   create(plan: SubscriptionPlan): Promise<SubscriptionPlan>;
   findById(id: string): Promise<SubscriptionPlan | null>;
-  findAll(): Promise<SubscriptionPlan[]>;
+  findAllWithQuery(
+    params: QueryParams
+  ): Promise<{ data: SubscriptionPlan[]; totalItems: number }>;
   findByDoctor(doctorId: string): Promise<SubscriptionPlan[]>;
   findApprovedByDoctor(doctorId: string): Promise<SubscriptionPlan[]>;
   findPending(): Promise<SubscriptionPlan[]>;

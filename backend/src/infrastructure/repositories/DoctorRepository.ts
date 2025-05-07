@@ -2,6 +2,8 @@ import { IDoctorRepository } from '../../core/interfaces/repositories/IDoctorRep
 import { Doctor } from '../../core/entities/Doctor';
 import { DoctorModel } from '../database/models/DoctorModel';
 import { SubscriptionPlanModel } from '../database/models/SubscriptionPlanModel';
+import { QueryParams } from '../../types/authTypes';
+import { QueryBuilder } from '../../utils/queryBuilder';
 
 export class DoctorRepository implements IDoctorRepository {
   async create(doctor: Doctor): Promise<Doctor> {
@@ -33,8 +35,22 @@ export class DoctorRepository implements IDoctorRepository {
     await DoctorModel.findByIdAndDelete(id).exec();
   }
 
-  async list(): Promise<Doctor[]> {
-    return DoctorModel.find().exec();
+  async findAllWithQuery(
+    params: QueryParams
+  ): Promise<{ data: Doctor[]; totalItems: number }> {
+    const query = QueryBuilder.buildQuery(params);
+    const sort = QueryBuilder.buildSort(params);
+    const { page, limit } = QueryBuilder.validateParams(params);
+
+    const doctors = await DoctorModel.find(query)
+      .sort(sort)
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .exec();
+
+    const totalItems = await DoctorModel.countDocuments(query).exec();
+
+    return { data: doctors, totalItems };
   }
 
   async listVerified(): Promise<Doctor[]> {
@@ -47,7 +63,10 @@ export class DoctorRepository implements IDoctorRepository {
   }
 
   async findVerified(): Promise<any[]> {
-    return await DoctorModel.find({ isVerified: true, isBlocked: false }).exec();
+    return await DoctorModel.find({
+      isVerified: true,
+      isBlocked: false,
+    }).exec();
   }
 
   async findDoctorsWithActiveSubscriptions(): Promise<Doctor[]> {

@@ -312,9 +312,9 @@ export interface Speciality {
 
 export interface Appointment {
   _id: string;
-  patientId: string;
+  patientId: { _id: string; name: string };
   patientName: string;
-  doctorId: string;
+  doctorId: { _id: string; name: string };
   doctorName: string;
   date: string;
   startTime: string;
@@ -324,3 +324,39 @@ export interface Appointment {
   updatedAt: string;
 }
 
+export interface QueryParams {
+  page?: number;
+  limit?: number;
+  search?: string; // For text-based search (e.g., name, email)
+  sortBy?: string; // Field to sort by (e.g., createdAt, name)
+  sortOrder?: 'asc' | 'desc'; // Sort direction
+  status?: string; // For filtering by status (e.g., pending, approved)
+  specialty?: string; // For filtering doctors by speciality
+  isBlocked?: boolean; // For filtering by block status
+  isVerified?: boolean; // For filtering doctors by verification status
+  isSubscribed?: boolean;
+  dateFrom?: string; // For date range filtering (appointments)
+  dateTo?: string; // For date range filtering (appointments)
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  totalPages: number;
+  currentPage: number;
+  totalItems: number;
+}
+
+export interface PaginationParams {
+  page: number;
+  limit: number;
+  search?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+  isBlocked?: boolean;
+  isSubscribed?: boolean;
+  dateFrom?: string;
+  isVerified?: boolean;
+  dateTo?: string;
+  status?: string;
+  specialty?: string;
+}

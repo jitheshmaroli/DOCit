@@ -2,9 +2,10 @@ import { Request } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 
 export const getMulterUploader = (subfolder: string) => {
-  const uploadDir = path.resolve(__dirname, `../../uploads/${subfolder}`);
+  const uploadDir = path.join(os.tmpdir(), `/uploads/${subfolder}`);
 
   if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });

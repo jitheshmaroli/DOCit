@@ -60,6 +60,7 @@ import { StripeService } from '../services/StripeService';
 import { PatientSubscriptionRepository } from '../repositories/PatientSubscriptionRepositroy';
 import { GetPatientSubscriptionsUseCase } from '../../core/use-cases/admin/GetpatientSubscriptions';
 import { ConfirmSubscriptionUseCase } from '../../core/use-cases/patient/ConfirmSubscriptionUseCase';
+import { ImageUploadService } from '../services/ImageUploadService';
 
 export class Container {
   private static instance: Container;
@@ -82,6 +83,7 @@ export class Container {
     const tokenService = new TokenService();
     const otpService = new OTPService(otpRepository, emailService);
     const stripeService = new StripeService();
+    const imageUploadService = new ImageUploadService();
 
     // Register repositories
     this.dependencies.set('IPatientRepository', patientRepository);
@@ -233,7 +235,7 @@ export class Container {
     );
     this.dependencies.set(
       'UpdateDoctorProfileUseCase',
-      new UpdateDoctorProfileUseCase(doctorRepository)
+      new UpdateDoctorProfileUseCase(doctorRepository, imageUploadService)
     );
     this.dependencies.set(
       'ViewPatientProfileUseCase',
@@ -241,7 +243,7 @@ export class Container {
     );
     this.dependencies.set(
       'UpdatePatientProfileUseCase',
-      new UpdatePatientProfileUseCase(patientRepository)
+      new UpdatePatientProfileUseCase(patientRepository, imageUploadService)
     );
     this.dependencies.set(
       'SetAvailabilityUseCase',

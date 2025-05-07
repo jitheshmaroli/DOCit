@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { toast, ToastContainer } from 'react-toastify';
@@ -9,7 +10,7 @@ import {
 } from '../../utils/validation';
 import { RootState } from '../../redux/store';
 import { useAppSelector } from '../../redux/hooks';
-import { API_BASE_URL } from '../../utils/config';
+import { API_BASE_URL, getImageUrl } from '../../utils/config';
 
 interface Speciality {
   _id: string;
@@ -34,6 +35,7 @@ const DoctorProfilePage: React.FC = () => {
   });
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [file, setFile] = useState<File | null>(null); // Track selected file
   const [errors, setErrors] = useState<Record<string, string | null>>({});
   const [specialities, setSpecialities] = useState<Speciality[]>([]);
 
@@ -43,7 +45,7 @@ const DoctorProfilePage: React.FC = () => {
     const fetchProfile = async () => {
       try {
         const response = await axios.get(
-          `http://localhost:5000/api/doctors/${doctorId}`,
+          `${API_BASE_URL}/api/doctors/${doctorId}`,
           { withCredentials: true }
         );
         const data = response.data;
@@ -58,20 +60,23 @@ const DoctorProfilePage: React.FC = () => {
           age: data.age || '',
           gender: data.gender || '',
         });
-        const imageUrl = response.data.profilePicture
-          ? `${API_BASE_URL}${response.data.profilePicture}`
-          : '/images/avatar.png';
+        // Use getImageUrl to handle Cloudinary or fallback
+        const imageUrl = getImageUrl(data.profilePicture);
         setProfilePicture(imageUrl);
         setPreviewImage(imageUrl);
       } catch (error) {
         console.error('Error fetching doctor profile:', error);
+        toast.error('Failed to load profile', {
+          position: 'bottom-right',
+          autoClose: 3000,
+        });
       }
     };
 
     const fetchSpecialities = async () => {
       try {
         const response = await axios.get(
-          `http://localhost:5000/api/doctors/specialities`,
+          `${API_BASE_URL}/api/doctors/specialities`,
           { withCredentials: true }
         );
         setSpecialities(response.data);
@@ -104,12 +109,13 @@ const DoctorProfilePage: React.FC = () => {
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
+      const selectedFile = e.target.files[0];
+      setFile(selectedFile); // Store file for upload
       const reader = new FileReader();
       reader.onloadend = () => {
-        setPreviewImage(reader.result as string);
+        setPreviewImage(reader.result as string); // Show preview
       };
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(selectedFile);
     }
   };
 
@@ -118,24 +124,29 @@ const DoctorProfilePage: React.FC = () => {
     formData.append('profilePicture', file);
     try {
       const response = await axios.patch(
-        `http://localhost:5000/api/doctors/${doctorId}`,
+        `${API_BASE_URL}/api/doctors/${doctorId}`,
         formData,
-        { withCredentials: true }
+        {
+          withCredentials: true,
+          headers: { 'Content-Type': 'multipart/form-data' },
+        }
       );
-      const imageUrl = `${API_BASE_URL}${response.data.profilePicture}`;
+      const imageUrl = getImageUrl(response.data.profilePicture); // Use Cloudinary URL
       setProfilePicture(imageUrl);
       setPreviewImage(imageUrl);
+      setFile(null); // Clear file after upload
       toast.success('Profile picture updated successfully!', {
         position: 'bottom-right',
         autoClose: 3000,
       });
-    } catch (error) {
+    } catch (error: any) {
       toast.error('Error uploading profile picture', {
         position: 'bottom-right',
         autoClose: 3000,
       });
       console.error('Error uploading photo:', error);
-      setPreviewImage(profilePicture);
+      setPreviewImage(profilePicture); // Revert to original on error
+      throw error;
     }
   };
 
@@ -235,15 +246,14 @@ const DoctorProfilePage: React.FC = () => {
           <button
             onClick={async () => {
               try {
-                const fileInput = document.querySelector(
-                  'input[type="file"]'
-                ) as HTMLInputElement;
-                if (fileInput?.files?.[0]) {
-                  await uploadPhoto(fileInput.files[0]);
+                // Upload photo if a new file is selected
+                if (file) {
+                  await uploadPhoto(file);
                 }
 
+                // Update profile data
                 const response = await axios.patch(
-                  `http://localhost:5000/api/doctors/${doctorId}`,
+                  `${API_BASE_URL}/api/doctors/${doctorId}`,
                   {
                     ...formData,
                     qualifications: formData.qualifications
@@ -257,13 +267,17 @@ const DoctorProfilePage: React.FC = () => {
                   autoClose: 3000,
                 });
                 console.log('Profile updated:', response.data);
-              } catch (error) {
-                toast.error('Error updating profile', {
-                  position: 'bottom-right',
-                  autoClose: 3000,
-                });
+              } catch (error: any) {
+                toast.error(
+                  error.response?.data?.message || 'Error updating profile',
+                  {
+                    position: 'bottom-right',
+                    autoClose: 3000,
+                  }
+                );
                 console.error('Error updating profile:', error);
-                setPreviewImage(profilePicture);
+                setPreviewImage(profilePicture); // Revert preview on error
+                setFile(null); // Clear file on error
               }
               closeToast();
             }}
@@ -274,6 +288,7 @@ const DoctorProfilePage: React.FC = () => {
           <button
             onClick={() => {
               setPreviewImage(profilePicture);
+              setFile(null); // Clear file on cancel
               closeToast();
             }}
             className="bg-red-500 text-white px-2 py-1 rounded"
@@ -310,6 +325,9 @@ const DoctorProfilePage: React.FC = () => {
                     src={previewImage}
                     alt="Profile Preview"
                     className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = '/images/avatar.png';
+                    }}
                   />
                 ) : (
                   <span className="text-[24px] font-bold text-white">DR</span>

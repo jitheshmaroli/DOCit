@@ -7,6 +7,7 @@ import {
   deleteDoctorThunk,
   blockDoctorThunk,
   verifyDoctorThunk,
+  getAllSpecialitiesThunk,
 } from '../../redux/thunks/adminThunk';
 import DataTable from '../../components/common/DataTable';
 import SearchBar from '../../components/common/SearchBar';
@@ -14,18 +15,19 @@ import FilterSelect from '../../components/common/FilterSelect';
 import Pagination from '../../components/common/Pagination';
 import Modal from '../../components/common/Modal';
 import Avatar from '../../components/common/Avatar';
-import { Doctor } from '../../types/authTypes';
+import { Doctor, QueryParams } from '../../types/authTypes';
 import { toast } from 'react-toastify';
+import { ITEMS_PER_PAGE } from '../../utils/constants';
 
-const ITEMS_PER_PAGE = 5;
 
 const AdminManageDoctors: React.FC = () => {
   const dispatch = useAppDispatch();
-  const { doctors, loading, error, totalPages: totalPagesFromState } = useAppSelector((state) => state.admin);
+  const { doctors, specialities, loading, error, totalPages: totalPagesFromState } = useAppSelector((state) => state.admin);
   const { user } = useAppSelector((state) => state.auth);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [specialtyFilter, setSpecialtyFilter] = useState('all');
+  const [sortFilter, setSortFilter] = useState('createdAt:desc');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -39,19 +41,36 @@ const AdminManageDoctors: React.FC = () => {
   });
   const inputRef = useRef<HTMLInputElement>(null);
 
-  console.log('doctors;', doctors)
+  // Fetch specialties on mount
+  useEffect(() => {
+    dispatch(getAllSpecialitiesThunk({ page: 1, limit: 100 }));
+  }, [dispatch]);
+
+  // Fetch doctors based on filters, search, sort, and pagination
   useEffect(() => {
     if (user?.role === 'admin') {
-      dispatch(listDoctorsThunk({
+      const [sortBy, sortOrder] = sortFilter.split(':') as [string, 'asc' | 'desc'];
+      const params: QueryParams = {
         page: currentPage,
         limit: ITEMS_PER_PAGE,
         search: searchTerm,
-        status: statusFilter,
-        specialty: specialtyFilter,
-      }));
-    }
-  }, [dispatch, user?.role, currentPage, searchTerm, statusFilter, specialtyFilter]);
+        sortBy,
+        sortOrder,
+        specialty: specialtyFilter !== 'all' ? specialtyFilter : undefined,
+      };
 
+      if (statusFilter !== 'all') {
+        if (statusFilter === 'verified') params.isVerified = true;
+        if (statusFilter === 'unverified') params.isVerified = false;
+        if (statusFilter === 'blocked') params.isBlocked = true;
+        if (statusFilter === 'active') params.isBlocked = false;
+      }
+
+      dispatch(listDoctorsThunk(params));
+    }
+  }, [dispatch, user?.role, currentPage, searchTerm, statusFilter, specialtyFilter, sortFilter]);
+
+  // Update total pages
   useEffect(() => {
     setTotalPages(totalPagesFromState.doctors);
   }, [totalPagesFromState.doctors]);
@@ -189,13 +208,22 @@ const AdminManageDoctors: React.FC = () => {
     { value: 'verified', label: 'Verified' },
     { value: 'unverified', label: 'Unverified' },
     { value: 'blocked', label: 'Blocked' },
+    { value: 'active', label: 'Active' },
   ], []);
 
   const specialtyOptions = useMemo(() => [
     { value: 'all', label: 'All Specialties' },
-    { value: 'general medicine', label: 'General Medicine' },
-    { value: 'cardiology', label: 'Cardiology' },
-    { value: 'neurology', label: 'Neurology' },
+    ...specialities.map((specialty) => ({
+      value: specialty._id,
+      label: specialty.name,
+    })),
+  ], [specialities]);
+
+  const sortOptions = useMemo(() => [
+    { value: 'createdAt:desc', label: 'Newest First' },
+    { value: 'createdAt:asc', label: 'Oldest First' },
+    { value: 'name:asc', label: 'Name (A-Z)' },
+    { value: 'name:desc', label: 'Name (Z-A)' },
   ], []);
 
   const handlePageChange = useCallback((page: number) => {
@@ -224,6 +252,12 @@ const AdminManageDoctors: React.FC = () => {
             onChange={setSpecialtyFilter}
             label="Specialty"
           />
+          <FilterSelect
+            value={sortFilter}
+            options={sortOptions}
+            onChange={setSortFilter}
+            label="Sort By"
+          />
           <button
             onClick={() => setIsModalOpen(true)}
             className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-3 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300 shadow-lg hover:shadow-xl"
@@ -238,13 +272,26 @@ const AdminManageDoctors: React.FC = () => {
         actions={actions}
         isLoading={loading}
         error={error}
-        onRetry={() => dispatch(listDoctorsThunk({
-          page: currentPage,
-          limit: ITEMS_PER_PAGE,
-          search: searchTerm,
-          status: statusFilter,
-          specialty: specialtyFilter,
-        }))}
+        onRetry={() => {
+          const [sortBy, sortOrder] = sortFilter.split(':') as [string, 'asc' | 'desc'];
+          const params: QueryParams = {
+            page: currentPage,
+            limit: ITEMS_PER_PAGE,
+            search: searchTerm,
+            sortBy,
+            sortOrder,
+            specialty: specialtyFilter !== 'all' ? specialtyFilter : undefined,
+          };
+
+          if (statusFilter !== 'all') {
+            if (statusFilter === 'verified') params.isVerified = true;
+            if (statusFilter === 'unverified') params.isVerified = false;
+            if (statusFilter === 'blocked') params.isBlocked = true;
+            if (statusFilter === 'active') params.isBlocked = false;
+          }
+
+          dispatch(listDoctorsThunk(params));
+        }}
       />
       <Pagination
         currentPage={currentPage}

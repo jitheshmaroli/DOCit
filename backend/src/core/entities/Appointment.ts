@@ -8,6 +8,8 @@ export interface Appointment {
   status: 'pending' | 'confirmed' | 'cancelled';
   isFreeBooking: boolean;
   bookingTime: Date;
+  patientName?: string;
+  doctorName?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }

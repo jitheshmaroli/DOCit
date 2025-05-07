@@ -1,3 +1,4 @@
+import { QueryParams } from '../../../types/authTypes';
 import { Appointment } from '../../entities/Appointment';
 
 export interface IAppointmentRepository {
@@ -22,5 +23,7 @@ export interface IAppointmentRepository {
     doctorId: string
   ): Promise<Appointment[]>;
   findByDoctor(doctorId: string): Promise<Appointment[]>;
-  findAll(): Promise<Appointment[]>;
+  findAllWithQuery(
+    params: QueryParams
+  ): Promise<{ data: Appointment[]; totalItems: number }>;
 }

@@ -1,3 +1,4 @@
+import { QueryParams } from '../../../types/authTypes';
 import { Patient } from '../../entities/Patient';
 
 export interface IPatientRepository {
@@ -6,7 +7,9 @@ export interface IPatientRepository {
   findById(id: string): Promise<Patient | null>;
   update(id: string, patient: Partial<Patient>): Promise<Patient | null>;
   delete(id: string): Promise<void>;
-  list(): Promise<Patient[]>;
+  findAllWithQuery(
+    params: QueryParams
+  ): Promise<{ data: Patient[]; totalItems: number }>;
   updateSubscriptionStatus(
     patientId: string,
     isSubscribed: boolean

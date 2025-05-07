@@ -19,6 +19,11 @@ const AppointmentSchema = new Schema<Appointment>(
   { timestamps: true }
 );
 
+AppointmentSchema.index({
+  'patientId.name': 'text',
+  'doctorId.name': 'text'
+});
+
 AppointmentSchema.index(
   { doctorId: 1, date: 1, startTime: 1, endTime: 1 },
   { unique: true }

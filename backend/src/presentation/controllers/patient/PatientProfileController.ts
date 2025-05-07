@@ -3,6 +3,7 @@ import { ViewPatientProfileUseCase } from '../../../core/use-cases/profile/ViewP
 import { UpdatePatientProfileUseCase } from '../../../core/use-cases/profile/UpdatePatientProfile';
 import { Container } from '../../../infrastructure/di/container';
 import { ValidationError } from '../../../utils/errors';
+import fs from 'fs';
 
 export class PatientProfileController {
   private viewPatientProfileUseCase: ViewPatientProfileUseCase;
@@ -43,19 +44,26 @@ export class PatientProfileController {
       const requesterId = (req as any).user.id;
       const updates = req.body;
 
-      if (req.file) {
-        updates.profilePicture = `/uploads/patient-profiles/${req.file.filename}`;
-      }
-
-      if (Object.keys(updates).length === 0)
-        throw new ValidationError('No updates provided');
       const patient = await this.updatePatientProfileUseCase.execute(
         id,
         requesterId,
-        updates
+        updates,
+        req.file
       );
+
+      if (req.file) {
+        fs.unlinkSync(req.file.path);
+      }
+
+      if (!patient) {
+        throw new ValidationError('Failed to update profile');
+      }
+
       res.status(200).json(patient);
     } catch (error) {
+      if (req.file) {
+        fs.unlinkSync(req.file.path);
+      }
       next(error);
     }
   }

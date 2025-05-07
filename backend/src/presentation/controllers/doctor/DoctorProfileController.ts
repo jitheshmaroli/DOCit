@@ -4,6 +4,7 @@ import { UpdateDoctorProfileUseCase } from '../../../core/use-cases/profile/Upda
 import { Container } from '../../../infrastructure/di/container';
 import { ValidationError } from '../../../utils/errors';
 import { ISpecialityRepository } from '../../../core/interfaces/repositories/ISpecialityRepository';
+import fs from 'fs';
 
 export class DoctorProfileController {
   private viewDoctorProfileUseCase: ViewDoctorProfileUseCase;
@@ -25,9 +26,7 @@ export class DoctorProfileController {
   ): Promise<void> {
     try {
       const { id } = req.params;
-      const doctor = await this.viewDoctorProfileUseCase.execute(
-        id,
-      );
+      const doctor = await this.viewDoctorProfileUseCase.execute(id);
       res.status(200).json(doctor);
     } catch (error) {
       next(error);
@@ -51,21 +50,28 @@ export class DoctorProfileController {
         if (!validSpeciality) {
           throw new ValidationError('Invalid speciality');
         }
-        updates.speciality = validSpeciality._id
+        updates.speciality = validSpeciality._id;
       }
 
-      if (req.file) {
-        updates.profilePicture = `/uploads/doctor-profiles/${req.file.filename}`;
-      }
-
-      if (Object.keys(updates).length === 0)
-        throw new ValidationError('No updates provided');
       const doctor = await this.updateDoctorProfileUseCase.execute(
         id,
-        updates
+        updates,
+        req.file
       );
+
+      if (req.file) {
+        fs.unlinkSync(req.file.path);
+      }
+
+      if (!doctor) {
+        throw new ValidationError('Failed to update profile');
+      }
+
       res.status(200).json(doctor);
     } catch (error) {
+      if (req.file) {
+        fs.unlinkSync(req.file.path);
+      }
       next(error);
     }
   }

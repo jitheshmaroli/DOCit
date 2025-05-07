@@ -18,6 +18,7 @@ const DoctorSchema = new Schema<Doctor>(
     isVerified: { type: Boolean, default: false },
     isBlocked: { type: Boolean, default: false },
     profilePicture: { type: String },
+    profilePicturePublicId: { type: String },
     refreshToken: { type: String },
     googleId: { type: String, unique: true, sparse: true },
   },

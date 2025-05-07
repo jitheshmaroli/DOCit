@@ -6,9 +6,12 @@ import {
 } from '../../redux/thunks/adminThunk';
 import DataTable from '../../components/common/DataTable';
 import SearchBar from '../../components/common/SearchBar';
+import FilterSelect from '../../components/common/FilterSelect';
 import Pagination from '../../components/common/Pagination';
-import { Appointment } from '../../types/authTypes';
+import { Appointment, PaginationParams } from '../../types/authTypes';
 import { toast } from 'react-toastify';
+
+const ITEMS_PER_PAGE = 5;
 
 const AdminAppointments: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -20,21 +23,41 @@ const AdminAppointments: React.FC = () => {
   } = useAppSelector((state) => state.admin);
   const { user } = useAppSelector((state) => state.auth);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [sortFilter, setSortFilter] = useState('createdAt:desc');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const itemsPerPage = 5;
+
+  // Debug log for Redux state and appointments data
+  useEffect(() => {
+    console.log('Redux State:', {
+      appointments,
+      loading,
+      error,
+      totalPages: totalPagesFromState.appointments,
+    });
+    console.log('Appointments Data:', appointments); // Log raw appointments
+  }, [appointments, loading, error, totalPagesFromState.appointments]);
 
   useEffect(() => {
     if (user?.role === 'admin') {
-      dispatch(
-        getAllAppointmentsThunk({
-          page: currentPage,
-          limit: itemsPerPage,
-          search: searchTerm,
-        })
-      );
+      const [sortBy, sortOrder] = sortFilter.split(':') as [string, 'asc' | 'desc'];
+      const params: PaginationParams = {
+        page: currentPage,
+        limit: ITEMS_PER_PAGE,
+        search: searchTerm || undefined,
+        sortBy,
+        sortOrder,
+      };
+
+      if (statusFilter !== 'all') {
+        params.status = statusFilter;
+      }
+
+      console.log('Dispatching getAllAppointmentsThunk with params:', params); // Debug log
+      dispatch(getAllAppointmentsThunk(params));
     }
-  }, [dispatch, user?.role, currentPage, searchTerm]);
+  }, [dispatch, user?.role, currentPage, searchTerm, statusFilter, sortFilter]);
 
   useEffect(() => {
     setTotalPages(totalPagesFromState.appointments);
@@ -59,12 +82,12 @@ const AdminAppointments: React.FC = () => {
       {
         header: 'Patient',
         accessor: (appt: Appointment): React.ReactNode =>
-          appt.patientName || 'N/A',
+          appt.patientId?.name || 'N/A',
       },
       {
         header: 'Doctor',
         accessor: (appt: Appointment): React.ReactNode =>
-          appt.doctorName || 'N/A',
+          appt.doctorId?.name || 'N/A',
       },
       {
         header: 'Date',
@@ -110,11 +133,26 @@ const AdminAppointments: React.FC = () => {
     [handleCancelAppointment]
   );
 
+  const statusOptions = useMemo(() => [
+    { value: 'all', label: 'All Statuses' },
+    { value: 'pending', label: 'Pending' },
+    { value: 'confirmed', label: 'Confirmed' },
+    { value: 'cancelled', label: 'Cancelled' },
+  ], []);
+
+  const sortOptions = useMemo(() => [
+    { value: 'createdAt:desc', label: 'Newest First' },
+    { value: 'createdAt:asc', label: 'Oldest First' },
+    { value: 'date:asc', label: 'Date (Earliest First)' },
+    { value: 'date:desc', label: 'Date (Latest First)' },
+  ], []);
+
   const handlePageChange = useCallback((page: number) => {
     setCurrentPage(page);
   }, []);
 
   const handleSearch = useCallback((term: string) => {
+    console.log('Search Term:', term); // Debug log
     setSearchTerm(term);
     setCurrentPage(1);
   }, []);
@@ -124,12 +162,26 @@ const AdminAppointments: React.FC = () => {
       <h2 className="text-xl font-semibold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent mb-6">
         All Appointments
       </h2>
-      <div className="flex flex-col md:flex-row gap-4 mb-6">
+      <div className="flex flex-col md:flex-row justify-between mb-6 gap-4">
         <SearchBar
           value={searchTerm}
           onChange={handleSearch}
-          placeholder="Search by patient, doctor, or date..."
+          placeholder="Search by patient or doctor..."
         />
+        <div className="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-4">
+          <FilterSelect
+            value={statusFilter}
+            options={statusOptions}
+            onChange={setStatusFilter}
+            label="Status"
+          />
+          <FilterSelect
+            value={sortFilter}
+            options={sortOptions}
+            onChange={setSortFilter}
+            label="Sort By"
+          />
+        </div>
       </div>
       <DataTable
         data={appointments}
@@ -137,15 +189,20 @@ const AdminAppointments: React.FC = () => {
         actions={actions}
         isLoading={loading}
         error={error}
-        onRetry={() =>
-          dispatch(
-            getAllAppointmentsThunk({
-              page: currentPage,
-              limit: itemsPerPage,
-              search: searchTerm,
-            })
-          )
-        }
+        onRetry={() => {
+          const [sortBy, sortOrder] = sortFilter.split(':') as [string, 'asc' | 'desc'];
+          const params: PaginationParams = {
+            page: currentPage,
+            limit: ITEMS_PER_PAGE,
+            search: searchTerm || undefined,
+            sortBy,
+            sortOrder,
+            status: statusFilter !== 'all' ? statusFilter : undefined,
+          };
+
+          console.log('Retrying getAllAppointmentsThunk with params:', params); // Debug log
+          dispatch(getAllAppointmentsThunk(params));
+        }}
       />
       <Pagination
         currentPage={currentPage}

@@ -13,6 +13,7 @@ const PatientSchema = new Schema<Patient>(
     address: { type: String },
     pincode: { type: String },
     profilePicture: { type: String },
+    profilePicturePublicId: { type: String },
     refreshToken: { type: String },
     gender: { type: String, enum: ['Male', 'Female', 'Other'] },
     googleId: { type: String, unique: true, sparse: true },

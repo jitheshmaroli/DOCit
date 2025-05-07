@@ -11,6 +11,7 @@ import { AddSpecialityUseCase } from '../../../core/use-cases/admin/AddSpecialit
 import { UpdateSpecialityUseCase } from '../../../core/use-cases/admin/UpdateSpecialityUseCase';
 import { DeleteSpecialityUseCase } from '../../../core/use-cases/admin/DeleteSpecialityUseCase';
 import { GetPatientSubscriptionsUseCase } from '../../../core/use-cases/admin/GetpatientSubscriptions';
+import { PaginatedResponse, QueryParams } from '../../../types/authTypes';
 
 export class AdminController {
   private manageSubscriptionPlanUseCase: ManageSubscriptionPlanUseCase;
@@ -47,24 +48,20 @@ export class AdminController {
     next: NextFunction
   ): Promise<void> {
     try {
-      const plans = await this.manageSubscriptionPlanUseCase.getAllPlans();
-      res.status(200).json({ data: plans });
+      const params: QueryParams = req.query as any;
+      const { data: plans, totalItems } =
+        await this.manageSubscriptionPlanUseCase.getAllPlansWithQuery(params);
+      const { page = 1, limit = 10 } = params;
+      const totalPages = Math.ceil(totalItems / limit);
+
+      res.status(200).json({
+        data: plans,
+        totalPages,
+        currentPage: page,
+        totalItems,
+      } as PaginatedResponse<any>);
     } catch (error) {
       console.error('Error fetching all plans:', error);
-      next(error);
-    }
-  }
-
-  async getPendingPlans(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
-    try {
-      const plans = await this.manageSubscriptionPlanUseCase.getPendingPlans();
-      res.status(200).json({ data: plans });
-    } catch (error) {
-      console.error('Error fetching pending plans:', error);
       next(error);
     }
   }
@@ -116,14 +113,19 @@ export class AdminController {
     }
   }
 
-  async getAllAppointments(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async getAllAppointments(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const appointments = await this.getAllAppointmentsUseCase.execute();
-      res.status(200).json({ data: appointments });
+      const params: QueryParams = req.query as any;
+      const { data: appointments, totalItems } = await this.getAllAppointmentsUseCase.executeWithQuery(params);
+      const { page = 1, limit = 10 } = params;
+      const totalPages = Math.ceil(totalItems / limit);
+
+      res.status(200).json({
+        data: appointments,
+        totalPages,
+        currentPage: page,
+        totalItems,
+      } as PaginatedResponse<any>);
     } catch (error) {
       console.error('Error fetching appointments:', error);
       next(error);
@@ -165,8 +167,18 @@ export class AdminController {
     next: NextFunction
   ): Promise<void> {
     try {
-      const specialities = await this.getSpecialitiesUseCase.execute();
-      res.status(200).json({ data: specialities });
+      const params: QueryParams = req.query as any;
+      const { data: specialities, totalItems } =
+        await this.getSpecialitiesUseCase.executeWithQuery(params);
+      const { page = 1, limit = 10 } = params;
+      const totalPages = Math.ceil(totalItems / limit);
+
+      res.status(200).json({
+        data: specialities,
+        totalPages,
+        currentPage: page,
+        totalItems,
+      } as PaginatedResponse<any>);
     } catch (error) {
       next(error);
     }

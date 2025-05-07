@@ -81,7 +81,7 @@ const adminSlice = createSlice({
       })
       .addCase(listDoctorsThunk.fulfilled, (state, action) => {
         console.log("slice dodtors:", action.payload)
-        state.doctors = action.payload.doctors;
+        state.doctors = action.payload.data;
         state.totalPages.doctors = action.payload.totalPages;
         state.loading = false;
       })
@@ -166,7 +166,7 @@ const adminSlice = createSlice({
         state.error = null;
       })
       .addCase(listPatientsThunk.fulfilled, (state, action) => {
-        state.patients = action.payload.patients;
+        state.patients = action.payload.data;
         state.totalPages.patients = action.payload.totalPages;
         state.loading = false;
       })
@@ -294,13 +294,13 @@ const adminSlice = createSlice({
         state.error = null;
       })
       .addCase(getAllAppointmentsThunk.fulfilled, (state, action) => {
-        state.appointments = action.payload.appointments;
+        state.appointments = action.payload.data;
         state.totalPages.appointments = action.payload.totalPages;
         state.loading = false;
       })
       .addCase(getAllAppointmentsThunk.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload || 'Failed to fetch appointments';
+        state.error = action.error.message || 'Failed to fetch appointments';
       })
       .addCase(cancelAppointmentThunk.pending, (state) => {
         state.loading = true;

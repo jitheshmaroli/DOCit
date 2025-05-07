@@ -16,6 +16,20 @@ interface PaginationParams {
   specialty?: string;
 }
 
+export interface QueryParams {
+  page?: number;
+  limit?: number;
+  search?: string; // For text-based search (e.g., name, email)
+  sortBy?: string; // Field to sort by (e.g., createdAt, name)
+  sortOrder?: 'asc' | 'desc'; // Sort direction
+  status?: string; // For filtering by status (e.g., pending, approved)
+  specialty?: string; // For filtering doctors by speciality
+  isBlocked?: boolean; // For filtering by block status
+  isVerified?: boolean; // For filtering doctors by verification status
+  dateFrom?: string; // For date range filtering (appointments)
+  dateTo?: string; // For date range filtering (appointments)
+}
+
 interface PaginatedResponse<T> {
   data: T[];
   totalPages: number;
@@ -24,13 +38,10 @@ interface PaginatedResponse<T> {
 }
 
 // Doctors
-export const listDoctors = async (params: PaginationParams): Promise<{ doctors: Doctor[]; totalPages: number }> => {
+export const listDoctors = async (params: QueryParams): Promise<PaginatedResponse<Doctor>> => {
   try {
     const response = await api.get<PaginatedResponse<Doctor>>('/api/admin/doctors', { params });
-    return {
-      doctors: response.data.data,
-      totalPages: response.data.totalPages,
-    };
+    return response.data
   } catch (error) {
     const axiosError = error as AxiosError<ApiError>;
     throw new Error(axiosError.response?.data.message || 'Failed to fetch doctors');
@@ -88,14 +99,10 @@ export const verifyDoctor = async (id: string): Promise<Doctor> => {
 };
 
 // Patients
-export const listPatients = async (params: PaginationParams): Promise<{ patients: Patient[]; totalPages: number }> => {
+export const listPatients = async (params: QueryParams): Promise<PaginatedResponse<Patient>> => {
   try {
     const response = await api.get<PaginatedResponse<Patient>>('/api/admin/patients', { params });
-    console.log(response.data)
-    return {
-      patients: response.data.data,
-      totalPages: response.data.totalPages,
-    };
+    return response.data;
   } catch (error) {
     const axiosError = error as AxiosError<ApiError>;
     throw new Error(axiosError.response?.data.message || 'Failed to fetch patients');
@@ -143,15 +150,11 @@ export const blockPatient = async (id: string, isBlocked: boolean): Promise<Pati
 };
 
 // Appointments
-export const getAllAppointments = async (
-  params: PaginationParams
-): Promise<{ appointments: Appointment[]; totalPages: number }> => {
+export const getAllAppointments = async (params: QueryParams): Promise<PaginatedResponse<Appointment>> => {
   try {
     const response = await api.get<PaginatedResponse<Appointment>>('/api/admin/appointments', { params });
-    return {
-      appointments: response.data.data,
-      totalPages: response.data.totalPages,
-    };
+    console.log('resdata:', response.data)
+    return response.data;
   } catch (error) {
     const axiosError = error as AxiosError<ApiError>;
     throw new Error(axiosError.response?.data.message || 'Failed to fetch appointments');

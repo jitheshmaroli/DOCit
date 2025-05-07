@@ -1,3 +1,4 @@
+import { QueryParams } from '../../../types/authTypes';
 import { Doctor } from '../../entities/Doctor';
 
 export interface IDoctorRepository {
@@ -9,7 +10,7 @@ export interface IDoctorRepository {
   update(id: string, updates: Partial<Doctor>): Promise<Doctor | null>;
   findByCriteria(criteria: Partial<Doctor>): Promise<Doctor[]>;
   delete(id: string): Promise<void>;
-  list(): Promise<Doctor[]>;
+  findAllWithQuery(params: QueryParams): Promise<{data: Doctor[], totalItems: number}>;
   getDoctorDetails(id: string): Promise<Doctor | null>;
   findDoctorsWithActiveSubscriptions(): Promise<Doctor[]>;
   updateAllowFreeBooking(

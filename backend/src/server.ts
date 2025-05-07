@@ -31,7 +31,7 @@ const patientSubscriptionRepository =
 // Middleware setup
 app.use(cors({ origin: CLIENT_URL, credentials: true }));
 app.use(express.json());
-app.use(express.raw({ type: 'application/json' })); // For Stripe webhook
+app.use(express.raw({ type: 'application/json' })); 
 app.use(cookieParser());
 app.use('/uploads', express.static('uploads'));
 

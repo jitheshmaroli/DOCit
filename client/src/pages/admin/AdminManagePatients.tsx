@@ -17,6 +17,17 @@ import { Patient } from '../../types/authTypes';
 import { toast } from 'react-toastify';
 import { formatDate } from '../../utils/helpers';
 
+// Define PaginationParams for clarity (move to authTypes.ts if reused)
+interface PaginationParams {
+  page: number;
+  limit: number;
+  search?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+  isBlocked?: boolean;
+  isSubscribed?: boolean;
+}
+
 const ITEMS_PER_PAGE = 5;
 
 const AdminManagePatients: React.FC = () => {
@@ -25,6 +36,7 @@ const AdminManagePatients: React.FC = () => {
   const { user } = useAppSelector((state) => state.auth);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [sortFilter, setSortFilter] = useState('createdAt:desc');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -37,17 +49,36 @@ const AdminManagePatients: React.FC = () => {
   });
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Debug log for Redux state
+  useEffect(() => {
+    console.log('Redux State:', { patients, loading, error, totalPages: totalPagesFromState.patients });
+  }, [patients, loading, error, totalPagesFromState.patients]);
+
+  // Fetch patients based on filters, search, sort, and pagination
   useEffect(() => {
     if (user?.role === 'admin') {
-      dispatch(listPatientsThunk({
-        page: currentPage,
-        limit: ITEMS_PER_PAGE,
-        search: searchTerm,
-        status: statusFilter,
-      }));
-    }
-  }, [dispatch, user?.role, currentPage, searchTerm, statusFilter]);
+      const [sortBy, sortOrder] = sortFilter.split(':') as [string, 'asc' | 'desc'];
+      const params: PaginationParams = {
+        page: currentPage, // Always number
+        limit: ITEMS_PER_PAGE, // Always number
+        search: searchTerm || undefined,
+        sortBy,
+        sortOrder,
+      };
 
+      if (statusFilter !== 'all') {
+        if (statusFilter === 'active') params.isBlocked = false;
+        if (statusFilter === 'blocked') params.isBlocked = true;
+        if (statusFilter === 'subscribed') params.isSubscribed = true;
+        if (statusFilter === 'notSubscribed') params.isSubscribed = false;
+      }
+
+      console.log('Dispatching listPatientsThunk with params:', params); // Debug log
+      dispatch(listPatientsThunk(params));
+    }
+  }, [dispatch, user?.role, currentPage, searchTerm, statusFilter, sortFilter]);
+
+  // Update total pages
   useEffect(() => {
     setTotalPages(totalPagesFromState.patients);
   }, [totalPagesFromState.patients]);
@@ -168,6 +199,14 @@ const AdminManagePatients: React.FC = () => {
     { value: 'active', label: 'Active' },
     { value: 'blocked', label: 'Blocked' },
     { value: 'subscribed', label: 'Subscribed' },
+    { value: 'notSubscribed', label: 'Not Subscribed' },
+  ], []);
+
+  const sortOptions = useMemo(() => [
+    { value: 'createdAt:desc', label: 'Newest First' },
+    { value: 'createdAt:asc', label: 'Oldest First' },
+    { value: 'name:asc', label: 'Name (A-Z)' },
+    { value: 'name:desc', label: 'Name (Z-A)' },
   ], []);
 
   const handlePageChange = useCallback((page: number) => {
@@ -190,6 +229,12 @@ const AdminManagePatients: React.FC = () => {
             onChange={setStatusFilter}
             label="Status"
           />
+          <FilterSelect
+            value={sortFilter}
+            options={sortOptions}
+            onChange={setSortFilter}
+            label="Sort By"
+          />
           <button
             onClick={() => setIsModalOpen(true)}
             className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-3 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300 shadow-lg hover:shadow-xl"
@@ -204,12 +249,26 @@ const AdminManagePatients: React.FC = () => {
         actions={actions}
         isLoading={loading}
         error={error}
-        onRetry={() => dispatch(listPatientsThunk({
-          page: currentPage,
-          limit: ITEMS_PER_PAGE,
-          search: searchTerm,
-          status: statusFilter,
-        }))}
+        onRetry={() => {
+          const [sortBy, sortOrder] = sortFilter.split(':') as [string, 'asc' | 'desc'];
+          const params: PaginationParams = {
+            page: currentPage, // Always number
+            limit: ITEMS_PER_PAGE, // Always number
+            search: searchTerm || undefined,
+            sortBy,
+            sortOrder,
+          };
+
+          if (statusFilter !== 'all') {
+            if (statusFilter === 'active') params.isBlocked = false;
+            if (statusFilter === 'blocked') params.isBlocked = true;
+            if (statusFilter === 'subscribed') params.isSubscribed = true;
+            if (statusFilter === 'notSubscribed') params.isSubscribed = false;
+          }
+
+          console.log('Retrying listPatientsThunk with params:', params); // Debug log
+          dispatch(listPatientsThunk(params));
+        }}
       />
       <Pagination
         currentPage={currentPage}

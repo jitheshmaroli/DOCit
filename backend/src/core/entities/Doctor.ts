@@ -15,6 +15,7 @@ export interface Doctor {
   isVerified: boolean;
   isBlocked?: boolean;
   profilePicture?: string;
+  profilePicturePublicId?: string;
   refreshToken?: string;
   googleId?: string;
   createdAt?: Date;

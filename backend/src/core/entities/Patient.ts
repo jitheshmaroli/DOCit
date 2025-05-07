@@ -10,6 +10,7 @@ export interface Patient {
   address?: string;
   pincode?: string;
   profilePicture?: string;
+  profilePicturePublicId?: string;
   refreshToken?: string;
   gender?: 'Male' | 'Female' | 'Other';
   googleId?: string;

@@ -14,6 +14,7 @@ import { ListPatientsUseCase } from '../../../core/use-cases/admin/ListPatientsU
 import { ListDoctorsUseCase } from '../../../core/use-cases/admin/ListDoctorsUseCase';
 import { VerifyDoctorUseCase } from '../../../core/use-cases/admin/VerifyDoctorUseCase';
 import { LoginAdminUseCase } from '../../../core/use-cases/auth/admin/LoginAdminUseCase';
+import { PaginatedResponse, QueryParams } from '../../../types/authTypes';
 
 export class AdminAuthController {
   private loginAdminUseCase: LoginAdminUseCase;
@@ -64,8 +65,18 @@ export class AdminAuthController {
     next: NextFunction
   ): Promise<void> {
     try {
-      const patients = await this.listPatientsUseCase.execute();
-      res.status(200).json({ data: patients });
+      const params: QueryParams = req.query as any;
+      const { data: patients, totalItems } =
+        await this.listPatientsUseCase.executeWithQuery(params);
+      const { page = 1, limit = 10 } = params;
+      const totalPages = Math.ceil(totalItems / limit);
+
+      res.status(200).json({
+        data: patients,
+        totalPages,
+        currentPage: page,
+        totalItems,
+      } as PaginatedResponse<any>);
     } catch (error) {
       next(error);
     }
@@ -91,8 +102,18 @@ export class AdminAuthController {
     next: NextFunction
   ): Promise<void> {
     try {
-      const doctors = await this.listDoctorsUseCase.execute();
-      res.status(200).json({ data: doctors });
+      const params: QueryParams = req.query as any;
+      const { data: doctors, totalItems } =
+        await this.listDoctorsUseCase.executeWithQuery(params);
+      const { page = 1, limit = 10 } = params;
+      const totalPages = Math.ceil(totalItems / limit);
+
+      res.status(200).json({
+        data: doctors,
+        totalPages,
+        currentPage: page,
+        totalItems,
+      } as PaginatedResponse<any>);
     } catch (error) {
       next(error);
     }
