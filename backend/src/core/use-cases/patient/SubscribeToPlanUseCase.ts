@@ -37,9 +37,8 @@ export class SubscribeToPlanUseCase {
       );
     }
 
-    // Create PaymentIntent without immediate confirmation
-    const clientSecret = await this.stripeService.createPaymentIntent(price);
-    const paymentIntentId = clientSecret.split('_secret_')[0]; // Extract paymentIntentId from client_secret
+    const clientSecret = await this.stripeService.createPaymentIntent(price * 100);
+    const paymentIntentId = clientSecret.split('_secret_')[0];
 
     return { clientSecret, paymentIntentId };
   }

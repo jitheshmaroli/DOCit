@@ -45,7 +45,6 @@ export class RefreshTokenUseCase {
       role
     );
 
-    // Update the refresh token in the database
     if (role === 'patient') {
       await this.patientRepository.update(userId, {
         refreshToken: newRefreshToken,

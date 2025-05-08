@@ -12,9 +12,30 @@ const Footer: React.FC = () => {
               Quick Links
             </h3>
             <ul className="space-y-2">
-              <li><Link to="/" className="text-gray-200 hover:text-purple-300 transition-colors">Home</Link></li>
-              <li><Link to="/about" className="text-gray-200 hover:text-purple-300 transition-colors">About</Link></li>
-              <li><Link to="/contact" className="text-gray-200 hover:text-purple-300 transition-colors">Contact</Link></li>
+              <li>
+                <Link
+                  to="/"
+                  className="text-gray-200 hover:text-purple-300 transition-colors"
+                >
+                  Home
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/about"
+                  className="text-gray-200 hover:text-purple-300 transition-colors"
+                >
+                  About
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/contact"
+                  className="text-gray-200 hover:text-purple-300 transition-colors"
+                >
+                  Contact
+                </Link>
+              </li>
             </ul>
           </div>
           <div>
@@ -31,14 +52,31 @@ const Footer: React.FC = () => {
               Follow Us
             </h3>
             <div className="flex space-x-4">
-              <a href="#" className="text-gray-200 hover:text-purple-300 transition-colors"><FaFacebook size={24} /></a>
-              <a href="#" className="text-gray-200 hover:text-purple-300 transition-colors"><FaTwitter size={24} /></a>
-              <a href="#" className="text-gray-200 hover:text-purple-300 transition-colors"><FaInstagram size={24} /></a>
+              <a
+                href="#"
+                className="text-gray-200 hover:text-purple-300 transition-colors"
+              >
+                <FaFacebook size={24} />
+              </a>
+              <a
+                href="#"
+                className="text-gray-200 hover:text-purple-300 transition-colors"
+              >
+                <FaTwitter size={24} />
+              </a>
+              <a
+                href="#"
+                className="text-gray-200 hover:text-purple-300 transition-colors"
+              >
+                <FaInstagram size={24} />
+              </a>
             </div>
           </div>
         </div>
         <div className="border-t border-white/20 mt-8 pt-8 text-center">
-          <p className="text-gray-200">© {new Date().getFullYear()} DOCIT. All rights reserved.</p>
+          <p className="text-gray-200">
+            © {new Date().getFullYear()} DOCIT. All rights reserved.
+          </p>
         </div>
       </div>
     </footer>

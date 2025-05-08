@@ -14,11 +14,11 @@ export class StripeService {
   async createPaymentIntent(amount: number): Promise<string> {
     try {
       const paymentIntent = await this.stripe.paymentIntents.create({
-        amount, // In paisa
+        amount, 
         currency: 'INR',
         automatic_payment_methods: {
           enabled: true,
-          allow_redirects: 'never', // Disable redirect-based methods
+          allow_redirects: 'never',
         },
       });
 

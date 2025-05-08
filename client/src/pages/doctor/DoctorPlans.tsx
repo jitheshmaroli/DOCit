@@ -171,7 +171,7 @@ const DoctorPlans: React.FC = () => {
                 >
                   <h3 className="text-lg font-semibold text-white">{plan.name || 'Unnamed Plan'}</h3>
                   <p className="text-sm text-gray-200 mt-2">{plan.description || 'No description'}</p>
-                  <p className="text-sm text-gray-200 mt-2">Price: ₹{(plan.price / 100).toFixed(2)}</p>
+                  <p className="text-sm text-gray-200 mt-2">Price: ₹{(plan.price).toFixed(2)}</p>
                   <p className="text-sm text-gray-200 mt-2">Validity: {plan.validityDays} days</p>
                   <p className="text-sm text-gray-200 mt-2">Appointments: {plan.appointmentCount}</p>
                   <p

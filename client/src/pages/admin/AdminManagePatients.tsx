@@ -1,4 +1,10 @@
-import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import React, {
+  useState,
+  useCallback,
+  useMemo,
+  useEffect,
+  useRef,
+} from 'react';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import {
   listPatientsThunk,
@@ -17,7 +23,6 @@ import { Patient } from '../../types/authTypes';
 import { toast } from 'react-toastify';
 import { formatDate } from '../../utils/helpers';
 
-// Define PaginationParams for clarity (move to authTypes.ts if reused)
 interface PaginationParams {
   page: number;
   limit: number;
@@ -32,7 +37,12 @@ const ITEMS_PER_PAGE = 5;
 
 const AdminManagePatients: React.FC = () => {
   const dispatch = useAppDispatch();
-  const { patients, loading, error, totalPages: totalPagesFromState } = useAppSelector((state) => state.admin);
+  const {
+    patients,
+    loading,
+    error,
+    totalPages: totalPagesFromState,
+  } = useAppSelector((state) => state.admin);
   const { user } = useAppSelector((state) => state.auth);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -49,18 +59,15 @@ const AdminManagePatients: React.FC = () => {
   });
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Debug log for Redux state
-  useEffect(() => {
-    console.log('Redux State:', { patients, loading, error, totalPages: totalPagesFromState.patients });
-  }, [patients, loading, error, totalPagesFromState.patients]);
-
-  // Fetch patients based on filters, search, sort, and pagination
   useEffect(() => {
     if (user?.role === 'admin') {
-      const [sortBy, sortOrder] = sortFilter.split(':') as [string, 'asc' | 'desc'];
+      const [sortBy, sortOrder] = sortFilter.split(':') as [
+        string,
+        'asc' | 'desc',
+      ];
       const params: PaginationParams = {
-        page: currentPage, // Always number
-        limit: ITEMS_PER_PAGE, // Always number
+        page: currentPage,
+        limit: ITEMS_PER_PAGE,
         search: searchTerm || undefined,
         sortBy,
         sortOrder,
@@ -73,12 +80,10 @@ const AdminManagePatients: React.FC = () => {
         if (statusFilter === 'notSubscribed') params.isSubscribed = false;
       }
 
-      console.log('Dispatching listPatientsThunk with params:', params); // Debug log
       dispatch(listPatientsThunk(params));
     }
   }, [dispatch, user?.role, currentPage, searchTerm, statusFilter, sortFilter]);
 
-  // Update total pages
   useEffect(() => {
     setTotalPages(totalPagesFromState.patients);
   }, [totalPagesFromState.patients]);
@@ -97,7 +102,9 @@ const AdminManagePatients: React.FC = () => {
   const handleUpdatePatient = useCallback(async () => {
     if (!editPatient) return;
     try {
-      await dispatch(updatePatientThunk({ id: editPatient._id, updates: editPatient })).unwrap();
+      await dispatch(
+        updatePatientThunk({ id: editPatient._id, updates: editPatient })
+      ).unwrap();
       toast.success('Patient updated successfully');
       setEditPatient(null);
     } catch (err) {
@@ -105,109 +112,139 @@ const AdminManagePatients: React.FC = () => {
     }
   }, [dispatch, editPatient]);
 
-  const handleDeletePatient = useCallback(async (patient: Patient) => {
-    if (window.confirm('Are you sure you want to delete this patient?')) {
-      try {
-        await dispatch(deletePatientThunk(patient._id)).unwrap();
-        toast.success('Patient deleted successfully');
-      } catch (err) {
-        toast.error(`Failed to delete patient: ${err}`);
+  const handleDeletePatient = useCallback(
+    async (patient: Patient) => {
+      if (window.confirm('Are you sure you want to delete this patient?')) {
+        try {
+          await dispatch(deletePatientThunk(patient._id)).unwrap();
+          toast.success('Patient deleted successfully');
+        } catch (err) {
+          toast.error(`Failed to delete patient: ${err}`);
+        }
       }
-    }
-  }, [dispatch]);
+    },
+    [dispatch]
+  );
 
-  const handleBlockPatient = useCallback(async (patient: Patient) => {
-    const action = patient.isBlocked ? 'unblock' : 'block';
-    if (window.confirm(`Are you sure you want to ${action} this patient?`)) {
-      try {
-        await dispatch(blockPatientThunk({ id: patient._id, isBlocked: !patient.isBlocked })).unwrap();
-        toast.success(`Patient ${action}ed successfully`);
-      } catch (err) {
-        toast.error(`Failed to ${action} patient: ${err}`);
+  const handleBlockPatient = useCallback(
+    async (patient: Patient) => {
+      const action = patient.isBlocked ? 'unblock' : 'block';
+      if (window.confirm(`Are you sure you want to ${action} this patient?`)) {
+        try {
+          await dispatch(
+            blockPatientThunk({
+              id: patient._id,
+              isBlocked: !patient.isBlocked,
+            })
+          ).unwrap();
+          toast.success(`Patient ${action}ed successfully`);
+        } catch (err) {
+          toast.error(`Failed to ${action} patient: ${err}`);
+        }
       }
-    }
-  }, [dispatch]);
+    },
+    [dispatch]
+  );
 
-  const columns = useMemo(() => [
-    {
-      header: 'Name',
-      accessor: (patient: Patient): React.ReactNode => (
-        <div className="flex items-center">
-          <Avatar name={patient.name} id={patient._id} profilePicture={patient.profilePicture} />
-          <span className="ml-4 text-sm font-medium text-white">{patient.name}</span>
-        </div>
-      ),
-    },
-    {
-      header: 'Email',
-      accessor: 'email' as keyof Patient,
-    },
-    {
-      header: 'Phone',
-      accessor: 'phone' as keyof Patient,
-    },
-    {
-      header: 'Joined Date',
-      accessor: (patient: Patient): React.ReactNode => formatDate(patient.createdAt),
-    },
-    {
-      header: 'Status',
-      accessor: (patient: Patient): React.ReactNode => (
-        <div className="flex flex-col space-y-1">
-          <span
-            className={`px-2 py-1 text-xs font-semibold rounded-full ${patient.isSubscribed ? 'bg-green-500/20 text-green-300' : 'bg-gray-500/20 text-gray-300'}`}
-          >
-            {patient.isSubscribed ? 'Subscribed' : 'Not Subscribed'}
-          </span>
-          <span
-            className={`px-2 py-1 text-xs font-semibold rounded-full ${patient.isBlocked ? 'bg-red-500/20 text-red-300' : 'bg-gray-500/20 text-gray-300'}`}
-          >
-            {patient.isBlocked ? 'Blocked' : 'Active'}
-          </span>
-        </div>
-      ),
-    },
-  ], []);
+  const columns = useMemo(
+    () => [
+      {
+        header: 'Name',
+        accessor: (patient: Patient): React.ReactNode => (
+          <div className="flex items-center">
+            <Avatar
+              name={patient.name}
+              id={patient._id}
+              profilePicture={patient.profilePicture}
+            />
+            <span className="ml-4 text-sm font-medium text-white">
+              {patient.name}
+            </span>
+          </div>
+        ),
+      },
+      {
+        header: 'Email',
+        accessor: 'email' as keyof Patient,
+      },
+      {
+        header: 'Phone',
+        accessor: 'phone' as keyof Patient,
+      },
+      {
+        header: 'Joined Date',
+        accessor: (patient: Patient): React.ReactNode =>
+          formatDate(patient.createdAt),
+      },
+      {
+        header: 'Status',
+        accessor: (patient: Patient): React.ReactNode => (
+          <div className="flex flex-col space-y-1">
+            <span
+              className={`px-2 py-1 text-xs font-semibold rounded-full ${patient.isSubscribed ? 'bg-green-500/20 text-green-300' : 'bg-gray-500/20 text-gray-300'}`}
+            >
+              {patient.isSubscribed ? 'Subscribed' : 'Not Subscribed'}
+            </span>
+            <span
+              className={`px-2 py-1 text-xs font-semibold rounded-full ${patient.isBlocked ? 'bg-red-500/20 text-red-300' : 'bg-gray-500/20 text-gray-300'}`}
+            >
+              {patient.isBlocked ? 'Blocked' : 'Active'}
+            </span>
+          </div>
+        ),
+      },
+    ],
+    []
+  );
 
-  const actions = useMemo(() => [
-    {
-      label: 'Edit',
-      onClick: (patient: Patient) => setEditPatient(patient),
-      className: 'bg-purple-600 hover:bg-purple-700',
-    },
-    {
-      label: 'Delete',
-      onClick: handleDeletePatient,
-      className: 'bg-red-600 hover:bg-red-700',
-    },
-    {
-      label: 'Block',
-      onClick: handleBlockPatient,
-      className: 'bg-yellow-600 hover:bg-yellow-700',
-      condition: (patient: Patient) => !patient.isBlocked,
-    },
-    {
-      label: 'Unblock',
-      onClick: handleBlockPatient,
-      className: 'bg-green-600 hover:bg-green-700',
-      condition: (patient: Patient) => patient.isBlocked,
-    },
-  ], [handleDeletePatient, handleBlockPatient]);
+  const actions = useMemo(
+    () => [
+      {
+        label: 'Edit',
+        onClick: (patient: Patient) => setEditPatient(patient),
+        className: 'bg-purple-600 hover:bg-purple-700',
+      },
+      {
+        label: 'Delete',
+        onClick: handleDeletePatient,
+        className: 'bg-red-600 hover:bg-red-700',
+      },
+      {
+        label: 'Block',
+        onClick: handleBlockPatient,
+        className: 'bg-yellow-600 hover:bg-yellow-700',
+        condition: (patient: Patient) => !patient.isBlocked,
+      },
+      {
+        label: 'Unblock',
+        onClick: handleBlockPatient,
+        className: 'bg-green-600 hover:bg-green-700',
+        condition: (patient: Patient) => patient.isBlocked,
+      },
+    ],
+    [handleDeletePatient, handleBlockPatient]
+  );
 
-  const statusOptions = useMemo(() => [
-    { value: 'all', label: 'All Statuses' },
-    { value: 'active', label: 'Active' },
-    { value: 'blocked', label: 'Blocked' },
-    { value: 'subscribed', label: 'Subscribed' },
-    { value: 'notSubscribed', label: 'Not Subscribed' },
-  ], []);
+  const statusOptions = useMemo(
+    () => [
+      { value: 'all', label: 'All Statuses' },
+      { value: 'active', label: 'Active' },
+      { value: 'blocked', label: 'Blocked' },
+      { value: 'subscribed', label: 'Subscribed' },
+      { value: 'notSubscribed', label: 'Not Subscribed' },
+    ],
+    []
+  );
 
-  const sortOptions = useMemo(() => [
-    { value: 'createdAt:desc', label: 'Newest First' },
-    { value: 'createdAt:asc', label: 'Oldest First' },
-    { value: 'name:asc', label: 'Name (A-Z)' },
-    { value: 'name:desc', label: 'Name (Z-A)' },
-  ], []);
+  const sortOptions = useMemo(
+    () => [
+      { value: 'createdAt:desc', label: 'Newest First' },
+      { value: 'createdAt:asc', label: 'Oldest First' },
+      { value: 'name:asc', label: 'Name (A-Z)' },
+      { value: 'name:desc', label: 'Name (Z-A)' },
+    ],
+    []
+  );
 
   const handlePageChange = useCallback((page: number) => {
     setCurrentPage(page);
@@ -221,7 +258,11 @@ const AdminManagePatients: React.FC = () => {
   return (
     <div className="bg-white/10 backdrop-blur-lg p-4 md:p-6 rounded-2xl border border-white/20 shadow-xl">
       <div className="flex flex-col md:flex-row justify-between mb-6 gap-4">
-        <SearchBar value={searchTerm} onChange={handleSearch} placeholder="Search patients..." />
+        <SearchBar
+          value={searchTerm}
+          onChange={handleSearch}
+          placeholder="Search patients..."
+        />
         <div className="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-4">
           <FilterSelect
             value={statusFilter}
@@ -250,10 +291,13 @@ const AdminManagePatients: React.FC = () => {
         isLoading={loading}
         error={error}
         onRetry={() => {
-          const [sortBy, sortOrder] = sortFilter.split(':') as [string, 'asc' | 'desc'];
+          const [sortBy, sortOrder] = sortFilter.split(':') as [
+            string,
+            'asc' | 'desc',
+          ];
           const params: PaginationParams = {
-            page: currentPage, // Always number
-            limit: ITEMS_PER_PAGE, // Always number
+            page: currentPage,
+            limit: ITEMS_PER_PAGE,
             search: searchTerm || undefined,
             sortBy,
             sortOrder,
@@ -266,7 +310,7 @@ const AdminManagePatients: React.FC = () => {
             if (statusFilter === 'notSubscribed') params.isSubscribed = false;
           }
 
-          console.log('Retrying listPatientsThunk with params:', params); // Debug log
+          console.log('Retrying listPatientsThunk with params:', params);
           dispatch(listPatientsThunk(params));
         }}
       />
@@ -302,28 +346,36 @@ const AdminManagePatients: React.FC = () => {
           placeholder="Name"
           className="w-full p-3 mb-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
           value={newPatient.name}
-          onChange={(e) => setNewPatient({ ...newPatient, name: e.target.value })}
+          onChange={(e) =>
+            setNewPatient({ ...newPatient, name: e.target.value })
+          }
         />
         <input
           type="email"
           placeholder="Email"
           className="w-full p-3 mb-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
           value={newPatient.email}
-          onChange={(e) => setNewPatient({ ...newPatient, email: e.target.value })}
+          onChange={(e) =>
+            setNewPatient({ ...newPatient, email: e.target.value })
+          }
         />
         <input
           type="password"
           placeholder="Password"
           className="w-full p-3 mb-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
           value={newPatient.password}
-          onChange={(e) => setNewPatient({ ...newPatient, password: e.target.value })}
+          onChange={(e) =>
+            setNewPatient({ ...newPatient, password: e.target.value })
+          }
         />
         <input
           type="text"
           placeholder="Phone"
           className="w-full p-3 mb-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
           value={newPatient.phone}
-          onChange={(e) => setNewPatient({ ...newPatient, phone: e.target.value })}
+          onChange={(e) =>
+            setNewPatient({ ...newPatient, phone: e.target.value })
+          }
         />
       </Modal>
       {editPatient && (
@@ -353,21 +405,27 @@ const AdminManagePatients: React.FC = () => {
             placeholder="Name"
             className="w-full p-3 mb-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
             value={editPatient.name}
-            onChange={(e) => setEditPatient({ ...editPatient, name: e.target.value })}
+            onChange={(e) =>
+              setEditPatient({ ...editPatient, name: e.target.value })
+            }
           />
           <input
             type="email"
             placeholder="Email"
             className="w-full p-3 mb-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
             value={editPatient.email}
-            onChange={(e) => setEditPatient({ ...editPatient, email: e.target.value })}
+            onChange={(e) =>
+              setEditPatient({ ...editPatient, email: e.target.value })
+            }
           />
           <input
             type="text"
             placeholder="Phone"
             className="w-full p-3 mb-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
             value={editPatient.phone}
-            onChange={(e) => setEditPatient({ ...editPatient, phone: e.target.value })}
+            onChange={(e) =>
+              setEditPatient({ ...editPatient, phone: e.target.value })
+            }
           />
         </Modal>
       )}

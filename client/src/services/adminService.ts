@@ -91,7 +91,7 @@ export const blockDoctor = async (id: string, isBlocked: boolean): Promise<Docto
 
 export const verifyDoctor = async (id: string): Promise<Doctor> => {
   try {
-    const response = await api.patch<Doctor>(`/api/admin/doctors/${id}/verify`);
+    const response = await api.patch<Doctor>(`/api/admin/verify-doctor/${id}`);
     return response.data;
   } catch (error) {
     const axiosError = error as AxiosError<ApiError>;
@@ -154,7 +154,6 @@ export const blockPatient = async (id: string, isBlocked: boolean): Promise<Pati
 export const getAllAppointments = async (params: QueryParams): Promise<PaginatedResponse<Appointment>> => {
   try {
     const response = await api.get<PaginatedResponse<Appointment>>('/api/admin/appointments', { params });
-    console.log('resdata:', response.data)
     return response.data;
   } catch (error) {
     const axiosError = error as AxiosError<ApiError>;
@@ -190,7 +189,7 @@ export const getAllPlans = async (
 
 export const approvePlan = async (id: string): Promise<void> => {
   try {
-    await api.patch(`/api/admin/plans/${id}/approve`);
+    await api.put(`/api/admin/subscription-plans/${id}/approve`);
   } catch (error) {
     const axiosError = error as AxiosError<ApiError>;
     throw new Error(axiosError.response?.data.message || 'Failed to approve plan');
@@ -199,7 +198,7 @@ export const approvePlan = async (id: string): Promise<void> => {
 
 export const rejectPlan = async (id: string): Promise<void> => {
   try {
-    await api.patch(`/api/admin/plans/${id}/reject`);
+    await api.put(`/api/admin/subscription-plans/${id}/reject`);
   } catch (error) {
     const axiosError = error as AxiosError<ApiError>;
     throw new Error(axiosError.response?.data.message || 'Failed to reject plan');
@@ -208,7 +207,7 @@ export const rejectPlan = async (id: string): Promise<void> => {
 
 export const deletePlan = async (id: string): Promise<string> => {
   try {
-    await api.delete(`/api/admin/plans/${id}`);
+    await api.delete(`/api/admin/subscription-plans/${id}`);
     return id;
   } catch (error) {
     const axiosError = error as AxiosError<ApiError>;

@@ -6,7 +6,6 @@ import { authMiddleware } from '../middlewares/authMiddleware';
 const router = express.Router();
 const container = Container.getInstance();
 
-// Controller instantiation
 const userController = new UserController(container);
 
 // User routes

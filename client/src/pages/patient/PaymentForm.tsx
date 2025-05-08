@@ -35,10 +35,8 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     setIsProcessing(true);
 
     try {
-      // Store for redirect handling
       sessionStorage.setItem('planId', planId);
 
-      // Confirm the payment with PaymentElement
       const { error, paymentIntent } = await stripe.confirmPayment({
         elements,
         confirmParams: {
@@ -46,7 +44,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
           payment_method_data: {
             billing_details: {
               address: {
-                country: 'IN', // Hardcode country as India
+                country: 'IN',
               },
             },
           },
@@ -59,7 +57,6 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       }
 
       if (paymentIntent?.status === 'succeeded') {
-        // Confirm subscription on the backend
         await dispatch(
           confirmSubscriptionThunk({
             planId,
@@ -67,7 +64,6 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
           })
         ).unwrap();
 
-        // Clear session storage
         sessionStorage.removeItem('planId');
 
         onSuccess();
@@ -95,7 +91,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
             fields: {
               billingDetails: {
                 address: {
-                  country: 'never', // Avoid collecting country in UI
+                  country: 'never', 
                 },
               },
             },
@@ -111,7 +107,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         disabled={!stripe || isProcessing}
         className="w-full bg-gradient-to-r from-green-600 to-teal-600 text-white py-2 rounded-lg hover:from-green-700 hover:to-teal-700 transition-all duration-300 disabled:opacity-50"
       >
-        {isProcessing ? 'Processing...' : `Pay ₹${(price / 100).toFixed(2)}`}
+        {isProcessing ? 'Processing...' : `Pay ₹${(price).toFixed(2)}`}
       </button>
     </form>
   );

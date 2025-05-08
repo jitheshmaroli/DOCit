@@ -105,7 +105,7 @@ export class AdminAuthController {
       const params: QueryParams = req.query as any;
       const { data: doctors, totalItems } =
         await this.listDoctorsUseCase.executeWithQuery(params);
-      const { page = 1, limit = 10 } = params;
+      const { page = 1, limit = 5 } = params;
       const totalPages = Math.ceil(totalItems / limit);
 
       res.status(200).json({

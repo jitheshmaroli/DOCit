@@ -25,11 +25,9 @@ export class BookAppointmentUseCase {
     endTime: string,
     isFreeBooking: boolean = false
   ): Promise<Appointment> {
-    // Validate doctor existence
     const doctor = await this.doctorRepository.findById(doctorId);
     if (!doctor) throw new NotFoundError('Doctor not found');
 
-    // Validate slot availability
     const startOfDay = DateUtils.startOfDayUTC(date);
     const availability = await this.availabilityRepository.findByDoctorAndDate(
       doctorId,

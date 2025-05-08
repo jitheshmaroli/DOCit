@@ -13,7 +13,7 @@ export class PatientRepository implements IPatientRepository {
   }
 
   async findByEmail(email: string): Promise<Patient | null> {
-    const patient = await PatientModel.findOne({ email }).exec();
+    const patient = await PatientModel.findOne({ email, isBlocked: false }).exec();
     return patient ? (patient.toObject() as Patient) : null;
   }
 

@@ -37,7 +37,6 @@ export class ConfirmSubscriptionUseCase {
       );
     }
 
-    // Verify PaymentIntent status
     await this.stripeService.confirmPaymentIntent(paymentIntentId);
 
     const startDate = new Date();

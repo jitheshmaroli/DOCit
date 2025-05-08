@@ -68,7 +68,6 @@ const DoctorDetails: React.FC = () => {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
 
-  // Get speciality from location state
   const specialityFromState = (location.state as { speciality?: string[] })?.speciality;
 
   useEffect(() => {
@@ -346,7 +345,6 @@ const DoctorDetails: React.FC = () => {
     return appt.status !== 'cancelled';
   });
 
-  // Use speciality from state if available, otherwise fallback to selectedDoctor.speciality
   const displaySpeciality = specialityFromState || selectedDoctor.speciality;
 
   return (
@@ -408,7 +406,7 @@ const DoctorDetails: React.FC = () => {
                 Description: {activeSubscription.plan.description || 'N/A'}
               </p>
               <p className="text-sm text-gray-200 mt-2">
-                Price: ₹{(activeSubscription.plan.price / 100).toFixed(2)}
+                Price: ₹{(activeSubscription.plan.price).toFixed(2)}
               </p>
               <p className="text-sm text-gray-200 mt-2">
                 Validity: {activeSubscription.daysUntilExpiration} days
@@ -437,7 +435,7 @@ const DoctorDetails: React.FC = () => {
                       {plan.description || 'No description'}
                     </p>
                     <p className="text-sm text-gray-200 mt-2">
-                      Price: ₹{(plan.price / 100).toFixed(2)}
+                      Price: ₹{(plan.price).toFixed(2)}
                     </p>
                     <p className="text-sm text-gray-200 mt-2">
                       Validity: {plan.validityDays} days

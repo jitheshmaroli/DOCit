@@ -12,7 +12,7 @@ export class DoctorRepository implements IDoctorRepository {
   }
 
   async findByEmail(email: string): Promise<Doctor | null> {
-    return DoctorModel.findOne({ email }).exec();
+    return DoctorModel.findOne({ email, isBlocked: false }).exec();
   }
 
   async findById(id: string): Promise<Doctor | null> {

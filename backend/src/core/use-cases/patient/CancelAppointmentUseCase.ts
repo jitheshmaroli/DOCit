@@ -13,7 +13,6 @@ export class CancelAppointmentUseCase {
   ) {}
 
   async execute(appointmentId: string, patientId: string): Promise<void> {
-    // Validate patientId
     if (!patientId) {
       logger.error('No patientId provided for appointment cancellation');
       throw new ValidationError('Patient ID is required');
@@ -28,7 +27,6 @@ export class CancelAppointmentUseCase {
     logger.info('Appointment details:', { appointment });
     logger.info('Provided patientId:', { patientId });
 
-    // Handle populated patientId (Mongoose may return an object)
     const appointmentPatientId = typeof appointment.patientId === 'object' && appointment.patientId !== null
       ? (appointment.patientId as any)._id?.toString()
       : appointment.patientId?.toString();
@@ -43,7 +41,6 @@ export class CancelAppointmentUseCase {
       throw new ValidationError('Appointment is already cancelled');
     }
 
-    // Handle populated doctorId (Mongoose may return an object)
     const doctorId = typeof appointment.doctorId === 'object' && appointment.doctorId !== null
       ? (appointment.doctorId as any)._id?.toString()
       : appointment.doctorId?.toString();

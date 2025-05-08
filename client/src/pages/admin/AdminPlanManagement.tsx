@@ -95,7 +95,7 @@ const AdminPlanManagement: React.FC = () => {
       {
         header: 'Price',
         accessor: (plan: SubscriptionPlan): React.ReactNode =>
-          `₹${(plan.price / 100).toFixed(2)}`,
+          `₹${(plan.price).toFixed(2)}`,
       },
       {
         header: 'Validity',

@@ -5,7 +5,6 @@ import { OTPController } from '../controllers/otp/OTPController';
 const router = express.Router();
 const container = Container.getInstance();
 
-// Controller instantiation
 const otpController = new OTPController(container);
 
 // OTP routes

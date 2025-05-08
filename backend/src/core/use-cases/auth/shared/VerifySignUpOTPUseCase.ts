@@ -28,7 +28,6 @@ export class VerifySignUpOTPUseCase {
       throw new ValidationError('Email, OTP, and phone are required');
     }
 
-    console.log('usecase:', entity);
     const isValid = await this.otpService.verifyOTP(email, otp);
     if (!isValid) throw new ValidationError('Invalid or expired OTP');
 
