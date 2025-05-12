@@ -15,6 +15,8 @@ import { ListDoctorsUseCase } from '../../../core/use-cases/admin/ListDoctorsUse
 import { VerifyDoctorUseCase } from '../../../core/use-cases/admin/VerifyDoctorUseCase';
 import { LoginAdminUseCase } from '../../../core/use-cases/auth/admin/LoginAdminUseCase';
 import { PaginatedResponse, QueryParams } from '../../../types/authTypes';
+import { Patient } from '../../../core/entities/Patient';
+import { Doctor } from '../../../core/entities/Doctor';
 
 export class AdminAuthController {
   private loginAdminUseCase: LoginAdminUseCase;
@@ -48,10 +50,8 @@ export class AdminAuthController {
   async login(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { email, password } = req.body;
-      if (!email || !password)
-        throw new ValidationError('Email and password are required');
-      const { accessToken, refreshToken } =
-        await this.loginAdminUseCase.execute(email, password);
+      if (!email || !password) throw new ValidationError('Email and password are required');
+      const { accessToken, refreshToken } = await this.loginAdminUseCase.execute(email, password);
       setTokensInCookies(res, accessToken, refreshToken);
       res.status(200).json({ message: 'Logged in successfully' });
     } catch (error) {
@@ -59,15 +59,10 @@ export class AdminAuthController {
     }
   }
 
-  async listPatients(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async listPatients(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const params: QueryParams = req.query as any;
-      const { data: patients, totalItems } =
-        await this.listPatientsUseCase.executeWithQuery(params);
+      const params = req.query as QueryParams;
+      const { data: patients, totalItems } = await this.listPatientsUseCase.executeWithQuery(params);
       const { page = 1, limit = 10 } = params;
       const totalPages = Math.ceil(totalItems / limit);
 
@@ -76,17 +71,13 @@ export class AdminAuthController {
         totalPages,
         currentPage: page,
         totalItems,
-      } as PaginatedResponse<any>);
+      } as PaginatedResponse<Patient>);
     } catch (error) {
       next(error);
     }
   }
 
-  async createDoctor(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async createDoctor(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const doctor = req.body;
       const newDoctor = await this.createDoctorUseCase.execute(doctor);
@@ -96,15 +87,10 @@ export class AdminAuthController {
     }
   }
 
-  async listDoctors(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async listDoctors(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const params: QueryParams = req.query as any;
-      const { data: doctors, totalItems } =
-        await this.listDoctorsUseCase.executeWithQuery(params);
+      const params = req.query as QueryParams;
+      const { data: doctors, totalItems } = await this.listDoctorsUseCase.executeWithQuery(params);
       const { page = 1, limit = 5 } = params;
       const totalPages = Math.ceil(totalItems / limit);
 
@@ -113,17 +99,13 @@ export class AdminAuthController {
         totalPages,
         currentPage: page,
         totalItems,
-      } as PaginatedResponse<any>);
+      } as PaginatedResponse<Doctor>);
     } catch (error) {
       next(error);
     }
   }
 
-  async verifyDoctor(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async verifyDoctor(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { doctorId } = req.params;
       if (!doctorId) throw new ValidationError('Doctor ID is required');
@@ -134,11 +116,7 @@ export class AdminAuthController {
     }
   }
 
-  async updateDoctor(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async updateDoctor(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
       const updates = req.body;
@@ -150,11 +128,7 @@ export class AdminAuthController {
     }
   }
 
-  async deleteDoctor(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async deleteDoctor(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
       if (!id) throw new ValidationError('Doctor ID is required');
@@ -165,18 +139,12 @@ export class AdminAuthController {
     }
   }
 
-  async blockDoctor(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async blockDoctor(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
       const { isBlocked } = req.body;
       if (!id || typeof isBlocked !== 'boolean')
-        throw new ValidationError(
-          'Doctor ID and isBlocked (boolean) are required'
-        );
+        throw new ValidationError('Doctor ID and isBlocked (boolean) are required');
       const doctor = await this.blockDoctorUseCase.execute(id, isBlocked);
       res.status(200).json(doctor);
     } catch (error) {
@@ -184,11 +152,7 @@ export class AdminAuthController {
     }
   }
 
-  async createPatient(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async createPatient(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const patient = req.body;
       const newPatient = await this.createPatientUseCase.execute(patient);
@@ -198,11 +162,7 @@ export class AdminAuthController {
     }
   }
 
-  async updatePatient(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async updatePatient(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
       const updates = req.body;
@@ -214,11 +174,7 @@ export class AdminAuthController {
     }
   }
 
-  async deletePatient(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async deletePatient(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
       if (!id) throw new ValidationError('Patient ID is required');
@@ -229,18 +185,12 @@ export class AdminAuthController {
     }
   }
 
-  async blockPatient(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async blockPatient(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
       const { isBlocked } = req.body;
       if (!id || typeof isBlocked !== 'boolean')
-        throw new ValidationError(
-          'Patient ID and isBlocked (boolean) are required'
-        );
+        throw new ValidationError('Patient ID and isBlocked (boolean) are required');
       const patient = await this.blockPatientUseCase.execute(id, isBlocked);
       res.status(200).json(patient);
     } catch (error) {

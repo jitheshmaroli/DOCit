@@ -8,9 +8,7 @@ export class CreateDoctorUseCase {
 
   async execute(doctor: Partial<Doctor>): Promise<Doctor> {
     if (!doctor.email || !doctor.password || !doctor.licenseNumber) {
-      throw new ValidationError(
-        'Email, password, and license number are required'
-      );
+      throw new ValidationError('Email, password, and license number are required');
     }
 
     const hashedPassword = await bcrypt.hash(doctor.password, 10);

@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Response, NextFunction } from 'express';
 import { Container } from '../../../infrastructure/di/container';
 import { AuthenticationError, ValidationError } from '../../../utils/errors';
 import { validateEmail, validatePassword } from '../../../utils/validators';
@@ -9,6 +9,7 @@ import { ForgotPasswordUseCase } from '../../../core/use-cases/auth/shared/Forgo
 import { ResetPasswordUseCase } from '../../../core/use-cases/auth/shared/ResetPasswordUseCase';
 import { VerifySignUpOTPUseCase } from '../../../core/use-cases/auth/shared/VerifySignUpOTPUseCase';
 import { env } from '../../../config/env';
+import { CustomRequest } from '../../../types';
 
 export class SharedAuthController {
   private refreshTokenUseCase: RefreshTokenUseCase;
@@ -25,17 +26,11 @@ export class SharedAuthController {
     this.verifySignUpOTPUseCase = container.get('VerifySignUpOTPUseCase');
   }
 
-  async refreshToken(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async refreshToken(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const refreshToken = req.cookies.refreshToken;
-      if (!refreshToken)
-        throw new AuthenticationError('No refresh token provided');
-      const { accessToken, refreshToken: newRefreshToken } =
-        await this.refreshTokenUseCase.execute(refreshToken);
+      if (!refreshToken) throw new AuthenticationError('No refresh token provided');
+      const { accessToken, refreshToken: newRefreshToken } = await this.refreshTokenUseCase.execute(refreshToken);
       setTokensInCookies(res, accessToken, newRefreshToken);
       res.status(200).json({ message: 'Token refreshed successfully' });
     } catch (error) {
@@ -43,10 +38,14 @@ export class SharedAuthController {
     }
   }
 
-  async logout(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async logout(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { id, role } = (req as any).user;
-      await this.logoutUseCase.execute(id, role);
+      const { id, role } = req.user || {};
+      if (id && role) {
+        await this.logoutUseCase.execute(id, role);
+      }
+
+      // Clear cookies regardless of user info
       res.clearCookie('accessToken', {
         httpOnly: true,
         secure: env.NODE_ENV === 'production',
@@ -57,17 +56,14 @@ export class SharedAuthController {
         secure: env.NODE_ENV === 'production',
         sameSite: 'strict',
       });
+
       res.status(200).json({ message: 'Logged out successfully' });
     } catch (error) {
       next(error);
     }
   }
 
-  async forgotPassword(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async forgotPassword(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const { email } = req.body;
       if (!email) throw new ValidationError('Email is required');
@@ -78,19 +74,11 @@ export class SharedAuthController {
     }
   }
 
-  async resetPassword(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async resetPassword(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const { email, otp, newPassword } = req.body;
-      if (!email || !otp || !newPassword)
-        throw new ValidationError('Email, OTP, and new password are required');
-      if (!validatePassword(newPassword))
-        throw new ValidationError(
-          'Password must be at least 8 characters long'
-        );
+      if (!email || !otp || !newPassword) throw new ValidationError('Email, OTP, and new password are required');
+      if (!validatePassword(newPassword)) throw new ValidationError('Password must be at least 8 characters long');
       await this.resetPasswordUseCase.execute(email, otp, newPassword);
       res.status(200).json({ message: 'Password reset successfully' });
     } catch (error) {
@@ -98,22 +86,13 @@ export class SharedAuthController {
     }
   }
 
-  async verifySignUpOTP(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async verifySignUpOTP(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const { email, otp, ...entity } = req.body;
       if (!email || !otp || !entity.phone)
-        throw new ValidationError(
-          'Email, OTP, and phone are required for signup verification'
-        );
-      if (!validateEmail(email))
-        throw new ValidationError('Invalid email format');
-      const { newEntity, accessToken, refreshToken } =
-        await this.verifySignUpOTPUseCase.execute(email, otp, entity);
-      console.log('verifying otp');
+        throw new ValidationError('Email, OTP, and phone are required for signup verification');
+      if (!validateEmail(email)) throw new ValidationError('Invalid email format');
+      const { newEntity, accessToken, refreshToken } = await this.verifySignUpOTPUseCase.execute(email, otp, entity);
       setTokensInCookies(res, accessToken, refreshToken);
       res.status(201).json(newEntity);
     } catch (error) {

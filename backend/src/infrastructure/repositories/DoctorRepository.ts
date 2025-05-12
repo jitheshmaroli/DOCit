@@ -19,6 +19,11 @@ export class DoctorRepository implements IDoctorRepository {
     return DoctorModel.findById(id).exec();
   }
 
+  async getDoctorDetails(id: string): Promise<Doctor | null> {
+    const doctor = await DoctorModel.findById(id).select('-password').exec();
+    return doctor ? (doctor.toObject() as Doctor) : null;
+  }
+
   async update(id: string, updates: Partial<Doctor>): Promise<Doctor | null> {
     return DoctorModel.findByIdAndUpdate(id, updates, { new: true }).exec();
   }
@@ -35,9 +40,7 @@ export class DoctorRepository implements IDoctorRepository {
     await DoctorModel.findByIdAndDelete(id).exec();
   }
 
-  async findAllWithQuery(
-    params: QueryParams
-  ): Promise<{ data: Doctor[]; totalItems: number }> {
+  async findAllWithQuery(params: QueryParams): Promise<{ data: Doctor[]; totalItems: number }> {
     const query = QueryBuilder.buildQuery(params, 'doctor');
     const sort = QueryBuilder.buildSort(params);
     const { page, limit } = QueryBuilder.validateParams(params);
@@ -111,14 +114,7 @@ export class DoctorRepository implements IDoctorRepository {
     return DoctorModel.find({ isVerified: true, isBlocked: false }).exec();
   }
 
-  async getDoctorDetails(id: string): Promise<Doctor | null> {
-    const doctor = await DoctorModel.findById(id).select('-password').exec();
-    return doctor ? (doctor.toObject() as Doctor) : null;
-  }
-
-  async findVerified(
-    params: QueryParams = {}
-  ): Promise<{ data: any[]; totalItems: number }> {
+  async findVerified(params: QueryParams = {}): Promise<{ data: Doctor[]; totalItems: number }> {
     const query = QueryBuilder.buildQuery(params, 'doctor');
     const sort = QueryBuilder.buildSort(params);
     const { page, limit } = QueryBuilder.validateParams(params);
@@ -206,14 +202,7 @@ export class DoctorRepository implements IDoctorRepository {
     }).exec();
   }
 
-  async updateAllowFreeBooking(
-    doctorId: string,
-    allowFreeBooking: boolean
-  ): Promise<Doctor | null> {
-    return DoctorModel.findByIdAndUpdate(
-      doctorId,
-      { allowFreeBooking },
-      { new: true }
-    ).exec();
+  async updateAllowFreeBooking(doctorId: string, allowFreeBooking: boolean): Promise<Doctor | null> {
+    return DoctorModel.findByIdAndUpdate(doctorId, { allowFreeBooking }, { new: true }).exec();
   }
 }

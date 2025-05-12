@@ -23,24 +23,19 @@ export class CheckFreeBookingUseCase {
       return false;
     }
 
-    const subscription =
-      await this.patientSubscriptionRepository.findActiveByPatientAndDoctor(
-        patientId,
-        doctorId
-      );
+    const subscription = await this.patientSubscriptionRepository.findActiveByPatientAndDoctor(patientId, doctorId);
     if (subscription) {
-      return false; 
+      return false;
     }
 
-    const freeAppointmentCount =
-      await this.appointmentRepository.countByPatientAndDoctorWithFreeBooking(
-        patientId,
-        doctorId
-      );
+    const freeAppointmentCount = await this.appointmentRepository.countByPatientAndDoctorWithFreeBooking(
+      patientId,
+      doctorId
+    );
     if (freeAppointmentCount >= 1) {
-      return false; 
+      return false;
     }
 
-    return true; 
+    return true;
   }
 }

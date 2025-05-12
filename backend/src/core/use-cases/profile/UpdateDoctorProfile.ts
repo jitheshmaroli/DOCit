@@ -9,26 +9,17 @@ export class UpdateDoctorProfileUseCase {
     private imageUploadService: IImageUploadService
   ) {}
 
-  async execute(
-    doctorId: string,
-    updates: Partial<Doctor>,
-    file?: Express.Multer.File
-  ): Promise<Doctor | null> {
+  async execute(doctorId: string, updates: Partial<Doctor>, file?: Express.Multer.File): Promise<Doctor | null> {
     const doctor = await this.doctorRepository.findById(doctorId);
     if (!doctor) throw new NotFoundError('Doctor not found');
 
     if (file) {
-      const { url, publicId } = await this.imageUploadService.uploadImage(
-        file,
-        'doctor-profiles'
-      );
+      const { url, publicId } = await this.imageUploadService.uploadImage(file, 'doctor-profiles');
       updates.profilePicture = url;
       updates.profilePicturePublicId = publicId;
 
       if (doctor.profilePicturePublicId) {
-        await this.imageUploadService.deleteImage(
-          doctor.profilePicturePublicId
-        );
+        await this.imageUploadService.deleteImage(doctor.profilePicturePublicId);
       }
     }
 

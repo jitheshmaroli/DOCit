@@ -64,7 +64,7 @@ import { ImageUploadService } from '../services/ImageUploadService';
 
 export class Container {
   private static instance: Container;
-  private dependencies: Map<string, any> = new Map();
+  private dependencies: Map<string, unknown> = new Map();
 
   private constructor() {
     // Initialize repositories
@@ -91,14 +91,8 @@ export class Container {
     this.dependencies.set('IAdminRepository', adminRepository);
     this.dependencies.set('IOTPRepository', otpRepository);
     this.dependencies.set('IAvailabilityRepository', availabilityRepository);
-    this.dependencies.set(
-      'ISubscriptionPlanRepository',
-      subscriptionPlanRepository
-    );
-    this.dependencies.set(
-      'IPatientSubscriptionRepository',
-      patientSubscriptionRepository
-    );
+    this.dependencies.set('ISubscriptionPlanRepository', subscriptionPlanRepository);
+    this.dependencies.set('IPatientSubscriptionRepository', patientSubscriptionRepository);
     this.dependencies.set('IAppointmentRepository', appointmentRepository);
     this.dependencies.set('ISpecialityRepository', specialityRepository);
 
@@ -107,140 +101,57 @@ export class Container {
     this.dependencies.set('ITokenService', tokenService);
     this.dependencies.set('IOTPService', otpService);
     this.dependencies.set('StripeService', stripeService);
+    this.dependencies.set('ImageUploadService', imageUploadService);
 
     // Initialize and register use cases
-    this.dependencies.set(
-      'SignupPatientUseCase',
-      new SignupPatientUseCase(patientRepository, otpService)
-    );
-    this.dependencies.set(
-      'LoginPatientUseCase',
-      new LoginPatientUseCase(patientRepository, tokenService)
-    );
+    this.dependencies.set('SignupPatientUseCase', new SignupPatientUseCase(patientRepository, otpService));
+    this.dependencies.set('LoginPatientUseCase', new LoginPatientUseCase(patientRepository, tokenService));
     this.dependencies.set(
       'GoogleSignInPatientUseCase',
       new GoogleSignInPatientUseCase(patientRepository, tokenService)
     );
-    this.dependencies.set(
-      'SignupDoctorUseCase',
-      new SignupDoctorUseCase(doctorRepository, otpService)
-    );
-    this.dependencies.set(
-      'LoginDoctorUseCase',
-      new LoginDoctorUseCase(doctorRepository, tokenService)
-    );
-    this.dependencies.set(
-      'GoogleSignInDoctorUseCase',
-      new GoogleSignInDoctorUseCase(doctorRepository, tokenService)
-    );
-    this.dependencies.set(
-      'LoginAdminUseCase',
-      new LoginAdminUseCase(adminRepository, tokenService)
-    );
+    this.dependencies.set('SignupDoctorUseCase', new SignupDoctorUseCase(doctorRepository, otpService));
+    this.dependencies.set('LoginDoctorUseCase', new LoginDoctorUseCase(doctorRepository, tokenService));
+    this.dependencies.set('GoogleSignInDoctorUseCase', new GoogleSignInDoctorUseCase(doctorRepository, tokenService));
+    this.dependencies.set('LoginAdminUseCase', new LoginAdminUseCase(adminRepository, tokenService));
     this.dependencies.set(
       'RefreshTokenUseCase',
-      new RefreshTokenUseCase(
-        patientRepository,
-        doctorRepository,
-        adminRepository,
-        tokenService
-      )
+      new RefreshTokenUseCase(patientRepository, doctorRepository, adminRepository, tokenService)
     );
-    this.dependencies.set(
-      'LogoutUseCase',
-      new LogoutUseCase(patientRepository, doctorRepository, adminRepository)
-    );
+    this.dependencies.set('LogoutUseCase', new LogoutUseCase(patientRepository, doctorRepository, adminRepository));
     this.dependencies.set(
       'ForgotPasswordUseCase',
-      new ForgotPasswordUseCase(
-        patientRepository,
-        doctorRepository,
-        adminRepository,
-        otpService
-      )
+      new ForgotPasswordUseCase(patientRepository, doctorRepository, adminRepository, otpService)
     );
     this.dependencies.set(
       'ResetPasswordUseCase',
-      new ResetPasswordUseCase(
-        patientRepository,
-        doctorRepository,
-        adminRepository,
-        otpService
-      )
+      new ResetPasswordUseCase(patientRepository, doctorRepository, adminRepository, otpService)
     );
     this.dependencies.set(
       'VerifySignUpOTPUseCase',
-      new VerifySignUpOTPUseCase(
-        patientRepository,
-        doctorRepository,
-        otpService,
-        tokenService
-      )
+      new VerifySignUpOTPUseCase(patientRepository, doctorRepository, otpService, tokenService)
     );
     this.dependencies.set(
       'GetCurrentUserUseCase',
-      new GetCurrentUserUseCase(
-        patientRepository,
-        doctorRepository,
-        adminRepository
-      )
+      new GetCurrentUserUseCase(patientRepository, doctorRepository, adminRepository)
     );
-    this.dependencies.set(
-      'CreateDoctorUseCase',
-      new CreateDoctorUseCase(doctorRepository)
-    );
-    this.dependencies.set(
-      'ListPatientsUseCase',
-      new ListPatientsUseCase(patientRepository)
-    );
-    this.dependencies.set(
-      'ListDoctorsUseCase',
-      new ListDoctorsUseCase(doctorRepository)
-    );
-    this.dependencies.set(
-      'VerifyDoctorUseCase',
-      new VerifyDoctorUseCase(doctorRepository)
-    );
-    this.dependencies.set(
-      'UpdateDoctorUseCase',
-      new UpdateDoctorUseCase(doctorRepository, specialityRepository)
-    );
-    this.dependencies.set(
-      'DeleteDoctorUseCase',
-      new DeleteDoctorUseCase(doctorRepository)
-    );
-    this.dependencies.set(
-      'BlockDoctorUseCase',
-      new BlockDoctorUseCase(doctorRepository)
-    );
-    this.dependencies.set(
-      'UpdatePatientUseCase',
-      new UpdatePatientUseCase(patientRepository)
-    );
-    this.dependencies.set(
-      'DeletePatientUseCase',
-      new DeletePatientUseCase(patientRepository)
-    );
-    this.dependencies.set(
-      'BlockPatientUseCase',
-      new BlockPatientUseCase(patientRepository)
-    );
-    this.dependencies.set(
-      'CreatePatientUseCase',
-      new CreatePatientUseCase(patientRepository)
-    );
-    this.dependencies.set(
-      'ViewDoctorProfileUseCase',
-      new ViewDoctorProfileUseCase(doctorRepository)
-    );
+    this.dependencies.set('CreateDoctorUseCase', new CreateDoctorUseCase(doctorRepository));
+    this.dependencies.set('ListPatientsUseCase', new ListPatientsUseCase(patientRepository));
+    this.dependencies.set('ListDoctorsUseCase', new ListDoctorsUseCase(doctorRepository));
+    this.dependencies.set('VerifyDoctorUseCase', new VerifyDoctorUseCase(doctorRepository));
+    this.dependencies.set('UpdateDoctorUseCase', new UpdateDoctorUseCase(doctorRepository, specialityRepository));
+    this.dependencies.set('DeleteDoctorUseCase', new DeleteDoctorUseCase(doctorRepository));
+    this.dependencies.set('BlockDoctorUseCase', new BlockDoctorUseCase(doctorRepository));
+    this.dependencies.set('UpdatePatientUseCase', new UpdatePatientUseCase(patientRepository));
+    this.dependencies.set('DeletePatientUseCase', new DeletePatientUseCase(patientRepository));
+    this.dependencies.set('BlockPatientUseCase', new BlockPatientUseCase(patientRepository));
+    this.dependencies.set('CreatePatientUseCase', new CreatePatientUseCase(patientRepository));
+    this.dependencies.set('ViewDoctorProfileUseCase', new ViewDoctorProfileUseCase(doctorRepository));
     this.dependencies.set(
       'UpdateDoctorProfileUseCase',
       new UpdateDoctorProfileUseCase(doctorRepository, imageUploadService)
     );
-    this.dependencies.set(
-      'ViewPatientProfileUseCase',
-      new ViewPatientProfileUseCase(patientRepository)
-    );
+    this.dependencies.set('ViewPatientProfileUseCase', new ViewPatientProfileUseCase(patientRepository));
     this.dependencies.set(
       'UpdatePatientProfileUseCase',
       new UpdatePatientProfileUseCase(patientRepository, imageUploadService)
@@ -249,25 +160,12 @@ export class Container {
       'SetAvailabilityUseCase',
       new SetAvailabilityUseCase(doctorRepository, availabilityRepository)
     );
-    this.dependencies.set(
-      'GetAvailabilityUseCase',
-      new GetAvailabilityUseCase(availabilityRepository)
-    );
-    this.dependencies.set(
-      'RemoveSlotUseCase',
-      new RemoveSlotUseCase(availabilityRepository, appointmentRepository)
-    );
-    this.dependencies.set(
-      'UpdateSlotUseCase',
-      new UpdateSlotUseCase(availabilityRepository, appointmentRepository)
-    );
+    this.dependencies.set('GetAvailabilityUseCase', new GetAvailabilityUseCase(availabilityRepository));
+    this.dependencies.set('RemoveSlotUseCase', new RemoveSlotUseCase(availabilityRepository, appointmentRepository));
+    this.dependencies.set('UpdateSlotUseCase', new UpdateSlotUseCase(availabilityRepository, appointmentRepository));
     this.dependencies.set(
       'CheckFreeBookingUseCase',
-      new CheckFreeBookingUseCase(
-        doctorRepository,
-        patientSubscriptionRepository,
-        appointmentRepository
-      )
+      new CheckFreeBookingUseCase(doctorRepository, patientSubscriptionRepository, appointmentRepository)
     );
     this.dependencies.set(
       'BookAppointmentUseCase',
@@ -276,7 +174,7 @@ export class Container {
         availabilityRepository,
         doctorRepository,
         patientSubscriptionRepository,
-        this.dependencies.get('CheckFreeBookingUseCase')
+        this.dependencies.get('CheckFreeBookingUseCase') as CheckFreeBookingUseCase
       )
     );
     this.dependencies.set(
@@ -285,10 +183,7 @@ export class Container {
     );
     this.dependencies.set(
       'CreateSubscriptionPlanUseCase',
-      new CreateSubscriptionPlanUseCase(
-        subscriptionPlanRepository,
-        doctorRepository
-      )
+      new CreateSubscriptionPlanUseCase(subscriptionPlanRepository, doctorRepository)
     );
     this.dependencies.set(
       'SubscribeToPlanUseCase',
@@ -310,47 +205,19 @@ export class Container {
     );
     this.dependencies.set(
       'ManageSubscriptionPlanUseCase',
-      new ManageSubscriptionPlanUseCase(
-        subscriptionPlanRepository,
-        doctorRepository
-      )
+      new ManageSubscriptionPlanUseCase(subscriptionPlanRepository, doctorRepository)
     );
     this.dependencies.set(
       'CancelAppointmentUseCase',
-      new CancelAppointmentUseCase(
-        appointmentRepository,
-        availabilityRepository,
-        patientSubscriptionRepository
-      )
+      new CancelAppointmentUseCase(appointmentRepository, availabilityRepository, patientSubscriptionRepository)
     );
-    this.dependencies.set(
-      'GetDoctorAppointmentsUseCase',
-      new GetDoctorAppointmentsUseCase(appointmentRepository)
-    );
-    this.dependencies.set(
-      'GetAllAppointmentsUseCase',
-      new GetAllAppointmentsUseCase(appointmentRepository)
-    );
-    this.dependencies.set(
-      'GetDoctorUseCase',
-      new GetDoctorUseCase(doctorRepository)
-    );
-    this.dependencies.set(
-      'GetVerifiedDoctorsUseCase',
-      new GetVerifiedDoctorsUseCase(doctorRepository)
-    );
-    this.dependencies.set(
-      'GetSpecialitiesUseCase',
-      new GetSpecialitiesUseCase(specialityRepository)
-    );
-    this.dependencies.set(
-      'AddSpecialityUseCase',
-      new AddSpecialityUseCase(specialityRepository)
-    );
-    this.dependencies.set(
-      'UpdateSpecialityUseCase',
-      new UpdateSpecialityUseCase(specialityRepository)
-    );
+    this.dependencies.set('GetDoctorAppointmentsUseCase', new GetDoctorAppointmentsUseCase(appointmentRepository));
+    this.dependencies.set('GetAllAppointmentsUseCase', new GetAllAppointmentsUseCase(appointmentRepository));
+    this.dependencies.set('GetDoctorUseCase', new GetDoctorUseCase(doctorRepository));
+    this.dependencies.set('GetVerifiedDoctorsUseCase', new GetVerifiedDoctorsUseCase(doctorRepository));
+    this.dependencies.set('GetSpecialitiesUseCase', new GetSpecialitiesUseCase(specialityRepository));
+    this.dependencies.set('AddSpecialityUseCase', new AddSpecialityUseCase(specialityRepository));
+    this.dependencies.set('UpdateSpecialityUseCase', new UpdateSpecialityUseCase(specialityRepository));
     this.dependencies.set(
       'DeleteSpecialityUseCase',
       new DeleteSpecialityUseCase(specialityRepository, doctorRepository)
@@ -361,11 +228,7 @@ export class Container {
     );
     this.dependencies.set(
       'AdminCancelAppointmentUseCase',
-      new CancelAppointmentUseCase(
-        appointmentRepository,
-        availabilityRepository,
-        patientSubscriptionRepository
-      )
+      new CancelAppointmentUseCase(appointmentRepository, availabilityRepository, patientSubscriptionRepository)
     );
   }
 

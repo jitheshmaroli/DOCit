@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Response, NextFunction } from 'express';
 import { SetAvailabilityUseCase } from '../../../core/use-cases/doctor/SetAvailability';
 import { GetAvailabilityUseCase } from '../../../core/use-cases/doctor/GetAvailability';
 import { Container } from '../../../infrastructure/di/container';
@@ -10,6 +10,7 @@ import { RemoveSlotUseCase } from '../../../core/use-cases/doctor/RemoveSlotUseC
 import { UpdateSlotUseCase } from '../../../core/use-cases/doctor/UpdateSlotUseCase';
 import { DateUtils } from '../../../utils/DateUtils';
 import { ISpecialityRepository } from '../../../core/interfaces/repositories/ISpecialityRepository';
+import { CustomRequest } from '../../../types';
 
 export class DoctorController {
   private setAvailabilityUseCase: SetAvailabilityUseCase;
@@ -26,81 +27,60 @@ export class DoctorController {
     this.getAvailabilityUseCase = container.get('GetAvailabilityUseCase');
     this.removeSlotUseCase = container.get('RemoveSlotUseCase');
     this.updateSlotUseCase = container.get('UpdateSlotUseCase');
-    this.createSubscriptionPlanUseCase = container.get(
-      'CreateSubscriptionPlanUseCase'
-    );
-    this.getDoctorAppointmentsUseCase = container.get(
-      'GetDoctorAppointmentsUseCase'
-    );
-    this.subscriptionPlanRepository = container.get(
-      'ISubscriptionPlanRepository'
-    );
+    this.createSubscriptionPlanUseCase = container.get('CreateSubscriptionPlanUseCase');
+    this.getDoctorAppointmentsUseCase = container.get('GetDoctorAppointmentsUseCase');
+    this.subscriptionPlanRepository = container.get('ISubscriptionPlanRepository');
     this.specialityRepository = container.get('ISpecialityRepository');
   }
 
-  async setAvailability(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async setAvailability(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const doctorId = (req as any).user.id;
+      const doctorId = req.user?.id;
+      if (!doctorId) {
+        throw new ValidationError('User ID not found in request');
+      }
       const { date, timeSlots } = req.body;
       if (!date || !timeSlots || !Array.isArray(timeSlots)) {
         throw new ValidationError('Date and timeSlots array are required');
       }
       const utcDate = DateUtils.parseToUTC(date);
-      const availability = await this.setAvailabilityUseCase.execute(
-        doctorId,
-        utcDate,
-        timeSlots
-      );
+      const availability = await this.setAvailabilityUseCase.execute(doctorId, utcDate, timeSlots);
       res.status(201).json(availability);
     } catch (error) {
       next(error);
     }
   }
 
-  async getAvailability(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async getAvailability(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const doctorId = (req as any).user.id;
+      const doctorId = req.user?.id;
+      if (!doctorId) {
+        throw new ValidationError('User ID not found in request');
+      }
       const { startDate, endDate } = req.query;
       if (!startDate || !endDate) {
         throw new ValidationError('startDate and endDate are required');
       }
       const utcStartDate = DateUtils.parseToUTC(startDate as string);
       const utcEndDate = DateUtils.parseToUTC(endDate as string);
-      const availability = await this.getAvailabilityUseCase.execute(
-        doctorId,
-        utcStartDate,
-        utcEndDate
-      );
+      const availability = await this.getAvailabilityUseCase.execute(doctorId, utcStartDate, utcEndDate);
       res.status(200).json(availability);
     } catch (error) {
       next(error);
     }
   }
 
-  async removeSlot(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async removeSlot(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const doctorId = (req as any).user.id;
+      const doctorId = req.user?.id;
+      if (!doctorId) {
+        throw new ValidationError('User ID not found in request');
+      }
       const { availabilityId, slotIndex } = req.body;
       if (!availabilityId || slotIndex === undefined) {
         throw new ValidationError('availabilityId and slotIndex are required');
       }
-      const availability = await this.removeSlotUseCase.execute(
-        availabilityId,
-        slotIndex,
-        doctorId
-      );
+      const availability = await this.removeSlotUseCase.execute(availabilityId, slotIndex, doctorId);
       if (!availability) {
         res.status(200).json({
           message: 'Slot removed and availability deleted (no slots remain)',
@@ -113,23 +93,15 @@ export class DoctorController {
     }
   }
 
-  async updateSlot(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async updateSlot(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const doctorId = (req as any).user.id;
+      const doctorId = req.user?.id;
+      if (!doctorId) {
+        throw new ValidationError('User ID not found in request');
+      }
       const { availabilityId, slotIndex, startTime, endTime } = req.body;
-      if (
-        !availabilityId ||
-        slotIndex === undefined ||
-        !startTime ||
-        !endTime
-      ) {
-        throw new ValidationError(
-          'availabilityId, slotIndex, startTime, and endTime are required'
-        );
+      if (!availabilityId || slotIndex === undefined || !startTime || !endTime) {
+        throw new ValidationError('availabilityId, slotIndex, startTime, and endTime are required');
       }
       const availability = await this.updateSlotUseCase.execute(
         availabilityId,
@@ -144,15 +116,13 @@ export class DoctorController {
     }
   }
 
-  async createSubscriptionPlan(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async createSubscriptionPlan(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const doctorId = (req as any).user.id;
-      const { name, description, price, validityDays, appointmentCount } =
-        req.body;
+      const doctorId = req.user?.id;
+      if (!doctorId) {
+        throw new ValidationError('User ID not found in request');
+      }
+      const { name, description, price, validityDays, appointmentCount } = req.body;
 
       const plan = await this.createSubscriptionPlanUseCase.execute(doctorId, {
         name,
@@ -168,46 +138,40 @@ export class DoctorController {
     }
   }
 
-  async getAppointments(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async getAppointments(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const doctorId = (req as any).user.id;
-      const appointments =
-        await this.getDoctorAppointmentsUseCase.execute(doctorId);
+      const doctorId = req.user?.id;
+      if (!doctorId) {
+        throw new ValidationError('User ID not found in request');
+      }
+      const appointments = await this.getDoctorAppointmentsUseCase.execute(doctorId);
       res.status(200).json(appointments);
     } catch (error) {
       next(error);
     }
   }
 
-  async getSubscriptionPlans(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async getSubscriptionPlans(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const doctorId = (req as any).user.id;
-      const plans =
-        await this.subscriptionPlanRepository.findByDoctor(doctorId);
+      const doctorId = req.user?.id;
+      if (!doctorId) {
+        throw new ValidationError('User ID not found in request');
+      }
+      const plans = await this.subscriptionPlanRepository.findByDoctor(doctorId);
       res.status(200).json(plans);
     } catch (error) {
       next(error);
     }
   }
 
-  async updateSubscriptionPlan(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async updateSubscriptionPlan(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const doctorId = (req as any).user.id;
+      const doctorId = req.user?.id;
+      if (!doctorId) {
+        throw new ValidationError('User ID not found in request');
+      }
       const { id } = req.params;
-      const { name, description, price, validityDays, appointmentCount } =
-        req.body;
+      const { name, description, price, validityDays, appointmentCount } = req.body;
 
       const plan = await this.subscriptionPlanRepository.findById(id);
       if (!plan) {
@@ -232,13 +196,12 @@ export class DoctorController {
     }
   }
 
-  async deleteSubscriptionPlan(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async deleteSubscriptionPlan(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const doctorId = (req as any).user.id;
+      const doctorId = req.user?.id;
+      if (!doctorId) {
+        throw new ValidationError('User ID not found in request');
+      }
       const { id } = req.params;
 
       const plan = await this.subscriptionPlanRepository.findById(id);
@@ -256,11 +219,7 @@ export class DoctorController {
     }
   }
 
-  async getAllSpecialities(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async getAllSpecialities(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const specialities = await this.specialityRepository.findAll();
       res.status(200).json(specialities);

@@ -7,12 +7,6 @@ export interface IPatientRepository {
   findById(id: string): Promise<Patient | null>;
   update(id: string, patient: Partial<Patient>): Promise<Patient | null>;
   delete(id: string): Promise<void>;
-  findAllWithQuery(
-    params: QueryParams
-  ): Promise<{ data: Patient[]; totalItems: number }>;
-  updateSubscriptionStatus(
-    patientId: string,
-    isSubscribed: boolean
-  ): Promise<Patient | null>;
-  getPateintDetails(id: string): Promise<Patient | null>;
+  findAllWithQuery(params: QueryParams): Promise<{ data: Patient[]; totalItems: number }>;
+  updateSubscriptionStatus(patientId: string, isSubscribed: boolean): Promise<Patient | null>;
 }

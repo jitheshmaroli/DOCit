@@ -10,11 +10,7 @@ export class OTPController {
     this.otpService = container.get('IOTPService');
   }
 
-  async sendOTP(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async sendOTP(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { email } = req.body;
       if (!email) throw new ValidationError('Email is required');
@@ -25,15 +21,10 @@ export class OTPController {
     }
   }
 
-  async verifyOTP(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async verifyOTP(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { email, otp } = req.body;
-      if (!email || !otp)
-        throw new ValidationError('Email and OTP are required');
+      if (!email || !otp) throw new ValidationError('Email and OTP are required');
       const isValid = await this.otpService.verifyOTP(email, otp);
       if (!isValid) throw new ValidationError('Invalid or expired OTP');
       res.status(200).json({ message: 'OTP verified successfully' });

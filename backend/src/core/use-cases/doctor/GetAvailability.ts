@@ -4,15 +4,7 @@ import { IAvailabilityRepository } from '../../interfaces/repositories/IAvailabi
 export class GetAvailabilityUseCase {
   constructor(private availabilityRepository: IAvailabilityRepository) {}
 
-  async execute(
-    doctorId: string,
-    startDate: Date,
-    endDate: Date
-  ): Promise<Availability[]> {
-    return this.availabilityRepository.findByDoctorAndDateRange(
-      doctorId,
-      startDate,
-      endDate
-    );
+  async execute(doctorId: string, startDate: Date, endDate: Date): Promise<Availability[]> {
+    return this.availabilityRepository.findByDoctorAndDateRange(doctorId, startDate, endDate);
   }
 }

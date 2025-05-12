@@ -9,10 +9,7 @@ export class LoginDoctorUseCase {
     private tokenService: ITokenService
   ) {}
 
-  async execute(
-    email: string,
-    password: string
-  ): Promise<{ accessToken: string; refreshToken: string }> {
+  async execute(email: string, password: string): Promise<{ accessToken: string; refreshToken: string }> {
     const doctor = await this.doctorRepository.findByEmail(email);
     if (!doctor) {
       throw new NotFoundError('Doctor not found');
@@ -27,14 +24,8 @@ export class LoginDoctorUseCase {
       throw new AuthenticationError('Invalid credentials');
     }
 
-    const accessToken = this.tokenService.generateAccessToken(
-      doctor._id!,
-      'doctor'
-    );
-    const refreshToken = this.tokenService.generateRefreshToken(
-      doctor._id!,
-      'doctor'
-    );
+    const accessToken = this.tokenService.generateAccessToken(doctor._id!, 'doctor');
+    const refreshToken = this.tokenService.generateRefreshToken(doctor._id!, 'doctor');
     await this.doctorRepository.update(doctor._id!, { refreshToken });
 
     return { accessToken, refreshToken };

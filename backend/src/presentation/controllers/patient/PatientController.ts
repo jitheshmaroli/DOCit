@@ -1,9 +1,9 @@
-import { Request, Response, NextFunction } from 'express';
+import { Response, NextFunction } from 'express';
 import { SubscribeToPlanUseCase } from '../../../core/use-cases/patient/SubscribeToPlanUseCase';
 import { ConfirmSubscriptionUseCase } from '../../../core/use-cases/patient/ConfirmSubscriptionUseCase';
 import { CancelAppointmentUseCase } from '../../../core/use-cases/patient/CancelAppointmentUseCase';
 import { Container } from '../../../infrastructure/di/container';
-import { ValidationError, NotFoundError } from '../../../utils/errors';
+import { ValidationError } from '../../../utils/errors';
 import { IPatientSubscriptionRepository } from '../../../core/interfaces/repositories/IPatientSubscriptionRepository';
 import { IAppointmentRepository } from '../../../core/interfaces/repositories/IAppointmentRepository';
 import { ISubscriptionPlanRepository } from '../../../core/interfaces/repositories/ISubscriptionPlanRepository';
@@ -14,7 +14,9 @@ import mongoose from 'mongoose';
 import { GetDoctorUseCase } from '../../../core/use-cases/patient/GetDoctorUseCase';
 import { GetVerifiedDoctorsUseCase } from '../../../core/use-cases/patient/GetVerifiedDoctorsUseCase';
 import { ISpecialityRepository } from '../../../core/interfaces/repositories/ISpecialityRepository';
-import logger from '../../../utils/logger';
+import { Appointment } from '../../../core/entities/Appointment';
+import { CustomRequest } from '../../../types';
+import { QueryParams } from '../../../types/authTypes';
 
 export class PatientController {
   private bookAppointmentUseCase: BookAppointmentUseCase;
@@ -32,32 +34,20 @@ export class PatientController {
 
   constructor(container: Container) {
     this.bookAppointmentUseCase = container.get('BookAppointmentUseCase');
-    this.getDoctorAvailabilityUseCase = container.get(
-      'GetDoctorAvailabilityUseCase'
-    );
+    this.getDoctorAvailabilityUseCase = container.get('GetDoctorAvailabilityUseCase');
     this.subscribeToPlanUseCase = container.get('SubscribeToPlanUseCase');
-    this.confirmSubscriptionUseCase = container.get(
-      'ConfirmSubscriptionUseCase'
-    );
+    this.confirmSubscriptionUseCase = container.get('ConfirmSubscriptionUseCase');
     this.cancelAppointmentUseCase = container.get('CancelAppointmentUseCase');
     this.checkFreeBookingUseCase = container.get('CheckFreeBookingUseCase');
     this.getDoctorUseCase = container.get('GetDoctorUseCase');
     this.getVerifiedDoctorsUseCase = container.get('GetVerifiedDoctorsUseCase');
-    this.patientSubscriptionRepository = container.get(
-      'IPatientSubscriptionRepository'
-    );
+    this.patientSubscriptionRepository = container.get('IPatientSubscriptionRepository');
     this.appointmentRepository = container.get('IAppointmentRepository');
-    this.subscriptionPlanRepository = container.get(
-      'ISubscriptionPlanRepository'
-    );
+    this.subscriptionPlanRepository = container.get('ISubscriptionPlanRepository');
     this.specialityRepository = container.get('ISpecialityRepository');
   }
 
-  async getDoctorAvailability(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async getDoctorAvailability(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const { doctorId } = req.params;
       const date = req.query.startDate;
@@ -67,36 +57,25 @@ export class PatientController {
       const startDate = new Date(date as string);
       const endDate = new Date(startDate);
       endDate.setDate(startDate.getDate() + 30);
-      const availability = await this.getDoctorAvailabilityUseCase.execute(
-        doctorId,
-        startDate,
-        endDate,
-        true
-      );
+      const availability = await this.getDoctorAvailabilityUseCase.execute(doctorId, startDate, endDate, true);
       res.status(200).json(availability || []);
     } catch (error) {
       next(error);
     }
   }
 
-  async bookAppointment(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async bookAppointment(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const patientId = (req as any).user.id;
+      const patientId = req.user?.id;
+      if (!patientId) {
+        throw new ValidationError('User ID not found in request');
+      }
       const { doctorId, date, startTime, endTime, isFreeBooking } = req.body;
       if (!doctorId || !date || !startTime || !endTime) {
-        throw new ValidationError(
-          'doctorId, date, startTime, and endTime are required'
-        );
+        throw new ValidationError('doctorId, date, startTime, and endTime are required');
       }
       if (isFreeBooking) {
-        const canBookFree = await this.checkFreeBookingUseCase.execute(
-          patientId,
-          doctorId
-        );
+        const canBookFree = await this.checkFreeBookingUseCase.execute(patientId, doctorId);
         if (!canBookFree) {
           throw new ValidationError('Not eligible for free booking');
         }
@@ -119,94 +98,76 @@ export class PatientController {
     }
   }
 
-  async getActiveSubscription(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async getActiveSubscription(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const patientId = (req as any).user.id;
+      const patientId = req.user?.id;
+      if (!patientId) {
+        throw new ValidationError('User ID not found in request');
+      }
       const { doctorId } = req.params;
       if (!doctorId) {
         throw new ValidationError('doctorId is required');
       }
-      const subscription =
-        await this.patientSubscriptionRepository.findActiveByPatientAndDoctor(
-          patientId,
-          doctorId
-        );
+      const subscription = await this.patientSubscriptionRepository.findActiveByPatientAndDoctor(patientId, doctorId);
       res.status(200).json(subscription || null);
     } catch (error) {
       next(error);
     }
   }
 
-  async subscribeToPlan(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async subscribeToPlan(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const patientId = (req as any).user.id;
+      const patientId = req.user?.id;
+      if (!patientId) {
+        throw new ValidationError('User ID not found in request');
+      }
       const { planId, price } = req.body;
       if (!planId || !price) {
         throw new ValidationError('planId and price are required');
       }
-      const result = await this.subscribeToPlanUseCase.execute(
-        patientId,
-        planId,
-        price
-      );
+      const result = await this.subscribeToPlanUseCase.execute(patientId, planId, price);
       res.status(201).json(result);
     } catch (error) {
       next(error);
     }
   }
 
-  async confirmSubscription(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async confirmSubscription(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const patientId = (req as any).user.id;
+      const patientId = req.user?.id;
+      if (!patientId) {
+        throw new ValidationError('User ID not found in request');
+      }
       const { planId, paymentIntentId } = req.body;
       if (!planId || !paymentIntentId) {
         throw new ValidationError('planId and paymentIntentId are required');
       }
-      const subscription = await this.confirmSubscriptionUseCase.execute(
-        patientId,
-        planId,
-        paymentIntentId
-      );
+      const subscription = await this.confirmSubscriptionUseCase.execute(patientId, planId, paymentIntentId);
       res.status(201).json(subscription);
     } catch (error) {
       next(error);
     }
   }
 
-  async getSubscriptions(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async getSubscriptions(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const patientId = (req as any).user.id;
-      const subscriptions =
-        await this.patientSubscriptionRepository.findByPatient(patientId);
+      const patientId = req.user?.id;
+      if (!patientId) {
+        throw new ValidationError('User ID not found in request');
+      }
+      const subscriptions = await this.patientSubscriptionRepository.findByPatient(patientId);
       res.status(200).json(subscriptions);
     } catch (error) {
       next(error);
     }
   }
 
-  async cancelAppointment(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async cancelAppointment(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const patientId = (req as any).user.id;
+      const patientId = req.user?.id;
+      if (!patientId) {
+        throw new ValidationError('User ID not found in request');
+      }
       const { appointmentId } = req.params;
       if (!appointmentId) {
         throw new ValidationError('appointmentId is required');
@@ -218,29 +179,20 @@ export class PatientController {
     }
   }
 
-  async getDoctorPlans(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async getDoctorPlans(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const { doctorId } = req.params;
       if (!doctorId) {
         throw new ValidationError('doctorId is required');
       }
-      const plans =
-        await this.subscriptionPlanRepository.findApprovedByDoctor(doctorId);
+      const plans = await this.subscriptionPlanRepository.findApprovedByDoctor(doctorId);
       res.status(200).json(plans);
     } catch (error) {
       next(error);
     }
   }
 
-  async getDoctor(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async getDoctor(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const { doctorId } = req.params;
 
@@ -256,56 +208,45 @@ export class PatientController {
       }
 
       res.status(200).json(doctor);
-    } catch (error: any) {
+    } catch (error) {
       next(error);
     }
   }
 
-  async getVerifiedDoctors(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async getVerifiedDoctors(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const params: any = {
-        page: req.query.page,
-        limit: req.query.limit,
-        search: req.query.search,
-        sortBy: req.query.sortBy,
-        sortOrder: req.query.sortOrder,
-        speciality: req.query.speciality,
-        ageRange: req.query.ageRange,
-        gender: req.query.gender,
+      const params: QueryParams = {
+        page: req.query.page ? parseInt(String(req.query.page)) : undefined,
+        limit: req.query.limit ? parseInt(String(req.query.limit)) : undefined,
+        search: req.query.search as string | undefined,
+        sortBy: req.query.sortBy as string | undefined,
+        sortOrder: req.query.sortOrder as 'asc' | 'desc' | undefined,
+        speciality: req.query.speciality as string | undefined,
+        ageRange: req.query.ageRange as string | undefined,
+        gender: req.query.gender as string | undefined,
       };
       const result = await this.getVerifiedDoctorsUseCase.execute(params);
       res.status(200).json(result);
-    } catch (error: any) {
+    } catch (error) {
       next(error);
     }
   }
 
-  async getAppointments(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async getAppointments(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const patientId = (req as any).user.id;
+      const patientId = req.user?.id;
+      if (!patientId) {
+        throw new ValidationError('User ID not found in request');
+      }
       const { doctorId } = req.query;
       const appointments = doctorId
-        ? await this.appointmentRepository.findByPatientAndDoctor(
-            patientId,
-            doctorId as string
-          )
+        ? await this.appointmentRepository.findByPatientAndDoctor(patientId, doctorId as string)
         : await this.appointmentRepository.findByPatient(patientId);
-      const response: { appointments: any[]; canBookFree?: boolean } = {
+      const response: { appointments: Appointment[]; canBookFree?: boolean } = {
         appointments,
       };
       if (doctorId) {
-        const canBookFree = await this.checkFreeBookingUseCase.execute(
-          patientId,
-          doctorId as string
-        );
+        const canBookFree = await this.checkFreeBookingUseCase.execute(patientId, doctorId as string);
         response.canBookFree = canBookFree;
       }
       res.status(200).json(response);
@@ -314,11 +255,7 @@ export class PatientController {
     }
   }
 
-  async getAllSpecialities(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async getAllSpecialities(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const specialities = await this.specialityRepository.findAll();
       res.status(200).json(specialities);

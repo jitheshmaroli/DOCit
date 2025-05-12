@@ -17,7 +17,6 @@ const Header: React.FC = () => {
   const patientNavItems = [
     { name: 'Home', path: '/' },
     { name: 'Find Doctor', path: '/patient/find-doctor' },
-    { name: 'My Appointments', path: '/patient/appointments' },
     { name: 'Profile', path: '/patient/profile' },
   ];
 

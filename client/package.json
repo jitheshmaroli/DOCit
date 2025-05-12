@@ -21,6 +21,7 @@
     "axios": "^1.8.3",
     "dayjs": "^1.11.13",
     "jwt-decode": "^4.0.0",
+    "lucide-react": "^0.509.0",
     "react": "^19.0.0",
     "react-datepicker": "^8.3.0",
     "react-dom": "^19.0.0",

@@ -9,10 +9,7 @@ export class LogoutUseCase {
     private adminRepository: IAdminRepository
   ) {}
 
-  async execute(
-    id: string,
-    role: 'patient' | 'doctor' | 'admin'
-  ): Promise<void> {
+  async execute(id: string, role: 'patient' | 'doctor' | 'admin'): Promise<void> {
     if (role === 'patient') {
       await this.patientRepository.update(id, { refreshToken: '' });
     } else if (role === 'doctor') {

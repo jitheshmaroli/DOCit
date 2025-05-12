@@ -40,26 +40,20 @@ export class VerifySignUpOTPUseCase {
 
     if (existingPatient && existingPatient.googleId && entity.password) {
       const hashedPassword = await bcrypt.hash(entity.password, 10);
-      updatedEntity = await this.patientRepository.update(
-        existingPatient._id!,
-        {
-          password: hashedPassword,
-          phone: entity.phone,
-        }
-      );
+      updatedEntity = await this.patientRepository.update(existingPatient._id!, {
+        password: hashedPassword,
+        phone: entity.phone,
+      });
       role = 'patient';
       entityId = existingPatient._id;
     } else if (existingDoctor && existingDoctor.googleId && entity.password) {
       if ('licenseNumber' in entity) {
         const hashedPassword = await bcrypt.hash(entity.password, 10);
-        updatedEntity = await this.doctorRepository.update(
-          existingDoctor._id!,
-          {
-            password: hashedPassword,
-            phone: entity.phone,
-            licenseNumber: entity.licenseNumber,
-          }
-        );
+        updatedEntity = await this.doctorRepository.update(existingDoctor._id!, {
+          password: hashedPassword,
+          phone: entity.phone,
+          licenseNumber: entity.licenseNumber,
+        });
         role = 'doctor';
         entityId = existingDoctor._id;
       }

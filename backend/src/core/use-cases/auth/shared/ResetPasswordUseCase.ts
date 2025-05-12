@@ -3,7 +3,7 @@ import { IDoctorRepository } from '../../../interfaces/repositories/IDoctorRepos
 import { IAdminRepository } from '../../../interfaces/repositories/IAdminRepository';
 import { IOTPService } from '../../../interfaces/services/IOTPService';
 import bcrypt from 'bcryptjs';
-import { AuthenticationError, ValidationError } from '../../../../utils/errors';
+import { ValidationError } from '../../../../utils/errors';
 
 export class ResetPasswordUseCase {
   constructor(
@@ -13,11 +13,7 @@ export class ResetPasswordUseCase {
     private otpService: IOTPService
   ) {}
 
-  async execute(
-    email: string,
-    otp: string,
-    newPassword: string
-  ): Promise<void> {
+  async execute(email: string, otp: string, newPassword: string): Promise<void> {
     const isValid = await this.otpService.verifyOTP(email, otp);
     if (!isValid) throw new ValidationError('Invalid or expired OTP');
 

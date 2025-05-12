@@ -32,7 +32,7 @@ export class UpdatePatientProfileUseCase {
         await this.imageUploadService.deleteImage(patient.profilePicturePublicId);
       }
     }
-    
+
     return this.patientRepository.update(patientId, updates);
   }
 }

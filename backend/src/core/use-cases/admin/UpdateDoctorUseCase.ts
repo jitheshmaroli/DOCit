@@ -11,13 +11,9 @@ export class UpdateDoctorUseCase {
 
   async execute(id: string, updates: Partial<Doctor>): Promise<Doctor> {
     if (updates.speciality) {
-      const validSpecialities = await this.specialityRepository.findByIds([
-        updates.speciality,
-      ]);
+      const validSpecialities = await this.specialityRepository.findByIds([updates.speciality]);
       if (validSpecialities.length !== updates.speciality.length) {
-        throw new ValidationError(
-          'One or more selected specialities are invalid'
-        );
+        throw new ValidationError('One or more selected specialities are invalid');
       }
     }
     const updated = await this.doctorRepository.update(id, updates);

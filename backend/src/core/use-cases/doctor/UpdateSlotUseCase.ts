@@ -43,10 +43,7 @@ export class UpdateSlotUseCase {
       `${moment(availability.date).format('YYYY-MM-DD')} ${newSlot.startTime}`,
       'YYYY-MM-DD HH:mm'
     );
-    const slotEnd = moment(
-      `${moment(availability.date).format('YYYY-MM-DD')} ${newSlot.endTime}`,
-      'YYYY-MM-DD HH:mm'
-    );
+    const slotEnd = moment(`${moment(availability.date).format('YYYY-MM-DD')} ${newSlot.endTime}`, 'YYYY-MM-DD HH:mm');
 
     if (slotStart >= slotEnd) {
       throw new ValidationError('Start time must be before end time');

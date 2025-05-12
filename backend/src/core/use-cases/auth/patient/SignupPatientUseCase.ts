@@ -11,13 +11,9 @@ export class SignupPatientUseCase {
 
   async execute(patient: Patient): Promise<Patient> {
     if (!patient.email || !patient.phone) {
-      throw new ValidationError(
-        'Email and phone are required for patient signup'
-      );
+      throw new ValidationError('Email and phone are required for patient signup');
     }
-    const existingPatient = await this.patientRepository.findByEmail(
-      patient.email
-    );
+    const existingPatient = await this.patientRepository.findByEmail(patient.email);
     if (existingPatient) {
       if (existingPatient.googleId) {
         await this.otpService.sendOTP(patient.email);

@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import AppointmentHistory from './Profile/AppointmentHistory';
 import Messages from './Profile/Messages';
-import Wallet from './Profile/Wallet';
 import PersonalInformation from './Profile/PersonalInformation';
+import SubscribedPlans from './Profile/SubscribedPlans';
 import { useAppSelector } from '../../redux/hooks';
 import { RootState } from '../../redux/store';
 
@@ -14,7 +14,7 @@ const ProfilePage = () => {
     { id: 'personal', label: 'Personal Information' },
     { id: 'appointments', label: 'Appointment History' },
     { id: 'messages', label: 'Messages' },
-    { id: 'billing', label: 'Billing & Payments' },
+    { id: 'plans', label: 'Subscribed Plans' },
   ];
 
   if (!user) {
@@ -47,9 +47,11 @@ const ProfilePage = () => {
             {activeTab === 'personal' && (
               <PersonalInformation patientId={user?._id} />
             )}
-            {activeTab === 'appointments' && <AppointmentHistory />}
-            {activeTab === 'messages' && <Messages />}
-            {activeTab === 'billing' && <Wallet />}
+            {activeTab === 'appointments' && (
+              <AppointmentHistory patientId={user?._id} />
+            )}
+            {activeTab === 'messages' && <Messages patientId={user?._id} />}
+            {activeTab === 'plans' && <SubscribedPlans patientId={user?._id} />}
           </div>
         </div>
       </div>

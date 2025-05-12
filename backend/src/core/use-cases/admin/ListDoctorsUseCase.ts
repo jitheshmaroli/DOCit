@@ -5,9 +5,7 @@ import { IDoctorRepository } from '../../interfaces/repositories/IDoctorReposito
 export class ListDoctorsUseCase {
   constructor(private doctorRepository: IDoctorRepository) {}
 
-  async executeWithQuery(
-    params: QueryParams
-  ): Promise<{ data: Doctor[]; totalItems: number }> {
+  async executeWithQuery(params: QueryParams): Promise<{ data: Doctor[]; totalItems: number }> {
     return this.doctorRepository.findAllWithQuery(params);
   }
 }

@@ -18,9 +18,7 @@ export class SubscriptionPlanRepository implements ISubscriptionPlanRepository {
     return this.populateDoctorName(plan);
   }
 
-  async findAllWithQuery(
-    params: QueryParams
-  ): Promise<{ data: SubscriptionPlan[]; totalItems: number }> {
+  async findAllWithQuery(params: QueryParams): Promise<{ data: SubscriptionPlan[]; totalItems: number }> {
     const query = QueryBuilder.buildQuery(params);
     const sort = QueryBuilder.buildSort(params);
     const { page, limit } = QueryBuilder.validateParams(params);
@@ -34,16 +32,14 @@ export class SubscriptionPlanRepository implements ISubscriptionPlanRepository {
 
     const totalItems = await SubscriptionPlanModel.countDocuments(query).exec();
 
-    const populatedPlans = await Promise.all(
-      plans.map(plan => this.populateDoctorName(plan))
-    );
+    const populatedPlans = await Promise.all(plans.map((plan) => this.populateDoctorName(plan)));
 
     return { data: populatedPlans, totalItems };
   }
 
   async findByDoctor(doctorId: string): Promise<SubscriptionPlan[]> {
     const plans = await SubscriptionPlanModel.find({ doctorId }).lean();
-    return Promise.all(plans.map(plan => this.populateDoctorName(plan)));
+    return Promise.all(plans.map((plan) => this.populateDoctorName(plan)));
   }
 
   async findApprovedByDoctor(doctorId: string): Promise<SubscriptionPlan[]> {
@@ -51,20 +47,17 @@ export class SubscriptionPlanRepository implements ISubscriptionPlanRepository {
       doctorId,
       status: 'approved',
     }).lean();
-    return Promise.all(plans.map(plan => this.populateDoctorName(plan)));
+    return Promise.all(plans.map((plan) => this.populateDoctorName(plan)));
   }
 
   async findPending(): Promise<SubscriptionPlan[]> {
     const plans = await SubscriptionPlanModel.find({
       status: 'pending',
     }).lean();
-    return Promise.all(plans.map(plan => this.populateDoctorName(plan)));
+    return Promise.all(plans.map((plan) => this.populateDoctorName(plan)));
   }
 
-  async update(
-    id: string,
-    updates: Partial<SubscriptionPlan>
-  ): Promise<SubscriptionPlan | null> {
+  async update(id: string, updates: Partial<SubscriptionPlan>): Promise<SubscriptionPlan | null> {
     const plan = await SubscriptionPlanModel.findByIdAndUpdate(id, updates, {
       new: true,
     }).lean();
@@ -79,11 +72,9 @@ export class SubscriptionPlanRepository implements ISubscriptionPlanRepository {
     }
   }
 
-  private async populateDoctorName(plan: any): Promise<SubscriptionPlan> {
+  private async populateDoctorName(plan: SubscriptionPlan): Promise<SubscriptionPlan> {
     if (plan.doctorId) {
-      const doctor = await DoctorModel.findById(plan.doctorId)
-        .select('name')
-        .lean();
+      const doctor = await DoctorModel.findById(plan.doctorId).select('name').lean();
       plan.doctorName = doctor?.name || 'N/A';
     } else {
       plan.doctorName = 'N/A';

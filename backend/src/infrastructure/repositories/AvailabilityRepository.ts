@@ -17,10 +17,7 @@ export class AvailabilityRepository implements IAvailabilityRepository {
     return AvailabilityModel.findById(id).exec();
   }
 
-  async findByDoctorAndDate(
-    doctorId: string,
-    date: Date
-  ): Promise<Availability | null> {
+  async findByDoctorAndDate(doctorId: string, date: Date): Promise<Availability | null> {
     const startOfDay = DateUtils.startOfDayUTC(date);
     const endOfDay = DateUtils.endOfDayUTC(date);
     return AvailabilityModel.findOne({
@@ -29,11 +26,7 @@ export class AvailabilityRepository implements IAvailabilityRepository {
     }).exec();
   }
 
-  async findByDoctorAndDateRange(
-    doctorId: string,
-    startDate: Date,
-    endDate: Date
-  ): Promise<Availability[]> {
+  async findByDoctorAndDateRange(doctorId: string, startDate: Date, endDate: Date): Promise<Availability[]> {
     return AvailabilityModel.find({
       doctorId,
       date: {
@@ -82,12 +75,8 @@ export class AvailabilityRepository implements IAvailabilityRepository {
     await AvailabilityModel.findByIdAndDelete(id).exec();
   }
 
-  async removeSlot(
-    availabilityId: string,
-    slotIndex: number
-  ): Promise<Availability | null> {
-    const availability =
-      await AvailabilityModel.findById(availabilityId).exec();
+  async removeSlot(availabilityId: string, slotIndex: number): Promise<Availability | null> {
+    const availability = await AvailabilityModel.findById(availabilityId).exec();
     if (!availability) return null;
     if (slotIndex < 0 || slotIndex >= availability.timeSlots.length) {
       return null;
@@ -109,8 +98,7 @@ export class AvailabilityRepository implements IAvailabilityRepository {
     slotIndex: number,
     newSlot: { startTime: string; endTime: string }
   ): Promise<Availability | null> {
-    const availability =
-      await AvailabilityModel.findById(availabilityId).exec();
+    const availability = await AvailabilityModel.findById(availabilityId).exec();
     if (!availability) return null;
     if (slotIndex < 0 || slotIndex >= availability.timeSlots.length) {
       return null;
@@ -119,22 +107,13 @@ export class AvailabilityRepository implements IAvailabilityRepository {
       throw new ValidationError('Cannot update a booked slot');
     }
     availability.timeSlots[slotIndex] = { ...newSlot, isBooked: false };
-    DateUtils.validateTimeSlot(
-      newSlot.startTime,
-      newSlot.endTime,
-      availability.date
-    );
+    DateUtils.validateTimeSlot(newSlot.startTime, newSlot.endTime, availability.date);
     DateUtils.checkOverlappingSlots(availability.timeSlots, availability.date);
     await availability.save();
     return availability;
   }
 
-  async updateSlotBookingStatus(
-    doctorId: string,
-    date: Date,
-    startTime: string,
-    isBooked: boolean
-  ): Promise<void> {
+  async updateSlotBookingStatus(doctorId: string, date: Date, startTime: string, isBooked: boolean): Promise<void> {
     const startOfDay = DateUtils.startOfDayUTC(date);
     await AvailabilityModel.updateOne(
       { doctorId, date: startOfDay },
@@ -149,10 +128,7 @@ export class AvailabilityRepository implements IAvailabilityRepository {
     ).exec();
   }
 
-  async getAvailableSlotsForSubscribedPatients(
-    doctorId: string,
-    date: Date
-  ): Promise<Availability | null> {
+  async getAvailableSlotsForSubscribedPatients(doctorId: string, date: Date): Promise<Availability | null> {
     const startOfDay = DateUtils.startOfDayUTC(date);
     const endOfDay = DateUtils.endOfDayUTC(date);
 
@@ -165,9 +141,7 @@ export class AvailabilityRepository implements IAvailabilityRepository {
       return null;
     }
 
-    const availableSlots = availability.timeSlots.filter(
-      slot => !slot.isBooked
-    );
+    const availableSlots = availability.timeSlots.filter((slot) => !slot.isBooked);
 
     if (availableSlots.length === 0) {
       return null;

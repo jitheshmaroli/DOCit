@@ -20,26 +20,14 @@ const upload = getMulterUploader('patient-profiles');
 const patientAuth = [authMiddleware(container), roleMiddleware(['patient'])];
 
 // Doctor lookup routes
-router.get(
-  '/doctors/verified',
-  patientAuth,
-  patientController.getVerifiedDoctors.bind(patientController)
-);
+router.get('/doctors/verified', patientAuth, patientController.getVerifiedDoctors.bind(patientController));
 router.get(
   '/doctors/:doctorId/availability',
   patientAuth,
   patientController.getDoctorAvailability.bind(patientController)
 );
-router.get(
-  '/doctors/:doctorId/plans',
-  patientAuth,
-  patientController.getDoctorPlans.bind(patientController)
-);
-router.get(
-  '/doctors/:doctorId',
-  patientAuth,
-  patientController.getDoctor.bind(patientController)
-);
+router.get('/doctors/:doctorId/plans', patientAuth, patientController.getDoctorPlans.bind(patientController));
+router.get('/doctors/:doctorId', patientAuth, patientController.getDoctor.bind(patientController));
 router.get(
   '/doctors/:doctorId/subscription',
   patientAuth,
@@ -47,52 +35,20 @@ router.get(
 );
 
 // Speciality route
-router.get(
-  '/specialities',
-  patientAuth,
-  patientController.getAllSpecialities.bind(patientController)
-);
+router.get('/specialities', patientAuth, patientController.getAllSpecialities.bind(patientController));
 
 // Appointment routes
-router.post(
-  '/appointments',
-  patientAuth,
-  patientController.bookAppointment.bind(patientController)
-);
-router.get(
-  '/appointments',
-  patientAuth,
-  patientController.getAppointments.bind(patientController)
-);
-router.delete(
-  '/appointments/:appointmentId',
-  patientAuth,
-  patientController.cancelAppointment.bind(patientController)
-);
+router.post('/appointments', patientAuth, patientController.bookAppointment.bind(patientController));
+router.get('/appointments', patientAuth, patientController.getAppointments.bind(patientController));
+router.delete('/appointments/:appointmentId', patientAuth, patientController.cancelAppointment.bind(patientController));
 
 // Subscription routes
-router.post(
-  '/subscriptions',
-  patientAuth,
-  patientController.subscribeToPlan.bind(patientController)
-);
-router.post(
-  '/subscriptions/confirm',
-  patientAuth,
-  patientController.confirmSubscription.bind(patientController)
-);
-router.get(
-  '/subscriptions',
-  patientAuth,
-  patientController.getSubscriptions.bind(patientController)
-);
+router.post('/subscriptions', patientAuth, patientController.subscribeToPlan.bind(patientController));
+router.post('/subscriptions/confirm', patientAuth, patientController.confirmSubscription.bind(patientController));
+router.get('/subscriptions', patientAuth, patientController.getSubscriptions.bind(patientController));
 
 // Profile routes
-router.get(
-  '/:id',
-  patientAuth,
-  patientProfileController.viewProfile.bind(patientProfileController)
-);
+router.get('/:id', patientAuth, patientProfileController.viewProfile.bind(patientProfileController));
 router.patch(
   '/:id',
   patientAuth,

@@ -20,69 +20,25 @@ const upload = getMulterUploader('doctor-profiles');
 const doctorAuth = [authMiddleware(container), roleMiddleware(['doctor'])];
 
 // Availability routes
-router.get(
-  '/availability',
-  doctorAuth,
-  doctorController.getAvailability.bind(doctorController)
-);
-router.post(
-  '/availability',
-  doctorAuth,
-  doctorController.setAvailability.bind(doctorController)
-);
-router.post(
-  '/availability/slots/remove',
-  doctorAuth,
-  doctorController.removeSlot.bind(doctorController)
-);
-router.patch(
-  '/availability/slots',
-  doctorAuth,
-  doctorController.updateSlot.bind(doctorController)
-);
+router.get('/availability', doctorAuth, doctorController.getAvailability.bind(doctorController));
+router.post('/availability', doctorAuth, doctorController.setAvailability.bind(doctorController));
+router.post('/availability/slots/remove', doctorAuth, doctorController.removeSlot.bind(doctorController));
+router.patch('/availability/slots', doctorAuth, doctorController.updateSlot.bind(doctorController));
 
 // Appointment routes
-router.get(
-  '/appointments',
-  doctorAuth,
-  doctorController.getAppointments.bind(doctorController)
-);
+router.get('/appointments', doctorAuth, doctorController.getAppointments.bind(doctorController));
 
 // Subscription plan routes
-router.get(
-  '/subscription-plans',
-  doctorAuth,
-  doctorController.getSubscriptionPlans.bind(doctorController)
-);
-router.post(
-  '/subscription-plans',
-  doctorAuth,
-  doctorController.createSubscriptionPlan.bind(doctorController)
-);
-router.patch(
-  '/subscription-plans/:id',
-  doctorAuth,
-  doctorController.updateSubscriptionPlan.bind(doctorController)
-);
-router.delete(
-  '/subscription-plans/:id',
-  doctorAuth,
-  doctorController.deleteSubscriptionPlan.bind(doctorController)
-);
+router.get('/subscription-plans', doctorAuth, doctorController.getSubscriptionPlans.bind(doctorController));
+router.post('/subscription-plans', doctorAuth, doctorController.createSubscriptionPlan.bind(doctorController));
+router.patch('/subscription-plans/:id', doctorAuth, doctorController.updateSubscriptionPlan.bind(doctorController));
+router.delete('/subscription-plans/:id', doctorAuth, doctorController.deleteSubscriptionPlan.bind(doctorController));
 
 // Speciality routes
-router.get(
-  '/specialities',
-  doctorAuth,
-  doctorController.getAllSpecialities.bind(doctorController)
-);
+router.get('/specialities', doctorAuth, doctorController.getAllSpecialities.bind(doctorController));
 
 // Profile routes
-router.get(
-  '/:id',
-  doctorAuth,
-  doctorProfileController.viewProfile.bind(doctorProfileController)
-);
+router.get('/:id', doctorAuth, doctorProfileController.viewProfile.bind(doctorProfileController));
 router.patch(
   '/:id',
   doctorAuth,

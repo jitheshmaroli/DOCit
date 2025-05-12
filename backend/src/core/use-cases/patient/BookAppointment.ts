@@ -29,47 +29,34 @@ export class BookAppointmentUseCase {
     if (!doctor) throw new NotFoundError('Doctor not found');
 
     const startOfDay = DateUtils.startOfDayUTC(date);
-    const availability = await this.availabilityRepository.findByDoctorAndDate(
-      doctorId,
-      startOfDay
-    );
-    if (!availability)
-      throw new NotFoundError('No availability found for this date');
+    const availability = await this.availabilityRepository.findByDoctorAndDate(doctorId, startOfDay);
+    if (!availability) throw new NotFoundError('No availability found for this date');
 
     const slotAvailable = availability.timeSlots.some(
       (slot) => slot.startTime === startTime && slot.endTime === endTime
     );
-    if (!slotAvailable)
-      throw new ValidationError('Selected time slot is not available');
+    if (!slotAvailable) throw new ValidationError('Selected time slot is not available');
 
-    const existingAppointment =
-      await this.appointmentRepository.findByDoctorAndSlot(
-        doctorId,
-        startOfDay,
-        startTime,
-        endTime
-      );
-    if (existingAppointment)
-      throw new ValidationError('This time slot is already booked');
+    const existingAppointment = await this.appointmentRepository.findByDoctorAndSlot(
+      doctorId,
+      startOfDay,
+      startTime,
+      endTime
+    );
+    if (existingAppointment) throw new ValidationError('This time slot is already booked');
 
     if (isFreeBooking) {
-      const canBookFree = await this.checkFreeBookingUseCase.execute(
-        patientId,
-        doctorId
-      );
+      const canBookFree = await this.checkFreeBookingUseCase.execute(patientId, doctorId);
       if (!canBookFree) {
         throw new ValidationError('Not eligible for free booking');
       }
     } else {
-      const activeSubscription =
-        await this.patientSubscriptionRepository.findActiveByPatientAndDoctor(
-          patientId,
-          doctorId
-        );
+      const activeSubscription = await this.patientSubscriptionRepository.findActiveByPatientAndDoctor(
+        patientId,
+        doctorId
+      );
       if (!activeSubscription) {
-        throw new ValidationError(
-          'A subscription is required for non-free bookings'
-        );
+        throw new ValidationError('A subscription is required for non-free bookings');
       }
       if (activeSubscription.appointmentsLeft <= 0) {
         throw new ValidationError('No appointments left in your subscription');
@@ -98,24 +85,16 @@ export class BookAppointmentUseCase {
     }
 
     if (!isFreeBooking) {
-      const activeSubscription =
-        await this.patientSubscriptionRepository.findActiveByPatientAndDoctor(
-          patientId,
-          doctorId
-        );
+      const activeSubscription = await this.patientSubscriptionRepository.findActiveByPatientAndDoctor(
+        patientId,
+        doctorId
+      );
       if (activeSubscription) {
-        await this.patientSubscriptionRepository.incrementAppointmentCount(
-          activeSubscription._id!
-        );
+        await this.patientSubscriptionRepository.incrementAppointmentCount(activeSubscription._id!);
       }
     }
 
-    await this.availabilityRepository.updateSlotBookingStatus(
-      doctorId,
-      startOfDay,
-      startTime,
-      true
-    );
+    await this.availabilityRepository.updateSlotBookingStatus(doctorId, startOfDay, startTime, true);
 
     return savedAppointment;
   }

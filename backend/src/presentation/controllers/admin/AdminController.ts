@@ -12,6 +12,9 @@ import { UpdateSpecialityUseCase } from '../../../core/use-cases/admin/UpdateSpe
 import { DeleteSpecialityUseCase } from '../../../core/use-cases/admin/DeleteSpecialityUseCase';
 import { GetPatientSubscriptionsUseCase } from '../../../core/use-cases/admin/GetpatientSubscriptions';
 import { PaginatedResponse, QueryParams } from '../../../types/authTypes';
+import { SubscriptionPlan } from '../../../core/entities/SubscriptionPlan';
+import { Appointment } from '../../../core/entities/Appointment';
+import { Speciality } from '../../../core/entities/Speciality';
 
 export class AdminController {
   private manageSubscriptionPlanUseCase: ManageSubscriptionPlanUseCase;
@@ -28,29 +31,20 @@ export class AdminController {
   constructor(container: Container) {
     this.createDoctorUseCase = container.get('CreateDoctorUseCase');
     this.listDoctorsUseCase = container.get('ListDoctorsUseCase');
-    this.manageSubscriptionPlanUseCase = container.get(
-      'ManageSubscriptionPlanUseCase'
-    );
+    this.manageSubscriptionPlanUseCase = container.get('ManageSubscriptionPlanUseCase');
     this.getAllAppointmentsUseCase = container.get('GetAllAppointmentsUseCase');
-    this.cancelAppointmentUseCase = container.get('CancelAppointmentUseCase');
-    this.getPatientSubscriptionsUseCase = container.get(
-      'GetPatientSubscriptionsUseCase'
-    );
+    this.cancelAppointmentUseCase = container.get('AdminCancelAppointmentUseCase'); // Fixed to use AdminCancelAppointmentUseCase
+    this.getPatientSubscriptionsUseCase = container.get('GetPatientSubscriptionsUseCase');
     this.getSpecialitiesUseCase = container.get('GetSpecialitiesUseCase');
     this.addSpecialityUseCase = container.get('AddSpecialityUseCase');
     this.updateSpecialityUseCase = container.get('UpdateSpecialityUseCase');
     this.deleteSpecialityUseCase = container.get('DeleteSpecialityUseCase');
   }
 
-  async getAllPlans(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async getAllPlans(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const params: QueryParams = req.query as any;
-      const { data: plans, totalItems } =
-        await this.manageSubscriptionPlanUseCase.getAllPlansWithQuery(params);
+      const params = req.query as QueryParams;
+      const { data: plans, totalItems } = await this.manageSubscriptionPlanUseCase.getAllPlansWithQuery(params);
       const { page = 1, limit = 10 } = params;
       const totalPages = Math.ceil(totalItems / limit);
 
@@ -59,22 +53,17 @@ export class AdminController {
         totalPages,
         currentPage: page,
         totalItems,
-      } as PaginatedResponse<any>);
+      } as PaginatedResponse<SubscriptionPlan>);
     } catch (error) {
       console.error('Error fetching all plans:', error);
       next(error);
     }
   }
 
-  async approvePlan(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async approvePlan(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { planId } = req.params;
-      const updatedPlan =
-        await this.manageSubscriptionPlanUseCase.approve(planId);
+      const updatedPlan = await this.manageSubscriptionPlanUseCase.approve(planId);
       res.status(200).json({ data: updatedPlan, message: 'Plan approved' });
     } catch (error) {
       console.error('Error approving plan:', error);
@@ -82,15 +71,10 @@ export class AdminController {
     }
   }
 
-  async rejectPlan(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async rejectPlan(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { planId } = req.params;
-      const updatedPlan =
-        await this.manageSubscriptionPlanUseCase.reject(planId);
+      const updatedPlan = await this.manageSubscriptionPlanUseCase.reject(planId);
       res.status(200).json({ data: updatedPlan, message: 'Plan rejected' });
     } catch (error) {
       console.error('Error rejecting plan:', error);
@@ -98,11 +82,7 @@ export class AdminController {
     }
   }
 
-  async deletePlan(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async deletePlan(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { planId } = req.params;
       await this.manageSubscriptionPlanUseCase.delete(planId);
@@ -115,7 +95,7 @@ export class AdminController {
 
   async getAllAppointments(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const params: QueryParams = req.query as any;
+      const params = req.query as QueryParams;
       const { data: appointments, totalItems } = await this.getAllAppointmentsUseCase.executeWithQuery(params);
       const { page = 1, limit = 10 } = params;
       const totalPages = Math.ceil(totalItems / limit);
@@ -125,18 +105,14 @@ export class AdminController {
         totalPages,
         currentPage: page,
         totalItems,
-      } as PaginatedResponse<any>);
+      } as PaginatedResponse<Appointment>);
     } catch (error) {
       console.error('Error fetching appointments:', error);
       next(error);
     }
   }
 
-  async cancelAppointment(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async cancelAppointment(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { appointmentId } = req.params;
       await this.cancelAppointmentUseCase.execute(appointmentId);
@@ -147,11 +123,7 @@ export class AdminController {
     }
   }
 
-  async getPatientSubscriptions(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async getPatientSubscriptions(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const subscriptions = await this.getPatientSubscriptionsUseCase.execute();
       res.status(200).json({ data: subscriptions });
@@ -161,15 +133,10 @@ export class AdminController {
     }
   }
 
-  async getSpecialities(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async getSpecialities(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const params: QueryParams = req.query as any;
-      const { data: specialities, totalItems } =
-        await this.getSpecialitiesUseCase.executeWithQuery(params);
+      const params = req.query as QueryParams;
+      const { data: specialities, totalItems } = await this.getSpecialitiesUseCase.executeWithQuery(params);
       const { page = 1, limit = 10 } = params;
       const totalPages = Math.ceil(totalItems / limit);
 
@@ -178,17 +145,13 @@ export class AdminController {
         totalPages,
         currentPage: page,
         totalItems,
-      } as PaginatedResponse<any>);
+      } as PaginatedResponse<Speciality>);
     } catch (error) {
       next(error);
     }
   }
 
-  async addSpeciality(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async addSpeciality(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { name } = req.body;
       if (!name) throw new ValidationError('Speciality name is required');
@@ -199,11 +162,7 @@ export class AdminController {
     }
   }
 
-  async updateSpeciality(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async updateSpeciality(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
       const { name } = req.body;
@@ -217,11 +176,7 @@ export class AdminController {
     }
   }
 
-  async deleteSpeciality(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  async deleteSpeciality(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
       await this.deleteSpecialityUseCase.execute(id);

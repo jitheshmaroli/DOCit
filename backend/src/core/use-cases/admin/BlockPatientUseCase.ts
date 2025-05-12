@@ -7,7 +7,9 @@ export class BlockPatientUseCase {
 
   async execute(id: string, isBlocked: boolean): Promise<Patient | null> {
     const patient = await this.patientRepository.findById(id);
+
     if (!patient) throw new NotFoundError('Patient not found');
+
     return this.patientRepository.update(id, { isBlocked });
   }
 }

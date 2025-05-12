@@ -21,16 +21,8 @@ export class GetDoctorAvailabilityUseCase {
     }
 
     if (filterBooked) {
-      return this.availabilityRepository.findByDoctorAndDateRangeWithUnbookedSlots(
-        doctorId,
-        startDate,
-        endDate
-      );
+      return this.availabilityRepository.findByDoctorAndDateRangeWithUnbookedSlots(doctorId, startDate, endDate);
     }
-    return this.availabilityRepository.findByDoctorAndDateRange(
-      doctorId,
-      startDate,
-      endDate
-    );
+    return this.availabilityRepository.findByDoctorAndDateRange(doctorId, startDate, endDate);
   }
 }

@@ -23,13 +23,10 @@ const STRIPE_SECRET_KEY = env.STRIPE_SECRET_KEY;
 const STRIPE_WEBHOOK_SECRET = env.STRIPE_WEBHOOK_SECRET;
 
 const stripe = new Stripe(STRIPE_SECRET_KEY, {
-  apiVersion: '2023-10-16' as any,
+  apiVersion: '2025-03-31.basil',
 });
 const container = Container.getInstance();
-const patientSubscriptionRepository =
-  container.get<PatientSubscriptionRepository>(
-    'IPatientSubscriptionRepository'
-  );
+const patientSubscriptionRepository = container.get<PatientSubscriptionRepository>('IPatientSubscriptionRepository');
 
 // Middleware setup
 app.use(cors({ origin: CLIENT_URL, credentials: true }));
@@ -54,34 +51,24 @@ app.post('/api/webhook/stripe', async (req: Request, res: Response) => {
   const sig = req.headers['stripe-signature'] as string;
 
   try {
-    const event = stripe.webhooks.constructEvent(
-      req.body,
-      sig,
-      STRIPE_WEBHOOK_SECRET
-    );
+    const event = stripe.webhooks.constructEvent(req.body, sig, STRIPE_WEBHOOK_SECRET);
 
     if (event.type === 'payment_intent.succeeded') {
-      const paymentIntent = event.data.object as Stripe.PaymentIntent;
-      const subscription =
-        await patientSubscriptionRepository.findByStripePaymentId(
-          paymentIntent.id
-        );
+      const paymentIntent = event.data.object;
+      const subscription = await patientSubscriptionRepository.findByStripePaymentId(paymentIntent.id);
       if (subscription && subscription.status === 'active') {
-        logger.info(
-          `Payment already processed for payment intent: ${paymentIntent.id}`
-        );
+        logger.info(`Payment already processed for payment intent: ${paymentIntent.id}`);
         res.status(200).json({ received: true });
         return;
       }
-      logger.warn(
-        `Subscription not found for payment intent: ${paymentIntent.id}`
-      );
+      logger.warn(`Subscription not found for payment intent: ${paymentIntent.id}`);
     }
 
     res.status(200).json({ received: true });
-  } catch (err: any) {
-    logger.error(`Webhook error: ${err.message}`, err);
-    res.status(400).send(`Webhook Error: ${err.message}`);
+  } catch (err: unknown) {
+    const message = err instanceof Stripe.errors.StripeError ? err.message : (err as Error).message || 'Unknown error';
+    logger.error(`Webhook error: ${message}`, err);
+    res.status(400).send(`Webhook Error: ${message}`);
   }
 });
 

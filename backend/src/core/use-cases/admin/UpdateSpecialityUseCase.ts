@@ -8,11 +8,7 @@ export class UpdateSpecialityUseCase {
   async execute(id: string, updates: Partial<Speciality>): Promise<Speciality> {
     if (!updates.name) throw new ValidationError('Speciality name is required');
     const existing = await this.specialityRepository.findAll();
-    if (
-      existing.some(
-        (s) => s.name.toLowerCase() === updates.name!.toLowerCase() && s._id !== id
-      )
-    ) {
+    if (existing.some((s) => s.name.toLowerCase() === updates.name!.toLowerCase() && s._id !== id)) {
       throw new ValidationError('Speciality name already exists');
     }
     const speciality = await this.specialityRepository.findById(id);

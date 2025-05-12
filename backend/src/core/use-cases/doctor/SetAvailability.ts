@@ -36,7 +36,9 @@ export class SetAvailabilityUseCase {
     if (existing) {
       const allSlots = [...existing.timeSlots, ...timeSlots];
       DateUtils.checkOverlappingSlots(allSlots, utcDate);
-      await this.availabilityRepository.update(existing._id!, { timeSlots: allSlots });
+      await this.availabilityRepository.update(existing._id!, {
+        timeSlots: allSlots,
+      });
       const updatedAvailability = await this.availabilityRepository.findByDoctorAndDate(doctorId, utcDate);
       if (!updatedAvailability) {
         throw new NotFoundError('Failed to retrieve updated availability');

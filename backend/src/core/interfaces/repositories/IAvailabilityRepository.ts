@@ -3,20 +3,9 @@ import { Availability } from '../../entities/Availability';
 export interface IAvailabilityRepository {
   create(availability: Availability): Promise<Availability>;
   findById(id: string): Promise<Availability | null>;
-  findByDoctorAndDate(
-    doctorId: string,
-    date: Date
-  ): Promise<Availability | null>;
-  findByDoctorAndDateRange(
-    doctorId: string,
-    startDate: Date,
-    endDate: Date
-  ): Promise<Availability[]>;
-  findByDoctorAndDateRangeWithUnbookedSlots(
-    doctorId: string,
-    startDate: Date,
-    endDate: Date
-  ): Promise<Availability[]>;
+  findByDoctorAndDate(doctorId: string, date: Date): Promise<Availability | null>;
+  findByDoctorAndDateRange(doctorId: string, startDate: Date, endDate: Date): Promise<Availability[]>;
+  findByDoctorAndDateRangeWithUnbookedSlots(doctorId: string, startDate: Date, endDate: Date): Promise<Availability[]>;
   update(id: string, updates: Partial<Availability>): Promise<void>;
   delete(id: string): Promise<void>;
   removeSlot(availabilityId: string, slotIndex: number): Promise<Availability | null>;
@@ -25,10 +14,5 @@ export interface IAvailabilityRepository {
     slotIndex: number,
     newSlot: { startTime: string; endTime: string }
   ): Promise<Availability | null>;
-  updateSlotBookingStatus(
-    doctorId: string,
-    date: Date,
-    startTime: string,
-    isBooked: boolean
-  ): Promise<void>;
+  updateSlotBookingStatus(doctorId: string, date: Date, startTime: string, isBooked: boolean): Promise<void>;
 }

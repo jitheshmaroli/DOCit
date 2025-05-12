@@ -14,7 +14,7 @@ export class StripeService {
   async createPaymentIntent(amount: number): Promise<string> {
     try {
       const paymentIntent = await this.stripe.paymentIntents.create({
-        amount, 
+        amount,
         currency: 'INR',
         automatic_payment_methods: {
           enabled: true,
@@ -27,8 +27,13 @@ export class StripeService {
       }
 
       return paymentIntent.client_secret;
-    } catch (error: any) {
-      throw new ValidationError(`PaymentIntent creation error: ${error.message}`);
+    } catch (error: unknown) {
+      if (error instanceof Stripe.errors.StripeError) {
+        throw new ValidationError(`PaymentIntent creation error: ${error.message}`);
+      }
+      throw new ValidationError(
+        `Unexpected error during PaymentIntent creation: ${(error as Error).message || 'Unknown error'}`
+      );
     }
   }
 
@@ -39,8 +44,13 @@ export class StripeService {
       if (paymentIntent.status !== 'succeeded') {
         throw new ValidationError('Payment not completed');
       }
-    } catch (error: any) {
-      throw new ValidationError(`Payment confirmation error: ${error.message}`);
+    } catch (error: unknown) {
+      if (error instanceof Stripe.errors.StripeError) {
+        throw new ValidationError(`Payment confirmation error: ${error.message}`);
+      }
+      throw new ValidationError(
+        `Unexpected error during payment confirmation: ${(error as Error).message || 'Unknown error'}`
+      );
     }
   }
 }

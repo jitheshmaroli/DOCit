@@ -7,7 +7,9 @@ export class BlockDoctorUseCase {
 
   async execute(id: string, isBlocked: boolean): Promise<Doctor> {
     const updated = await this.doctorRepository.update(id, { isBlocked });
+
     if (!updated) throw new NotFoundError('Doctor not found');
+
     return updated;
   }
 }

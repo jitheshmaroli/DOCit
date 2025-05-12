@@ -54,6 +54,7 @@ export const logout = async () => {
 
 export const checkAuth = async () => {
   const response = await api.get('/api/user/me');
+  console.log(response)
   return response.data;
 };
 

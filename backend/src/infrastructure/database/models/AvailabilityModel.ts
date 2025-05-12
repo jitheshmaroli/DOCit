@@ -18,7 +18,4 @@ const AvailabilitySchema = new Schema<Availability>(
 
 AvailabilitySchema.index({ doctorId: 1, date: 1 }, { unique: true });
 
-export const AvailabilityModel = mongoose.model<Availability>(
-  'Availability',
-  AvailabilitySchema
-);
+export const AvailabilityModel = mongoose.model<Availability>('Availability', AvailabilitySchema);

@@ -1,14 +1,9 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response } from 'express';
 import { CustomError } from '../../utils/errors';
 import logger from '../../utils/logger';
 import multer from 'multer';
 
-export const errorMiddleware = (
-  err: Error,
-  req: Request,
-  res: Response,
-  next: NextFunction
-): void => {
+export const errorMiddleware = (err: Error, req: Request, res: Response): void => {
   logger.error(`Error in ${req.method} ${req.url}`, {
     error: err.message,
     name: err.name,

@@ -27,18 +27,11 @@ export class DateUtils {
 
   // Validate if date is today or in the future
   static isFutureDate(date: Date): boolean {
-    return (
-      moment.utc(date).isSame(moment.utc(), 'day') ||
-      moment.utc(date).isAfter(moment.utc())
-    );
+    return moment.utc(date).isSame(moment.utc(), 'day') || moment.utc(date).isAfter(moment.utc());
   }
 
   // Validate time slot (startTime and endTime in HH:mm format)
-  static validateTimeSlot(
-    startTime: string,
-    endTime: string,
-    date: Date
-  ): void {
+  static validateTimeSlot(startTime: string, endTime: string, date: Date): void {
     // Ensure inputs are valid
     if (!startTime || !endTime) {
       throw new ValidationError('Start time and end time are required');
@@ -46,16 +39,8 @@ export class DateUtils {
 
     // Parse times with strict format
     const dateStr = moment.utc(date).format('YYYY-MM-DD');
-    const slotStart = moment.utc(
-      `${dateStr} ${startTime}`,
-      'YYYY-MM-DD HH:mm',
-      true
-    );
-    const slotEnd = moment.utc(
-      `${dateStr} ${endTime}`,
-      'YYYY-MM-DD HH:mm',
-      true
-    );
+    const slotStart = moment.utc(`${dateStr} ${startTime}`, 'YYYY-MM-DD HH:mm', true);
+    const slotEnd = moment.utc(`${dateStr} ${endTime}`, 'YYYY-MM-DD HH:mm', true);
 
     // Check if parsing was successful
     if (!slotStart.isValid() || !slotEnd.isValid()) {
@@ -68,41 +53,25 @@ export class DateUtils {
     }
 
     // Prevent slots in the past for today
-    if (
-      moment.utc(date).isSame(moment.utc(), 'day') &&
-      slotStart.isBefore(moment.utc())
-    ) {
+    if (moment.utc(date).isSame(moment.utc(), 'day') && slotStart.isBefore(moment.utc())) {
       throw new ValidationError('Cannot set slots before current time');
     }
   }
 
   // Check for overlapping slots
-  static checkOverlappingSlots(
-    slots: { startTime: string; endTime: string }[],
-    date: Date
-  ): void {
+  static checkOverlappingSlots(slots: { startTime: string; endTime: string }[], date: Date): void {
     const slotMoments = slots
-      .map(slot => ({
-        start: moment.utc(
-          `${moment.utc(date).format('YYYY-MM-DD')} ${slot.startTime}`,
-          'YYYY-MM-DD HH:mm',
-          true
-        ),
-        end: moment.utc(
-          `${moment.utc(date).format('YYYY-MM-DD')} ${slot.endTime}`,
-          'YYYY-MM-DD HH:mm',
-          true
-        ),
+      .map((slot) => ({
+        start: moment.utc(`${moment.utc(date).format('YYYY-MM-DD')} ${slot.startTime}`, 'YYYY-MM-DD HH:mm', true),
+        end: moment.utc(`${moment.utc(date).format('YYYY-MM-DD')} ${slot.endTime}`, 'YYYY-MM-DD HH:mm', true),
       }))
-      .filter(slot => slot.start.isValid() && slot.end.isValid())
+      .filter((slot) => slot.start.isValid() && slot.end.isValid())
       .sort((a, b) => a.start.diff(b.start));
 
     // Validate slot parsing
     slotMoments.forEach((slot, index) => {
       if (!slot.start.isValid() || !slot.end.isValid()) {
-        throw new ValidationError(
-          `Invalid time format for slot at index ${index}`
-        );
+        throw new ValidationError(`Invalid time format for slot at index ${index}`);
       }
     });
 
@@ -111,12 +80,9 @@ export class DateUtils {
         const slot1 = slotMoments[i];
         const slot2 = slotMoments[j];
         if (
-          (slot1.start.isSameOrAfter(slot2.start) &&
-            slot1.start.isBefore(slot2.end)) ||
-          (slot1.end.isAfter(slot2.start) &&
-            slot1.end.isSameOrBefore(slot2.end)) ||
-          (slot1.start.isSameOrBefore(slot2.start) &&
-            slot1.end.isSameOrAfter(slot2.end))
+          (slot1.start.isSameOrAfter(slot2.start) && slot1.start.isBefore(slot2.end)) ||
+          (slot1.end.isAfter(slot2.start) && slot1.end.isSameOrBefore(slot2.end)) ||
+          (slot1.start.isSameOrBefore(slot2.start) && slot1.end.isSameOrAfter(slot2.end))
         ) {
           throw new ValidationError('Time slots cannot overlap');
         }
@@ -124,7 +90,7 @@ export class DateUtils {
     }
     console.log(
       'Checked slots for overlaps:',
-      slotMoments.map(slot => ({
+      slotMoments.map((slot) => ({
         start: slot.start.format('HH:mm'),
         end: slot.end.format('HH:mm'),
       }))

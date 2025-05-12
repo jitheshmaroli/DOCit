@@ -14,9 +14,7 @@ export class SpecialityRepository implements ISpecialityRepository {
     return SpecialityModel.find().exec();
   }
 
-  async findAllWithQuery(
-    params: QueryParams
-  ): Promise<{ data: Speciality[]; totalItems: number }> {
+  async findAllWithQuery(params: QueryParams): Promise<{ data: Speciality[]; totalItems: number }> {
     const query = QueryBuilder.buildQuery(params);
     const sort = QueryBuilder.buildSort(params);
     const { page, limit } = QueryBuilder.validateParams(params);

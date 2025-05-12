@@ -1,9 +1,7 @@
-import { PatientSubscription } from '../../entities/PatientSubscription';
 import { ISubscriptionPlanRepository } from '../../interfaces/repositories/ISubscriptionPlanRepository';
 import { IPatientSubscriptionRepository } from '../../interfaces/repositories/IPatientSubscriptionRepository';
 import { IPatientRepository } from '../../interfaces/repositories/IPatientRepository';
 import { NotFoundError, ValidationError } from '../../../utils/errors';
-import moment from 'moment';
 import { StripeService } from '../../../infrastructure/services/StripeService';
 
 export class SubscribeToPlanUseCase {
@@ -27,14 +25,9 @@ export class SubscribeToPlanUseCase {
       throw new ValidationError('Plan is not approved');
     }
 
-    const existing = await this.patientSubscriptionRepository.findActiveByPatientAndDoctor(
-      patientId,
-      plan.doctorId
-    );
+    const existing = await this.patientSubscriptionRepository.findActiveByPatientAndDoctor(patientId, plan.doctorId);
     if (existing) {
-      throw new ValidationError(
-        'You are already subscribed to a plan for this doctor'
-      );
+      throw new ValidationError('You are already subscribed to a plan for this doctor');
     }
 
     const clientSecret = await this.stripeService.createPaymentIntent(price * 100);

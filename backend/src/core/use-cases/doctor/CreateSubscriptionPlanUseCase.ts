@@ -11,10 +11,7 @@ export class CreateSubscriptionPlanUseCase {
 
   async execute(
     doctorId: string,
-    plan: Omit<
-      SubscriptionPlan,
-      '_id' | 'doctorId' | 'status' | 'createdAt' | 'updatedAt'
-    >
+    plan: Omit<SubscriptionPlan, '_id' | 'doctorId' | 'status' | 'createdAt' | 'updatedAt'>
   ): Promise<SubscriptionPlan> {
     const doctor = await this.doctorRepository.findById(doctorId);
     if (!doctor) {

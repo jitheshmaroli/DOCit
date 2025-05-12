@@ -14,11 +14,7 @@ export class ConfirmSubscriptionUseCase {
     private stripeService: StripeService
   ) {}
 
-  async execute(
-    patientId: string,
-    planId: string,
-    paymentIntentId: string
-  ): Promise<PatientSubscription> {
+  async execute(patientId: string, planId: string, paymentIntentId: string): Promise<PatientSubscription> {
     const plan = await this.subscriptionPlanRepository.findById(planId);
     if (!plan) {
       throw new NotFoundError('Plan not found');
@@ -27,14 +23,9 @@ export class ConfirmSubscriptionUseCase {
       throw new ValidationError('Plan is not approved');
     }
 
-    const existing = await this.patientSubscriptionRepository.findActiveByPatientAndDoctor(
-      patientId,
-      plan.doctorId
-    );
+    const existing = await this.patientSubscriptionRepository.findActiveByPatientAndDoctor(patientId, plan.doctorId);
     if (existing) {
-      throw new ValidationError(
-        'You are already subscribed to a plan for this doctor'
-      );
+      throw new ValidationError('You are already subscribed to a plan for this doctor');
     }
 
     await this.stripeService.confirmPaymentIntent(paymentIntentId);
@@ -57,9 +48,7 @@ export class ConfirmSubscriptionUseCase {
     const savedSubscription = await this.patientSubscriptionRepository.create(subscription);
 
     const activeSubscriptions = await this.patientSubscriptionRepository.findActiveSubscriptions();
-    const hasActiveSubscriptions = activeSubscriptions.some(
-      (sub) => sub.patientId === patientId
-    );
+    const hasActiveSubscriptions = activeSubscriptions.some((sub) => sub.patientId === patientId);
     await this.patientRepository.updateSubscriptionStatus(patientId, hasActiveSubscriptions);
 
     return savedSubscription;

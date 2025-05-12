@@ -29,6 +29,34 @@ api.interceptors.response.use(
     if (status === 401 && originalRequest && !originalRequest._retry) {
       originalRequest._retry = true;
 
+      // Prevent refresh for auth-related endpoints
+      if (
+        originalRequest.url?.includes('/api/auth/refresh-token') ||
+        originalRequest.url?.includes('/api/auth/logout')
+      ) {
+        console.error('401 error on auth endpoint:', message);
+        return Promise.reject({ message, status });
+      }
+
+      // Check for refresh token
+      const refreshToken = document.cookie
+        .split('; ')
+        .find((row) => row.startsWith('refreshToken='))
+        ?.split('=')[1];
+
+      if (!refreshToken) {
+        console.warn('No refresh token, redirecting to login');
+        try {
+          await api.post('/api/auth/logout');
+        } catch (logoutError) {
+          console.error('Logout failed:', logoutError);
+        }
+        // Dispatch logout action to clear Redux state (if needed)
+        window.dispatchEvent(new Event('auth:logout')); // Custom event to trigger Redux cleanup
+        window.location.href = '/login';
+        return Promise.reject({ message: 'No refresh token available', status: 401 });
+      }
+
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedRequestsQueue.push({ resolve, reject });
@@ -40,15 +68,15 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
+        console.log('Attempting token refresh');
         await api.post('/api/auth/refresh-token');
-
+        console.log('Token refreshed successfully');
         const retryResponse = await api(originalRequest);
-
         failedRequestsQueue.forEach(({ resolve }) => resolve(undefined));
         failedRequestsQueue = [];
-
         return retryResponse;
       } catch (refreshError) {
+        console.error('Token refresh failed:', refreshError);
         failedRequestsQueue.forEach(({ reject }) => reject(refreshError));
         failedRequestsQueue = [];
 
@@ -58,6 +86,7 @@ api.interceptors.response.use(
           } catch (logoutError) {
             console.error('Logout failed:', logoutError);
           }
+          window.dispatchEvent(new Event('auth:logout'));
           window.location.href = '/login';
         }
 
@@ -67,6 +96,7 @@ api.interceptors.response.use(
       }
     }
 
+    console.error('API error:', { message, status, url: originalRequest?.url });
     return Promise.reject({ message, status });
   }
 );

@@ -11,27 +11,18 @@ export class TokenService implements ITokenService {
   constructor() {
     this.ACCESS_TOKEN_SECRET = env.ACCESS_TOKEN_SECRET;
     this.REFRESH_TOKEN_SECRET = env.REFRESH_TOKEN_SECRET;
-    if (
-      env.NODE_ENV === 'production' &&
-      (!env.ACCESS_TOKEN_SECRET || !env.REFRESH_TOKEN_SECRET)
-    ) {
+    if (env.NODE_ENV === 'production' && (!env.ACCESS_TOKEN_SECRET || !env.REFRESH_TOKEN_SECRET)) {
       throw new Error('JWT secrets must be provided in production environment');
     }
   }
 
-  generateAccessToken(
-    userId: string,
-    role: 'patient' | 'doctor' | 'admin'
-  ): string {
+  generateAccessToken(userId: string, role: 'patient' | 'doctor' | 'admin'): string {
     return jwt.sign({ userId, role }, this.ACCESS_TOKEN_SECRET, {
       expiresIn: this.ACCESS_TOKEN_EXPIRY,
     } as jwt.SignOptions);
   }
 
-  generateRefreshToken(
-    userId: string,
-    role: 'patient' | 'doctor' | 'admin'
-  ): string {
+  generateRefreshToken(userId: string, role: 'patient' | 'doctor' | 'admin'): string {
     return jwt.sign({ userId, role }, this.REFRESH_TOKEN_SECRET, {
       expiresIn: this.REFRESH_TOKEN_EXPIRY,
     } as jwt.SignOptions);

@@ -1,12 +1,13 @@
-import { Request, Response, NextFunction } from 'express';
+import { Response, NextFunction } from 'express';
 import { ITokenService } from '../../core/interfaces/services/ITokenService';
 import { AuthenticationError } from '../../utils/errors';
 import { Container } from '../../infrastructure/di/container';
+import { CustomRequest, UserRole } from '../../types';
 
 export const authMiddleware = (container: Container) => {
   const tokenService: ITokenService = container.get('ITokenService');
 
-  return (req: Request, res: Response, next: NextFunction): void => {
+  return (req: CustomRequest, res: Response, next: NextFunction): void => {
     const accessToken = req.cookies.accessToken;
     if (!accessToken) {
       return next(new AuthenticationError('No token provided'));
@@ -17,7 +18,11 @@ export const authMiddleware = (container: Container) => {
       if (!decoded.userId || !decoded.role) {
         throw new AuthenticationError('Invalid token payload');
       }
-      (req as any).user = { id: decoded.userId, role: decoded.role };
+      const role = decoded.role as UserRole;
+      if (!Object.values(UserRole).includes(role)) {
+        throw new AuthenticationError('Invalid user role');
+      }
+      req.user = { id: decoded.userId, role };
       next();
     } catch (error) {
       next(error);

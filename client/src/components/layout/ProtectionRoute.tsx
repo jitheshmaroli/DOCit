@@ -2,6 +2,9 @@ import { useSelector } from 'react-redux';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { UserRole } from '../../types/authTypes';
 import { RootState } from '../../redux/store';
+import { useEffect } from 'react';
+import { useAppDispatch } from '../../redux/hooks';
+import { checkAuthThunk } from '../../redux/thunks/authThunks';
 
 interface ProtectedRouteProps {
   roles?: UserRole[];
@@ -15,9 +18,17 @@ const ProtectedRoute = ({
   redirectUnauthorized = '/unauthorized',
 }: ProtectedRouteProps) => {
   const location = useLocation();
-  const { user, loading } = useSelector((state: RootState) => state.auth);
+  const dispatch = useAppDispatch();
+  const { user, loading, initialAuthCheckComplete } = useSelector((state: RootState) => state.auth);
 
-  if (loading) {
+  // Trigger auth check only if not already completed or in progress
+  useEffect(() => {
+    if (!initialAuthCheckComplete && !loading) {
+      dispatch(checkAuthThunk(undefined));
+    }
+  }, [dispatch, initialAuthCheckComplete, loading]);
+
+  if (!initialAuthCheckComplete || loading) {
     return (
       <div className="flex justify-center items-center h-screen">
         Loading...
@@ -26,6 +37,7 @@ const ProtectedRoute = ({
   }
 
   if (!user) {
+    console.log('Redirecting to login: No user found');
     return (
       <Navigate
         to={redirectUnauthenticated}
@@ -36,6 +48,7 @@ const ProtectedRoute = ({
   }
 
   if (roles && !roles.includes(user.role)) {
+    console.log('Redirecting to unauthorized: Role not allowed', user.role);
     return (
       <Navigate to={redirectUnauthorized} state={{ from: location }} replace />
     );

@@ -1,8 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { SignUpPayload, User } from '../../types/authTypes';
 
-
-
 interface AuthState {
   user: User | null;
   loading: boolean;
@@ -33,11 +31,13 @@ const authSlice = createSlice({
     setUser(state, action: PayloadAction<User>) {
       state.user = action.payload;
       state.error = null;
-      state.initialAuthCheckComplete = true; 
+      state.initialAuthCheckComplete = true;
     },
     setError(state, action: PayloadAction<string>) {
-      
-      if (!state.initialAuthCheckComplete && action.payload === 'Invalid email or password') {
+      if (
+        !state.initialAuthCheckComplete &&
+        action.payload === 'Invalid email or password'
+      ) {
         return;
       }
       state.error = action.payload;
@@ -46,6 +46,7 @@ const authSlice = createSlice({
     clearUser(state) {
       state.user = null;
       state.initialAuthCheckComplete = true;
+      state.error = null;
     },
     otpSentSuccess(state) {
       state.otpSent = true;
@@ -87,7 +88,7 @@ export const {
   clearMessage,
   setInitialAuthCheckComplete,
   setSignupData,
-  clearSignupData
+  clearSignupData,
 } = authSlice.actions;
 
 export default authSlice.reducer;

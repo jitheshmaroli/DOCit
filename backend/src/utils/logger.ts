@@ -10,20 +10,14 @@ if (!fs.existsSync(logsDir)) {
 
 // Define custom log format
 const logFormat = printf(({ level, message, timestamp, ...metadata }) => {
-  const metadataString = Object.keys(metadata).length
-    ? JSON.stringify(metadata, null, 2)
-    : '';
+  const metadataString = Object.keys(metadata).length ? JSON.stringify(metadata, null, 2) : '';
   return `${timestamp} [${level}]: ${message} ${metadataString}`;
 });
 
 // Create logger
 const logger = winston.createLogger({
   level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
-  format: combine(
-    errors({ stack: true }),
-    timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-    logFormat
-  ),
+  format: combine(errors({ stack: true }), timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }), logFormat),
   transports: [
     new winston.transports.Console({
       format: combine(

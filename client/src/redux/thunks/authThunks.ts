@@ -24,6 +24,7 @@ import {
   setUser,
 } from '../slices/authSlice';
 import {
+  AuthState,
   ForgotPasswordPayload,
   ResetPasswordPayload,
   SignUpPayload,
@@ -153,22 +154,28 @@ export const loginThunk = createAsyncThunk(
   }
 );
 
-export const logoutThunk = createAsyncThunk('auth/logout', async (_, thunkAPI) => {
-  try {
-    thunkAPI.dispatch(setLoading(true));
-    await logout();
-    thunkAPI.dispatch(clearUser());
-  } catch (error) {
-    return handleError(error, thunkAPI);
-  } finally {
-    thunkAPI.dispatch(clearUser());
-    thunkAPI.dispatch(setLoading(false));
+export const logoutThunk = createAsyncThunk(
+  'auth/logout',
+  async (_, thunkAPI) => {
+    try {
+      thunkAPI.dispatch(setLoading(true));
+      await logout();
+      thunkAPI.dispatch(clearUser());
+    } catch (error) {
+      return handleError(error, thunkAPI);
+    } finally {
+      thunkAPI.dispatch(clearUser());
+      thunkAPI.dispatch(setLoading(false));
+    }
   }
-});
+);
 
 export const checkAuthThunk = createAsyncThunk(
   'auth/checkAuth',
-  async (expectedRole: 'patient' | 'doctor' | 'admin' | undefined, thunkAPI) => {
+  async (
+    expectedRole: 'patient' | 'doctor' | 'admin' | undefined,
+    thunkAPI
+  ) => {
     try {
       thunkAPI.dispatch(setLoading(true));
       const response = await checkAuth();
@@ -184,23 +191,28 @@ export const checkAuthThunk = createAsyncThunk(
       thunkAPI.dispatch(setUser(user));
       return user;
     } catch (error: any) {
+      console.error('Check auth failed:', error);
       if (error.status === 401) {
-        // Try refreshing the token
-        try {
-          await thunkAPI.dispatch(refreshTokenThunk()).unwrap();
-          const response = await checkAuth();
-          const user: User = {
-            _id: response._id,
-            name: response.name,
-            email: response.email,
-            role: response.role || expectedRole,
-            phone: response.phone,
-          };
-          thunkAPI.dispatch(setUser(user));
-          return user;
-        } catch (refreshError) {
-          thunkAPI.dispatch(clearUser());
-          return handleError(refreshError, thunkAPI);
+        // Only attempt refresh if not already in a refresh loop
+        const state = thunkAPI.getState() as { auth: AuthState };
+        if (!state.auth.loading) {
+          try {
+            await thunkAPI.dispatch(refreshTokenThunk()).unwrap();
+            const response = await checkAuth();
+            const user: User = {
+              _id: response._id,
+              name: response.name,
+              email: response.email,
+              role: response.role || expectedRole,
+              phone: response.phone,
+            };
+            thunkAPI.dispatch(setUser(user));
+            return user;
+          } catch (refreshError) {
+            console.error('Refresh token failed in checkAuth:', refreshError);
+            thunkAPI.dispatch(clearUser());
+            return handleError(refreshError, thunkAPI);
+          }
         }
       }
       thunkAPI.dispatch(clearUser());

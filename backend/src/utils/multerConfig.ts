@@ -22,15 +22,9 @@ export const getMulterUploader = (subfolder: string) => {
     },
   });
 
-  const fileFilter = (
-    req: Request,
-    file: Express.Multer.File,
-    cb: multer.FileFilterCallback
-  ) => {
+  const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
     const allowedTypes = /jpeg|jpg|png/;
-    const extname = allowedTypes.test(
-      path.extname(file.originalname).toLowerCase()
-    );
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
     const mimetype = allowedTypes.test(file.mimetype);
     if (extname && mimetype) return cb(null, true);
     cb(new ValidationError('Only images (jpeg, jpg, png) are allowed'));

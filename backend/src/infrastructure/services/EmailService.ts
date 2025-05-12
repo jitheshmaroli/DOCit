@@ -10,9 +10,7 @@ export class EmailService implements IEmailService {
     const emailPass = env.EMAIL_PASS?.trim();
 
     if (!emailUser || !emailPass) {
-      throw new Error(
-        'Missing or invalid EMAIL_USER or EMAIL_PASS environment variables'
-      );
+      throw new Error('Missing or invalid EMAIL_USER or EMAIL_PASS environment variables');
     }
 
     this.transporter = nodemailer.createTransport({
@@ -23,7 +21,7 @@ export class EmailService implements IEmailService {
       },
     });
 
-    this.transporter.verify((error, success) => {
+    this.transporter.verify((error) => {
       if (error) console.error('SMTP Config Error:', error);
       else console.log('SMTP Server is ready to send emails');
     });

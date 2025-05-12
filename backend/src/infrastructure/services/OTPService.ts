@@ -13,20 +13,12 @@ export class OTPService implements IOTPService {
     const otp = generateOTP();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
     await this.otpRepository.createOTP(email, otp, expiresAt);
-    await this.emailService.sendEmail(
-      email,
-      'Your OTP Code',
-      `Your OTP code is ${otp}. Valid for 10 minutes.`
-    );
+    await this.emailService.sendEmail(email, 'Your OTP Code', `Your OTP code is ${otp}. Valid for 10 minutes.`);
   }
 
   async verifyOTP(email: string, otp: string): Promise<boolean> {
     const storedOTP = await this.otpRepository.findOTPByEmail(email);
-    return !!(
-      storedOTP &&
-      storedOTP.otp === otp &&
-      storedOTP.expiresAt > new Date()
-    );
+    return !!(storedOTP && storedOTP.otp === otp && storedOTP.expiresAt > new Date());
   }
 
   async deleteOTP(email: string): Promise<void> {

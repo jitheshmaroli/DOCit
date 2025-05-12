@@ -18,10 +18,7 @@ export class AppointmentRepository implements IAppointmentRepository {
   }
 
   async findById(id: string): Promise<Appointment | null> {
-    return AppointmentModel.findById(id)
-      .populate('patientId', 'name')
-      .populate('doctorId', 'name')
-      .exec();
+    return AppointmentModel.findById(id).populate('patientId', 'name').populate('doctorId', 'name').exec();
   }
 
   async findByDoctorAndSlot(
@@ -43,10 +40,7 @@ export class AppointmentRepository implements IAppointmentRepository {
       .exec();
   }
 
-  async countByPatientAndDoctor(
-    patientId: string,
-    doctorId: string
-  ): Promise<number> {
+  async countByPatientAndDoctor(patientId: string, doctorId: string): Promise<number> {
     return AppointmentModel.countDocuments({
       patientId,
       doctorId,
@@ -54,10 +48,7 @@ export class AppointmentRepository implements IAppointmentRepository {
     }).exec();
   }
 
-  async countByPatientAndDoctorWithFreeBooking(
-    patientId: string,
-    doctorId: string
-  ): Promise<number> {
+  async countByPatientAndDoctorWithFreeBooking(patientId: string, doctorId: string): Promise<number> {
     return AppointmentModel.countDocuments({
       patientId,
       doctorId,
@@ -75,16 +66,10 @@ export class AppointmentRepository implements IAppointmentRepository {
   }
 
   async findByPatient(patientId: string): Promise<Appointment[]> {
-    return AppointmentModel.find({ patientId })
-      .populate('patientId', 'name')
-      .populate('doctorId', 'name')
-      .exec();
+    return AppointmentModel.find({ patientId }).populate('patientId', 'name').populate('doctorId', 'name').exec();
   }
 
-  async findByPatientAndDoctor(
-    patientId: string,
-    doctorId: string
-  ): Promise<Appointment[]> {
+  async findByPatientAndDoctor(patientId: string, doctorId: string): Promise<Appointment[]> {
     return AppointmentModel.find({ patientId, doctorId })
       .populate('patientId', 'name')
       .populate('doctorId', 'name')
@@ -101,9 +86,7 @@ export class AppointmentRepository implements IAppointmentRepository {
       .exec();
   }
 
-  async findAllWithQuery(
-    params: QueryParams
-  ): Promise<{ data: Appointment[]; totalItems: number }> {
+  async findAllWithQuery(params: QueryParams): Promise<{ data: Appointment[]; totalItems: number }> {
     const { search } = params;
     const sort = QueryBuilder.buildSort(params);
     const { page, limit } = QueryBuilder.validateParams(params);
@@ -112,18 +95,12 @@ export class AppointmentRepository implements IAppointmentRepository {
     delete query.$or;
 
     if (search) {
-      const patientIds = await PatientModel.find(
-        { name: { $regex: search, $options: 'i' } },
-        '_id'
-      ).exec();
-      const doctorIds = await DoctorModel.find(
-        { name: { $regex: search, $options: 'i' } },
-        '_id'
-      ).exec();
+      const patientIds = await PatientModel.find({ name: { $regex: search, $options: 'i' } }, '_id').exec();
+      const doctorIds = await DoctorModel.find({ name: { $regex: search, $options: 'i' } }, '_id').exec();
 
       query.$or = [
-        { patientId: { $in: patientIds.map((p: any) => p._id) } },
-        { doctorId: { $in: doctorIds.map((d: any) => d._id) } },
+        { patientId: { $in: patientIds.map((p: { _id: string }) => p._id) } },
+        { doctorId: { $in: doctorIds.map((d: { _id: string }) => d._id) } },
         { name: { $regex: search, $options: 'i' } },
         { email: { $regex: search, $options: 'i' } },
       ];
@@ -142,11 +119,8 @@ export class AppointmentRepository implements IAppointmentRepository {
     return { data: appointments, totalItems };
   }
 
-  async findCompletedAppointmentsBySubscription(
-    subscriptionId: string
-  ): Promise<Appointment[]> {
-    const subscription =
-      await PatientSubscriptionModel.findById(subscriptionId);
+  async findCompletedAppointmentsBySubscription(subscriptionId: string): Promise<Appointment[]> {
+    const subscription = await PatientSubscriptionModel.findById(subscriptionId);
     if (!subscription) return [];
 
     return AppointmentModel.find({

@@ -14,9 +14,7 @@ export class PatientSubscriptionRepository implements IPatientSubscriptionReposi
 
   async findById(id: string): Promise<PatientSubscription | null> {
     if (!mongoose.Types.ObjectId.isValid(id)) return null;
-    const subscription = await PatientSubscriptionModel.findById(id)
-      .populate('planId')
-      .lean();
+    const subscription = await PatientSubscriptionModel.findById(id).populate('planId').lean();
     if (!subscription) return null;
     return this.calculateSubscriptionDetails(subscription);
   }
@@ -31,10 +29,7 @@ export class PatientSubscriptionRepository implements IPatientSubscriptionReposi
     return this.calculateSubscriptionDetails(subscription);
   }
 
-  async findActiveByPatientAndDoctor(
-    patientId: string,
-    doctorId: string
-  ): Promise<PatientSubscription | null> {
+  async findActiveByPatientAndDoctor(patientId: string, doctorId: string): Promise<PatientSubscription | null> {
     const subscription = await PatientSubscriptionModel.findOne({
       patientId,
       planId: {
@@ -51,17 +46,13 @@ export class PatientSubscriptionRepository implements IPatientSubscriptionReposi
   }
 
   async findByPatient(patientId: string): Promise<PatientSubscription[]> {
-    const subscriptions = await PatientSubscriptionModel.find({ patientId })
-      .populate('planId')
-      .lean();
-    return subscriptions.map(sub => this.calculateSubscriptionDetails(sub));
+    const subscriptions = await PatientSubscriptionModel.find({ patientId }).populate('planId').lean();
+    return subscriptions.map((sub) => this.calculateSubscriptionDetails(sub));
   }
 
   async findAll(): Promise<PatientSubscription[]> {
-    const subscriptions = await PatientSubscriptionModel.find()
-      .populate('planId')
-      .lean();
-    return subscriptions.map(sub => this.calculateSubscriptionDetails(sub));
+    const subscriptions = await PatientSubscriptionModel.find().populate('planId').lean();
+    return subscriptions.map((sub) => this.calculateSubscriptionDetails(sub));
   }
 
   async incrementAppointmentCount(subscriptionId: string): Promise<PatientSubscription | null> {
@@ -90,15 +81,8 @@ export class PatientSubscriptionRepository implements IPatientSubscriptionReposi
     return this.calculateSubscriptionDetails(subscription);
   }
 
-  async update(
-    id: string,
-    updates: Partial<PatientSubscription>
-  ): Promise<PatientSubscription | null> {
-    const subscription = await PatientSubscriptionModel.findByIdAndUpdate(
-      id,
-      updates,
-      { new: true }
-    )
+  async update(id: string, updates: Partial<PatientSubscription>): Promise<PatientSubscription | null> {
+    const subscription = await PatientSubscriptionModel.findByIdAndUpdate(id, updates, { new: true })
       .populate('planId')
       .lean();
     if (!subscription) return null;
@@ -108,7 +92,7 @@ export class PatientSubscriptionRepository implements IPatientSubscriptionReposi
   async findExpiringSoon(days: number): Promise<PatientSubscription[]> {
     const date = new Date();
     date.setDate(date.getDate() + days);
-    
+
     const subscriptions = await PatientSubscriptionModel.find({
       endDate: { $lte: date },
       status: 'active',
@@ -116,7 +100,7 @@ export class PatientSubscriptionRepository implements IPatientSubscriptionReposi
       .populate('planId')
       .lean();
 
-    return subscriptions.map(sub => this.calculateSubscriptionDetails(sub));
+    return subscriptions.map((sub) => this.calculateSubscriptionDetails(sub));
   }
 
   async findActiveSubscriptions(): Promise<PatientSubscription[]> {
@@ -127,21 +111,18 @@ export class PatientSubscriptionRepository implements IPatientSubscriptionReposi
       .populate('planId')
       .lean();
 
-    return subscriptions.map(sub => this.calculateSubscriptionDetails(sub));
+    return subscriptions.map((sub) => this.calculateSubscriptionDetails(sub));
   }
 
-  private calculateSubscriptionDetails(subscription: any): PatientSubscription {
+  private calculateSubscriptionDetails(subscription: PatientSubscription): PatientSubscription {
     const endDate = moment(subscription.endDate);
     const now = moment();
     subscription.remainingDays = Math.max(0, endDate.diff(now, 'days'));
-    
+
     if (subscription.planId) {
-      subscription.appointmentsLeft = Math.max(
-        0,
-        subscription.appointmentsLeft
-      );
+      subscription.appointmentsLeft = Math.max(0, subscription.appointmentsLeft);
     }
 
-    return subscription as PatientSubscription;
+    return subscription;
   }
 }

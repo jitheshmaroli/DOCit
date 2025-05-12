@@ -5,9 +5,7 @@ import { IPatientRepository } from '../../interfaces/repositories/IPatientReposi
 export class ListPatientsUseCase {
   constructor(private patientRepository: IPatientRepository) {}
 
-  async executeWithQuery(
-    params: QueryParams
-  ): Promise<{ data: Patient[]; totalItems: number }> {
+  async executeWithQuery(params: QueryParams): Promise<{ data: Patient[]; totalItems: number }> {
     return this.patientRepository.findAllWithQuery(params);
   }
 }

@@ -9,9 +9,7 @@ export class GoogleSignInDoctorUseCase {
     private tokenService: ITokenService
   ) {}
 
-  async execute(
-    token: string
-  ): Promise<{ accessToken: string; refreshToken: string }> {
+  async execute(token: string): Promise<{ accessToken: string; refreshToken: string }> {
     const { googleId, email, name } = await verifyGoogleToken(token);
 
     let doctor = await this.doctorRepository.findByEmail(email);
@@ -30,19 +28,10 @@ export class GoogleSignInDoctorUseCase {
       doctor = await this.doctorRepository.update(doctor._id!, { googleId });
     }
 
-    if (!doctor)
-      throw new NotFoundError(
-        'Unexpected error: Doctor is null after creation/update'
-      );
+    if (!doctor) throw new NotFoundError('Unexpected error: Doctor is null after creation/update');
 
-    const accessToken = this.tokenService.generateAccessToken(
-      doctor._id!,
-      'doctor'
-    );
-    const refreshToken = this.tokenService.generateRefreshToken(
-      doctor._id!,
-      'doctor'
-    );
+    const accessToken = this.tokenService.generateAccessToken(doctor._id!, 'doctor');
+    const refreshToken = this.tokenService.generateRefreshToken(doctor._id!, 'doctor');
     await this.doctorRepository.update(doctor._id!, { refreshToken });
 
     return { accessToken, refreshToken };

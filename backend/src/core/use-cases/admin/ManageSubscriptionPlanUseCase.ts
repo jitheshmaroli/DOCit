@@ -10,9 +10,7 @@ export class ManageSubscriptionPlanUseCase {
     private doctorRepository: IDoctorRepository
   ) {}
 
-  async getAllPlansWithQuery(
-    params: QueryParams
-  ): Promise<{ data: SubscriptionPlan[]; totalItems: number }> {
+  async getAllPlansWithQuery(params: QueryParams): Promise<{ data: SubscriptionPlan[]; totalItems: number }> {
     return this.subscriptionPlanRepository.findAllWithQuery(params);
   }
 

@@ -1,18 +1,21 @@
+import { FilterQuery } from 'mongoose';
 import { ValidationError } from './errors';
-import mongoose from 'mongoose';
-import logger from './logger';
 
+// Define the context type for query building
+type QueryContext = 'patient' | 'doctor' | 'appointment';
+
+// Define the QueryParams interface to match authTypes.ts
 export interface QueryParams {
-  page?: number | string;
-  limit?: number | string;
+  page?: number;
+  limit?: number;
   search?: string;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
   status?: string;
   speciality?: string;
-  isBlocked?: boolean | string;
-  isVerified?: boolean | string;
-  isSubscribed?: boolean | string;
+  isBlocked?: boolean;
+  isVerified?: boolean;
+  isSubscribed?: boolean;
   dateFrom?: string;
   dateTo?: string;
   doctorId?: string;
@@ -21,8 +24,33 @@ export interface QueryParams {
   gender?: string;
 }
 
+// Define a generic model type for Doctor, Patient, or Appointment
+interface Model {
+  name?: string;
+  email?: string;
+  status?: string;
+  speciality?: string;
+  specialityObjects?: Array<{ name: string }>;
+  isBlocked?: boolean;
+  isVerified?: boolean;
+  isSubscribed?: boolean;
+  date?: Date;
+  doctorId?: string;
+  patientId?: string;
+  age?: number;
+  gender?: string;
+  createdAt?: Date;
+  'patientId.name'?: string;
+  'doctorId.name'?: string;
+}
+
+// Define a type for MongoDB sort objects
+interface MongoSort {
+  [key: string]: 1 | -1;
+}
+
 export class QueryBuilder {
-  static buildQuery(params: QueryParams, context: 'patient' | 'doctor' | 'appointment' = 'patient') {
+  static buildQuery(params: QueryParams, context: QueryContext = 'patient'): FilterQuery<Model> {
     const {
       search,
       status,
@@ -37,7 +65,7 @@ export class QueryBuilder {
       ageRange,
       gender,
     } = params;
-    const query: any = {};
+    const query: FilterQuery<Model> = {};
 
     if (search) {
       if (context === 'appointment') {
@@ -46,10 +74,7 @@ export class QueryBuilder {
           { 'doctorId.name': { $regex: search, $options: 'i' } },
         ];
       } else {
-        query.$or = [
-          { name: { $regex: search, $options: 'i' } },
-          { email: { $regex: search, $options: 'i' } },
-        ];
+        query.$or = [{ name: { $regex: search, $options: 'i' } }, { email: { $regex: search, $options: 'i' } }];
       }
     }
 
@@ -59,22 +84,22 @@ export class QueryBuilder {
 
     if (speciality && context === 'doctor') {
       query.specialityObjects = {
-        $elemMatch: { name: speciality }
+        $elemMatch: { name: speciality },
       };
     } else if (speciality && context !== 'appointment') {
       query.speciality = speciality;
     }
 
     if (isBlocked !== undefined) {
-      query.isBlocked = isBlocked === 'true' || isBlocked === true;
+      query.isBlocked = String(isBlocked) === 'true';
     }
 
     if (isVerified !== undefined) {
-      query.isVerified = isVerified === 'true' || isVerified === true;
+      query.isVerified = String(isVerified) === 'true';
     }
 
     if (isSubscribed !== undefined) {
-      query.isSubscribed = isSubscribed === 'true' || isSubscribed === true;
+      query.isSubscribed = String(isSubscribed) === 'true';
     }
 
     if (dateFrom || dateTo) {
@@ -95,14 +120,14 @@ export class QueryBuilder {
       query.age = {};
       switch (ageRange) {
         case '0-30':
-          query.age.$lte = '30';
+          query.age.$lte = 30;
           break;
         case '31-50':
-          query.age.$gt = '30';
-          query.age.$lte = '50';
+          query.age.$gt = 30;
+          query.age.$lte = 50;
           break;
         case '51+':
-          query.age.$gt = '50';
+          query.age.$gt = 50;
           break;
       }
     }
@@ -114,9 +139,9 @@ export class QueryBuilder {
     return query;
   }
 
-  static buildSort(params: QueryParams) {
+  static buildSort(params: QueryParams): MongoSort {
     const { sortBy, sortOrder } = params;
-    const sort: any = {};
+    const sort: MongoSort = {};
 
     if (sortBy) {
       sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
@@ -127,14 +152,13 @@ export class QueryBuilder {
     return sort;
   }
 
-  static validateParams(params: QueryParams) {
+  static validateParams(params: QueryParams): { page: number; limit: number } {
     const page = parseInt(String(params.page)) || 1;
     const limit = parseInt(String(params.limit)) || 10;
     const { sortOrder } = params;
 
     if (page < 1) throw new ValidationError('Page must be at least 1');
-    if (limit < 1 || limit > 100)
-      throw new ValidationError('Limit must be between 1 and 100');
+    if (limit < 1 || limit > 100) throw new ValidationError('Limit must be between 1 and 100');
     if (sortOrder && !['asc', 'desc'].includes(sortOrder)) {
       throw new ValidationError('Sort order must be "asc" or "desc"');
     }

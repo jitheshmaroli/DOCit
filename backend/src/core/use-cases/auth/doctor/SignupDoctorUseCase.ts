@@ -10,9 +10,7 @@ export class SignupDoctorUseCase {
   ) {}
 
   async execute(doctor: Doctor): Promise<Doctor> {
-    const existingDoctor = await this.doctorRepository.findByEmail(
-      doctor.email
-    );
+    const existingDoctor = await this.doctorRepository.findByEmail(doctor.email);
     if (existingDoctor) {
       if (existingDoctor.googleId) {
         await this.otpService.sendOTP(doctor.email);

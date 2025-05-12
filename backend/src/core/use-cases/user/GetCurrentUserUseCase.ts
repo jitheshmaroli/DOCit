@@ -13,13 +13,10 @@ export class GetCurrentUserUseCase {
     private adminRepository: IAdminRepository
   ) {}
 
-  async execute(
-    id: string,
-    role: 'patient' | 'doctor' | 'admin'
-  ): Promise<Patient | Doctor | Admin | null> {
+  async execute(id: string, role: 'patient' | 'doctor' | 'admin'): Promise<Patient | Doctor | Admin | null> {
     switch (role) {
       case 'patient':
-        return this.patientRepository.getPateintDetails(id);
+        return this.patientRepository.findById(id);
       case 'doctor':
         return this.doctorRepository.getDoctorDetails(id);
       case 'admin':
