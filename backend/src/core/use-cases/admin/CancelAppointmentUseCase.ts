@@ -1,5 +1,5 @@
 import { DateUtils } from '../../../utils/DateUtils';
-import { NotFoundError } from '../../../utils/errors';
+import { NotFoundError, ValidationError } from '../../../utils/errors';
 import logger from '../../../utils/logger';
 import { IAppointmentRepository } from '../../interfaces/repositories/IAppointmentRepository';
 import { IAvailabilityRepository } from '../../interfaces/repositories/IAvailabilityRepository';
@@ -36,8 +36,7 @@ export class CancelAppointmentUseCase {
         : appointment.doctorId?.toString();
 
     if (!doctorId) {
-      logger.error(`Invalid doctorId for appointment ${appointmentId}`);
-      throw new Error('Invalid doctor ID');
+      throw new ValidationError('Invalid doctor ID');
     }
 
     await this.appointmentRepository.deleteById(appointmentId);

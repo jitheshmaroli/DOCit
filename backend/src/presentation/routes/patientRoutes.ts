@@ -40,6 +40,7 @@ router.get('/specialities', patientAuth, patientController.getAllSpecialities.bi
 // Appointment routes
 router.post('/appointments', patientAuth, patientController.bookAppointment.bind(patientController));
 router.get('/appointments', patientAuth, patientController.getAppointments.bind(patientController));
+router.get('/appointments/:appointmentId', patientAuth, patientController.getAppointment.bind(patientController));
 router.delete('/appointments/:appointmentId', patientAuth, patientController.cancelAppointment.bind(patientController));
 
 // Subscription routes

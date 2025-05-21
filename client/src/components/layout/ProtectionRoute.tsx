@@ -21,12 +21,11 @@ const ProtectedRoute = ({
   const dispatch = useAppDispatch();
   const { user, loading, initialAuthCheckComplete } = useSelector((state: RootState) => state.auth);
 
-  // Trigger auth check only if not already completed or in progress
   useEffect(() => {
-    if (!initialAuthCheckComplete && !loading) {
-      dispatch(checkAuthThunk(undefined));
+    if (!initialAuthCheckComplete) {
+      dispatch(checkAuthThunk(roles ? roles[0] : undefined));
     }
-  }, [dispatch, initialAuthCheckComplete, loading]);
+  }, [dispatch, initialAuthCheckComplete, roles]);
 
   if (!initialAuthCheckComplete || loading) {
     return (

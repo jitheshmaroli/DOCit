@@ -1,6 +1,7 @@
-import express, { NextFunction, Request, Response } from 'express';
+import express, { NextFunction, Response } from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import { Server as HttpServer } from 'http';
 import { connectMongoDB } from './infrastructure/database/mongoConnection';
 import { errorMiddleware } from './presentation/middlewares/errorMiddleware';
 import authRoutes from './presentation/routes/authRoutes';
@@ -9,13 +10,20 @@ import doctorRoutes from './presentation/routes/doctorRoutes';
 import patientRoutes from './presentation/routes/patientRoutes';
 import otpRoutes from './presentation/routes/otpRoutes';
 import userRoutes from './presentation/routes/userRoutes';
+import chatRoutes from './presentation/routes/chatRoutes';
+import notificationRoutes from './presentation/routes/notificationRoutes';
+import videoCallRoutes from './presentation/routes/videoCallRoutes';
 import { env } from './config/env';
 import Stripe from 'stripe';
 import { Container } from './infrastructure/di/container';
 import logger from './utils/logger';
 import { PatientSubscriptionRepository } from './infrastructure/repositories/PatientSubscriptionRepositroy';
+import { SocketService } from './infrastructure/services/SocketService';
+import { CustomRequest } from './types';
+import { setupCronJobs } from './utils/cronJobs';
 
 const app = express();
+const server = new HttpServer(app);
 const PORT = env.PORT;
 const MONGO_URI = env.MONGO_URI;
 const CLIENT_URL = env.CLIENT_URL;
@@ -27,13 +35,17 @@ const stripe = new Stripe(STRIPE_SECRET_KEY, {
 });
 const container = Container.getInstance();
 const patientSubscriptionRepository = container.get<PatientSubscriptionRepository>('IPatientSubscriptionRepository');
+const socketService = container.get<SocketService>('SocketService');
+
+// Initialize Socket.IO
+socketService.initialize(server);
 
 // Middleware setup
 app.use(cors({ origin: CLIENT_URL, credentials: true }));
 app.use(express.json());
 app.use(express.raw({ type: 'application/json' })); // For Stripe webhook
 app.use(cookieParser());
-app.use((req: Request, res: Response, next: NextFunction) => {
+app.use((req: CustomRequest, res: Response, next: NextFunction) => {
   logger.info(`${req.method} ${req.url}`, { ip: req.ip });
   next();
 });
@@ -45,9 +57,12 @@ app.use('/api/doctors', doctorRoutes);
 app.use('/api/patients', patientRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/otp', otpRoutes);
+app.use('/api/chat', chatRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/video-calls', videoCallRoutes);
 
 // Stripe webhook
-app.post('/api/webhook/stripe', async (req: Request, res: Response) => {
+app.post('/api/webhook/stripe', async (req: CustomRequest, res: Response) => {
   const sig = req.headers['stripe-signature'] as string;
 
   try {
@@ -73,7 +88,7 @@ app.post('/api/webhook/stripe', async (req: Request, res: Response) => {
 });
 
 // Root route
-app.get('/', (req: Request, res: Response) => {
+app.get('/', (req: CustomRequest, res: Response) => {
   logger.info('Root endpoint accessed');
   res.send('Doctor Appointment Booking App');
 });
@@ -85,7 +100,8 @@ app.use(errorMiddleware);
 const startServer = async () => {
   try {
     await connectMongoDB(MONGO_URI);
-    app.listen(PORT, () => {
+    setupCronJobs(container);
+    server.listen(PORT, () => {
       logger.info(`Server running on http://localhost:${PORT}`);
     });
   } catch (error) {

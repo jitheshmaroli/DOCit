@@ -255,6 +255,29 @@ export class PatientController {
     }
   }
 
+  async getAppointment(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const patientId = req.user?.id;
+      if (!patientId) {
+        throw new ValidationError('User ID not found in request');
+      }
+      const { appointmentId } = req.params;
+
+      if (!appointmentId) {
+        throw new ValidationError('Appointment ID not found in request');
+      }
+
+      const appointment = await this.appointmentRepository.findById(appointmentId);
+
+      if (!appointment) {
+        throw new ValidationError('No appointment found');
+      }
+      res.status(200).json(appointment);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getAllSpecialities(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const specialities = await this.specialityRepository.findAll();

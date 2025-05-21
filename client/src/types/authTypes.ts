@@ -93,8 +93,8 @@ export type UserRole = 'patient' | 'doctor' | 'admin';
 //   doctorId?: string;
 //   name?: string;
 //   description: string;
-//   price: number; 
-//   validityDays: number; 
+//   price: number;
+//   validityDays: number;
 //   appointmentCount: number;
 //   status: 'pending' | 'approved' | 'rejected';
 //   doctorName?: string;
@@ -215,8 +215,6 @@ export interface User {
 //   updatedAt?: string;
 // }
 
-
-
 // export interface Doctor {
 //   _id: string;
 //   email: string;
@@ -316,7 +314,6 @@ export interface Patient {
   updatedAt: string;
 }
 
-
 export interface Appointment {
   _id: string;
   patientId: Patient;
@@ -336,14 +333,14 @@ export interface QueryParams {
   limit?: number;
   search?: string;
   sortBy?: string;
-  sortOrder?: 'asc' | 'desc'; 
-  status?: string; 
+  sortOrder?: 'asc' | 'desc';
+  status?: string;
   speciality?: string;
   isBlocked?: boolean;
-  isVerified?: boolean; 
+  isVerified?: boolean;
   isSubscribed?: boolean;
   dateFrom?: string;
-  dateTo?: string; 
+  dateTo?: string;
 }
 
 export interface PaginatedResponse<T> {
@@ -366,4 +363,23 @@ export interface PaginationParams {
   dateTo?: string;
   status?: string;
   specialty?: string;
+}
+
+export enum NotificationType {
+  APPOINTMENT_BOOKED = 'appointment_booked',
+  APPOINTMENT_CANCELLED = 'appointment_cancelled',
+  APPOINTMENT_REMINDER = 'appointment_reminder',
+  PLAN_APPROVED = 'plan_approved',
+  PLAN_REJECTED = 'plan_rejected',
+  PLAN_SUBSCRIBED = 'plan_subscribed',
+  DOCTOR_VERIFIED = 'doctor_verified',
+}
+
+export interface AppNotification {
+  _id: string;
+  userId: string;
+  type: NotificationType;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
 }

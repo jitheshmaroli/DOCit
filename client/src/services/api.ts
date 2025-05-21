@@ -19,7 +19,9 @@ const api: AxiosInstance = axios.create({
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
+    const originalRequest = error.config as AxiosRequestConfig & {
+      _retry?: boolean;
+    };
     const status = error.response?.status;
     const message =
       (error.response?.data as { message?: string })?.message ||
@@ -38,25 +40,6 @@ api.interceptors.response.use(
         return Promise.reject({ message, status });
       }
 
-      // Check for refresh token
-      const refreshToken = document.cookie
-        .split('; ')
-        .find((row) => row.startsWith('refreshToken='))
-        ?.split('=')[1];
-
-      if (!refreshToken) {
-        console.warn('No refresh token, redirecting to login');
-        try {
-          await api.post('/api/auth/logout');
-        } catch (logoutError) {
-          console.error('Logout failed:', logoutError);
-        }
-        // Dispatch logout action to clear Redux state (if needed)
-        window.dispatchEvent(new Event('auth:logout')); // Custom event to trigger Redux cleanup
-        window.location.href = '/login';
-        return Promise.reject({ message: 'No refresh token available', status: 401 });
-      }
-
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedRequestsQueue.push({ resolve, reject });
@@ -71,23 +54,25 @@ api.interceptors.response.use(
         console.log('Attempting token refresh');
         await api.post('/api/auth/refresh-token');
         console.log('Token refreshed successfully');
-        const retryResponse = await api(originalRequest);
+        // Process queued requests
         failedRequestsQueue.forEach(({ resolve }) => resolve(undefined));
         failedRequestsQueue = [];
-        return retryResponse;
+        return api(originalRequest);
       } catch (refreshError) {
         console.error('Token refresh failed:', refreshError);
         failedRequestsQueue.forEach(({ reject }) => reject(refreshError));
         failedRequestsQueue = [];
 
-        if (axios.isAxiosError(refreshError) && refreshError.response?.status === 401) {
+        if (
+          axios.isAxiosError(refreshError) &&
+          refreshError.response?.status === 401
+        ) {
           try {
             await api.post('/api/auth/logout');
           } catch (logoutError) {
             console.error('Logout failed:', logoutError);
           }
           window.dispatchEvent(new Event('auth:logout'));
-          window.location.href = '/login';
         }
 
         return Promise.reject(refreshError);

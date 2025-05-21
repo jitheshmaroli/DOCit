@@ -13,6 +13,7 @@ export const roleMiddleware = (roles: Array<'patient' | 'doctor' | 'admin'>) => 
       res.status(403).json({ message: 'Forbidden: Insufficient role permissions' });
       return;
     }
+    console.log('role:', userRole);
     next();
   };
 };

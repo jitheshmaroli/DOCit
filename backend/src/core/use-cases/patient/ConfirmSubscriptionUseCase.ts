@@ -5,13 +5,16 @@ import { IPatientRepository } from '../../interfaces/repositories/IPatientReposi
 import { NotFoundError, ValidationError } from '../../../utils/errors';
 import moment from 'moment';
 import { StripeService } from '../../../infrastructure/services/StripeService';
+import { Notification, NotificationType } from '../../entities/Notification';
+import { INotificationService } from '../../interfaces/services/INotificationService';
 
 export class ConfirmSubscriptionUseCase {
   constructor(
     private subscriptionPlanRepository: ISubscriptionPlanRepository,
     private patientSubscriptionRepository: IPatientSubscriptionRepository,
     private patientRepository: IPatientRepository,
-    private stripeService: StripeService
+    private stripeService: StripeService,
+    private notificationService: INotificationService
   ) {}
 
   async execute(patientId: string, planId: string, paymentIntentId: string): Promise<PatientSubscription> {
@@ -46,6 +49,20 @@ export class ConfirmSubscriptionUseCase {
     };
 
     const savedSubscription = await this.patientSubscriptionRepository.create(subscription);
+
+    const patient = await this.patientRepository.findById(patientId);
+    if (!patient) throw new NotFoundError('Patient not found');
+
+    const doctorNotification: Notification = {
+      userId: plan.doctorId,
+      type: NotificationType.APPOINTMENT_CANCELLED,
+      message: `Your plan: ${plan.name} was subscribed by ${patient.name}.`,
+      isRead: false,
+      createdAt: new Date(),
+    };
+
+    // Send notifications
+    await this.notificationService.sendNotification(doctorNotification);
 
     const activeSubscriptions = await this.patientSubscriptionRepository.findActiveSubscriptions();
     const hasActiveSubscriptions = activeSubscriptions.some((sub) => sub.patientId === patientId);

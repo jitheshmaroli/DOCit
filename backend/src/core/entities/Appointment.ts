@@ -12,4 +12,5 @@ export interface Appointment {
   doctorName?: string;
   createdAt?: Date;
   updatedAt?: Date;
+  reminderSent?: boolean;
 }

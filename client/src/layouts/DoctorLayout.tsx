@@ -2,11 +2,14 @@ import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from '../pages/doctor/SideBar';
 import Logo from '../components/common/Logo';
+import NotificationDropdown from '../components/common/NotificationDropdown';
+import { useAppSelector } from '../redux/hooks';
 
 const DoctorLayout: React.FC = () => {
   const activePage = location.pathname.split('/')[2];
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const currentYear = new Date().getFullYear();
+  const { user } = useAppSelector((state) => state.auth);
 
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900">
@@ -32,14 +35,9 @@ const DoctorLayout: React.FC = () => {
           </button>
           <Logo />
         </div>
-        {/* <div className="flex items-center gap-4">
-          <div className="relative">
-            <span className="font-poppins text-[16px] text-gray-200">Notifications</span>
-            <div className="absolute top-0 right-0 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
-              <span className="text-[10px] text-white">3</span>
-            </div>
-          </div>
-        </div> */}
+        <div className="flex items-center gap-4">
+          <NotificationDropdown userId={user?._id} />
+        </div>
       </header>
       <div className="flex flex-1 overflow-hidden">
         <div

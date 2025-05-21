@@ -8,6 +8,12 @@ dayjs.extend(timezone);
 dayjs.extend(isSameOrAfter);
 
 export class DateUtils {
+  // Combine date and time into a UTC Date object
+  static combineDateAndTime(dateStr: string, timeStr: string): Date {
+    const date = dayjs.utc(dateStr).format('YYYY-MM-DD');
+    return dayjs.utc(`${date} ${timeStr}`, 'YYYY-MM-DD HH:mm').toDate();
+  }
+
   // Parse a date string to UTC Date object
   static parseToUTC(dateStr: string | Date): Date {
     return dayjs.utc(dateStr).toDate();
@@ -25,11 +31,14 @@ export class DateUtils {
 
   static formatToLocal(dateStr: string): string {
     const date = new Date(dateStr);
-    return date.toLocaleDateString('en-IN', {
+    console.log('date:', date)
+    const newdate = date.toLocaleDateString('en-IN', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
     });
+    console.log('newdate:',newdate)
+    return newdate;
   }
 
   static formatTimeToLocal(timeStr: string, date?: string): string {
@@ -55,24 +64,40 @@ export class DateUtils {
 
   // Validate if date is today or in the future
   static isFutureDate(date: Date): boolean {
-    return dayjs.utc(date).isSame(dayjs.utc(), 'day') || dayjs.utc(date).isAfter(dayjs.utc());
+    return (
+      dayjs.utc(date).isSame(dayjs.utc(), 'day') ||
+      dayjs.utc(date).isAfter(dayjs.utc())
+    );
   }
 
   // Check for overlapping slots
-  static checkOverlappingSlots(slots: { startTime: string; endTime: string }[], date: Date): boolean {
+  static checkOverlappingSlots(
+    slots: { startTime: string; endTime: string }[],
+    date: Date
+  ): boolean {
     for (let i = 0; i < slots.length; i++) {
       for (let j = i + 1; j < slots.length; j++) {
         const slot1 = slots[i];
         const slot2 = slots[j];
-        const start1 = dayjs.utc(`${dayjs.utc(date).format('YYYY-MM-DD')} ${slot1.startTime}`);
-        const end1 = dayjs.utc(`${dayjs.utc(date).format('YYYY-MM-DD')} ${slot1.endTime}`);
-        const start2 = dayjs.utc(`${dayjs.utc(date).format('YYYY-MM-DD')} ${slot2.startTime}`);
-        const end2 = dayjs.utc(`${dayjs.utc(date).format('YYYY-MM-DD')} ${slot2.endTime}`);
+        const start1 = dayjs.utc(
+          `${dayjs.utc(date).format('YYYY-MM-DD')} ${slot1.startTime}`
+        );
+        const end1 = dayjs.utc(
+          `${dayjs.utc(date).format('YYYY-MM-DD')} ${slot1.endTime}`
+        );
+        const start2 = dayjs.utc(
+          `${dayjs.utc(date).format('YYYY-MM-DD')} ${slot2.startTime}`
+        );
+        const end2 = dayjs.utc(
+          `${dayjs.utc(date).format('YYYY-MM-DD')} ${slot2.endTime}`
+        );
 
         if (
           (start1.isSameOrAfter(start2) && start1.isBefore(end2)) ||
-          (end1.isAfter(start2) && (end1.isSame(end2) || end1.isBefore(end2))) ||
-          ((start1.isSame(start2) || start1.isBefore(start2)) && end1.isSameOrAfter(end2))
+          (end1.isAfter(start2) &&
+            (end1.isSame(end2) || end1.isBefore(end2))) ||
+          ((start1.isSame(start2) || start1.isBefore(start2)) &&
+            end1.isSameOrAfter(end2))
         ) {
           return true;
         }

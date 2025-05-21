@@ -1,5 +1,6 @@
 import moment from 'moment';
 import { ValidationError } from './errors';
+import logger from './logger';
 
 export class DateUtils {
   // Parse a date string to UTC Date object
@@ -15,6 +16,13 @@ export class DateUtils {
     return moment.utc(date).toISOString();
   }
 
+  static combineDateAndTime(date: Date, time: string): Date {
+    const [hours, minutes] = time.split(':').map(Number);
+    const combined = new Date(date);
+    combined.setHours(hours, minutes, 0, 0);
+    return combined;
+  }
+
   // Get start of day in UTC
   static startOfDayUTC(date: Date): Date {
     return moment.utc(date).startOf('day').toDate();
@@ -28,6 +36,10 @@ export class DateUtils {
   // Validate if date is today or in the future
   static isFutureDate(date: Date): boolean {
     return moment.utc(date).isSame(moment.utc(), 'day') || moment.utc(date).isAfter(moment.utc());
+  }
+
+  static formatToTime(date: Date | string): string {
+    return moment.utc(date).format('h:mm A');
   }
 
   // Validate time slot (startTime and endTime in HH:mm format)
@@ -88,7 +100,7 @@ export class DateUtils {
         }
       }
     }
-    console.log(
+    logger.info(
       'Checked slots for overlaps:',
       slotMoments.map((slot) => ({
         start: slot.start.format('HH:mm'),

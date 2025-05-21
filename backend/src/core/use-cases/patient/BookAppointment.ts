@@ -7,14 +7,19 @@ import { CheckFreeBookingUseCase } from '../patient/CheckFreeBookingUseCase';
 import { ValidationError, NotFoundError } from '../../../utils/errors';
 import { DateUtils } from '../../../utils/DateUtils';
 import { MongoServerError } from 'mongodb';
+import { Notification, NotificationType } from '../../entities/Notification';
+import { INotificationService } from '../../interfaces/services/INotificationService';
+import { IPatientRepository } from '../../interfaces/repositories/IPatientRepository';
 
 export class BookAppointmentUseCase {
   constructor(
     private appointmentRepository: IAppointmentRepository,
     private availabilityRepository: IAvailabilityRepository,
     private doctorRepository: IDoctorRepository,
+    private patientRepository: IPatientRepository,
     private patientSubscriptionRepository: IPatientSubscriptionRepository,
-    private checkFreeBookingUseCase: CheckFreeBookingUseCase
+    private checkFreeBookingUseCase: CheckFreeBookingUseCase,
+    private notificationService: INotificationService
   ) {}
 
   async execute(
@@ -27,6 +32,9 @@ export class BookAppointmentUseCase {
   ): Promise<Appointment> {
     const doctor = await this.doctorRepository.findById(doctorId);
     if (!doctor) throw new NotFoundError('Doctor not found');
+
+    const patient = await this.patientRepository.findById(patientId);
+    if (!patient) throw new NotFoundError('Patient not found');
 
     const startOfDay = DateUtils.startOfDayUTC(date);
     const availability = await this.availabilityRepository.findByDoctorAndDate(doctorId, startOfDay);
@@ -95,6 +103,29 @@ export class BookAppointmentUseCase {
     }
 
     await this.availabilityRepository.updateSlotBookingStatus(doctorId, startOfDay, startTime, true);
+
+    // Create notifications for patient and doctor
+    const patientNotification: Notification = {
+      userId: patientId,
+      type: NotificationType.APPOINTMENT_BOOKED,
+      message: `Your appointment with Dr. ${doctor.name} has been booked for ${appointment.startTime} on ${appointment.date.toLocaleDateString()}.`,
+      isRead: false,
+      createdAt: new Date(),
+    };
+
+    const doctorNotification: Notification = {
+      userId: doctorId,
+      type: NotificationType.APPOINTMENT_BOOKED,
+      message: `A new appointment with ${patient.name} has been booked for ${appointment.startTime} on ${appointment.date.toLocaleDateString()}.`,
+      isRead: false,
+      createdAt: new Date(),
+    };
+
+    // Send notifications
+    await Promise.all([
+      this.notificationService.sendNotification(patientNotification),
+      this.notificationService.sendNotification(doctorNotification),
+    ]);
 
     return savedAppointment;
   }

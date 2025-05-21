@@ -23,6 +23,8 @@ import AdminPlanManagement from './pages/admin/AdminPlanManagement';
 import AdminSpecialityManagement from './pages/admin/AdminSpecialityManagement';
 import AdminManagePatients from './pages/admin/AdminManagePatients';
 import AdminManageDoctors from './pages/admin/AdminManageDoctors';
+import AppointmentDetails from './pages/patient/AppointmentDetails';
+import Messages from './pages/doctor/Messages';
 
 const AppRoutes = () => {
   return (
@@ -40,6 +42,7 @@ const AppRoutes = () => {
           <Route path="find-doctor" element={<FindDoctor />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="doctors/:doctorId" element={<DoctorDetails />} />
+          <Route path="appointment/:appointmentId" element={<AppointmentDetails />} />
         </Route>
       </Route>
 
@@ -50,6 +53,7 @@ const AppRoutes = () => {
           <Route path="profile" element={<DoctorProfilePage />} />
           <Route path="availability" element={<DoctorAvailability />} />
           <Route path="appointments" element={<DoctorAppointments />} />
+          <Route path="messages" element={<Messages />} />
           <Route path="plans" element={<DoctorPlans />} />
         </Route>
       </Route>

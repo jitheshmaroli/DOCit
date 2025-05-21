@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -289,7 +289,6 @@ const DoctorDetails: React.FC = () => {
       toast.error('User not authenticated');
       return;
     }
-    // Add confirmation prompt
     const confirmCancel = window.confirm(
       'Are you sure you want to cancel this appointment?'
     );
@@ -526,25 +525,35 @@ const DoctorDetails: React.FC = () => {
               {upcomingAppointments.map((appt) => (
                 <div
                   key={appt._id}
-                  className="bg-white/20 p-4 rounded-lg border border-white/20"
+                  className="bg-white/20 p-4 rounded-lg border border-white/20 flex justify-between items-center"
                 >
-                  <p className="text-sm text-gray-200">
-                    Date: {DateUtils.formatToLocal(appt.date)}
-                  </p>
-                  <p className="text-sm text-gray-200">
-                    Time: {DateUtils.formatTimeToLocal(appt.startTime)} -{' '}
-                    {DateUtils.formatTimeToLocal(appt.endTime)}
-                  </p>
-                  <p className="text-sm text-gray-200">Status: {appt.status}</p>
-                  <p className="text-sm text-gray-200">
-                    Type: {appt.isFreeBooking ? 'Free' : 'Subscribed'}
-                  </p>
-                  <button
-                    onClick={() => handleCancelAppointment(appt._id)}
-                    className="mt-2 bg-gradient-to-r from-red-600 to-red-700 text-white px-3 py-1 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300"
-                  >
-                    Cancel
-                  </button>
+                  <div>
+                    <p className="text-sm text-gray-200">
+                      Date: {DateUtils.formatToLocal(appt.date)}
+                    </p>
+                    <p className="text-sm text-gray-200">
+                      Time: {DateUtils.formatTimeToLocal(appt.startTime)} -{' '}
+                      {DateUtils.formatTimeToLocal(appt.endTime)}
+                    </p>
+                    <p className="text-sm text-gray-200">Status: {appt.status}</p>
+                    <p className="text-sm text-gray-200">
+                      Type: {appt.isFreeBooking ? 'Free' : 'Subscribed'}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => navigate(`/patient/appointment/${appt._id}`)}
+                      className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-3 py-1 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
+                    >
+                      View Details
+                    </button>
+                    <button
+                      onClick={() => handleCancelAppointment(appt._id)}
+                      className="bg-gradient-to-r from-red-600 to-red-700 text-white px-3 py-1 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

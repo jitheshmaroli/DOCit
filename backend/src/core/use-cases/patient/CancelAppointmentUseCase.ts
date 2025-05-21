@@ -1,15 +1,19 @@
 import { DateUtils } from '../../../utils/DateUtils';
 import { NotFoundError, ValidationError } from '../../../utils/errors';
 import logger from '../../../utils/logger';
+import { Appointment } from '../../entities/Appointment';
+import { Notification, NotificationType } from '../../entities/Notification';
 import { IAppointmentRepository } from '../../interfaces/repositories/IAppointmentRepository';
 import { IAvailabilityRepository } from '../../interfaces/repositories/IAvailabilityRepository';
 import { IPatientSubscriptionRepository } from '../../interfaces/repositories/IPatientSubscriptionRepository';
+import { INotificationService } from '../../interfaces/services/INotificationService';
 
 export class CancelAppointmentUseCase {
   constructor(
     private appointmentRepository: IAppointmentRepository,
     private availabilityRepository: IAvailabilityRepository,
-    private patientSubscriptionRepository: IPatientSubscriptionRepository
+    private patientSubscriptionRepository: IPatientSubscriptionRepository,
+    private notificationService: INotificationService
   ) {}
 
   async execute(appointmentId: string, patientId: string): Promise<void> {
@@ -18,7 +22,7 @@ export class CancelAppointmentUseCase {
       throw new ValidationError('Patient ID is required');
     }
 
-    const appointment = await this.appointmentRepository.findById(appointmentId);
+    const appointment: Appointment | null = await this.appointmentRepository.findById(appointmentId);
     if (!appointment) {
       logger.error(`Appointment not found: ${appointmentId}`);
       throw new NotFoundError('Appointment not found');
@@ -75,5 +79,33 @@ export class CancelAppointmentUseCase {
         logger.warn(`No active subscription found for patient ${patientId} and doctor ${doctorId}`);
       }
     }
+
+    logger.info(appointment);
+    const doctorName =
+      typeof appointment.doctorId === 'object' && appointment.doctorId !== null ? appointment.doctorId.name : null;
+    const patientName =
+      typeof appointment.patientId === 'object' && appointment.patientId !== null ? appointment.patientId.name : null;
+    // Create notifications for patient and doctor
+    const patientNotification: Notification = {
+      userId: patientId,
+      type: NotificationType.APPOINTMENT_CANCELLED,
+      message: `Your appointment with Dr. ${doctorName} for ${appointment.startTime} on ${appointment.date.toLocaleDateString()} has been cancelled.`,
+      isRead: false,
+      createdAt: new Date(),
+    };
+
+    const doctorNotification: Notification = {
+      userId: doctorId,
+      type: NotificationType.APPOINTMENT_CANCELLED,
+      message: `An appointment with ${patientName} for ${appointment.startTime} on ${appointment.date.toLocaleDateString()} hs been cancelled.`,
+      isRead: false,
+      createdAt: new Date(),
+    };
+
+    // Send notifications
+    await Promise.all([
+      this.notificationService.sendNotification(patientNotification),
+      this.notificationService.sendNotification(doctorNotification),
+    ]);
   }
 }

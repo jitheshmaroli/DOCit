@@ -21,6 +21,42 @@ export class AppointmentRepository implements IAppointmentRepository {
     return AppointmentModel.findById(id).populate('patientId', 'name').populate('doctorId', 'name').exec();
   }
 
+  async findUpcomingAppointments(start: Date, end: Date): Promise<Appointment[]> {
+    console.log('start:', start);
+    console.log('end:', end);
+
+    // Get the start and end of the day for the given time window
+    const startOfDay = DateUtils.startOfDayUTC(start);
+    const endOfDay = DateUtils.endOfDayUTC(end);
+
+    // Fetch appointments for the relevant day(s) with status 'pending'
+    const appointments = await AppointmentModel.find({
+      date: { $gte: startOfDay, $lte: endOfDay },
+      status: 'pending',
+    })
+      .populate('patientId', 'name')
+      .populate('doctorId', 'name')
+      .exec();
+
+    console.log(`Found ${appointments.length} appointments for date range ${startOfDay} to ${endOfDay}`);
+
+    // Filter appointments where date + startTime falls within the start-end window
+    const filteredAppointments = appointments.filter((appt) => {
+      try {
+        const appointmentDateTime = DateUtils.combineDateAndTime(appt.date, appt.startTime);
+        return appointmentDateTime >= start && appointmentDateTime <= end;
+      } catch (error) {
+        console.error(`Invalid startTime for appointment ${appt._id}: ${appt.startTime}`, error);
+        return false;
+      }
+    });
+
+    console.log(`Filtered to ${filteredAppointments.length} upcoming appointments`);
+    console.log(filteredAppointments);
+
+    return filteredAppointments.map((appt) => appt.toObject() as Appointment);
+  }
+
   async findByDoctorAndSlot(
     doctorId: string,
     date: Date,
