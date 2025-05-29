@@ -183,7 +183,7 @@ const Messages = () => {
       try {
         const messages = await fetchMessages(selectedThread.receiverId);
         const formattedMessages = messages.map((msg) => ({
-          id: msg._id,
+          id: msg.id,
           message: msg.message,
           senderId: msg.senderId,
           senderName: msg.senderName || 'Unknown',

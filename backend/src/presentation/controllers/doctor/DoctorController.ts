@@ -11,6 +11,8 @@ import { UpdateSlotUseCase } from '../../../core/use-cases/doctor/UpdateSlotUseC
 import { DateUtils } from '../../../utils/DateUtils';
 import { ISpecialityRepository } from '../../../core/interfaces/repositories/ISpecialityRepository';
 import { CustomRequest } from '../../../types';
+import { ManageSubscriptionPlanUseCase } from '../../../core/use-cases/admin/ManageSubscriptionPlanUseCase';
+import { QueryParams } from '../../../types/authTypes';
 
 export class DoctorController {
   private setAvailabilityUseCase: SetAvailabilityUseCase;
@@ -19,6 +21,7 @@ export class DoctorController {
   private updateSlotUseCase: UpdateSlotUseCase;
   private createSubscriptionPlanUseCase: CreateSubscriptionPlanUseCase;
   private getDoctorAppointmentsUseCase: GetDoctorAppointmentsUseCase;
+  private manageSubscriptionPlanUseCase: ManageSubscriptionPlanUseCase;
   private subscriptionPlanRepository: ISubscriptionPlanRepository;
   private specialityRepository: ISpecialityRepository;
 
@@ -29,6 +32,7 @@ export class DoctorController {
     this.updateSlotUseCase = container.get('UpdateSlotUseCase');
     this.createSubscriptionPlanUseCase = container.get('CreateSubscriptionPlanUseCase');
     this.getDoctorAppointmentsUseCase = container.get('GetDoctorAppointmentsUseCase');
+    this.manageSubscriptionPlanUseCase = container.get('ManageSubscriptionPlanUseCase');
     this.subscriptionPlanRepository = container.get('ISubscriptionPlanRepository');
     this.specialityRepository = container.get('ISpecialityRepository');
   }
@@ -144,8 +148,17 @@ export class DoctorController {
       if (!doctorId) {
         throw new ValidationError('User ID not found in request');
       }
-      const appointments = await this.getDoctorAppointmentsUseCase.execute(doctorId);
-      res.status(200).json(appointments);
+      const { page = 1, limit = 5 } = req.query;
+      const queryParams: QueryParams = {
+        page: parseInt(String(page)),
+        limit: parseInt(String(limit)),
+      };
+
+      const result = await this.getDoctorAppointmentsUseCase.execute(doctorId, queryParams);
+      res.status(200).json({
+        appointments: result.data,
+        totalItems: result.totalItems,
+      });
     } catch (error) {
       next(error);
     }
@@ -204,15 +217,7 @@ export class DoctorController {
       }
       const { id } = req.params;
 
-      const plan = await this.subscriptionPlanRepository.findById(id);
-      if (!plan) {
-        throw new NotFoundError('Plan not found');
-      }
-      if (plan.doctorId !== doctorId) {
-        throw new ValidationError('Unauthorized to delete this plan');
-      }
-
-      await this.subscriptionPlanRepository.delete(id);
+      await this.manageSubscriptionPlanUseCase.delete(id);
       res.status(200).json({ message: 'Plan deleted successfully' });
     } catch (error) {
       next(error);

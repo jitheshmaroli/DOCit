@@ -1,34 +1,37 @@
-import { IChatRepository, InboxEntry } from '../../core/interfaces/repositories/IChatRepository';
-import { ChatMessage } from '../../core/entities/ChatMessage';
-import { ChatMessageModel } from '../database/models/ChatMessageModel';
+import mongoose, { PipelineStage } from 'mongoose';
 import { QueryParams } from '../../types/authTypes';
-import { QueryBuilder } from '../../utils/queryBuilder';
-import { PipelineStage } from 'mongoose';
+import { ChatMessageModel } from '../database/models/ChatMessageModel';
 import logger from '../../utils/logger';
+import { IChatRepository } from '../../core/interfaces/repositories/IChatRepository';
+import { ChatMessage } from '../../core/entities/ChatMessage';
+import { InboxEntry } from '../../types/chatTypes';
 
 export class ChatRepository implements IChatRepository {
+  private model = ChatMessageModel;
+
   async create(message: ChatMessage): Promise<ChatMessage> {
-    const newMessage = new ChatMessageModel(message);
+    const newMessage = new this.model(message);
     const savedMessage = await newMessage.save();
     return savedMessage.toObject() as ChatMessage;
   }
 
   async findById(id: string): Promise<ChatMessage | null> {
-    const message = await ChatMessageModel.findById(id).exec();
+    if (!mongoose.Types.ObjectId.isValid(id)) return null;
+    const message = await this.model.findById(id).exec();
     return message ? (message.toObject() as ChatMessage) : null;
   }
 
   async findByParticipants(senderId: string, receiverId: string, params: QueryParams): Promise<ChatMessage[]> {
+    const { page = 1, limit = 10 } = params;
     const query = {
       $or: [
         { senderId, receiverId, isDeleted: false },
         { senderId: receiverId, receiverId: senderId, isDeleted: false },
       ],
     };
-    // const sort = QueryBuilder.buildSort(params);
-    const { page, limit } = QueryBuilder.validateParams(params);
 
-    const messages = await ChatMessageModel.find(query)
+    const messages = await this.model
+      .find(query)
       .sort({ createdAt: 1 })
       .skip((page - 1) * limit)
       .limit(limit)
@@ -38,19 +41,21 @@ export class ChatRepository implements IChatRepository {
   }
 
   async softDelete(id: string): Promise<void> {
-    await ChatMessageModel.findByIdAndUpdate(id, { isDeleted: true }).exec();
+    if (!mongoose.Types.ObjectId.isValid(id)) return;
+    await this.model.findByIdAndUpdate(id, { isDeleted: true }).exec();
   }
 
   async getChatHistory(userId: string, params: QueryParams): Promise<ChatMessage[]> {
+    const { page = 1, limit = 10 } = params;
     const query = {
       $or: [
         { senderId: userId, isDeleted: false },
         { receiverId: userId, isDeleted: false },
       ],
     };
-    const { page, limit } = QueryBuilder.validateParams(params);
 
-    const messages = await ChatMessageModel.find(query)
+    const messages = await this.model
+      .find(query)
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
@@ -60,7 +65,7 @@ export class ChatRepository implements IChatRepository {
   }
 
   async getInbox(userId: string, params: QueryParams): Promise<InboxEntry[]> {
-    const { page, limit } = QueryBuilder.validateParams(params);
+    const { page = 1, limit = 10 } = params;
 
     const pipeline: PipelineStage[] = [
       {
@@ -81,7 +86,7 @@ export class ChatRepository implements IChatRepository {
         },
       },
       {
-        $sort: { 'message.createdAt': -1 },
+        $sort: { latestMessage: -1 },
       },
       {
         $skip: (page - 1) * limit,
@@ -93,7 +98,7 @@ export class ChatRepository implements IChatRepository {
         $project: {
           partnerId: '$_id',
           latestMessage: {
-            _id: '$message._id',
+            id: '$message._id',
             senderId: '$message.senderId',
             receiverId: '$message.receiverId',
             message: '$message.message',
@@ -105,9 +110,8 @@ export class ChatRepository implements IChatRepository {
       },
     ];
 
-    const inboxEntries = await ChatMessageModel.aggregate(pipeline).exec();
+    const inboxEntries = await this.model.aggregate(pipeline).exec();
     logger.info('getInbox: userId=', userId, 'inboxEntries=', inboxEntries);
-    console.log('getInbox: userId=', userId, 'inboxEntries=', inboxEntries);
 
     return inboxEntries.map((entry) => ({
       partnerId: entry.partnerId,

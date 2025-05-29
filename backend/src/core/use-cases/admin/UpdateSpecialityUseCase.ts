@@ -1,6 +1,6 @@
-import { ISpecialityRepository } from '../../interfaces/repositories/ISpecialityRepository';
 import { NotFoundError, ValidationError } from '../../../utils/errors';
 import { Speciality } from '../../entities/Speciality';
+import { ISpecialityRepository } from '../../interfaces/repositories/ISpecialityRepository';
 
 export class UpdateSpecialityUseCase {
   constructor(private specialityRepository: ISpecialityRepository) {}
@@ -13,6 +13,8 @@ export class UpdateSpecialityUseCase {
     }
     const speciality = await this.specialityRepository.findById(id);
     if (!speciality) throw new NotFoundError('Speciality not found');
-    return this.specialityRepository.update(id, { name: updates.name });
+    const updatedSpeciality = await this.specialityRepository.update(id, { name: updates.name });
+    if (!updatedSpeciality) throw new NotFoundError('Failed to update speciality');
+    return updatedSpeciality;
   }
 }

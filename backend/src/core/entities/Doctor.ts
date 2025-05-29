@@ -10,7 +10,6 @@ export interface Doctor {
   speciality?: string;
   experience?: number;
   allowFreeBooking: boolean;
-  age?: string;
   gender?: string;
   isVerified: boolean;
   isBlocked?: boolean;

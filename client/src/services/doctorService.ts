@@ -1,5 +1,11 @@
 import api from './api';
-import { AvailabilityPayload, SetAvailabilityPayload, SubscriptionPlanPayload, UpdateSubscriptionPlanPayload, QueryParams } from '../types/authTypes';
+import {
+  AvailabilityPayload,
+  SetAvailabilityPayload,
+  SubscriptionPlanPayload,
+  UpdateSubscriptionPlanPayload,
+  QueryParams,
+} from '../types/authTypes';
 import { DateUtils } from '../utils/DateUtils';
 
 export const fetchVerifiedDoctors = async (params: QueryParams = {}) => {
@@ -12,7 +18,10 @@ export const getDoctorById = async (doctorId: string) => {
   return response.data;
 };
 
-export const getAvailability = async ({ startDate, endDate }: AvailabilityPayload) => {
+export const getAvailability = async ({
+  startDate,
+  endDate,
+}: AvailabilityPayload) => {
   const response = await api.get('/api/doctors/availability', {
     params: {
       startDate: DateUtils.formatToISO(startDate),
@@ -22,7 +31,10 @@ export const getAvailability = async ({ startDate, endDate }: AvailabilityPayloa
   return response.data;
 };
 
-export const setAvailability = async ({ date, timeSlots }: SetAvailabilityPayload) => {
+export const setAvailability = async ({
+  date,
+  timeSlots,
+}: SetAvailabilityPayload) => {
   const payload = {
     date: DateUtils.formatToISO(date),
     timeSlots,
@@ -31,18 +43,44 @@ export const setAvailability = async ({ date, timeSlots }: SetAvailabilityPayloa
   return response.data;
 };
 
-export const removeSlot = async ({ availabilityId, slotIndex }: { availabilityId: string; slotIndex: number }) => {
-  const response = await api.post('/api/doctors/availability/slots/remove', { availabilityId, slotIndex });
+export const removeSlot = async ({
+  availabilityId,
+  slotIndex,
+}: {
+  availabilityId: string;
+  slotIndex: number;
+}) => {
+  const response = await api.post('/api/doctors/availability/slots/remove', {
+    availabilityId,
+    slotIndex,
+  });
   return response.data;
 };
 
-export const updateSlot = async ({ availabilityId, slotIndex, startTime, endTime }: { availabilityId: string; slotIndex: number; startTime: string; endTime: string }) => {
-  const response = await api.patch('/api/doctors/availability/slots', { availabilityId, slotIndex, startTime, endTime });
+export const updateSlot = async ({
+  availabilityId,
+  slotIndex,
+  startTime,
+  endTime,
+}: {
+  availabilityId: string;
+  slotIndex: number;
+  startTime: string;
+  endTime: string;
+}) => {
+  const response = await api.patch('/api/doctors/availability/slots', {
+    availabilityId,
+    slotIndex,
+    startTime,
+    endTime,
+  });
   return response.data;
 };
 
-export const getAppointments = async () => {
-  const response = await api.get('/api/doctors/appointments');
+export const getAppointments = async (page: number = 1, limit: number = 5) => {
+  const response = await api.get('/api/doctors/appointments', {
+    params: { page, limit },
+  });
   return response.data;
 };
 
@@ -56,7 +94,10 @@ export const createSubscriptionPlan = async (plan: SubscriptionPlanPayload) => {
   return response.data;
 };
 
-export const updateSubscriptionPlan = async ({ id, ...plan }: UpdateSubscriptionPlanPayload) => {
+export const updateSubscriptionPlan = async ({
+  id,
+  ...plan
+}: UpdateSubscriptionPlanPayload) => {
   const response = await api.put(`/api/doctors/subscription-plans/${id}`, plan);
   return response.data;
 };

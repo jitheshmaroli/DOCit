@@ -3,7 +3,7 @@ import { ManageSubscriptionPlanUseCase } from '../../../core/use-cases/admin/Man
 import { Container } from '../../../infrastructure/di/container';
 import { GetAllAppointmentsUseCase } from '../../../core/use-cases/admin/GetAllAppointmentsUseCase';
 import { CreateDoctorUseCase } from '../../../core/use-cases/admin/CreateDoctorUseCase';
-import { CancelAppointmentUseCase } from '../../../core/use-cases/admin/CancelAppointmentUseCase';
+import { AdminCancelAppointmentUseCase } from '../../../core/use-cases/admin/AdminCancelAppointmentUseCase';
 import { ListDoctorsUseCase } from '../../../core/use-cases/admin/ListDoctorsUseCase';
 import { ValidationError } from '../../../utils/errors';
 import { GetSpecialitiesUseCase } from '../../../core/use-cases/admin/GetSpecialityUseCase';
@@ -15,11 +15,12 @@ import { PaginatedResponse, QueryParams } from '../../../types/authTypes';
 import { SubscriptionPlan } from '../../../core/entities/SubscriptionPlan';
 import { Appointment } from '../../../core/entities/Appointment';
 import { Speciality } from '../../../core/entities/Speciality';
+import logger from '../../../utils/logger';
 
 export class AdminController {
   private manageSubscriptionPlanUseCase: ManageSubscriptionPlanUseCase;
   private getAllAppointmentsUseCase: GetAllAppointmentsUseCase;
-  private cancelAppointmentUseCase: CancelAppointmentUseCase;
+  private AdminCancelAppointmentUseCase: AdminCancelAppointmentUseCase;
   private getPatientSubscriptionsUseCase: GetPatientSubscriptionsUseCase;
   private getSpecialitiesUseCase: GetSpecialitiesUseCase;
   private addSpecialityUseCase: AddSpecialityUseCase;
@@ -33,7 +34,7 @@ export class AdminController {
     this.listDoctorsUseCase = container.get('ListDoctorsUseCase');
     this.manageSubscriptionPlanUseCase = container.get('ManageSubscriptionPlanUseCase');
     this.getAllAppointmentsUseCase = container.get('GetAllAppointmentsUseCase');
-    this.cancelAppointmentUseCase = container.get('AdminCancelAppointmentUseCase'); // Fixed to use AdminCancelAppointmentUseCase
+    this.AdminCancelAppointmentUseCase = container.get('AdminCancelAppointmentUseCase');
     this.getPatientSubscriptionsUseCase = container.get('GetPatientSubscriptionsUseCase');
     this.getSpecialitiesUseCase = container.get('GetSpecialitiesUseCase');
     this.addSpecialityUseCase = container.get('AddSpecialityUseCase');
@@ -114,8 +115,9 @@ export class AdminController {
 
   async cancelAppointment(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      logger.debug('params:', req.params);
       const { appointmentId } = req.params;
-      await this.cancelAppointmentUseCase.execute(appointmentId);
+      await this.AdminCancelAppointmentUseCase.execute(appointmentId);
       res.status(200).json({ message: 'Appointment cancelled successfully' });
     } catch (error) {
       console.error('Error cancelling appointment:', error);

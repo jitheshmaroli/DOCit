@@ -2,6 +2,7 @@ import { Availability } from '../../entities/Availability';
 import { IAvailabilityRepository } from '../../interfaces/repositories/IAvailabilityRepository';
 import { IDoctorRepository } from '../../interfaces/repositories/IDoctorRepository';
 import { NotFoundError } from '../../../utils/errors';
+import logger from '../../../utils/logger';
 
 export class GetDoctorAvailabilityUseCase {
   constructor(
@@ -21,6 +22,7 @@ export class GetDoctorAvailabilityUseCase {
     }
 
     if (filterBooked) {
+      logger.debug('fileterd book');
       return this.availabilityRepository.findByDoctorAndDateRangeWithUnbookedSlots(doctorId, startDate, endDate);
     }
     return this.availabilityRepository.findByDoctorAndDateRange(doctorId, startDate, endDate);

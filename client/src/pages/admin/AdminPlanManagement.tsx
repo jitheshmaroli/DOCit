@@ -73,7 +73,7 @@ const AdminPlanManagement: React.FC = () => {
           await dispatch(deletePlanThunk(plan._id)).unwrap();
           toast.success('Plan deleted successfully');
         } catch (err) {
-          toast.error(`Failed to delete plan: ${err}`);
+          toast.error(`${err}`);
         }
       }
     },

@@ -25,6 +25,7 @@ import {
   SubscriptionPlanPayload,
   UpdateSubscriptionPlanPayload,
   QueryParams,
+  Appointment,
 } from '../../types/authTypes';
 import { DateUtils } from '../../utils/DateUtils';
 
@@ -32,7 +33,7 @@ export const fetchVerifiedDoctorsThunk = createAsyncThunk(
   'doctors/fetchVerifiedDoctors',
   async (params: QueryParams = {}, { rejectWithValue }) => {
     try {
-      console.log('params',params)
+      console.log('params', params);
       return await fetchVerifiedDoctors(params);
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to fetch doctors');
@@ -114,12 +115,18 @@ export const updateSlotThunk = createAsyncThunk(
   }
 );
 
-export const getAppointmentsThunk = createAsyncThunk(
+export const getAppointmentsThunk = createAsyncThunk<
+  { appointments: Appointment[]; totalItems: number },
+  { page?: number; limit?: number },
+  { rejectValue: string }
+>(
   'doctors/getAppointments',
-  async (_, { rejectWithValue }) => {
+  async ({ page = 1, limit = 5 }, { rejectWithValue }) => {
     try {
-      return await getAppointments();
+      const response = await getAppointments(page, limit);
+      return response;
     } catch (error: any) {
+      console.error('Error in getAppointmentsThunk:', error);
       return rejectWithValue(error.message || 'Failed to fetch appointments');
     }
   }

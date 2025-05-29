@@ -30,7 +30,7 @@ const DoctorProfilePage: React.FC = () => {
     qualifications: '',
     location: '',
     speciality: '',
-    age: '',
+    experience: '',
     gender: '',
   });
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
@@ -49,6 +49,7 @@ const DoctorProfilePage: React.FC = () => {
           { withCredentials: true }
         );
         const data = response.data;
+        console.log('datadoctor:', data);
         setFormData({
           name: data.name || '',
           email: data.email || '',
@@ -57,7 +58,7 @@ const DoctorProfilePage: React.FC = () => {
           qualifications: data.qualifications?.join(', ') || '',
           location: data.location || '',
           speciality: data.speciality || '',
-          age: data.age || '',
+          experience: data.experience || '',
           gender: data.gender || '',
         });
         const imageUrl = getImageUrl(data.profilePicture);
@@ -100,7 +101,7 @@ const DoctorProfilePage: React.FC = () => {
     const { name, value } = e.target;
 
     if (name === 'phone' && value.length > 10) return;
-    if (name === 'age' && value.length > 3) return;
+    if (name === 'experience' && value.length > 2) return;
 
     setFormData((prev) => ({ ...prev, [name]: value }));
     validateField(name, value);
@@ -182,13 +183,13 @@ const DoctorProfilePage: React.FC = () => {
           speciality: !value ? 'Speciality is required' : null,
         }));
         break;
-      case 'age':
+      case 'experience':
         setErrors((prev) => ({
           ...prev,
-          age:
-            validateNumeric(value, 'Age') ||
+          experience:
+            validateNumeric(value, 'Experience') ||
             (value && (parseInt(value) < 0 || parseInt(value) > 120)
-              ? 'Age must be between 0-120'
+              ? 'Experience must be between 0-99'
               : null),
         }));
         break;
@@ -476,9 +477,15 @@ const DoctorProfilePage: React.FC = () => {
                       onChange={handleChange}
                       className="w-full h-[60.93px] bg-white/10 border border-white/20 rounded-lg px-4 mt-1 text-[14px] text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
                     >
-                      <option value='' className='bg-gray-800 text-white'>Select Speciality</option>
+                      <option value="" className="bg-gray-800 text-white">
+                        Select Speciality
+                      </option>
                       {specialities.map((speciality) => (
-                        <option key={speciality._id} value={speciality.name} className='bg-gray-800 text-white'>
+                        <option
+                          key={speciality._id}
+                          value={speciality.name}
+                          className="bg-gray-800 text-white"
+                        >
                           {speciality.name}
                         </option>
                       ))}
@@ -490,21 +497,23 @@ const DoctorProfilePage: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Age */}
+                  {/* Experience */}
                   <div>
                     <label className="text-[12px] text-gray-200">
-                      Age <span className="text-red-500">*</span>
+                      Experience <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
-                      name="age"
-                      value={formData.age}
+                      name="experience"
+                      value={formData.experience}
                       onChange={handleChange}
                       maxLength={3}
                       className="w-full h-[60.93px] bg-white/10 border border-white/20 rounded-lg px-4 mt-1 text-[14px] text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
                     />
-                    {errors.age && (
-                      <p className="text-red-500 text-[12px]">{errors.age}</p>
+                    {errors.experience && (
+                      <p className="text-red-500 text-[12px]">
+                        {errors.experience}
+                      </p>
                     )}
                   </div>
 

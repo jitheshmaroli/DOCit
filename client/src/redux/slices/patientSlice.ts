@@ -8,7 +8,11 @@ import {
   getPatientAppointmentsThunk,
   cancelAppointmentThunk,
 } from '../../redux/thunks/patientThunk';
-import { AvailabilityPayload, TimeSlot } from '../../types/authTypes';
+import {
+  AvailabilityPayload,
+  TimeSlot,
+  Appointment,
+} from '../../types/authTypes';
 
 interface PatientSubscription {
   _id: string;
@@ -26,25 +30,13 @@ interface PatientSubscription {
   status: string;
 }
 
-interface Appointment {
-  _id: string;
-  patientId: string;
-  doctorId: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  status: string;
-  isFreeBooking: boolean;
-  bookingTime: string;
-  createdAt: string;
-}
-
 interface PatientState {
   activeSubscriptions: { [doctorId: string]: PatientSubscription | null };
   appointments: Appointment[];
+  totalItems: number;
   availability: AvailabilityPayload[];
   timeSlots: TimeSlot[];
-  canBookFree:  boolean ;
+  canBookFree: boolean;
   loading: boolean;
   error: string | null;
 }
@@ -52,6 +44,7 @@ interface PatientState {
 const initialState: PatientState = {
   activeSubscriptions: {},
   appointments: [],
+  totalItems: 0,
   availability: [],
   timeSlots: [],
   canBookFree: true,
@@ -115,14 +108,24 @@ const patientSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      .addCase(getPatientSubscriptionThunk.fulfilled, (state, action: PayloadAction<PatientSubscription | null, string, { arg: string }>) => {
-        state.loading = false;
-        if (action.meta.arg) {
-          state.activeSubscriptions[action.meta.arg] = action.payload;
-        } else {
-          state.error = 'Invalid doctorId for subscription';
+      .addCase(
+        getPatientSubscriptionThunk.fulfilled,
+        (
+          state,
+          action: PayloadAction<
+            PatientSubscription | null,
+            string,
+            { arg: string }
+          >
+        ) => {
+          state.loading = false;
+          if (action.meta.arg) {
+            state.activeSubscriptions[action.meta.arg] = action.payload;
+          } else {
+            state.error = 'Invalid doctorId for subscription';
+          }
         }
-      })
+      )
       .addCase(getPatientSubscriptionThunk.rejected, (state, action) => {
         state.error = action.payload as string;
         state.loading = false;
@@ -133,16 +136,27 @@ const patientSlice = createSlice({
       })
       .addCase(
         getPatientAppointmentsForDoctorThunk.fulfilled,
-        (state, action: PayloadAction<{ appointments: Appointment[]; canBookFree: boolean }>) => {
+        (
+          state,
+          action: PayloadAction<{
+            appointments: Appointment[];
+            totalItems: number;
+            canBookFree?: boolean;
+          }>
+        ) => {
           state.appointments = action.payload.appointments;
-          state.canBookFree = action.payload.canBookFree;
+          state.totalItems = action.payload.totalItems;
+          state.canBookFree = action.payload.canBookFree ?? state.canBookFree;
           state.loading = false;
         }
       )
-      .addCase(getPatientAppointmentsForDoctorThunk.rejected, (state, action) => {
-        state.error = action.payload as string;
-        state.loading = false;
-      })
+      .addCase(
+        getPatientAppointmentsForDoctorThunk.rejected,
+        (state, action) => {
+          state.error = action.payload as string;
+          state.loading = false;
+        }
+      )
       .addCase(getPatientAppointmentsThunk.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -164,7 +178,7 @@ const patientSlice = createSlice({
       })
       .addCase(cancelAppointmentThunk.fulfilled, (state, action) => {
         state.appointments = state.appointments.filter(
-          (appt) => appt._id !== action.meta.arg
+          (appt) => appt._id !== action.meta.arg.appointmentId // Fix: Use appointmentId
         );
         state.loading = false;
       })

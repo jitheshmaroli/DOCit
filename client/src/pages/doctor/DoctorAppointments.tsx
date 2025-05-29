@@ -1,4 +1,3 @@
-// src/pages/doctor/DoctorAppointments.tsx
 import React, { useEffect, useState } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -13,6 +12,7 @@ import { useSocket } from '../../hooks/useSocket';
 import { useSendMessage } from '../../hooks/useSendMessage';
 import { fetchMessages } from '../../services/messageService';
 import { Message, MessageThread } from '../../types/messageTypes';
+import Pagination from '../../components/common/Pagination';
 
 interface Appointment {
   _id: string;
@@ -22,6 +22,8 @@ interface Appointment {
   endTime: string;
   status: string;
 }
+
+const ITEMS_PER_PAGE = 4;
 
 const PatientDetailsModal: React.FC<{
   patient: Patient | null;
@@ -116,7 +118,11 @@ const PatientDetailsModal: React.FC<{
 
 const DoctorAppointments: React.FC = () => {
   const dispatch = useAppDispatch();
-  const { appointments = [] } = useAppSelector((state) => state.doctors);
+  const {
+    appointments = [],
+    totalItems,
+    error,
+  } = useAppSelector((state) => state.doctors);
   const { user } = useAppSelector((state) => state.auth);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
@@ -124,11 +130,12 @@ const DoctorAppointments: React.FC = () => {
     patient: Patient;
     appointment: Appointment;
   } | null>(null);
-  const [videoCallModal, setVideoCallModal] = useState<Appointment | null>(
-    null
-  );
+  const [videoCallModal, setVideoCallModal] = useState<{
+    appointment: Appointment;
+    isInitiator: boolean;
+  } | null>(null);
   const [newMessage, setNewMessage] = useState('');
-  const [chatThread, setChatThread] = useState<MessageThread | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const { emit } = useSocket(user?._id, {
     onReceiveMessage: (message: Message) => {
@@ -161,15 +168,57 @@ const DoctorAppointments: React.FC = () => {
           : prev
       );
     },
+    onVideoCallDeclined: (data: { appointmentId: string; from: string }) => {
+      if (
+        videoCallModal &&
+        data.appointmentId === videoCallModal.appointment._id
+      ) {
+        toast.info(
+          `Video call declined by ${videoCallModal.appointment.patientId.name}`
+        );
+        setVideoCallModal(null);
+      }
+    },
+    onCallAccepted: (data: {
+      receiver: string;
+      roomId: string;
+      appointmentId: string;
+    }) => {
+      if (data.appointmentId === videoCallModal?.appointment._id) {
+        setVideoCallModal((prev) => prev);
+      }
+    },
+    onCallEnded: () => {
+      setVideoCallModal(null);
+      toast.info('Video call ended');
+    },
+    onIncomingCall: ({ caller, appointmentId }) => {
+      const appointment = appointments.find(
+        (appt) => appt._id === appointmentId
+      );
+      if (appointment && caller === appointment.patientId._id) {
+        setVideoCallModal({ appointment, isInitiator: false });
+        toast.info(`Incoming video call from ${appointment.patientId.name}`);
+      }
+    },
   });
 
   const { sendMessage } = useSendMessage();
+  const [chatThread, setChatThread] = useState<MessageThread | null>(null);
 
   useEffect(() => {
     if (user?.role === 'doctor') {
-      dispatch(getAppointmentsThunk());
+      dispatch(
+        getAppointmentsThunk({ page: currentPage, limit: ITEMS_PER_PAGE })
+      );
     }
-  }, [dispatch, user?.role]);
+  }, [dispatch, user?.role, currentPage]);
+
+  useEffect(() => {
+    if (error) {
+      toast.error(error);
+    }
+  }, [error]);
 
   useEffect(() => {
     const loadMessages = async () => {
@@ -185,7 +234,7 @@ const DoctorAppointments: React.FC = () => {
           partnerProfilePicture: chatModal.patient.profilePicture,
           latestMessage: null,
           messages: messages.map((msg) => ({
-            id: msg._id,
+            id: msg.id,
             message: msg.message,
             senderId: msg.senderId,
             senderName: msg.senderName || 'Unknown',
@@ -240,6 +289,34 @@ const DoctorAppointments: React.FC = () => {
     }
   };
 
+  const handleStartVideoCall = (appointment: Appointment) => {
+    const now = new Date();
+    const startTime = new Date(
+      `${appointment.date.split('T')[0]}T${appointment.startTime}`
+    );
+    const endTime = new Date(
+      `${appointment.date.split('T')[0]}T${appointment.endTime}`
+    );
+    if (now < startTime || now > endTime || appointment.status !== 'pending') {
+      toast.error('Video calls are only available during the appointment time');
+      return;
+    }
+    if (!user?._id) {
+      toast.error('User not authenticated');
+      return;
+    }
+    emit('startCall', {
+      caller: user._id,
+      receiver: appointment.patientId._id,
+      appointmentId: appointment._id,
+    });
+    setVideoCallModal({ appointment, isInitiator: true });
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
   const filteredAppointments = Array.isArray(appointments)
     ? appointments.filter(
         (appt) =>
@@ -249,6 +326,8 @@ const DoctorAppointments: React.FC = () => {
           DateUtils.formatToLocal(appt.date).includes(searchTerm.toLowerCase())
       )
     : [];
+
+  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
   return (
     <>
@@ -278,8 +357,8 @@ const DoctorAppointments: React.FC = () => {
       )}
       {videoCallModal && (
         <VideoCall
-          appointment={videoCallModal}
-          isInitiator={true}
+          appointment={videoCallModal.appointment}
+          isInitiator={videoCallModal.isInitiator}
           onClose={() => setVideoCallModal(null)}
         />
       )}
@@ -367,7 +446,7 @@ const DoctorAppointments: React.FC = () => {
                           <MessageSquare className="w-5 h-5 text-white" />
                         </button>
                         <button
-                          onClick={() => setVideoCallModal(appt)}
+                          onClick={() => handleStartVideoCall(appt)}
                           className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all duration-300 disabled:opacity-50"
                           title="Start Video Call"
                           disabled={
@@ -403,6 +482,14 @@ const DoctorAppointments: React.FC = () => {
             </tbody>
           </table>
         </div>
+        {totalPages > 1 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+            className="mt-6"
+          />
+        )}
       </div>
     </>
   );

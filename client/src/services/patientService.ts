@@ -20,6 +20,7 @@ export const getDoctorAvailability = async ({
     startDate: DateUtils.formatToISO(startDate),
   };
   if (endDate) params.endDate = DateUtils.formatToISO(endDate);
+  console.log('params:', params);
   const response = await api.get(
     `/api/patients/doctors/${doctorId}/availability`,
     { params }
@@ -59,9 +60,13 @@ export const getPatientAppointments = async () => {
   return response.data;
 };
 
-export const getPatientAppointmentsForDoctor = async (doctorId: string) => {
+export const getPatientAppointmentsForDoctor = async (
+  doctorId: string,
+  page: number = 1,
+  limit: number = 5
+) => {
   const response = await api.get('/api/patients/appointments', {
-    params: { doctorId },
+    params: { doctorId, page, limit },
   });
   return response.data;
 };
@@ -110,10 +115,15 @@ export const confirmSubscription = async (
   return response.data;
 };
 
-export const cancelAppointment = async (appointmentId: string) => {
+export const cancelAppointment = async (
+  appointmentId: string,
+  cancellationReason?: string
+) => {
   const response = await api.delete(
-    `/api/patients/appointments/${appointmentId}`
+    `/api/patients/appointments/${appointmentId}`,
+    {
+      data: { cancellationReason },
+    }
   );
   return response.data;
 };
-

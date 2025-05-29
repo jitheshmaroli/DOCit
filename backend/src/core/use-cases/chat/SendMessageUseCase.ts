@@ -3,6 +3,7 @@ import { IChatRepository } from '../../interfaces/repositories/IChatRepository';
 import { IPatientSubscriptionRepository } from '../../interfaces/repositories/IPatientSubscriptionRepository';
 import { ValidationError } from '../../../utils/errors';
 import { UserRole } from '../../../types';
+import logger from '../../../utils/logger';
 
 export class SendMessageUseCase {
   constructor(
@@ -36,6 +37,7 @@ export class SendMessageUseCase {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
+    logger.debug('createdMessage:', createdMessage);
     return createdMessage;
   }
 }

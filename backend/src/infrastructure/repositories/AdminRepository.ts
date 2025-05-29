@@ -1,31 +1,22 @@
 import { IAdminRepository } from '../../core/interfaces/repositories/IAdminRepository';
 import { Admin } from '../../core/entities/Admin';
+import { BaseRepository } from './BaseRepository';
 import { AdminModel } from '../database/models/AdminModel';
+import mongoose from 'mongoose';
 
-export class AdminRepository implements IAdminRepository {
-  async create(admin: Admin): Promise<Admin> {
-    const newAdmin = new AdminModel(admin);
-    return newAdmin.save();
+export class AdminRepository extends BaseRepository<Admin> implements IAdminRepository {
+  constructor() {
+    super(AdminModel);
   }
 
   async findByEmail(email: string): Promise<Admin | null> {
-    return AdminModel.findOne({ email }).exec();
-  }
-
-  async findById(id: string): Promise<Admin | null> {
-    return AdminModel.findById(id).exec();
-  }
-
-  async update(id: string, admin: Partial<Admin>): Promise<Admin | null> {
-    return AdminModel.findByIdAndUpdate(id, admin, { new: true }).exec();
-  }
-
-  async delete(id: string): Promise<void> {
-    await AdminModel.findByIdAndDelete(id).exec();
+    const admin = await this.model.findOne({ email }).exec();
+    return admin ? (admin.toObject() as Admin) : null;
   }
 
   async getAdminDetails(id: string): Promise<Admin | null> {
-    const admin = await AdminModel.findById(id).select('-password').exec();
+    if (!mongoose.Types.ObjectId.isValid(id)) return null;
+    const admin = await this.model.findById(id).select('-password').exec();
     return admin ? (admin.toObject() as Admin) : null;
   }
 }

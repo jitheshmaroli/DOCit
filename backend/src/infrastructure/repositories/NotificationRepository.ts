@@ -1,28 +1,22 @@
+import mongoose from 'mongoose';
 import { INotificationRepository } from '../../core/interfaces/repositories/INotificationRepository';
-import { Notification } from '../../core/entities/Notification';
+import { BaseRepository } from './BaseRepository';
 import { NotificationModel } from '../database/models/NotificationModel';
 import { QueryParams } from '../../types/authTypes';
-import { QueryBuilder } from '../../utils/queryBuilder';
+import { Notification } from '../../core/entities/Notification';
 
-export class NotificationRepository implements INotificationRepository {
-  async create(notification: Notification): Promise<Notification> {
-    const newNotification = new NotificationModel(notification);
-    const savedNotification = await newNotification.save();
-    return savedNotification.toObject() as Notification;
-  }
-
-  async findById(id: string): Promise<Notification | null> {
-    const notification = await NotificationModel.findById(id).exec();
-    return notification ? (notification.toObject() as Notification) : null;
+export class NotificationRepository extends BaseRepository<Notification> implements INotificationRepository {
+  constructor() {
+    super(NotificationModel);
   }
 
   async findByUserId(userId: string, params: QueryParams): Promise<Notification[]> {
-    const query = { userId, ...QueryBuilder.buildQuery(params) };
-    const sort = QueryBuilder.buildSort(params);
-    const { page, limit } = QueryBuilder.validateParams(params);
+    const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' } = params;
+    const query = { userId };
 
-    const notifications = await NotificationModel.find(query)
-      .sort(sort)
+    const notifications = await this.model
+      .find(query)
+      .sort({ [sortBy]: sortOrder === 'desc' ? -1 : 1 })
       .skip((page - 1) * limit)
       .limit(limit)
       .exec();
@@ -30,16 +24,13 @@ export class NotificationRepository implements INotificationRepository {
     return notifications.map((notif) => notif.toObject() as Notification);
   }
 
-  async delete(id: string): Promise<void> {
-    await NotificationModel.findByIdAndDelete(id).exec();
-  }
-
   async deleteAllByUserId(userId: string): Promise<void> {
-    await NotificationModel.deleteMany({ userId });
+    await this.model.deleteMany({ userId }).exec();
   }
 
   async markAsRead(id: string): Promise<Notification | null> {
-    const notification = await NotificationModel.findByIdAndUpdate(id, { isRead: true }, { new: true }).exec();
+    if (!mongoose.Types.ObjectId.isValid(id)) return null;
+    const notification = await this.model.findByIdAndUpdate(id, { isRead: true }, { new: true }).exec();
     return notification ? (notification.toObject() as Notification) : null;
   }
 }

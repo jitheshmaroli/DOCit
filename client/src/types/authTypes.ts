@@ -326,6 +326,7 @@ export interface Appointment {
   status: 'confirmed' | 'pending' | 'cancelled';
   createdAt: string;
   updatedAt: string;
+  isFreeBooking?: boolean;
 }
 
 export interface QueryParams {
@@ -336,11 +337,13 @@ export interface QueryParams {
   sortOrder?: 'asc' | 'desc';
   status?: string;
   speciality?: string;
+  experience?: string;
+  gender?: string;
   isBlocked?: boolean;
   isVerified?: boolean;
   isSubscribed?: boolean;
-  dateFrom?: string;
-  dateTo?: string;
+  availabilityStart?: string;
+  availabilityEnd?: string;
 }
 
 export interface PaginatedResponse<T> {

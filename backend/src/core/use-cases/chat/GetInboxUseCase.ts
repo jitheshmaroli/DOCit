@@ -6,7 +6,7 @@ import { ValidationError } from '../../../utils/errors';
 import logger from '../../../utils/logger';
 
 export interface InboxResponse {
-  _id: string; // Added to match InboxThreadResponse
+  _id: string;
   receiverId: string;
   senderName: string;
   subject?: string;
@@ -55,10 +55,10 @@ export class GetInboxUseCase {
         }
 
         return {
-          _id: partnerId, // Use partnerId as thread ID
+          _id: partnerId,
           receiverId: partnerId,
           senderName: partnerName,
-          subject: 'Conversation', // Default subject
+          subject: 'Conversation',
           timestamp: entry.latestMessage?.createdAt?.toISOString() || new Date().toISOString(),
           partnerProfilePicture,
           latestMessage: entry.latestMessage

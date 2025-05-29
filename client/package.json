@@ -21,6 +21,7 @@
     "@types/simple-peer": "^9.11.8",
     "axios": "^1.8.3",
     "dayjs": "^1.11.13",
+    "emoji-picker-react": "^4.12.2",
     "jwt-decode": "^4.0.0",
     "lucide-react": "^0.509.0",
     "react": "^19.0.0",

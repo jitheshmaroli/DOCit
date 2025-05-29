@@ -1,37 +1,47 @@
-import api from './api';
-import {
-  InboxThreadResponse,
-  ChatMessageResponse,
-} from '../types/messageTypes';
+import axios from 'axios';
+import { InboxThreadResponse, Message } from '../types/messageTypes';
+
+const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 export const fetchInbox = async (): Promise<InboxThreadResponse[]> => {
-  const response = await api.get('/api/chat/inbox');
+  const response = await axios.get(`${API_URL}/api/chat/inbox`, {
+    withCredentials: true,
+  });
   return response.data;
 };
 
-export const fetchMessages = async (
-  receiverId: string
-): Promise<ChatMessageResponse[]> => {
-  const response = await api.get(`/api/chat/${receiverId}`);
+export const fetchMessages = async (receiverId: string): Promise<Message[]> => {
+  const response = await axios.get(`${API_URL}/api/chat/${receiverId}`, {
+    withCredentials: true,
+  });
   return response.data;
 };
 
 export const sendMessage = async (
   receiverId: string,
-  message: string
-): Promise<ChatMessageResponse> => {
-  const response = await api.post('/api/chat', { receiverId, message });
+  messageText: string
+): Promise<Message> => {
+  const response = await axios.post(
+    `${API_URL}/api/chat`,
+    { receiverId, message: messageText },
+    { withCredentials: true }
+  );
   return response.data;
+};
+
+export const deleteMessage = async (messageId: string): Promise<void> => {
+  await axios.delete(`${API_URL}/api/chat/${messageId}`, {
+    withCredentials: true,
+  });
 };
 
 export const fetchPartnerDetails = async (
   partnerId: string,
-  role: 'doctor' | 'patient'
+  role: 'patient' | 'doctor'
 ): Promise<{ name: string; profilePicture?: string }> => {
-  const endpoint = role === 'patient' ? 'doctors' : 'patients';
-  const response = await api.get(`/api/${endpoint}/${partnerId}`);
-  return {
-    name: response.data.name || 'Unknown',
-    profilePicture: response.data.profilePicture,
-  };
+  const endpoint = role === 'patient' ? 'patients' : 'doctors';
+  const response = await axios.get(`${API_URL}/api/${endpoint}/${partnerId}`, {
+    withCredentials: true,
+  });
+  return response.data;
 };

@@ -1,8 +1,6 @@
-// src/pages/patient/Profile/Messages.tsx
 import { useState, useEffect } from 'react';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { useAppSelector } from '../../../redux/hooks';
 import { MessageInbox } from '../../../components/MessageInbox';
 import { ChatBox } from '../../../components/ChatBox';
 import { useSocket } from '../../../hooks/useSocket';
@@ -18,8 +16,12 @@ import {
   InboxThreadResponse,
 } from '../../../types/messageTypes';
 
-const Messages = () => {
-  const { user } = useAppSelector((state) => state.auth);
+// Define the props interface for Messages
+interface MessagesProps {
+  patientId: string;
+}
+
+const Messages = ({ patientId }: MessagesProps) => {
   const [threads, setThreads] = useState<MessageThread[]>([]);
   const [selectedThread, setSelectedThread] = useState<MessageThread | null>(
     null
@@ -27,9 +29,9 @@ const Messages = () => {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
 
-  const { emit } = useSocket(user?._id, {
+  const { emit } = useSocket(patientId, {
     onReceiveMessage: async (message: Message) => {
-      if (message.senderId === user?._id) return;
+      if (message.senderId === patientId) return;
       const partnerId = message.senderId;
       let partnerName = message.senderName || 'Unknown';
       let partnerProfilePicture: string | undefined;
@@ -146,10 +148,10 @@ const Messages = () => {
         setLoading(false);
       }
     };
-    if (user?._id) {
+    if (patientId) {
       fetchThreads();
     }
-  }, [user?._id]);
+  }, [patientId]);
 
   useEffect(() => {
     const loadMessages = async () => {
@@ -157,12 +159,12 @@ const Messages = () => {
       try {
         const messages = await fetchMessages(selectedThread.receiverId);
         const formattedMessages = messages.map((msg) => ({
-          id: msg._id,
+          id: msg.id,
           message: msg.message,
           senderId: msg.senderId,
           senderName: msg.senderName || 'Unknown',
           timestamp: msg.timestamp,
-          isSender: msg.senderId === user?._id,
+          isSender: msg.senderId === patientId,
         }));
         setSelectedThread((prev) =>
           prev ? { ...prev, messages: formattedMessages } : prev
@@ -179,7 +181,7 @@ const Messages = () => {
       }
     };
     loadMessages();
-  }, [selectedThread?.receiverId, user?._id]);
+  }, [selectedThread?.receiverId, patientId]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();

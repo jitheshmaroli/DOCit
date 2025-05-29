@@ -13,10 +13,12 @@ import api from '../../services/api';
 interface Filters {
   searchQuery: string;
   speciality: string;
-  ageRange: string;
+  experience: string;
   gender: string;
   sortBy: string;
   sortOrder: 'asc' | 'desc';
+  availabilityStart?: string;
+  availabilityEnd?: string;
 }
 
 const ITEMS_PER_PAGE = 5;
@@ -24,15 +26,22 @@ const ITEMS_PER_PAGE = 5;
 const FindDoctor: React.FC = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const { doctors, totalItems, error: doctorError, loading } = useAppSelector((state) => state.doctors);
+  const {
+    doctors,
+    totalItems,
+    error: doctorError,
+    loading,
+  } = useAppSelector((state) => state.doctors);
   const [specialities, setSpecialities] = useState<string[]>([]);
   const [filters, setFilters] = useState<Filters>({
     searchQuery: '',
     speciality: '',
-    ageRange: '',
+    experience: '',
     gender: '',
     sortBy: 'name',
     sortOrder: 'asc',
+    availabilityStart: '',
+    availabilityEnd: '',
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
@@ -41,7 +50,9 @@ const FindDoctor: React.FC = () => {
     const fetchSpecialities = async () => {
       try {
         const response = await api.get('/api/patients/specialities');
-        setSpecialities(response.data.map((spec: { name: string }) => spec.name));
+        setSpecialities(
+          response.data.map((spec: { name: string }) => spec.name)
+        );
       } catch (error) {
         toast.error('Failed to fetch specialities');
       }
@@ -55,10 +66,12 @@ const FindDoctor: React.FC = () => {
       limit: ITEMS_PER_PAGE,
       search: filters.searchQuery || undefined,
       speciality: filters.speciality || undefined,
-      ageRange: filters.ageRange || undefined,
+      experience: filters.experience || undefined,
       gender: filters.gender || undefined,
       sortBy: filters.sortBy || undefined,
       sortOrder: filters.sortOrder || undefined,
+      availabilityStart: filters.availabilityStart || undefined,
+      availabilityEnd: filters.availabilityEnd || undefined,
     };
     dispatch(fetchVerifiedDoctorsThunk(params));
   }, [dispatch, currentPage, filters]);
@@ -100,7 +113,9 @@ const FindDoctor: React.FC = () => {
               placeholder="Find doctors by name"
               className="w-full md:w-2/3 p-4 bg-white/10 border border-white/20 rounded-full text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
               value={filters.searchQuery}
-              onChange={(e) => handleFilterChange('searchQuery', e.target.value)}
+              onChange={(e) =>
+                handleFilterChange('searchQuery', e.target.value)
+              }
             />
             <button className="bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 px-8 rounded-full hover:from-purple-700 hover:to-blue-700 transition-all duration-300 shadow-lg hover:shadow-xl">
               Search
@@ -116,10 +131,14 @@ const FindDoctor: React.FC = () => {
               Filters
             </h3>
             <div className="mb-6">
-              <label className="block text-gray-200 text-sm mb-2">Speciality</label>
+              <label className="block text-gray-200 text-sm mb-2">
+                Speciality
+              </label>
               <select
                 value={filters.speciality}
-                onChange={(e) => handleFilterChange('speciality', e.target.value)}
+                onChange={(e) =>
+                  handleFilterChange('speciality', e.target.value)
+                }
                 className="w-full p-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-400 appearance-none"
                 style={dropdownStyle}
               >
@@ -127,31 +146,39 @@ const FindDoctor: React.FC = () => {
                   All Specialities
                 </option>
                 {specialities.map((spec) => (
-                  <option key={spec} value={spec} className="bg-gray-800 text-white">
+                  <option
+                    key={spec}
+                    value={spec}
+                    className="bg-gray-800 text-white"
+                  >
                     {spec}
                   </option>
                 ))}
               </select>
             </div>
             <div className="mb-6">
-              <label className="block text-gray-200 text-sm mb-2">Age Range</label>
+              <label className="block text-gray-200 text-sm mb-2">
+                Experience
+              </label>
               <select
-                value={filters.ageRange}
-                onChange={(e) => handleFilterChange('ageRange', e.target.value)}
+                value={filters.experience}
+                onChange={(e) =>
+                  handleFilterChange('experience', e.target.value)
+                }
                 className="w-full p-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-400 appearance-none"
                 style={dropdownStyle}
               >
                 <option value="" className="bg-gray-800 text-white">
-                  All Ages
+                  All Experience Levels
                 </option>
-                <option value="0-30" className="bg-gray-800 text-white">
-                  0-30
+                <option value="0-5" className="bg-gray-800 text-white">
+                  0-5 Years
                 </option>
-                <option value="31-50" className="bg-gray-800 text-white">
-                  31-50
+                <option value="6-10" className="bg-gray-800 text-white">
+                  6-10 Years
                 </option>
-                <option value="51+" className="bg-gray-800 text-white">
-                  51+
+                <option value="11+" className="bg-gray-800 text-white">
+                  11+ Years
                 </option>
               </select>
             </div>
@@ -178,11 +205,42 @@ const FindDoctor: React.FC = () => {
               </select>
             </div>
             <div className="mb-6">
-              <label className="block text-gray-200 text-sm mb-2">Sort By</label>
+              <label className="block text-gray-200 text-sm mb-2">
+                Availability Start Date
+              </label>
+              <input
+                type="date"
+                value={filters.availabilityStart}
+                onChange={(e) =>
+                  handleFilterChange('availabilityStart', e.target.value)
+                }
+                className="w-full p-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
+              />
+            </div>
+            <div className="mb-6">
+              <label className="block text-gray-200 text-sm mb-2">
+                Availability End Date
+              </label>
+              <input
+                type="date"
+                value={filters.availabilityEnd}
+                onChange={(e) =>
+                  handleFilterChange('availabilityEnd', e.target.value)
+                }
+                className="w-full p-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
+              />
+            </div>
+            <div className="mb-6">
+              <label className="block text-gray-200 text-sm mb-2">
+                Sort By
+              </label>
               <select
                 value={`${filters.sortBy}:${filters.sortOrder}`}
                 onChange={(e) => {
-                  const [sortBy, sortOrder] = e.target.value.split(':') as [string, 'asc' | 'desc'];
+                  const [sortBy, sortOrder] = e.target.value.split(':') as [
+                    string,
+                    'asc' | 'desc',
+                  ];
                   setFilters((prev) => ({ ...prev, sortBy, sortOrder }));
                   setCurrentPage(1);
                 }}
@@ -195,10 +253,16 @@ const FindDoctor: React.FC = () => {
                 <option value="name:desc" className="bg-gray-800 text-white">
                   Name (Z-A)
                 </option>
-                <option value="experience:asc" className="bg-gray-800 text-white">
+                <option
+                  value="experience:asc"
+                  className="bg-gray-800 text-white"
+                >
                   Experience (Low to High)
                 </option>
-                <option value="experience:desc" className="bg-gray-800 text-white">
+                <option
+                  value="experience:desc"
+                  className="bg-gray-800 text-white"
+                >
                   Experience (High to Low)
                 </option>
               </select>
@@ -249,7 +313,11 @@ const FindDoctor: React.FC = () => {
                           {doctor.availability || 'Availability TBD'}
                         </p>
                         <button
-                          onClick={() => navigate(`/patient/doctors/${doctor._id}`, { state: { speciality: doctor.speciality } })}
+                          onClick={() =>
+                            navigate(`/patient/doctors/${doctor._id}`, {
+                              state: { speciality: doctor.speciality },
+                            })
+                          }
                           className="bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold text-sm py-2 px-6 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300 shadow-md hover:shadow-lg"
                         >
                           View Details

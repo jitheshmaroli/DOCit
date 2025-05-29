@@ -1,13 +1,10 @@
-import { QueryParams } from '../../../types/authTypes';
+import { IBaseRepository } from './IBaseRepository';
 import { SubscriptionPlan } from '../../entities/SubscriptionPlan';
+import { QueryParams } from '../../../types/authTypes';
 
-export interface ISubscriptionPlanRepository {
-  create(plan: SubscriptionPlan): Promise<SubscriptionPlan>;
-  findById(id: string): Promise<SubscriptionPlan | null>;
+export interface ISubscriptionPlanRepository extends IBaseRepository<SubscriptionPlan> {
   findAllWithQuery(params: QueryParams): Promise<{ data: SubscriptionPlan[]; totalItems: number }>;
   findByDoctor(doctorId: string): Promise<SubscriptionPlan[]>;
   findApprovedByDoctor(doctorId: string): Promise<SubscriptionPlan[]>;
   findPending(): Promise<SubscriptionPlan[]>;
-  update(id: string, updates: Partial<SubscriptionPlan>): Promise<SubscriptionPlan | null>;
-  delete(id: string): Promise<void>;
 }

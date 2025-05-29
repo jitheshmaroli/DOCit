@@ -9,11 +9,11 @@ export interface QueryParams {
   isBlocked?: boolean;
   isVerified?: boolean;
   isSubscribed?: boolean;
-  dateFrom?: string;
-  dateTo?: string;
+  availabilityStart?: string;
+  availabilityEnd?: string;
   doctorId?: string;
   patientId?: string;
-  ageRange?: string;
+  experience?: string;
   gender?: string;
 }
 

@@ -1,13 +1,15 @@
 import { ISubscriptionPlanRepository } from '../../interfaces/repositories/ISubscriptionPlanRepository';
-import { NotFoundError } from '../../../utils/errors';
+import { NotFoundError, ValidationError } from '../../../utils/errors';
 import { SubscriptionPlan } from '../../entities/SubscriptionPlan';
 import { IDoctorRepository } from '../../interfaces/repositories/IDoctorRepository';
 import { QueryParams } from '../../../types/authTypes';
+import { IPatientSubscriptionRepository } from '../../interfaces/repositories/IPatientSubscriptionRepository';
 
 export class ManageSubscriptionPlanUseCase {
   constructor(
     private subscriptionPlanRepository: ISubscriptionPlanRepository,
-    private doctorRepository: IDoctorRepository
+    private doctorRepository: IDoctorRepository,
+    private patientSubscriptionRepository: IPatientSubscriptionRepository
   ) {}
 
   async getAllPlansWithQuery(params: QueryParams): Promise<{ data: SubscriptionPlan[]; totalItems: number }> {
@@ -61,6 +63,22 @@ export class ManageSubscriptionPlanUseCase {
   }
 
   async delete(planId: string): Promise<void> {
+    const plan = await this.subscriptionPlanRepository.findById(planId);
+    if (!plan) {
+      throw new NotFoundError('Plan not found');
+    }
+
+    const activeSubscriptions = await this.patientSubscriptionRepository.findActiveSubscriptions();
+
+    const isPlanInUse = activeSubscriptions.some((sub) => {
+      if (!sub.planId) return false;
+      // Check if planId is a string or a SubscriptionPlan object
+      return typeof sub.planId === 'string' ? sub.planId === planId : sub.planId._id?.toString() === planId;
+    });
+
+    if (isPlanInUse) {
+      throw new ValidationError('Plan is in use by one or more patients and cannot be deleted');
+    }
     await this.subscriptionPlanRepository.delete(planId);
   }
 }

@@ -1,3 +1,5 @@
+import { ChatMessage } from '../core/entities/ChatMessage';
+
 export interface ChatMessageResponse {
   _id: string;
   senderId: string;
@@ -34,4 +36,9 @@ export interface InboxResponse {
     createdAt: Date;
     isSender: boolean;
   } | null;
+}
+
+export interface InboxEntry {
+  partnerId: string;
+  latestMessage: ChatMessage | null;
 }

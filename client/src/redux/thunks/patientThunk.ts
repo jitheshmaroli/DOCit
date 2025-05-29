@@ -11,6 +11,7 @@ import {
 import {
   GetDoctorAvailabilityPayload,
   BookAppointmentPayload,
+  Appointment,
 } from '../../types/authTypes';
 import { DateUtils } from '../../utils/DateUtils';
 
@@ -112,19 +113,25 @@ export const getPatientSubscriptionThunk = createAsyncThunk(
   }
 );
 
-export const getPatientAppointmentsForDoctorThunk = createAsyncThunk(
+export const getPatientAppointmentsForDoctorThunk = createAsyncThunk<
+  { appointments: Appointment[]; totalItems: number; canBookFree?: boolean },
+  { doctorId: string; page?: number; limit?: number },
+  { rejectValue: string }
+>(
   'patient/getPatientAppointmentsForDoctor',
-  async (doctorId: string, { rejectWithValue }) => {
+  async ({ doctorId, page = 1, limit = 5 }, { rejectWithValue }) => {
     try {
-      const response = await getPatientAppointmentsForDoctor(doctorId);
-      return {
-        appointments: response.appointments,
-        canBookFree: response.canBookFree || false,
-      };
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Failed to fetch appointments';
-      return rejectWithValue(errorMessage);
+      const response = await getPatientAppointmentsForDoctor(
+        doctorId,
+        page,
+        limit
+      );
+      return response;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.message || 'Failed to fetch appointments'
+      );
     }
   }
 );
@@ -144,15 +151,18 @@ export const getPatientAppointmentsThunk = createAsyncThunk(
   }
 );
 
-export const cancelAppointmentThunk = createAsyncThunk(
+export const cancelAppointmentThunk = createAsyncThunk<
+  void,
+  { appointmentId: string; cancellationReason?: string }, // Updated to include cancellationReason
+  { rejectValue: string }
+>(
   'patient/cancelAppointment',
-  async (appointmentId: string, { rejectWithValue }) => {
+  async ({ appointmentId, cancellationReason }, { rejectWithValue }) => {
     try {
-      return await cancelAppointment(appointmentId);
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Failed to cancel appointment';
-      return rejectWithValue(errorMessage);
+      await cancelAppointment(appointmentId, cancellationReason);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to cancel appointment');
     }
   }
 );

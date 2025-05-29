@@ -1,4 +1,3 @@
-// src/hooks/useSendMessage.ts
 import { useCallback, useState } from 'react';
 import { toast } from 'react-toastify';
 import { sendMessage } from '../services/messageService';
@@ -29,11 +28,11 @@ export const useSendMessage = () => {
       try {
         const savedMessage = await sendMessage(receiverId, messageText);
         const updatedMessage: Message = {
-          id: savedMessage._id,
+          id: savedMessage.id,
           message: savedMessage.message,
           senderId: savedMessage.senderId,
           senderName: user.name || 'User',
-          timestamp: savedMessage.createdAt,
+          timestamp: savedMessage.timestamp,
           isSender: true,
           receiverId,
         };

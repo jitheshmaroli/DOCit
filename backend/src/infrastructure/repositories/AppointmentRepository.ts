@@ -1,46 +1,45 @@
-import { Appointment } from '../../core/entities/Appointment';
+import mongoose, { FilterQuery } from 'mongoose';
 import { IAppointmentRepository } from '../../core/interfaces/repositories/IAppointmentRepository';
+import { Appointment } from '../../core/entities/Appointment';
 import { QueryParams } from '../../types/authTypes';
 import { DateUtils } from '../../utils/DateUtils';
-import { QueryBuilder } from '../../utils/queryBuilder';
 import { AppointmentModel } from '../database/models/AppointmentModel';
-import { DoctorModel } from '../database/models/DoctorModel';
 import { PatientModel } from '../database/models/PatientModel';
-import { PatientSubscriptionModel } from '../database/models/PatientSubscriptionModel';
+import { DoctorModel } from '../database/models/DoctorModel';
+import logger from '../../utils/logger';
 
 export class AppointmentRepository implements IAppointmentRepository {
+  private model = AppointmentModel;
+
   async create(appointment: Appointment): Promise<Appointment> {
-    const newAppointment = new AppointmentModel({
+    const newAppointment = new this.model({
       ...appointment,
       date: DateUtils.startOfDayUTC(appointment.date),
     });
-    return newAppointment.save();
+    const savedAppointment = await newAppointment.save();
+    return savedAppointment.toObject() as Appointment;
   }
 
   async findById(id: string): Promise<Appointment | null> {
-    return AppointmentModel.findById(id).populate('patientId', 'name').populate('doctorId', 'name').exec();
+    if (!mongoose.Types.ObjectId.isValid(id)) return null;
+    const appointment = await this.model.findById(id).populate('patientId', 'name').populate('doctorId', 'name').exec();
+    logger.debug('appointment:', appointment);
+    return appointment ? (appointment.toObject() as Appointment) : null;
   }
 
   async findUpcomingAppointments(start: Date, end: Date): Promise<Appointment[]> {
-    console.log('start:', start);
-    console.log('end:', end);
-
-    // Get the start and end of the day for the given time window
     const startOfDay = DateUtils.startOfDayUTC(start);
     const endOfDay = DateUtils.endOfDayUTC(end);
 
-    // Fetch appointments for the relevant day(s) with status 'pending'
-    const appointments = await AppointmentModel.find({
-      date: { $gte: startOfDay, $lte: endOfDay },
-      status: 'pending',
-    })
+    const appointments = await this.model
+      .find({
+        date: { $gte: startOfDay, $lte: endOfDay },
+        status: 'pending',
+      })
       .populate('patientId', 'name')
       .populate('doctorId', 'name')
       .exec();
 
-    console.log(`Found ${appointments.length} appointments for date range ${startOfDay} to ${endOfDay}`);
-
-    // Filter appointments where date + startTime falls within the start-end window
     const filteredAppointments = appointments.filter((appt) => {
       try {
         const appointmentDateTime = DateUtils.combineDateAndTime(appt.date, appt.startTime);
@@ -50,9 +49,6 @@ export class AppointmentRepository implements IAppointmentRepository {
         return false;
       }
     });
-
-    console.log(`Filtered to ${filteredAppointments.length} upcoming appointments`);
-    console.log(filteredAppointments);
 
     return filteredAppointments.map((appt) => appt.toObject() as Appointment);
   }
@@ -64,113 +60,153 @@ export class AppointmentRepository implements IAppointmentRepository {
     endTime: string
   ): Promise<Appointment | null> {
     const normalizedDate = DateUtils.startOfDayUTC(date);
-    return AppointmentModel.findOne({
-      doctorId,
-      date: normalizedDate,
-      startTime,
-      endTime,
-      status: { $ne: 'cancelled' },
-    })
+    const appointment = await this.model
+      .findOne({
+        doctorId,
+        date: normalizedDate,
+        startTime,
+        endTime,
+        status: { $ne: 'cancelled' },
+      })
       .populate('patientId', 'name')
       .populate('doctorId', 'name')
       .exec();
+    return appointment ? (appointment.toObject() as Appointment) : null;
   }
 
   async countByPatientAndDoctor(patientId: string, doctorId: string): Promise<number> {
-    return AppointmentModel.countDocuments({
-      patientId,
-      doctorId,
-      status: { $ne: 'cancelled' },
-    }).exec();
+    return this.model
+      .countDocuments({
+        patientId,
+        doctorId,
+        status: { $ne: 'cancelled' },
+      })
+      .exec();
   }
 
   async countByPatientAndDoctorWithFreeBooking(patientId: string, doctorId: string): Promise<number> {
-    return AppointmentModel.countDocuments({
-      patientId,
-      doctorId,
-      isFreeBooking: true,
-      status: { $ne: 'cancelled' },
-    }).exec();
+    return this.model
+      .countDocuments({
+        patientId,
+        doctorId,
+        isFreeBooking: true,
+        status: { $ne: 'cancelled' },
+      })
+      .exec();
   }
 
   async update(id: string, updates: Partial<Appointment>): Promise<void> {
-    await AppointmentModel.findByIdAndUpdate(id, updates).exec();
+    if (!mongoose.Types.ObjectId.isValid(id)) return;
+    await this.model.findByIdAndUpdate(id, updates).exec();
   }
 
   async deleteById(id: string): Promise<void> {
-    await AppointmentModel.findByIdAndDelete(id).exec();
+    if (!mongoose.Types.ObjectId.isValid(id)) return;
+    await this.model.findByIdAndDelete(id).exec();
   }
 
   async findByPatient(patientId: string): Promise<Appointment[]> {
-    return AppointmentModel.find({ patientId }).populate('patientId', 'name').populate('doctorId', 'name').exec();
-  }
-
-  async findByPatientAndDoctor(patientId: string, doctorId: string): Promise<Appointment[]> {
-    return AppointmentModel.find({ patientId, doctorId })
+    const appointments = await this.model
+      .find({ patientId })
       .populate('patientId', 'name')
       .populate('doctorId', 'name')
       .exec();
+    return appointments.map((appt) => appt.toObject() as Appointment);
+  }
+
+  async findByPatientAndDoctorWithQuery(
+    patientId: string,
+    doctorId: string,
+    params: QueryParams
+  ): Promise<{ data: Appointment[]; totalItems: number }> {
+    const { page = 1, limit = 10, status } = params;
+    const query: FilterQuery<Appointment> = {
+      patientId,
+      doctorId,
+    };
+
+    if (status !== undefined) {
+      query.status = status;
+    }
+
+    const appointments = await this.model
+      .find(query)
+      .populate('patientId', 'name')
+      .populate('doctorId', 'name')
+      .sort({ createdAt: -1 }) // Default sort by creation date descending
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .exec();
+
+    const totalItems = await this.model.countDocuments(query).exec();
+
+    return {
+      data: appointments.map((appt) => appt.toObject() as Appointment),
+      totalItems,
+    };
   }
 
   async findByDoctor(doctorId: string): Promise<Appointment[]> {
-    return AppointmentModel.find({ doctorId })
-      .populate({
-        path: 'patientId',
-        select: '-refreshToken -password',
-      })
+    const appointments = await this.model
+      .find({ doctorId })
+      .populate({ path: 'patientId', select: '-refreshToken -password' })
       .populate('doctorId', 'name')
       .exec();
+    return appointments.map((appt) => appt.toObject() as Appointment);
   }
 
-  async findAllWithQuery(params: QueryParams): Promise<{ data: Appointment[]; totalItems: number }> {
-    const { search } = params;
-    const sort = QueryBuilder.buildSort(params);
-    const { page, limit } = QueryBuilder.validateParams(params);
+  async findByDoctorWithQuery(
+    doctorId: string,
+    params: QueryParams
+  ): Promise<{ data: Appointment[]; totalItems: number }> {
+    const { page = 1, limit = 5 } = params;
 
-    const query = QueryBuilder.buildQuery(params);
-    delete query.$or;
-
-    if (search) {
-      const patientIds = await PatientModel.find({ name: { $regex: search, $options: 'i' } }, '_id').exec();
-      const doctorIds = await DoctorModel.find({ name: { $regex: search, $options: 'i' } }, '_id').exec();
-
-      query.$or = [
-        { patientId: { $in: patientIds.map((p: { _id: string }) => p._id) } },
-        { doctorId: { $in: doctorIds.map((d: { _id: string }) => d._id) } },
-        { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-      ];
-    }
+    const query = { doctorId };
 
     const appointments = await AppointmentModel.find(query)
-      .populate({ path: 'patientId', select: 'name' })
-      .populate({ path: 'doctorId', select: 'name' })
-      .sort(sort)
+      .populate('patientId', 'name profilePicture')
+      .populate('doctorId', 'name')
+      .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
       .exec();
 
     const totalItems = await AppointmentModel.countDocuments(query).exec();
 
-    return { data: appointments, totalItems };
+    return {
+      data: appointments.map((appt) => appt.toObject() as Appointment),
+      totalItems,
+    };
   }
 
-  async findCompletedAppointmentsBySubscription(subscriptionId: string): Promise<Appointment[]> {
-    const subscription = await PatientSubscriptionModel.findById(subscriptionId);
-    if (!subscription) return [];
+  async findAllWithQuery(params: QueryParams): Promise<{ data: Appointment[]; totalItems: number }> {
+    const { search = '', page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc', status } = params;
+    const query: FilterQuery<Appointment> = {};
 
-    return AppointmentModel.find({
-      patientId: subscription.patientId,
-      doctorId: {
-        $in: await AppointmentModel.find({
-          _id: subscription.planId,
-        }).distinct('doctorId'),
-      },
-      status: 'confirmed',
-      createdAt: { $gte: subscription.startDate, $lte: subscription.endDate },
-    })
+    if (search) {
+      const patientIds = await PatientModel.find({ name: { $regex: search, $options: 'i' } }, '_id').exec();
+      const doctorIds = await DoctorModel.find({ name: { $regex: search, $options: 'i' } }, '_id').exec();
+      query.$or = [
+        { patientId: { $in: patientIds.map((p: { _id: string }) => p._id) } },
+        { doctorId: { $in: doctorIds.map((d: { _id: string }) => d._id) } },
+      ];
+    }
+
+    if (status !== undefined) {
+      query.status = status;
+    }
+
+    const appointments = await this.model
+      .find(query)
       .populate('patientId', 'name')
       .populate('doctorId', 'name')
+      .sort({ [sortBy]: sortOrder === 'desc' ? -1 : 1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
       .exec();
+
+    const totalItems = await this.model.countDocuments(query).exec();
+
+    return { data: appointments.map((appt) => appt.toObject() as Appointment), totalItems };
   }
 }

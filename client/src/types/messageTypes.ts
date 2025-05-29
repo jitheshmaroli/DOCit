@@ -55,8 +55,8 @@ export interface ChatMessageResponse {
 export interface VideoCallSignal {
   signal: SignalData;
   from: string;
+  to: string;
   appointmentId: string;
-  to?: string;
 }
 
 export interface VideoCallProps {

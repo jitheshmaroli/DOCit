@@ -1,5 +1,5 @@
-import { QueryParams } from '../../../types/authTypes';
 import { Appointment } from '../../entities/Appointment';
+import { QueryParams } from '../../../types/authTypes';
 
 export interface IAppointmentRepository {
   create(appointment: Appointment): Promise<Appointment>;
@@ -11,7 +11,12 @@ export interface IAppointmentRepository {
   countByPatientAndDoctorWithFreeBooking(patientId: string, doctorId: string): Promise<number>;
   update(id: string, updates: Partial<Appointment>): Promise<void>;
   findByPatient(patientId: string): Promise<Appointment[]>;
-  findByPatientAndDoctor(patientId: string, doctorId: string): Promise<Appointment[]>;
+  findByPatientAndDoctorWithQuery(
+    patientId: string,
+    doctorId: string,
+    params: QueryParams
+  ): Promise<{ data: Appointment[]; totalItems: number }>;
   findByDoctor(doctorId: string): Promise<Appointment[]>;
+  findByDoctorWithQuery(doctorId: string, params: QueryParams): Promise<{ data: Appointment[]; totalItems: number }>;
   findAllWithQuery(params: QueryParams): Promise<{ data: Appointment[]; totalItems: number }>;
 }

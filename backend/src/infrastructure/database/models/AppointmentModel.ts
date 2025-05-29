@@ -10,11 +10,12 @@ const AppointmentSchema = new Schema<Appointment>(
     endTime: { type: String, required: true },
     status: {
       type: String,
-      enum: ['pending', 'confirmed', 'cancelled'],
+      enum: ['pending', 'completed', 'cancelled'],
       default: 'pending',
     },
     isFreeBooking: { type: Boolean, default: false },
     bookingTime: { type: Date, default: Date.now },
+    cancellationReason: { type: String, required: false },
   },
   { timestamps: true }
 );

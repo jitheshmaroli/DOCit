@@ -1,12 +1,9 @@
-import { QueryParams } from '../../../types/authTypes';
+import { IBaseRepository } from './IBaseRepository';
 import { Patient } from '../../entities/Patient';
+import { QueryParams } from '../../../types/authTypes';
 
-export interface IPatientRepository {
-  create(patient: Patient): Promise<Patient>;
+export interface IPatientRepository extends IBaseRepository<Patient> {
   findByEmail(email: string): Promise<Patient | null>;
-  findById(id: string): Promise<Patient | null>;
-  update(id: string, patient: Partial<Patient>): Promise<Patient | null>;
-  delete(id: string): Promise<void>;
   findAllWithQuery(params: QueryParams): Promise<{ data: Patient[]; totalItems: number }>;
   updateSubscriptionStatus(patientId: string, isSubscribed: boolean): Promise<Patient | null>;
 }

@@ -104,7 +104,7 @@ export class BookAppointmentUseCase {
 
     await this.availabilityRepository.updateSlotBookingStatus(doctorId, startOfDay, startTime, true);
 
-    // Create notifications for patient and doctor
+    // notifications for patient and doctor
     const patientNotification: Notification = {
       userId: patientId,
       type: NotificationType.APPOINTMENT_BOOKED,

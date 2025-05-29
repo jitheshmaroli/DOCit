@@ -26,7 +26,7 @@ router.get('/subscriptions', adminAuth, adminController.getPatientSubscriptions.
 
 // Appointment routes
 router.get('/appointments', adminAuth, adminController.getAllAppointments.bind(adminController));
-router.put('/appointments/:appointmentId/cancel', adminAuth, adminController.cancelAppointment.bind(adminController));
+router.patch('/appointments/:appointmentId/cancel', adminAuth, adminController.cancelAppointment.bind(adminController));
 
 // Doctor management routes
 router.post('/doctors', adminAuth, adminAuthController.createDoctor.bind(adminAuthController));

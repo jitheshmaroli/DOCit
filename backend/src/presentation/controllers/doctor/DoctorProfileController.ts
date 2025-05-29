@@ -5,6 +5,7 @@ import { Container } from '../../../infrastructure/di/container';
 import { ValidationError } from '../../../utils/errors';
 import { ISpecialityRepository } from '../../../core/interfaces/repositories/ISpecialityRepository';
 import fs from 'fs';
+import logger from '../../../utils/logger';
 
 export class DoctorProfileController {
   private viewDoctorProfileUseCase: ViewDoctorProfileUseCase;
@@ -35,6 +36,7 @@ export class DoctorProfileController {
       if (updates.speciality) {
         const speciality = await this.specialityRepository.findAll();
         const validSpeciality = speciality.find((s) => s.name === updates.speciality);
+        logger.debug('speciality:', updates.speciality);
         if (!validSpeciality) {
           throw new ValidationError('Invalid speciality');
         }

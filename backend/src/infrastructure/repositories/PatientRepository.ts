@@ -1,71 +1,85 @@
+import mongoose, { FilterQuery } from 'mongoose';
 import { IPatientRepository } from '../../core/interfaces/repositories/IPatientRepository';
 import { Patient } from '../../core/entities/Patient';
+import { BaseRepository } from './BaseRepository';
 import { PatientModel } from '../database/models/PatientModel';
-import { QueryParams } from '../../types/authTypes';
-import { QueryBuilder } from '../../utils/queryBuilder';
-import mongoose from 'mongoose';
+import { QueryParams, PaginatedResponse } from '../../types/authTypes';
+import logger from '../../utils/logger';
+import { ValidationError } from '../../utils/errors';
 
-export class PatientRepository implements IPatientRepository {
-  async create(patient: Patient): Promise<Patient> {
-    const newPatient = new PatientModel(patient);
-    const savedPatient = await newPatient.save();
-    return savedPatient.toObject() as Patient;
+export class PatientRepository extends BaseRepository<Patient> implements IPatientRepository {
+  constructor() {
+    super(PatientModel);
   }
 
   async findByEmail(email: string): Promise<Patient | null> {
-    const patient = await PatientModel.findOne({
-      email,
-      isBlocked: false,
-    }).exec();
+    const patient = await this.model.findOne({ email, isBlocked: false }).exec();
     return patient ? (patient.toObject() as Patient) : null;
   }
 
-  async findById(id: string): Promise<Patient | null> {
-    try {
-      if (typeof id !== 'string') {
-        console.warn('Invalid id type in findById:', id);
-        return null;
-      }
-      const patient = await PatientModel.findById(id).exec();
-      return patient ? (patient.toObject() as Patient) : null;
-    } catch (error) {
-      if (error instanceof mongoose.Error.CastError) {
-        console.warn(`CastError in findById for id: ${id}`);
-        return null;
-      }
-      throw error;
+  async findAllWithQuery(params: QueryParams): Promise<PaginatedResponse<Patient>> {
+    const {
+      search = '',
+      page = 1,
+      limit = 10,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+      isBlocked,
+      isVerified,
+      isSubscribed,
+    } = params;
+
+    // Validate parameters
+    const validatedPage = parseInt(String(page)) || 1;
+    const validatedLimit = parseInt(String(limit)) || 10;
+    if (validatedPage < 1) throw new ValidationError('Page must be at least 1');
+    if (validatedLimit < 1 || validatedLimit > 100) throw new ValidationError('Limit must be between 1 and 100');
+    if (sortOrder && !['asc', 'desc'].includes(sortOrder)) {
+      throw new ValidationError('Sort order must be "asc" or "desc"');
     }
-  }
 
-  async update(id: string, updates: Partial<Patient>): Promise<Patient | null> {
-    const patient = await PatientModel.findByIdAndUpdate(id, updates, {
-      new: true,
-    }).exec();
-    return patient ? (patient.toObject() as Patient) : null;
-  }
+    const query: FilterQuery<Patient> = {};
 
-  async delete(id: string): Promise<void> {
-    await PatientModel.findByIdAndDelete(id).exec();
-  }
+    // Handle search
+    if (search) {
+      query.$or = [{ name: { $regex: search, $options: 'i' } }, { email: { $regex: search, $options: 'i' } }];
+    }
 
-  async findAllWithQuery(params: QueryParams): Promise<{ data: Patient[]; totalItems: number }> {
-    const query = QueryBuilder.buildQuery(params);
-    const sort = QueryBuilder.buildSort(params);
-    const { page, limit } = QueryBuilder.validateParams(params);
+    // Handle boolean filters
+    if (isBlocked !== undefined) {
+      query.isBlocked = isBlocked;
+    }
+    if (isVerified !== undefined) {
+      query.isVerified = isVerified;
+    }
+    if (isSubscribed !== undefined) {
+      query.isSubscribed = isSubscribed;
+    }
 
-    const patients = await PatientModel.find(query)
-      .sort(sort)
-      .skip((page - 1) * limit)
-      .limit(limit)
+    logger.debug('query in patientrepo:', query);
+
+    // Execute query
+    const patients = await this.model
+      .find(query)
+      .sort({ [sortBy]: sortOrder === 'desc' ? -1 : 1 })
+      .skip((validatedPage - 1) * validatedLimit)
+      .limit(validatedLimit)
       .exec();
 
-    const totalItems = await PatientModel.countDocuments(query).exec();
+    const totalItems = await this.model.countDocuments(query).exec();
+    const totalPages = Math.ceil(totalItems / validatedLimit);
 
-    return { data: patients, totalItems };
+    return {
+      data: patients.map((patient) => patient.toObject() as Patient),
+      totalPages,
+      currentPage: validatedPage,
+      totalItems,
+    };
   }
 
   async updateSubscriptionStatus(patientId: string, isSubscribed: boolean): Promise<Patient | null> {
-    const patient = await PatientModel.findByIdAndUpdate(patientId, { isSubscribed }, { new: true }).exec();
+    if (!mongoose.Types.ObjectId.isValid(patientId)) return null;
+    const patient = await this.model.findByIdAndUpdate(patientId, { isSubscribed }, { new: true }).exec();
     return patient ? (patient.toObject() as Patient) : null;
   }
 }

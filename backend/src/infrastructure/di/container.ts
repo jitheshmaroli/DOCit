@@ -83,6 +83,7 @@ import { IChatService } from '../../core/interfaces/services/IChatService';
 import { QueryParams } from '../../types/authTypes';
 import { DeleteAllNotificationsUseCase } from '../../core/use-cases/notification/DeleteAllNotificationsUseCase';
 import { MarkNotificationAsReadUseCase } from '../../core/use-cases/notification/MarkNotificationAsReadUseCase';
+import { AdminCancelAppointmentUseCase } from '../../core/use-cases/admin/AdminCancelAppointmentUseCase';
 
 export class Container {
   private static instance: Container;
@@ -196,7 +197,10 @@ export class Container {
     this.dependencies.set('DeletePatientUseCase', new DeletePatientUseCase(patientRepository));
     this.dependencies.set('BlockPatientUseCase', new BlockPatientUseCase(patientRepository));
     this.dependencies.set('CreatePatientUseCase', new CreatePatientUseCase(patientRepository));
-    this.dependencies.set('ViewDoctorProfileUseCase', new ViewDoctorProfileUseCase(doctorRepository));
+    this.dependencies.set(
+      'ViewDoctorProfileUseCase',
+      new ViewDoctorProfileUseCase(doctorRepository, specialityRepository)
+    );
     this.dependencies.set(
       'UpdateDoctorProfileUseCase',
       new UpdateDoctorProfileUseCase(doctorRepository, imageUploadService)
@@ -258,7 +262,7 @@ export class Container {
     );
     this.dependencies.set(
       'ManageSubscriptionPlanUseCase',
-      new ManageSubscriptionPlanUseCase(subscriptionPlanRepository, doctorRepository)
+      new ManageSubscriptionPlanUseCase(subscriptionPlanRepository, doctorRepository, patientSubscriptionRepository)
     );
     this.dependencies.set(
       'CancelAppointmentUseCase',
@@ -286,7 +290,7 @@ export class Container {
     );
     this.dependencies.set(
       'AdminCancelAppointmentUseCase',
-      new CancelAppointmentUseCase(
+      new AdminCancelAppointmentUseCase(
         appointmentRepository,
         availabilityRepository,
         patientSubscriptionRepository,

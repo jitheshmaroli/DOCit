@@ -16,7 +16,7 @@ export class CancelAppointmentUseCase {
     private notificationService: INotificationService
   ) {}
 
-  async execute(appointmentId: string, patientId: string): Promise<void> {
+  async execute(appointmentId: string, patientId: string, cancellationReason?: string): Promise<void> {
     if (!patientId) {
       logger.error('No patientId provided for appointment cancellation');
       throw new ValidationError('Patient ID is required');
@@ -58,8 +58,12 @@ export class CancelAppointmentUseCase {
       throw new ValidationError('Invalid doctor ID');
     }
 
-    await this.appointmentRepository.deleteById(appointmentId);
-    logger.info(`Appointment deleted: ${appointmentId}`);
+    // Update appointment with cancellation status and reason
+    await this.appointmentRepository.update(appointmentId, {
+      status: 'cancelled',
+      cancellationReason,
+    });
+    logger.info(`Appointment cancelled: ${appointmentId}`);
 
     const startOfDay = DateUtils.startOfDayUTC(appointment.date);
     try {
@@ -80,16 +84,16 @@ export class CancelAppointmentUseCase {
       }
     }
 
-    logger.info(appointment);
     const doctorName =
       typeof appointment.doctorId === 'object' && appointment.doctorId !== null ? appointment.doctorId.name : null;
     const patientName =
       typeof appointment.patientId === 'object' && appointment.patientId !== null ? appointment.patientId.name : null;
-    // Create notifications for patient and doctor
+
+    // notifications for patient and doctor
     const patientNotification: Notification = {
       userId: patientId,
       type: NotificationType.APPOINTMENT_CANCELLED,
-      message: `Your appointment with Dr. ${doctorName} for ${appointment.startTime} on ${appointment.date.toLocaleDateString()} has been cancelled.`,
+      message: `Your appointment with Dr. ${doctorName} for ${appointment.startTime} on ${appointment.date.toLocaleDateString()} has been cancelled.${cancellationReason ? ` Reason: ${cancellationReason}` : ''}`,
       isRead: false,
       createdAt: new Date(),
     };
@@ -97,7 +101,7 @@ export class CancelAppointmentUseCase {
     const doctorNotification: Notification = {
       userId: doctorId,
       type: NotificationType.APPOINTMENT_CANCELLED,
-      message: `An appointment with ${patientName} for ${appointment.startTime} on ${appointment.date.toLocaleDateString()} hs been cancelled.`,
+      message: `An appointment with ${patientName} for ${appointment.startTime} on ${appointment.date.toLocaleDateString()} has been cancelled.${cancellationReason ? ` Reason: ${cancellationReason}` : ''}`,
       isRead: false,
       createdAt: new Date(),
     };

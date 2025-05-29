@@ -25,7 +25,7 @@ export class SetAvailabilityUseCase {
       if (!slot.startTime || !slot.endTime) {
         throw new ValidationError(`Time slot at index ${index} is missing startTime or endTime`);
       }
-      slot.isBooked = false; // Ensure new slots are unbooked
+      slot.isBooked = false;
       DateUtils.validateTimeSlot(slot.startTime, slot.endTime, utcDate);
     });
 

@@ -1,54 +1,42 @@
 import { ISpecialityRepository } from '../../core/interfaces/repositories/ISpecialityRepository';
-import { Speciality } from '../../core/entities/Speciality';
+import { BaseRepository } from './BaseRepository';
 import { SpecialityModel } from '../database/models/SpecialityModel';
 import { QueryParams } from '../../types/authTypes';
-import { QueryBuilder } from '../../utils/queryBuilder';
+import { Speciality } from '../../core/entities/Speciality';
+import { FilterQuery } from 'mongoose';
 
-export class SpecialityRepository implements ISpecialityRepository {
-  async create(speciality: Speciality): Promise<Speciality> {
-    const newSpeciality = new SpecialityModel(speciality);
-    return newSpeciality.save();
+export class SpecialityRepository extends BaseRepository<Speciality> implements ISpecialityRepository {
+  constructor() {
+    super(SpecialityModel);
   }
 
   async findAll(): Promise<Speciality[]> {
-    return SpecialityModel.find().exec();
+    const specialities = await this.model.find().exec();
+    return specialities.map((spec) => spec.toObject() as Speciality);
   }
 
   async findAllWithQuery(params: QueryParams): Promise<{ data: Speciality[]; totalItems: number }> {
-    const query = QueryBuilder.buildQuery(params);
-    const sort = QueryBuilder.buildSort(params);
-    const { page, limit } = QueryBuilder.validateParams(params);
+    const { search = '', page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' } = params;
+    const query: FilterQuery<Speciality> = {};
 
-    const specialities = await SpecialityModel.find(query)
-      .sort(sort)
+    if (search) {
+      query.name = { $regex: search, $options: 'i' };
+    }
+
+    const specialities = await this.model
+      .find(query)
+      .sort({ [sortBy]: sortOrder === 'desc' ? -1 : 1 })
       .skip((page - 1) * limit)
       .limit(limit)
       .exec();
 
-    const totalItems = await SpecialityModel.countDocuments(query).exec();
+    const totalItems = await this.model.countDocuments(query).exec();
 
-    return { data: specialities, totalItems };
-  }
-
-  async findById(id: string): Promise<Speciality | null> {
-    return SpecialityModel.findById(id).exec();
+    return { data: specialities.map((spec) => spec.toObject() as Speciality), totalItems };
   }
 
   async findByIds(ids: string[]): Promise<Speciality[]> {
-    return SpecialityModel.find({ _id: { $in: ids } }).exec();
-  }
-
-  async update(id: string, updates: Partial<Speciality>): Promise<Speciality> {
-    const speciality = await SpecialityModel.findByIdAndUpdate(id, updates, {
-      new: true,
-    }).exec();
-    if (!speciality) {
-      throw new Error('Speciality not found');
-    }
-    return speciality;
-  }
-
-  async delete(id: string): Promise<void> {
-    await SpecialityModel.findByIdAndDelete(id).exec();
+    const specialities = await this.model.find({ _id: { $in: ids } }).exec();
+    return specialities.map((spec) => spec.toObject() as Speciality);
   }
 }

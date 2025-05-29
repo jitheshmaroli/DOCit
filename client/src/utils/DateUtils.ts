@@ -8,61 +8,58 @@ dayjs.extend(timezone);
 dayjs.extend(isSameOrAfter);
 
 export class DateUtils {
-  // Combine date and time into a UTC Date object
   static combineDateAndTime(dateStr: string, timeStr: string): Date {
     const date = dayjs.utc(dateStr).format('YYYY-MM-DD');
     return dayjs.utc(`${date} ${timeStr}`, 'YYYY-MM-DD HH:mm').toDate();
   }
 
-  // Parse a date string to UTC Date object
   static parseToUTC(dateStr: string | Date): Date {
     return dayjs.utc(dateStr).toDate();
   }
 
-  // Format a Date to ISO 8601 string (UTC)
   static formatToISO(date: Date): string {
     return dayjs.utc(date).toISOString();
   }
 
-  // Format a Date to local display (e.g., MMMM D, YYYY)
   static formatToLocalDisplay(date: Date): string {
     return dayjs(date).format('MMMM D, YYYY');
   }
 
   static formatToLocal(dateStr: string): string {
+    if (!dateStr || dateStr === 'Invalid Date') return 'Unknown Date';
     const date = new Date(dateStr);
-    console.log('date:', date)
-    const newdate = date.toLocaleDateString('en-IN', {
+    if (isNaN(date.getTime())) return 'Unknown Date';
+    return date.toLocaleDateString('en-IN', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
     });
-    console.log('newdate:',newdate)
-    return newdate;
   }
 
   static formatTimeToLocal(timeStr: string, date?: string): string {
-    const [hours, minutes] = timeStr.split(':').map(Number);
-    const dateObj = date ? new Date(date) : new Date();
-    dateObj.setHours(hours, minutes);
-    return dateObj.toLocaleTimeString('en-IN', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-    });
+    if (!timeStr) return 'Unknown Time';
+    try {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      const dateObj = date ? new Date(date) : new Date();
+      dateObj.setHours(hours, minutes);
+      return dateObj.toLocaleTimeString('en-IN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      });
+    } catch {
+      return 'Unknown Time';
+    }
   }
 
-  // Get user's timezone
   static getUserTimezone(): string {
     return Intl.DateTimeFormat().resolvedOptions().timeZone;
   }
 
-  // Convert UTC date to local date
   static toLocalDate(date: Date): Date {
     return dayjs.utc(date).local().toDate();
   }
 
-  // Validate if date is today or in the future
   static isFutureDate(date: Date): boolean {
     return (
       dayjs.utc(date).isSame(dayjs.utc(), 'day') ||
@@ -70,7 +67,6 @@ export class DateUtils {
     );
   }
 
-  // Check for overlapping slots
   static checkOverlappingSlots(
     slots: { startTime: string; endTime: string }[],
     date: Date

@@ -1,4 +1,3 @@
-// src/components/MessageInbox.tsx
 import React from 'react';
 import { DateUtils } from '../utils/DateUtils';
 import { MessageThread } from '../types/messageTypes';

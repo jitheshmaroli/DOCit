@@ -1,28 +1,27 @@
+import mongoose from 'mongoose';
 import { IVideoCallRepository } from '../../core/interfaces/repositories/IVideoCallRepository';
-import { VideoCallSession } from '../../core/entities/VideoCallSession';
+import { BaseRepository } from './BaseRepository';
 import { VideoCallSessionModel } from '../database/models/VideoCallSessionModel';
-import { ValidationError } from '../../utils/errors';
 import { VideoCallSettings } from '../../types/chatTypes';
+import { ValidationError } from '../../utils/errors';
+import { VideoCallSession } from '../../core/entities/VideoCallSession';
 
-export class VideoCallRepository implements IVideoCallRepository {
-  async create(session: VideoCallSession): Promise<VideoCallSession> {
-    const newSession = new VideoCallSessionModel(session);
-    const savedSession = await newSession.save();
-    return savedSession.toObject() as VideoCallSession;
-  }
-
-  async findById(id: string): Promise<VideoCallSession | null> {
-    const session = await VideoCallSessionModel.findById(id).exec();
-    return session ? (session.toObject() as VideoCallSession) : null;
+export class VideoCallRepository extends BaseRepository<VideoCallSession> implements IVideoCallRepository {
+  constructor() {
+    super(VideoCallSessionModel);
   }
 
   async findByAppointmentId(appointmentId: string): Promise<VideoCallSession | null> {
-    const session = await VideoCallSessionModel.findOne({ appointmentId }).exec();
+    if (!mongoose.Types.ObjectId.isValid(appointmentId)) return null;
+    const session = await this.model.findOne({ appointmentId }).exec();
     return session ? (session.toObject() as VideoCallSession) : null;
   }
 
   async updateSettings(id: string, settings: Partial<VideoCallSettings>): Promise<VideoCallSettings> {
-    const session = await VideoCallSessionModel.findByIdAndUpdate(id, { $set: { settings } }, { new: true }).exec();
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      throw new ValidationError('Invalid video call session ID');
+    }
+    const session = await this.model.findByIdAndUpdate(id, { $set: { settings } }, { new: true }).exec();
     if (!session) {
       throw new ValidationError('Video call session not found');
     }
@@ -30,11 +29,10 @@ export class VideoCallRepository implements IVideoCallRepository {
   }
 
   async endSession(id: string): Promise<VideoCallSession | null> {
-    const session = await VideoCallSessionModel.findByIdAndUpdate(
-      id,
-      { status: 'ended', updatedAt: new Date() },
-      { new: true }
-    ).exec();
+    if (!mongoose.Types.ObjectId.isValid(id)) return null;
+    const session = await this.model
+      .findByIdAndUpdate(id, { status: 'ended', updatedAt: new Date() }, { new: true })
+      .exec();
     return session ? (session.toObject() as VideoCallSession) : null;
   }
 }

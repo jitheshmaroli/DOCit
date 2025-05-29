@@ -1,39 +1,39 @@
-import { Availability } from '../../core/entities/Availability';
 import { IAvailabilityRepository } from '../../core/interfaces/repositories/IAvailabilityRepository';
+import { Availability } from '../../core/entities/Availability';
+import { BaseRepository } from './BaseRepository';
 import { AvailabilityModel } from '../database/models/AvailabilityModel';
 import { DateUtils } from '../../utils/DateUtils';
 import { ValidationError } from '../../utils/errors';
+import logger from '../../utils/logger';
 
-export class AvailabilityRepository implements IAvailabilityRepository {
-  async create(availability: Availability): Promise<Availability> {
-    const newAvailability = new AvailabilityModel({
-      ...availability,
-      date: DateUtils.startOfDayUTC(availability.date),
-    });
-    return newAvailability.save();
-  }
-
-  async findById(id: string): Promise<Availability | null> {
-    return AvailabilityModel.findById(id).exec();
+export class AvailabilityRepository extends BaseRepository<Availability> implements IAvailabilityRepository {
+  constructor() {
+    super(AvailabilityModel);
   }
 
   async findByDoctorAndDate(doctorId: string, date: Date): Promise<Availability | null> {
     const startOfDay = DateUtils.startOfDayUTC(date);
     const endOfDay = DateUtils.endOfDayUTC(date);
-    return AvailabilityModel.findOne({
-      doctorId,
-      date: { $gte: startOfDay, $lte: endOfDay },
-    }).exec();
+    const availability = await this.model
+      .findOne({
+        doctorId,
+        date: { $gte: startOfDay, $lte: endOfDay },
+      })
+      .exec();
+    return availability ? (availability.toObject() as Availability) : null;
   }
 
   async findByDoctorAndDateRange(doctorId: string, startDate: Date, endDate: Date): Promise<Availability[]> {
-    return AvailabilityModel.find({
-      doctorId,
-      date: {
-        $gte: DateUtils.startOfDayUTC(startDate),
-        $lte: DateUtils.endOfDayUTC(endDate),
-      },
-    }).exec();
+    const availabilities = await this.model
+      .find({
+        doctorId,
+        date: {
+          $gte: DateUtils.startOfDayUTC(startDate),
+          $lte: DateUtils.endOfDayUTC(endDate),
+        },
+      })
+      .exec();
+    return availabilities.map((avail) => avail.toObject() as Availability);
   }
 
   async findByDoctorAndDateRangeWithUnbookedSlots(
@@ -41,44 +41,43 @@ export class AvailabilityRepository implements IAvailabilityRepository {
     startDate: Date,
     endDate: Date
   ): Promise<Availability[]> {
-    return AvailabilityModel.aggregate([
-      {
-        $match: {
-          doctorId,
-          date: {
-            $gte: DateUtils.startOfDayUTC(startDate),
-            $lte: DateUtils.endOfDayUTC(endDate),
-          },
-        },
-      },
-      {
-        $project: {
-          doctorId: 1,
-          date: 1,
-          timeSlots: {
-            $filter: {
-              input: '$timeSlots',
-              as: 'slot',
-              cond: { $eq: ['$$slot.isBooked', false] },
+    logger.debug('availabilityrepo:', doctorId);
+    const availabilities = await this.model
+      .aggregate([
+        {
+          $match: {
+            doctorId,
+            date: {
+              $gte: DateUtils.startOfDayUTC(startDate),
+              $lte: DateUtils.endOfDayUTC(endDate),
             },
           },
         },
-      },
-    ]).exec();
-  }
-
-  async update(id: string, updates: Partial<Availability>): Promise<void> {
-    await AvailabilityModel.findByIdAndUpdate(id, updates).exec();
-  }
-
-  async delete(id: string): Promise<void> {
-    await AvailabilityModel.findByIdAndDelete(id).exec();
+        {
+          $project: {
+            _id: 1,
+            doctorId: 1,
+            date: 1,
+            timeSlots: {
+              $filter: {
+                input: '$timeSlots',
+                as: 'slot',
+                cond: { $eq: ['$$slot.isBooked', false] },
+              },
+            },
+            createdAt: 1,
+            updatedAt: 1,
+          },
+        },
+      ])
+      .exec();
+    logger.debug('availabities:', availabilities);
+    return availabilities as Availability[];
   }
 
   async removeSlot(availabilityId: string, slotIndex: number): Promise<Availability | null> {
-    const availability = await AvailabilityModel.findById(availabilityId).exec();
-    if (!availability) return null;
-    if (slotIndex < 0 || slotIndex >= availability.timeSlots.length) {
+    const availability = await this.model.findById(availabilityId).exec();
+    if (!availability || slotIndex < 0 || slotIndex >= availability.timeSlots.length) {
       return null;
     }
     if (availability.timeSlots[slotIndex].isBooked) {
@@ -86,11 +85,11 @@ export class AvailabilityRepository implements IAvailabilityRepository {
     }
     availability.timeSlots.splice(slotIndex, 1);
     if (availability.timeSlots.length === 0) {
-      await AvailabilityModel.findByIdAndDelete(availabilityId).exec();
+      await this.model.findByIdAndDelete(availabilityId).exec();
       return null;
     }
     await availability.save();
-    return availability;
+    return availability.toObject() as Availability;
   }
 
   async updateSlot(
@@ -98,9 +97,8 @@ export class AvailabilityRepository implements IAvailabilityRepository {
     slotIndex: number,
     newSlot: { startTime: string; endTime: string }
   ): Promise<Availability | null> {
-    const availability = await AvailabilityModel.findById(availabilityId).exec();
-    if (!availability) return null;
-    if (slotIndex < 0 || slotIndex >= availability.timeSlots.length) {
+    const availability = await this.model.findById(availabilityId).exec();
+    if (!availability || slotIndex < 0 || slotIndex >= availability.timeSlots.length) {
       return null;
     }
     if (availability.timeSlots[slotIndex].isBooked) {
@@ -110,46 +108,23 @@ export class AvailabilityRepository implements IAvailabilityRepository {
     DateUtils.validateTimeSlot(newSlot.startTime, newSlot.endTime, availability.date);
     DateUtils.checkOverlappingSlots(availability.timeSlots, availability.date);
     await availability.save();
-    return availability;
+    return availability.toObject() as Availability;
   }
 
   async updateSlotBookingStatus(doctorId: string, date: Date, startTime: string, isBooked: boolean): Promise<void> {
     const startOfDay = DateUtils.startOfDayUTC(date);
-    await AvailabilityModel.updateOne(
-      { doctorId, date: startOfDay },
-      {
-        $set: {
-          'timeSlots.$[slot].isBooked': isBooked,
+    await this.model
+      .updateOne(
+        { doctorId, date: startOfDay },
+        {
+          $set: {
+            'timeSlots.$[slot].isBooked': isBooked,
+          },
         },
-      },
-      {
-        arrayFilters: [{ 'slot.startTime': startTime }],
-      }
-    ).exec();
-  }
-
-  async getAvailableSlotsForSubscribedPatients(doctorId: string, date: Date): Promise<Availability | null> {
-    const startOfDay = DateUtils.startOfDayUTC(date);
-    const endOfDay = DateUtils.endOfDayUTC(date);
-
-    const availability = await AvailabilityModel.findOne({
-      doctorId,
-      date: { $gte: startOfDay, $lte: endOfDay },
-    }).exec();
-
-    if (!availability) {
-      return null;
-    }
-
-    const availableSlots = availability.timeSlots.filter((slot) => !slot.isBooked);
-
-    if (availableSlots.length === 0) {
-      return null;
-    }
-
-    return {
-      ...availability.toObject(),
-      timeSlots: availableSlots,
-    };
+        {
+          arrayFilters: [{ 'slot.startTime': startTime }],
+        }
+      )
+      .exec();
   }
 }

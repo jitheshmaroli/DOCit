@@ -1,36 +1,36 @@
-import { SubscriptionPlan } from '../../core/entities/SubscriptionPlan';
 import { ISubscriptionPlanRepository } from '../../core/interfaces/repositories/ISubscriptionPlanRepository';
-import { QueryParams } from '../../types/authTypes';
-import { NotFoundError } from '../../utils/errors';
-import { QueryBuilder } from '../../utils/queryBuilder';
-import { DoctorModel } from '../database/models/DoctorModel';
+import { BaseRepository } from './BaseRepository';
 import { SubscriptionPlanModel } from '../database/models/SubscriptionPlanModel';
+import { DoctorModel } from '../database/models/DoctorModel';
+import { QueryParams } from '../../types/authTypes';
+import { SubscriptionPlan } from '../../core/entities/SubscriptionPlan';
+import { FilterQuery } from 'mongoose';
 
-export class SubscriptionPlanRepository implements ISubscriptionPlanRepository {
-  async create(plan: SubscriptionPlan): Promise<SubscriptionPlan> {
-    const newPlan = await SubscriptionPlanModel.create(plan);
-    return this.populateDoctorName(newPlan.toObject());
-  }
-
-  async findById(id: string): Promise<SubscriptionPlan | null> {
-    const plan = await SubscriptionPlanModel.findById(id).lean();
-    if (!plan) return null;
-    return this.populateDoctorName(plan);
+export class SubscriptionPlanRepository
+  extends BaseRepository<SubscriptionPlan>
+  implements ISubscriptionPlanRepository
+{
+  constructor() {
+    super(SubscriptionPlanModel);
   }
 
   async findAllWithQuery(params: QueryParams): Promise<{ data: SubscriptionPlan[]; totalItems: number }> {
-    const query = QueryBuilder.buildQuery(params);
-    const sort = QueryBuilder.buildSort(params);
-    const { page, limit } = QueryBuilder.validateParams(params);
+    const { search = '', page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' } = params;
+    const query: FilterQuery<SubscriptionPlan> = {};
 
-    const plans = await SubscriptionPlanModel.find(query)
-      .sort(sort)
+    if (search) {
+      query.name = { $regex: search, $options: 'i' };
+    }
+
+    const plans = await this.model
+      .find(query)
+      .sort({ [sortBy]: sortOrder === 'desc' ? -1 : 1 })
       .skip((page - 1) * limit)
       .limit(limit)
       .lean()
       .exec();
 
-    const totalItems = await SubscriptionPlanModel.countDocuments(query).exec();
+    const totalItems = await this.model.countDocuments(query).exec();
 
     const populatedPlans = await Promise.all(plans.map((plan) => this.populateDoctorName(plan)));
 
@@ -38,47 +38,27 @@ export class SubscriptionPlanRepository implements ISubscriptionPlanRepository {
   }
 
   async findByDoctor(doctorId: string): Promise<SubscriptionPlan[]> {
-    const plans = await SubscriptionPlanModel.find({ doctorId }).lean();
+    const plans = await this.model.find({ doctorId }).lean().exec();
     return Promise.all(plans.map((plan) => this.populateDoctorName(plan)));
   }
 
   async findApprovedByDoctor(doctorId: string): Promise<SubscriptionPlan[]> {
-    const plans = await SubscriptionPlanModel.find({
-      doctorId,
-      status: 'approved',
-    }).lean();
+    const plans = await this.model.find({ doctorId, status: 'approved' }).lean().exec();
     return Promise.all(plans.map((plan) => this.populateDoctorName(plan)));
   }
 
   async findPending(): Promise<SubscriptionPlan[]> {
-    const plans = await SubscriptionPlanModel.find({
-      status: 'pending',
-    }).lean();
+    const plans = await this.model.find({ status: 'pending' }).lean().exec();
     return Promise.all(plans.map((plan) => this.populateDoctorName(plan)));
-  }
-
-  async update(id: string, updates: Partial<SubscriptionPlan>): Promise<SubscriptionPlan | null> {
-    const plan = await SubscriptionPlanModel.findByIdAndUpdate(id, updates, {
-      new: true,
-    }).lean();
-    if (!plan) return null;
-    return this.populateDoctorName(plan);
-  }
-
-  async delete(id: string): Promise<void> {
-    const result = await SubscriptionPlanModel.findByIdAndDelete(id);
-    if (!result) {
-      throw new NotFoundError('Plan not found');
-    }
   }
 
   private async populateDoctorName(plan: SubscriptionPlan): Promise<SubscriptionPlan> {
     if (plan.doctorId) {
-      const doctor = await DoctorModel.findById(plan.doctorId).select('name').lean();
+      const doctor = await DoctorModel.findById(plan.doctorId).select('name').lean().exec();
       plan.doctorName = doctor?.name || 'N/A';
     } else {
       plan.doctorName = 'N/A';
     }
-    return plan as SubscriptionPlan;
+    return plan;
   }
 }

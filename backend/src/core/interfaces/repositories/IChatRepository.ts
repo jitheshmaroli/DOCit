@@ -1,10 +1,6 @@
-import { ChatMessage } from '../../entities/ChatMessage';
 import { QueryParams } from '../../../types/authTypes';
-
-export interface InboxEntry {
-  partnerId: string;
-  latestMessage: ChatMessage | null;
-}
+import { InboxEntry } from '../../../types/chatTypes';
+import { ChatMessage } from '../../entities/ChatMessage';
 
 export interface IChatRepository {
   create(message: ChatMessage): Promise<ChatMessage>;

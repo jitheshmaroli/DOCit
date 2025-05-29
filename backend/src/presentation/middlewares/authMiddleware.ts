@@ -3,6 +3,7 @@ import { ITokenService } from '../../core/interfaces/services/ITokenService';
 import { AuthenticationError } from '../../utils/errors';
 import { Container } from '../../infrastructure/di/container';
 import { CustomRequest, UserRole } from '../../types';
+import logger from '../../utils/logger';
 
 export const authMiddleware = (container: Container) => {
   const tokenService: ITokenService = container.get('ITokenService');
@@ -22,6 +23,7 @@ export const authMiddleware = (container: Container) => {
       if (!Object.values(UserRole).includes(role)) {
         throw new AuthenticationError('Invalid user role');
       }
+      logger.debug('auth middleware:', decoded);
       req.user = { id: decoded.userId, role };
       next();
     } catch (error) {

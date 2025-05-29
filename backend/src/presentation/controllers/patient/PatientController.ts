@@ -17,6 +17,7 @@ import { ISpecialityRepository } from '../../../core/interfaces/repositories/ISp
 import { Appointment } from '../../../core/entities/Appointment';
 import { CustomRequest } from '../../../types';
 import { QueryParams } from '../../../types/authTypes';
+import logger from '../../../utils/logger';
 
 export class PatientController {
   private bookAppointmentUseCase: BookAppointmentUseCase;
@@ -57,6 +58,8 @@ export class PatientController {
       const startDate = new Date(date as string);
       const endDate = new Date(startDate);
       endDate.setDate(startDate.getDate() + 30);
+      logger.debug('paramsavailability:', req.params);
+      logger.debug('paramsavailability:', req.query);
       const availability = await this.getDoctorAvailabilityUseCase.execute(doctorId, startDate, endDate, true);
       res.status(200).json(availability || []);
     } catch (error) {
@@ -169,10 +172,11 @@ export class PatientController {
         throw new ValidationError('User ID not found in request');
       }
       const { appointmentId } = req.params;
+      const { cancellationReason } = req.body; // Extract cancellationReason from body
       if (!appointmentId) {
         throw new ValidationError('appointmentId is required');
       }
-      await this.cancelAppointmentUseCase.execute(appointmentId, patientId);
+      await this.cancelAppointmentUseCase.execute(appointmentId, patientId, cancellationReason);
       res.status(200).json({ message: 'Appointment cancelled' });
     } catch (error) {
       next(error);
@@ -222,7 +226,9 @@ export class PatientController {
         sortBy: req.query.sortBy as string | undefined,
         sortOrder: req.query.sortOrder as 'asc' | 'desc' | undefined,
         speciality: req.query.speciality as string | undefined,
-        ageRange: req.query.ageRange as string | undefined,
+        experience: req.query.experience as string | undefined,
+        availabilityStart: req.query.availabilityStart as string | undefined,
+        availabilityEnd: req.query.availabilityEnd as string | undefined,
         gender: req.query.gender as string | undefined,
       };
       const result = await this.getVerifiedDoctorsUseCase.execute(params);
@@ -238,17 +244,37 @@ export class PatientController {
       if (!patientId) {
         throw new ValidationError('User ID not found in request');
       }
-      const { doctorId } = req.query;
-      const appointments = doctorId
-        ? await this.appointmentRepository.findByPatientAndDoctor(patientId, doctorId as string)
-        : await this.appointmentRepository.findByPatient(patientId);
-      const response: { appointments: Appointment[]; canBookFree?: boolean } = {
-        appointments,
+      const { doctorId, page = 1, limit = 5, status } = req.query;
+      const queryParams: QueryParams = {
+        page: parseInt(String(page)),
+        limit: parseInt(String(limit)),
+        status: status as string | undefined,
       };
+
+      let response: { appointments: Appointment[]; totalItems: number; canBookFree?: boolean };
       if (doctorId) {
+        const appointmentsResult = await this.appointmentRepository.findByPatientAndDoctorWithQuery(
+          patientId,
+          doctorId as string,
+          queryParams
+        );
+        response = {
+          appointments: appointmentsResult.data,
+          totalItems: appointmentsResult.totalItems,
+        };
         const canBookFree = await this.checkFreeBookingUseCase.execute(patientId, doctorId as string);
         response.canBookFree = canBookFree;
+      } else {
+        const appointmentsResult = await this.appointmentRepository.findAllWithQuery({
+          ...queryParams,
+          patientId,
+        });
+        response = {
+          appointments: appointmentsResult.data,
+          totalItems: appointmentsResult.totalItems,
+        };
       }
+
       res.status(200).json(response);
     } catch (error) {
       next(error);

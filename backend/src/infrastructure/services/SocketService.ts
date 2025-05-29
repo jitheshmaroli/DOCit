@@ -50,12 +50,10 @@ export class SocketService {
 
     this.io.use(async (socket: Socket, next) => {
       try {
-        // Verify cookie module
         if (!cookie.parse) {
           throw new Error('Cookie parsing module not available');
         }
 
-        // Access cookie header
         const cookieHeader = socket.handshake.headers.cookie;
 
         if (!cookieHeader || typeof cookieHeader !== 'string') {
@@ -65,7 +63,6 @@ export class SocketService {
           return next(new AuthenticationError('No cookies provided'));
         }
 
-        // Parse cookies
         let cookies: Record<string, string | undefined>;
         try {
           cookies = cookie.parse(cookieHeader);
@@ -74,7 +71,6 @@ export class SocketService {
           return next(new AuthenticationError('Invalid cookie format'));
         }
 
-        // Extract access token
         const accessToken = cookies['accessToken'];
         if (!accessToken) {
           logger.error('No accessToken found in cookies', { cookies });
@@ -82,14 +78,12 @@ export class SocketService {
         }
 
         try {
-          // Verify the access token
           const decoded = this.tokenService.verifyAccessToken(accessToken);
           socket.data.userId = decoded.userId;
           socket.data.role = decoded.role;
           logger.info(`Socket authenticated: userId=${decoded.userId}, role=${decoded.role}`);
           next();
         } catch {
-          // Attempt to refresh token
           const refreshToken = cookies['refreshToken'];
           if (!refreshToken) {
             logger.error('No refreshToken found in cookies', { cookies });
@@ -123,29 +117,29 @@ export class SocketService {
         return;
       }
 
-      // Store user socket mapping
       this.connectedUsers.set(userId, socket.id);
       logger.info(`User connected: ${userId}, socketId=${socket.id}`);
 
       socket.on('sendMessage', async (message: ChatMessage) => {
         try {
-          console.log('the payloda message:', message);
-          const savedMessage = await this.chatService.sendMessage({
+          console.log('the payload message:', message);
+          const savedMessage: ChatMessage = await this.chatService.sendMessage({
             ...message,
             role: socket.data.role,
             senderId: userId,
           });
-          console.log('the savedmessage:', savedMessage);
+          logger.debug('savedMessage', savedMessage);
           const messagePayload = {
             id: savedMessage._id,
             message: savedMessage.message,
             senderId: savedMessage.senderId,
-            senderName: savedMessage.senderName || 'Unknown',
+            senderName: message.senderName || 'Unknown',
             timestamp: savedMessage.createdAt,
             isSender: false,
           };
+          logger.debug('the saved message:', savedMessage);
+          logger.debug('the messagePayload:', messagePayload);
 
-          // Emit to receiver
           const receiverSocketId = this.connectedUsers.get(message.receiverId);
           if (receiverSocketId) {
             this.io!.to(receiverSocketId).emit('receiveMessage', {
@@ -157,7 +151,6 @@ export class SocketService {
             logger.warn(`Receiver not connected: ${message.receiverId}`);
           }
 
-          // Emit to sender
           socket.emit('receiveMessage', {
             ...messagePayload,
             isSender: true,
@@ -199,6 +192,19 @@ export class SocketService {
           logger.info(`Video call signal sent to: ${data.to}`);
         } else {
           logger.warn(`Receiver not connected for video call: ${data.to}`);
+        }
+      });
+
+      socket.on('videoCallDeclined', async (data: { appointmentId: string; to: string }) => {
+        const receiverSocketId = this.connectedUsers.get(data.to);
+        if (receiverSocketId) {
+          this.io!.to(receiverSocketId).emit('videoCallDeclined', {
+            appointmentId: data.appointmentId,
+            from: userId,
+          });
+          logger.info(`Video call declined signal sent to: ${data.to}`);
+        } else {
+          logger.warn(`Receiver not connected for video call declined: ${data.to}`);
         }
       });
 

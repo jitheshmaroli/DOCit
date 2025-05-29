@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -26,6 +26,8 @@ import { DateUtils } from '../../utils/DateUtils';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import { TimeSlot } from '../../types/authTypes';
+import Pagination from '../../components/common/Pagination';
+import CancelAppointmentModal from '../../components/CancelAppointmentModal'; // Import the modal
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);
 
@@ -33,6 +35,8 @@ interface Availability {
   date: string;
   timeSlots: TimeSlot[];
 }
+
+const ITEMS_PER_PAGE = 5;
 
 const DoctorDetails: React.FC = () => {
   const { doctorId } = useParams<{ doctorId: string }>();
@@ -50,6 +54,7 @@ const DoctorDetails: React.FC = () => {
   const {
     activeSubscriptions,
     appointments,
+    totalItems,
     canBookFree,
     loading: patientLoading,
     error: patientError,
@@ -67,15 +72,27 @@ const DoctorDetails: React.FC = () => {
   }>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false); // State for modal
+  const [appointmentToCancel, setAppointmentToCancel] = useState<string | null>(
+    null
+  ); // Track appointment to cancel
 
-  const specialityFromState = (location.state as { speciality?: string[] })?.speciality;
+  const specialityFromState = (location.state as { speciality?: string[] })
+    ?.speciality;
 
   useEffect(() => {
     if (doctorId) {
       dispatch(fetchDoctorByIdThunk(doctorId));
       dispatch(fetchDoctorPlansThunk(doctorId));
       dispatch(getPatientSubscriptionThunk(doctorId));
-      dispatch(getPatientAppointmentsForDoctorThunk(doctorId));
+      dispatch(
+        getPatientAppointmentsForDoctorThunk({
+          doctorId,
+          page: currentPage,
+          limit: ITEMS_PER_PAGE,
+        })
+      );
       dispatch(
         getDoctorAvailabilityThunk({ doctorId, startDate: new Date() })
       ).then((result) => {
@@ -125,7 +142,7 @@ const DoctorDetails: React.FC = () => {
         }
       });
     }
-  }, [dispatch, doctorId]);
+  }, [dispatch, doctorId, currentPage]);
 
   useEffect(() => {
     if (doctorError) {
@@ -230,7 +247,13 @@ const DoctorDetails: React.FC = () => {
         theme: 'dark',
       });
       setBookingConfirmed(true);
-      dispatch(getPatientAppointmentsForDoctorThunk(doctorId));
+      dispatch(
+        getPatientAppointmentsForDoctorThunk({
+          doctorId,
+          page: currentPage,
+          limit: ITEMS_PER_PAGE,
+        })
+      );
       dispatch(getPatientSubscriptionThunk(doctorId));
       setSelectedDate('');
       setSelectedSlot(null);
@@ -284,15 +307,12 @@ const DoctorDetails: React.FC = () => {
     }
   };
 
-  const handleCancelAppointment = async (appointmentId: string) => {
+  const handleCancelAppointment = async (
+    appointmentId: string,
+    cancellationReason: string
+  ) => {
     if (!doctorId || !user?._id) {
       toast.error('User not authenticated');
-      return;
-    }
-    const confirmCancel = window.confirm(
-      'Are you sure you want to cancel this appointment?'
-    );
-    if (!confirmCancel) {
       return;
     }
     try {
@@ -312,16 +332,31 @@ const DoctorDetails: React.FC = () => {
         );
       }
       await dispatch(
-        cancelAppointmentThunk(appointmentId)
+        cancelAppointmentThunk({ appointmentId, cancellationReason })
       ).unwrap();
       toast.success('Appointment cancelled successfully');
-      dispatch(getPatientAppointmentsForDoctorThunk(doctorId));
+      dispatch(
+        getPatientAppointmentsForDoctorThunk({
+          doctorId,
+          page: currentPage,
+          limit: ITEMS_PER_PAGE,
+        })
+      );
       dispatch(getPatientSubscriptionThunk(doctorId));
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
       toast.error(errorMessage);
     }
+  };
+
+  const openCancelModal = (appointmentId: string) => {
+    setAppointmentToCancel(appointmentId);
+    setIsCancelModalOpen(true);
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
   };
 
   if (loading) {
@@ -344,6 +379,8 @@ const DoctorDetails: React.FC = () => {
     return appt.status !== 'cancelled';
   });
 
+  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+
   const displaySpeciality = specialityFromState || selectedDoctor.speciality;
 
   return (
@@ -353,6 +390,14 @@ const DoctorDetails: React.FC = () => {
         autoClose={3000}
         theme="dark"
         className="fixed top-4 right-4 z-60"
+      />
+      <CancelAppointmentModal
+        isOpen={isCancelModalOpen}
+        onClose={() => setIsCancelModalOpen(false)}
+        onConfirm={(reason) =>
+          handleCancelAppointment(appointmentToCancel!, reason)
+        }
+        appointmentId={appointmentToCancel || ''}
       />
       <div className="container mx-auto px-4">
         <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">
@@ -371,7 +416,9 @@ const DoctorDetails: React.FC = () => {
                 Dr. {selectedDoctor.name}
               </h3>
               <p className="text-sm text-purple-300 mb-2">
-                {displaySpeciality?.length ? displaySpeciality.join(', ') : 'Speciality N/A'}
+                {displaySpeciality?.length
+                  ? displaySpeciality.join(', ')
+                  : 'Speciality N/A'}
               </p>
               <p className="text-sm text-gray-200 mb-2">
                 Qualifications:{' '}
@@ -405,7 +452,7 @@ const DoctorDetails: React.FC = () => {
                 Description: {activeSubscription.plan.description || 'N/A'}
               </p>
               <p className="text-sm text-gray-200 mt-2">
-                Price: ₹{(activeSubscription.plan.price).toFixed(2)}
+                Price: ₹{activeSubscription.plan.price.toFixed(2)}
               </p>
               <p className="text-sm text-gray-200 mt-2">
                 Validity: {activeSubscription.daysUntilExpiration} days
@@ -434,7 +481,7 @@ const DoctorDetails: React.FC = () => {
                       {plan.description || 'No description'}
                     </p>
                     <p className="text-sm text-gray-200 mt-2">
-                      Price: ₹{(plan.price).toFixed(2)}
+                      Price: ₹{plan.price.toFixed(2)}
                     </p>
                     <p className="text-sm text-gray-200 mt-2">
                       Validity: {plan.validityDays} days
@@ -535,20 +582,24 @@ const DoctorDetails: React.FC = () => {
                       Time: {DateUtils.formatTimeToLocal(appt.startTime)} -{' '}
                       {DateUtils.formatTimeToLocal(appt.endTime)}
                     </p>
-                    <p className="text-sm text-gray-200">Status: {appt.status}</p>
+                    <p className="text-sm text-gray-200">
+                      Status: {appt.status}
+                    </p>
                     <p className="text-sm text-gray-200">
                       Type: {appt.isFreeBooking ? 'Free' : 'Subscribed'}
                     </p>
                   </div>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => navigate(`/patient/appointment/${appt._id}`)}
+                      onClick={() =>
+                        navigate(`/patient/appointment/${appt._id}`)
+                      }
                       className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-3 py-1 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
                     >
                       View Details
                     </button>
                     <button
-                      onClick={() => handleCancelAppointment(appt._id)}
+                      onClick={() => openCancelModal(appt._id)}
                       className="bg-gradient-to-r from-red-600 to-red-700 text-white px-3 py-1 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300"
                     >
                       Cancel
@@ -557,6 +608,14 @@ const DoctorDetails: React.FC = () => {
                 </div>
               ))}
             </div>
+            {totalPages > 1 && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                className="mt-6"
+              />
+            )}
           </div>
         )}
       </div>

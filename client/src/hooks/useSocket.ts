@@ -2,14 +2,31 @@ import { useEffect, useRef } from 'react';
 import io, { Socket } from 'socket.io-client';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
-import { Message, VideoCallSignal } from '../types/messageTypes';
+import { Message } from '../types/messageTypes';
 import { AppNotification } from '../types/authTypes';
+import { SignalData } from 'simple-peer';
 
 interface SocketHandlers {
   onReceiveMessage?: (message: Message) => void;
-  onVideoCallSignal?: (signal: VideoCallSignal) => void;
+  onVideoCallSignal?: (signal: {
+    signal: SignalData;
+    from: string;
+    appointmentId: string;
+  }) => void;
+  onVideoCallDeclined?: (data: { appointmentId: string; from: string }) => void;
   onReceiveNotification?: (notification: AppNotification) => void;
   onError?: (error: { message: string }) => void;
+  onIncomingCall?: (data: {
+    caller: string;
+    roomId: string;
+    appointmentId: string;
+  }) => void;
+  onCallAccepted?: (data: {
+    receiver: string;
+    roomId: string;
+    appointmentId: string;
+  }) => void;
+  onCallEnded?: () => void;
 }
 
 const SOCKET_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
@@ -49,11 +66,27 @@ export const useSocket = (
       socketRef.current.on('videoCallSignal', handlers.onVideoCallSignal);
     }
 
+    if (handlers.onVideoCallDeclined) {
+      socketRef.current.on('videoCallDeclined', handlers.onVideoCallDeclined);
+    }
+
     if (handlers.onReceiveNotification) {
       socketRef.current.on(
         'receiveNotification',
         handlers.onReceiveNotification
       );
+    }
+
+    if (handlers.onIncomingCall) {
+      socketRef.current.on('incomingCall', handlers.onIncomingCall);
+    }
+
+    if (handlers.onCallAccepted) {
+      socketRef.current.on('callAccepted', handlers.onCallAccepted);
+    }
+
+    if (handlers.onCallEnded) {
+      socketRef.current.on('callEnded', handlers.onCallEnded);
     }
 
     socketRef.current.on('error', (error: { message: string }) => {
@@ -76,7 +109,16 @@ export const useSocket = (
 
   const emit = (
     event: string,
-    data: Message | VideoCallSignal | AppNotification
+    data:
+      | Message
+      | { signal: SignalData; from: string; to: string; appointmentId: string }
+      | AppNotification
+      | { appointmentId: string; to: string; from: string }
+      | { caller: string; receiver: string; appointmentId: string }
+      | { offer: SignalData; roomId: string }
+      | { answer: SignalData; roomId: string }
+      | { candidate: SignalData; roomId: string }
+      | { roomId: string }
   ) => {
     socketRef.current?.emit(event, data);
   };

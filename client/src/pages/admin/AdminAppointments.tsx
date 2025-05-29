@@ -129,7 +129,7 @@ const AdminAppointments: React.FC = () => {
     () => [
       { value: 'all', label: 'All Statuses' },
       { value: 'pending', label: 'Pending' },
-      { value: 'confirmed', label: 'Confirmed' },
+      { value: 'completed', label: 'completed' },
       { value: 'cancelled', label: 'Cancelled' },
     ],
     []

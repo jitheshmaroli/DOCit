@@ -1,12 +1,9 @@
-import { QueryParams } from '../../../types/authTypes';
+import { IBaseRepository } from './IBaseRepository';
 import { Speciality } from '../../entities/Speciality';
+import { QueryParams } from '../../../types/authTypes';
 
-export interface ISpecialityRepository {
-  create(speciality: Speciality): Promise<Speciality>;
+export interface ISpecialityRepository extends IBaseRepository<Speciality> {
   findAll(): Promise<Speciality[]>;
   findAllWithQuery(params: QueryParams): Promise<{ data: Speciality[]; totalItems: number }>;
-  findById(id: string): Promise<Speciality | null>;
   findByIds(ids: string[]): Promise<Speciality[]>;
-  update(id: string, updates: Partial<Speciality>): Promise<Speciality>;
-  delete(id: string): Promise<void>;
 }

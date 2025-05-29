@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { Appointment, Doctor, SubscriptionPlan } from '../../types/authTypes';
 import {
@@ -19,6 +18,7 @@ import {
 } from '../thunks/doctorThunk';
 
 interface DoctorState {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   availability: any[];
   doctors: Doctor[];
   selectedDoctor: Doctor | null;
@@ -61,11 +61,17 @@ const doctorSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      .addCase(fetchVerifiedDoctorsThunk.fulfilled, (state, action: PayloadAction<{ data: Doctor[]; totalItems: number }>) => {
-        state.loading = false;
-        state.doctors = action.payload.data;
-        state.totalItems = action.payload.totalItems;
-      })
+      .addCase(
+        fetchVerifiedDoctorsThunk.fulfilled,
+        (
+          state,
+          action: PayloadAction<{ data: Doctor[]; totalItems: number }>
+        ) => {
+          state.loading = false;
+          state.doctors = action.payload.data;
+          state.totalItems = action.payload.totalItems;
+        }
+      )
       .addCase(fetchVerifiedDoctorsThunk.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
@@ -166,10 +172,20 @@ const doctorSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      .addCase(getAppointmentsThunk.fulfilled, (state, action) => {
-        state.loading = false;
-        state.appointments = action.payload;
-      })
+      .addCase(
+        getAppointmentsThunk.fulfilled,
+        (
+          state,
+          action: PayloadAction<{
+            appointments: Appointment[];
+            totalItems: number;
+          }>
+        ) => {
+          state.loading = false;
+          state.appointments = action.payload.appointments;
+          state.totalItems = action.payload.totalItems;
+        }
+      )
       .addCase(getAppointmentsThunk.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;

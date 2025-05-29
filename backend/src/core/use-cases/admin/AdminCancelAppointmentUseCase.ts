@@ -1,15 +1,18 @@
 import { DateUtils } from '../../../utils/DateUtils';
 import { NotFoundError, ValidationError } from '../../../utils/errors';
 import logger from '../../../utils/logger';
+import { Notification, NotificationType } from '../../entities/Notification';
 import { IAppointmentRepository } from '../../interfaces/repositories/IAppointmentRepository';
 import { IAvailabilityRepository } from '../../interfaces/repositories/IAvailabilityRepository';
 import { IPatientSubscriptionRepository } from '../../interfaces/repositories/IPatientSubscriptionRepository';
+import { INotificationService } from '../../interfaces/services/INotificationService';
 
-export class CancelAppointmentUseCase {
+export class AdminCancelAppointmentUseCase {
   constructor(
     private appointmentRepository: IAppointmentRepository,
     private availabilityRepository: IAvailabilityRepository,
-    private patientSubscriptionRepository: IPatientSubscriptionRepository
+    private patientSubscriptionRepository: IPatientSubscriptionRepository,
+    private notificationService: INotificationService
   ) {}
 
   async execute(appointmentId: string): Promise<void> {
@@ -39,7 +42,7 @@ export class CancelAppointmentUseCase {
       throw new ValidationError('Invalid doctor ID');
     }
 
-    await this.appointmentRepository.deleteById(appointmentId);
+    await this.appointmentRepository.update(appointmentId, { status: 'cancelled' });
 
     const startOfDay = DateUtils.startOfDayUTC(appointment.date);
     try {
@@ -57,5 +60,32 @@ export class CancelAppointmentUseCase {
         logger.warn(`No active subscription found for patient ${patientId} and doctor ${doctorId}`);
       }
     }
+
+    const doctorName =
+      typeof appointment.doctorId === 'object' && appointment.doctorId !== null ? appointment.doctorId.name : null;
+    const patientName =
+      typeof appointment.patientId === 'object' && appointment.patientId !== null ? appointment.patientId.name : null;
+
+    const patientNotification: Notification = {
+      userId: patientId,
+      type: NotificationType.APPOINTMENT_CANCELLED,
+      message: `Your appointment with Dr. ${doctorName} for ${appointment.startTime} on ${appointment.date.toLocaleDateString()} has been cancelled.`,
+      isRead: false,
+      createdAt: new Date(),
+    };
+
+    const doctorNotification: Notification = {
+      userId: doctorId,
+      type: NotificationType.APPOINTMENT_CANCELLED,
+      message: `An appointment with ${patientName} for ${appointment.startTime} on ${appointment.date.toLocaleDateString()} hs been cancelled.`,
+      isRead: false,
+      createdAt: new Date(),
+    };
+
+    // Send notifications
+    await Promise.all([
+      this.notificationService.sendNotification(patientNotification),
+      this.notificationService.sendNotification(doctorNotification),
+    ]);
   }
 }

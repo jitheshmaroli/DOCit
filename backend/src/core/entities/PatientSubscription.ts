@@ -1,7 +1,9 @@
+import { SubscriptionPlan } from './SubscriptionPlan';
+
 export interface PatientSubscription {
   _id?: string;
   patientId: string;
-  planId: string;
+  planId: string | SubscriptionPlan;
   startDate: Date;
   endDate: Date;
   status: 'active' | 'expired' | 'cancelled';
