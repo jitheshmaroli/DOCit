@@ -36,11 +36,9 @@ export const deleteMessage = async (messageId: string): Promise<void> => {
 };
 
 export const fetchPartnerDetails = async (
-  partnerId: string,
-  role: 'patient' | 'doctor'
+  partnerId: string
 ): Promise<{ name: string; profilePicture?: string }> => {
-  const endpoint = role === 'patient' ? 'patients' : 'doctors';
-  const response = await axios.get(`${API_URL}/api/${endpoint}/${partnerId}`, {
+  const response = await axios.get(`${API_URL}/api/chat/${partnerId}`, {
     withCredentials: true,
   });
   return response.data;

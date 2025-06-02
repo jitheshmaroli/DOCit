@@ -1,23 +1,34 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Messages from './Profile/Messages';
 import PersonalInformation from './Profile/PersonalInformation';
 import { useAppSelector } from '../../redux/hooks';
 import { RootState } from '../../redux/store';
 
 const ProfilePage = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('personal');
   const { user } = useAppSelector((state: RootState) => state.auth);
 
-  const tabs = [
-    { id: 'personal', label: 'Personal Information' },
-    // { id: 'appointments', label: 'Appointment History' },
-    { id: 'messages', label: 'Messages' },
-    // { id: 'plans', label: 'Subscribed Plans' },
-  ];
+  const tabs = useMemo(
+    () => [
+      { id: 'personal', label: 'Personal Information' },
+      { id: 'messages', label: 'Messages' },
+    ],
+    []
+  );
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab && tabs.some((t) => t.id === tab)) {
+      setActiveTab(tab);
+    }
+  }, [searchParams, tabs]);
 
   if (!user) {
     return <div>Loading...</div>;
   }
+
   return (
     <div className="w-full py-6 bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900">
       <div className="container mx-auto px-4">
@@ -33,7 +44,10 @@ const ProfilePage = () => {
                         ? 'text-white bg-gradient-to-r from-purple-600 to-blue-600 shadow-lg'
                         : 'text-gray-200 hover:text-purple-300'
                     }`}
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                      setSearchParams({ tab: tab.id });
+                    }}
                   >
                     {tab.label}
                   </button>
@@ -45,11 +59,7 @@ const ProfilePage = () => {
             {activeTab === 'personal' && (
               <PersonalInformation patientId={user?._id} />
             )}
-            {/* {activeTab === 'appointments' && (
-              <AppointmentHistory patientId={user?._id} />
-            )} */}
             {activeTab === 'messages' && <Messages patientId={user?._id} />}
-            {/* {activeTab === 'plans' && <SubscribedPlans patientId={user?._id} />} */}
           </div>
         </div>
       </div>

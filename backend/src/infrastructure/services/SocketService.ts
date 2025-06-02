@@ -122,23 +122,15 @@ export class SocketService {
 
       socket.on('sendMessage', async (message: ChatMessage) => {
         try {
-          console.log('the payload message:', message);
-          const savedMessage: ChatMessage = await this.chatService.sendMessage({
-            ...message,
-            role: socket.data.role,
-            senderId: userId,
-          });
-          logger.debug('savedMessage', savedMessage);
+          console.log('Received sendMessage payload:', message);
           const messagePayload = {
-            id: savedMessage._id,
-            message: savedMessage.message,
-            senderId: savedMessage.senderId,
+            id: message._id,
+            message: message.message,
+            senderId: message.senderId,
             senderName: message.senderName || 'Unknown',
-            timestamp: savedMessage.createdAt,
+            timestamp: message.createdAt || new Date(),
             isSender: false,
           };
-          logger.debug('the saved message:', savedMessage);
-          logger.debug('the messagePayload:', messagePayload);
 
           const receiverSocketId = this.connectedUsers.get(message.receiverId);
           if (receiverSocketId) {
@@ -151,11 +143,8 @@ export class SocketService {
             logger.warn(`Receiver not connected: ${message.receiverId}`);
           }
 
-          socket.emit('receiveMessage', {
-            ...messagePayload,
-            isSender: true,
-          });
-          logger.info(`Message sent to sender: ${userId}`);
+          // Do not emit to sender to avoid duplicate processing
+          logger.info(`Message notification sent for: ${userId}`);
         } catch (error: any) {
           logger.error(`Send message error: ${error}`);
           socket.emit('error', { message: (error as Error).message });

@@ -10,6 +10,7 @@ import { MongoServerError } from 'mongodb';
 import { Notification, NotificationType } from '../../entities/Notification';
 import { INotificationService } from '../../interfaces/services/INotificationService';
 import { IPatientRepository } from '../../interfaces/repositories/IPatientRepository';
+import logger from '../../../utils/logger';
 
 export class BookAppointmentUseCase {
   constructor(
@@ -40,10 +41,13 @@ export class BookAppointmentUseCase {
     const availability = await this.availabilityRepository.findByDoctorAndDate(doctorId, startOfDay);
     if (!availability) throw new NotFoundError('No availability found for this date');
 
-    const slotAvailable = availability.timeSlots.some(
+    const slotAvailable = availability.timeSlots.find(
       (slot) => slot.startTime === startTime && slot.endTime === endTime
     );
+    logger.debug('slot available:', slotAvailable);
     if (!slotAvailable) throw new ValidationError('Selected time slot is not available');
+
+    if (slotAvailable.isBooked) throw new ValidationError('This time slot is already booked');
 
     const existingAppointment = await this.appointmentRepository.findByDoctorAndSlot(
       doctorId,
@@ -51,7 +55,9 @@ export class BookAppointmentUseCase {
       startTime,
       endTime
     );
-    if (existingAppointment) throw new ValidationError('This time slot is already booked');
+    if (existingAppointment && existingAppointment.status !== 'cancelled') {
+      throw new ValidationError('This time slot is already booked with a non-cancelled appointment');
+    }
 
     if (isFreeBooking) {
       const canBookFree = await this.checkFreeBookingUseCase.execute(patientId, doctorId);
@@ -84,8 +90,11 @@ export class BookAppointmentUseCase {
 
     let savedAppointment: Appointment;
     try {
+      logger.info('trying to create appointment');
       savedAppointment = await this.appointmentRepository.create(appointment);
+      logger.debug('savedAppointment:', savedAppointment);
     } catch (error) {
+      logger.debug('error from db:', error);
       if (error instanceof MongoServerError && error.code === 11000) {
         throw new ValidationError('This time slot is already booked');
       }

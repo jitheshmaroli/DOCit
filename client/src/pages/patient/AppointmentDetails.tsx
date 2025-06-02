@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -7,13 +7,9 @@ import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import { cancelAppointmentThunk } from '../../redux/thunks/patientThunk';
 import { DateUtils } from '../../utils/DateUtils';
 import axios from 'axios';
-import { ChatBox } from '../../components/ChatBox';
 import { VideoCall } from '../../components/VideoCall';
 import { useSocket } from '../../hooks/useSocket';
-import { useSendMessage } from '../../hooks/useSendMessage';
-import { fetchMessages } from '../../services/messageService';
-import { Message, MessageThread } from '../../types/messageTypes';
-import CancelAppointmentModal from '../../components/CancelAppointmentModal'; // Import the modal
+import CancelAppointmentModal from '../../components/CancelAppointmentModal';
 
 interface AppointmentPatient {
   _id: string;
@@ -42,7 +38,7 @@ interface Appointment {
   bookingTime: string;
   createdAt: string;
   updatedAt: string;
-  cancellationReason?: string; // Add cancellationReason
+  cancellationReason?: string;
 }
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
@@ -141,38 +137,11 @@ const AppointmentDetails: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAppSelector((state) => state.auth);
   const [appointment, setAppointment] = useState<Appointment | null>(null);
-  const [chatThread, setChatThread] = useState<MessageThread | null>(null);
-  const [newMessage, setNewMessage] = useState('');
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  const [isVideoCallActive, setIsVideoCallActive] = useState(false);
   const [isLoading, setLoading] = useState(true);
   const [showCallModal, setShowCallModal] = useState(false);
-  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false); // State for modal
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
 
   const { emit } = useSocket(user?._id, {
-    onReceiveMessage: (message: Message) => {
-      if (
-        message.senderId === user?._id ||
-        !chatThread ||
-        message.senderId !== appointment?.doctorId._id
-      )
-        return;
-      setChatThread((prev) =>
-        prev
-          ? {
-              ...prev,
-              messages: [...prev.messages, { ...message, isSender: false }],
-              timestamp: message.timestamp,
-              latestMessage: {
-                _id: message.id,
-                message: message.message,
-                createdAt: message.timestamp,
-                isSender: false,
-              },
-            }
-          : prev
-      );
-    },
     onIncomingCall: (data: {
       caller: string;
       roomId: string;
@@ -195,7 +164,7 @@ const AppointmentDetails: React.FC = () => {
     },
   });
 
-  const { sendMessage } = useSendMessage();
+  const [isVideoCallActive, setIsVideoCallActive] = useState(false);
 
   useEffect(() => {
     if (!user?._id) {
@@ -236,74 +205,6 @@ const AppointmentDetails: React.FC = () => {
       fetchAppointmentDetails();
     }
   }, [appointmentId]);
-
-  useEffect(() => {
-    const loadMessages = async () => {
-      if (!appointment?.doctorId?._id) return;
-
-      try {
-        const messages = await fetchMessages(appointment.doctorId._id);
-        setChatThread({
-          id: appointment.doctorId._id,
-          receiverId: appointment.doctorId._id,
-          senderName: appointment.doctorId.name,
-          subject: 'Appointment Chat',
-          timestamp: new Date().toISOString(),
-          partnerProfilePicture: appointment.doctorId.profilePicture,
-          latestMessage: null,
-          messages: messages.map((msg) => ({
-            id: msg.id,
-            message: msg.message,
-            senderId: msg.senderId,
-            senderName: msg.senderName || 'Unknown',
-            timestamp: msg.timestamp,
-            isSender: msg.senderId === user?._id,
-          })),
-        });
-      } catch (error) {
-        console.error('Failed to load messages:', error);
-        toast.error('Failed to load messages');
-      }
-    };
-
-    loadMessages();
-  }, [
-    appointment?.doctorId?._id,
-    appointment?.doctorId?.name,
-    appointment?.doctorId?.profilePicture,
-    user?._id,
-  ]);
-
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!appointment?.doctorId?._id || !chatThread || !newMessage.trim())
-      return;
-
-    const message = await sendMessage({
-      receiverId: appointment.doctorId._id,
-      messageText: newMessage,
-      emit,
-    });
-
-    if (message) {
-      setChatThread((prev) =>
-        prev
-          ? {
-              ...prev,
-              messages: [...prev.messages, message],
-              timestamp: message.timestamp,
-              latestMessage: {
-                _id: message.id,
-                message: message.message,
-                createdAt: message.timestamp,
-                isSender: true,
-              },
-            }
-          : prev
-      );
-      setNewMessage('');
-    }
-  };
 
   const isWithinAppointmentTime = useCallback(() => {
     if (!appointment) return false;
@@ -383,6 +284,14 @@ const AppointmentDetails: React.FC = () => {
     }
   };
 
+  const handleOpenChat = () => {
+    if (appointment?.doctorId._id) {
+      navigate(`/patient/messages?thread=${appointment.doctorId._id}`);
+    } else {
+      toast.error('Cannot open chat: Doctor information missing');
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 flex items-center justify-center">
@@ -427,22 +336,22 @@ const AppointmentDetails: React.FC = () => {
         onConfirm={handleCancelAppointment}
         appointmentId={appointmentId || ''}
       />
-      <div className="container mx-auto px-4">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent">
+          <h2 className="text-2xl sm:text-3xl font-bold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent">
             Appointment Details
           </h2>
           <button
             onClick={() => navigate('/patient/appointments')}
-            className="text-white hover:text-gray-300 transition-colors"
+            className="text-white hover:text-gray-300 transition-colors text-sm sm:text-base"
           >
             ← Back to Appointments
           </button>
         </div>
 
         <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">
-          <h3 className="text-lg font-semibold text-white mb-4">Overview</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <h3 className="text-lg sm:text-xl font-semibold text-white mb-4">Overview</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <p className="text-sm text-gray-200">
                 <span className="font-medium">Date:</span>{' '}
@@ -504,7 +413,7 @@ const AppointmentDetails: React.FC = () => {
 
         {appointment.doctorId && (
           <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">
-            <h3 className="text-lg font-semibold text-white mb-4">
+            <h3 className="text-lg sm:text-xl font-semibold text-white mb-4">
               Doctor Information
             </h3>
             <div className="flex items-center gap-4">
@@ -537,7 +446,7 @@ const AppointmentDetails: React.FC = () => {
         )}
 
         <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">
-          <h3 className="text-lg font-semibold text-white mb-4">
+          <h3 className="text-lg sm:text-xl font-semibold text-white mb-4">
             Consultation
           </h3>
           <div className="flex flex-col items-center gap-4">
@@ -547,7 +456,7 @@ const AppointmentDetails: React.FC = () => {
 
             <div className="flex gap-4">
               <button
-                onClick={() => setIsChatOpen(true)}
+                onClick={handleOpenChat}
                 className="flex items-center gap-2 p-3 rounded-full bg-white/10 hover:bg-white/20 transition-all duration-300 group"
                 title="Chat with Doctor"
               >
@@ -584,37 +493,13 @@ const AppointmentDetails: React.FC = () => {
             )}
 
             <button
-              onClick={() => setIsChatOpen(true)}
+              onClick={handleOpenChat}
               className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-300"
             >
               Have questions? Chat with doctor
             </button>
           </div>
         </div>
-
-        {isChatOpen && chatThread && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 shadow-xl w-full max-w-2xl max-h-[80vh] overflow-y-auto">
-              <ChatBox
-                thread={chatThread}
-                newMessage={newMessage}
-                onMessageChange={setNewMessage}
-                onSendMessage={handleSendMessage}
-                onBackToInbox={() => setIsChatOpen(false)}
-                onVideoCall={handleStartVideoCall}
-                isVideoCallDisabled={
-                  !isWithinAppointmentTime() || appointment.status !== 'pending'
-                }
-              />
-              <button
-                onClick={() => setIsChatOpen(false)}
-                className="mt-4 w-full bg-gray-600 text-white py-2 rounded-lg hover:bg-gray-700 transition-all duration-300"
-              >
-                Close Chat
-              </button>
-            </div>
-          </div>
-        )}
 
         {isVideoCallActive && appointment && (
           <VideoCall

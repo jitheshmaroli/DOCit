@@ -25,6 +25,9 @@ AppointmentSchema.index({
   'doctorId.name': 'text',
 });
 
-AppointmentSchema.index({ doctorId: 1, date: 1, startTime: 1, endTime: 1 }, { unique: true });
+AppointmentSchema.index(
+  { doctorId: 1, date: 1, startTime: 1, endTime: 1, status: 1 },
+  { unique: true, partialFilterExpression: { status: { $ne: 'cancelled' } } }
+);
 
 export const AppointmentModel = mongoose.model<Appointment>('Appointment', AppointmentSchema);

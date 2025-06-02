@@ -16,7 +16,9 @@ export class AppointmentRepository implements IAppointmentRepository {
       ...appointment,
       date: DateUtils.startOfDayUTC(appointment.date),
     });
+    logger.debug('newAppointmentfromRepository:', newAppointment);
     const savedAppointment = await newAppointment.save();
+    logger.debug('newAppointmentfromRepository:', savedAppointment);
     return savedAppointment.toObject() as Appointment;
   }
 
