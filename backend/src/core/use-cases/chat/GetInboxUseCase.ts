@@ -10,7 +10,7 @@ export interface InboxResponse {
   receiverId: string;
   senderName: string;
   subject?: string;
-  timestamp: string;
+  createdAt: string;
   partnerProfilePicture?: string;
   latestMessage: {
     _id: string;
@@ -28,12 +28,14 @@ export class GetInboxUseCase {
   ) {}
 
   async execute(userId: string, role: 'patient' | 'doctor', params: QueryParams): Promise<InboxResponse[]> {
-    logger.debug('usecase entered');
-    console.log('usecase entered');
+    logger.debug('GetInboxUseCase: entered', { userId, role });
     const inboxEntries = await this.chatRepository.getInbox(userId, params);
 
+    // Remove duplicates by partnerId
+    const uniqueEntries = Array.from(new Map(inboxEntries.map((entry) => [entry.partnerId, entry])).values());
+
     const inboxResponses: InboxResponse[] = await Promise.all(
-      inboxEntries.map(async (entry) => {
+      uniqueEntries.map(async (entry) => {
         const partnerId = entry.partnerId;
         let partnerName: string;
         let partnerProfilePicture: string | undefined;
@@ -59,7 +61,7 @@ export class GetInboxUseCase {
           receiverId: partnerId,
           senderName: partnerName,
           subject: 'Conversation',
-          timestamp: entry.latestMessage?.createdAt?.toISOString() || new Date().toISOString(),
+          createdAt: entry.latestMessage?.createdAt?.toISOString() || new Date().toISOString(),
           partnerProfilePicture,
           latestMessage: entry.latestMessage
             ? {
@@ -73,7 +75,7 @@ export class GetInboxUseCase {
       })
     );
 
-    logger.info(inboxResponses);
+    logger.info('GetInboxUseCase: returning responses', { inboxResponses });
     return inboxResponses;
   }
 }

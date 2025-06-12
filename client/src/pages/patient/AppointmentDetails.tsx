@@ -286,7 +286,9 @@ const AppointmentDetails: React.FC = () => {
 
   const handleOpenChat = () => {
     if (appointment?.doctorId._id) {
-      navigate(`/patient/messages?thread=${appointment.doctorId._id}`);
+      navigate(
+        `/patient/profile?tab=messages&thread=${appointment.doctorId._id}`
+      );
     } else {
       toast.error('Cannot open chat: Doctor information missing');
     }
@@ -309,7 +311,7 @@ const AppointmentDetails: React.FC = () => {
         <div className="text-white text-center">
           <h2 className="text-2xl font-bold mb-4">Appointment not found</h2>
           <button
-            onClick={() => navigate('/patient/appointments')}
+            onClick={() => navigate('/patient/profile?tab=appointments')}
             className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-2 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-300"
           >
             Back to Appointments
@@ -342,7 +344,7 @@ const AppointmentDetails: React.FC = () => {
             Appointment Details
           </h2>
           <button
-            onClick={() => navigate('/patient/appointments')}
+            onClick={() => navigate('/patient/profile?tab=appointments')}
             className="text-white hover:text-gray-300 transition-colors text-sm sm:text-base"
           >
             ← Back to Appointments
@@ -350,7 +352,9 @@ const AppointmentDetails: React.FC = () => {
         </div>
 
         <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">
-          <h3 className="text-lg sm:text-xl font-semibold text-white mb-4">Overview</h3>
+          <h3 className="text-lg sm:text-xl font-semibold text-white mb-4">
+            Overview
+          </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <p className="text-sm text-gray-200">

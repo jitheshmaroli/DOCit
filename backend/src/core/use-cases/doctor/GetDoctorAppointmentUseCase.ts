@@ -8,4 +8,12 @@ export class GetDoctorAppointmentsUseCase {
   async execute(doctorId: string, params: QueryParams = {}): Promise<{ data: Appointment[]; totalItems: number }> {
     return this.appointmentRepository.findByDoctorWithQuery(doctorId, params);
   }
+
+  async executeForPatient(
+    doctorId: string,
+    patientId: string,
+    params: QueryParams
+  ): Promise<{ data: Appointment[]; totalItems: number }> {
+    return this.appointmentRepository.findByPatientAndDoctorWithQuery(patientId, doctorId, params);
+  }
 }

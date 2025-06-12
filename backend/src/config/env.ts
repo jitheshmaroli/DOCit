@@ -27,4 +27,5 @@ export const env = {
   CLOUDINARY_API_KEY: requiredEnv('CLOUDINARY_API_KEY'),
   CLOUDINARY_API_SECRET: requiredEnv('CLOUDINARY_API_SECRET'),
   SOCKET_CORS_ORIGIN: requiredEnv('CLIENT_URL'),
+  MAX_FILE_SIZE_BYTES: requiredEnv('MAX_FILE_SIZE_BYTES') || 10 * 1024 * 1024,
 };

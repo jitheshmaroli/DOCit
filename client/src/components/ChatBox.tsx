@@ -55,7 +55,6 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
               <h3 className="text-lg font-semibold text-white">
                 {thread.senderName}
               </h3>
-              <p className="text-gray-300 text-sm">{thread.subject}</p>
             </div>
           </div>
         </div>
@@ -82,7 +81,7 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
                 >
                   <p>{message.message}</p>
                   <p className="text-xs text-gray-400 mt-1">
-                    {DateUtils.formatToLocal(message.timestamp)}
+                    {DateUtils.formatCreatedAtTime(message.createdAt)}
                   </p>
                 </div>
               </div>

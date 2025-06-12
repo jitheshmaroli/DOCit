@@ -27,6 +27,11 @@ router.patch('/availability/slots', doctorAuth, doctorController.updateSlot.bind
 
 // Appointment routes
 router.get('/appointments', doctorAuth, doctorController.getAppointments.bind(doctorController));
+router.get(
+  '/patient/:patientId/appointments',
+  doctorAuth,
+  doctorController.getPatientAppointments.bind(doctorController)
+);
 
 // Subscription plan routes
 router.get('/subscription-plans', doctorAuth, doctorController.getSubscriptionPlans.bind(doctorController));

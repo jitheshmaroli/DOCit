@@ -32,12 +32,11 @@ export const useSendMessage = () => {
           message: savedMessage.message,
           senderId: savedMessage.senderId,
           senderName: user.name || 'User',
-          timestamp: savedMessage.timestamp,
+          createdAt: savedMessage.createdAt,
           isSender: true,
           receiverId,
         };
         emit('sendMessage', updatedMessage);
-        toast.success('Message sent!');
         return updatedMessage;
       } catch (error) {
         console.error('Send message error:', error);

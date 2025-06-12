@@ -84,6 +84,21 @@ export const getAppointments = async (page: number = 1, limit: number = 5) => {
   return response.data;
 };
 
+export const getPatientAppointments = async (
+  patientId: string,
+  doctorId: string,
+  page: number = 1,
+  limit: number = 5
+) => {
+  const response = await api.get(
+    `/api/doctors/patient/${patientId}/appointments`,
+    {
+      params: { doctorId, page, limit },
+    }
+  );
+  return response.data;
+};
+
 export const getSubscriptionPlans = async () => {
   const response = await api.get('/api/doctors/subscription-plans');
   return response.data;

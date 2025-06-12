@@ -5,6 +5,7 @@ export interface Admin {
   name?: string;
   phone?: string;
   refreshToken?: string;
+  isBlocked?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }

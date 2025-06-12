@@ -9,4 +9,9 @@ export interface ChatMessage {
   createdAt?: Date;
   updatedAt?: Date;
   profilePicture?: string;
+  attachment?: {
+    url: string;
+    type: string;
+    name: string;
+  };
 }

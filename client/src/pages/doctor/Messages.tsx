@@ -21,7 +21,9 @@ import {
 const Messages = () => {
   const { user } = useAppSelector((state) => state.auth);
   const [threads, setThreads] = useState<MessageThread[]>([]);
-  const [selectedThread, setSelectedThread] = useState<MessageThread | null>(null);
+  const [selectedThread, setSelectedThread] = useState<MessageThread | null>(
+    null
+  );
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [newMessagesCount, setNewMessagesCount] = useState(0);
@@ -62,17 +64,17 @@ const Messages = () => {
             senderName: partnerName,
             partnerProfilePicture,
             messages: [...updatedThreads[threadIndex].messages, newMessageObj],
-            timestamp: message.timestamp,
+            createdAt: message.createdAt,
             latestMessage: {
               _id: message.id,
               message: message.message,
-              createdAt: message.timestamp,
+              createdAt: message.createdAt,
               isSender: false,
             },
           };
           return updatedThreads.sort(
             (a, b) =>
-              new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           );
         }
         const newThread: MessageThread = {
@@ -80,19 +82,19 @@ const Messages = () => {
           receiverId: partnerId,
           senderName: partnerName,
           subject: 'Conversation',
-          timestamp: message.timestamp,
+          createdAt: message.createdAt,
           partnerProfilePicture,
           latestMessage: {
             _id: message.id,
             message: message.message,
-            createdAt: message.timestamp,
+            createdAt: message.createdAt,
             isSender: false,
           },
           messages: [newMessageObj],
         };
         return [newThread, ...prev].sort(
           (a, b) =>
-            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
       });
 
@@ -104,11 +106,11 @@ const Messages = () => {
                 senderName: partnerName,
                 partnerProfilePicture,
                 messages: [...prev.messages, newMessageObj],
-                timestamp: message.timestamp,
+                createdAt: message.createdAt,
                 latestMessage: {
                   _id: message.id,
                   message: message.message,
-                  createdAt: message.timestamp,
+                  createdAt: message.createdAt,
                   isSender: false,
                 },
               }
@@ -137,14 +139,17 @@ const Messages = () => {
               senderName = partner.name;
               partnerProfilePicture = partner.profilePicture;
             } catch (error) {
-              console.error(`Failed to fetch details for user ${thread.receiverId}:`, error);
+              console.error(
+                `Failed to fetch details for user ${thread.receiverId}:`,
+                error
+              );
             }
             return {
               id: thread._id,
               receiverId: thread.receiverId,
               senderName,
               subject: thread.subject || 'Conversation',
-              timestamp: thread.timestamp,
+              createdAt: thread.createdAt,
               partnerProfilePicture,
               latestMessage: thread.latestMessage
                 ? {
@@ -158,10 +163,14 @@ const Messages = () => {
             };
           })
         );
+        // Deduplicate threads by receiverId
+        const uniqueThreads = Array.from(
+          new Map(enrichedThreads.map((t) => [t.receiverId, t])).values()
+        );
         setThreads(
-          enrichedThreads.sort(
+          uniqueThreads.sort(
             (a, b) =>
-              new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           )
         );
       } catch (error) {
@@ -179,14 +188,50 @@ const Messages = () => {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const threadId = params.get('thread');
-    if (threadId && threads.length > 0) {
+    if (threadId && !loading) {
       const thread = threads.find((t) => t.receiverId === threadId);
       if (thread) {
         setSelectedThread(thread);
         navigate('/doctor/messages', { replace: true });
+      } else {
+        // Create a new thread if it doesn't exist
+        const createNewThread = async () => {
+          try {
+            const partner = await fetchPartnerDetails(threadId);
+            const newThread: MessageThread = {
+              id: threadId,
+              receiverId: threadId,
+              senderName: partner.name || 'Unknown Patient',
+              subject: 'Conversation',
+              createdAt: new Date().toISOString(),
+              partnerProfilePicture: partner.profilePicture,
+              latestMessage: null,
+              messages: [],
+            };
+            setThreads((prev) => {
+              const uniqueThreads = Array.from(
+                new Map(
+                  [...prev, newThread].map((t) => [t.receiverId, t])
+                ).values()
+              );
+              return uniqueThreads.sort(
+                (a, b) =>
+                  new Date(b.createdAt).getTime() -
+                  new Date(a.createdAt).getTime()
+              );
+            });
+            setSelectedThread(newThread);
+            navigate('/doctor/messages', { replace: true });
+          } catch (error) {
+            console.error('Failed to create new thread:', error);
+            toast.error('Failed to open chat');
+            navigate('/doctor/messages', { replace: true });
+          }
+        };
+        createNewThread();
       }
     }
-  }, [threads, location.search, navigate]);
+  }, [threads, loading, location.search, navigate]);
 
   useEffect(() => {
     const loadMessages = async () => {
@@ -198,7 +243,7 @@ const Messages = () => {
           message: msg.message,
           senderId: msg.senderId,
           senderName: msg.senderName || 'Unknown',
-          timestamp: msg.timestamp,
+          createdAt: msg.createdAt,
           isSender: msg.senderId === user?._id,
           receiverId: selectedThread.receiverId,
         }));
@@ -240,11 +285,11 @@ const Messages = () => {
           ? {
               ...prev,
               messages: [...prev.messages, message],
-              timestamp: message.timestamp,
+              createdAt: message.createdAt,
               latestMessage: {
                 _id: message.id,
                 message: message.message,
-                createdAt: message.timestamp,
+                createdAt: message.createdAt,
                 isSender: true,
               },
             }
@@ -259,17 +304,17 @@ const Messages = () => {
           updatedThreads[threadIndex] = {
             ...updatedThreads[threadIndex],
             messages: [...updatedThreads[threadIndex].messages, message],
-            timestamp: message.timestamp,
+            createdAt: message.createdAt,
             latestMessage: {
               _id: message.id,
               message: message.message,
-              createdAt: message.timestamp,
+              createdAt: message.createdAt,
               isSender: true,
             },
           };
           return updatedThreads.sort(
             (a, b) =>
-              new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           );
         }
         return prev;
@@ -298,10 +343,10 @@ const Messages = () => {
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 py-8 px-4 sm:px-6 lg:px-8">
       <ToastContainer position="bottom-right" autoClose={3000} theme="dark" />
       <div className="container mx-auto">
-        <h2 className="text-2xl sm:text-3xl font-bold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent mb-6">
+        <h2 className="text-2xl sm:text-3xl font-semibold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text mb-6">
           Messages
         </h2>
-        <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-12rem)]">
+        <div className="flex flex-col lg:flex-row gap-6 justify-between">
           <MessageInbox
             threads={threads}
             selectedThreadId={selectedThread?.id || null}
@@ -319,15 +364,15 @@ const Messages = () => {
               inputRef={inputRef}
               onMessageChange={setNewMessage}
               onSendMessage={handleSendMessage}
-              onBackToInbox={() => setSelectedThread(null)}
+              onBackToInbox={() => setSelectedThread(null!)}
               messagesEndRef={messagesEndRef}
               chatContainerRef={chatContainerRef}
               newMessagesCount={newMessagesCount}
               onScrollToBottom={scrollToBottom}
             />
           ) : (
-            <div className="w-full lg:w-2/3 bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 flex items-center justify-center text-gray-200">
-              Select a conversation to start chatting
+            <div className="w-full lg:w-2/3 bg-white/10 backdrop-blur border border-gray rounded-2xl p-6 flex items-center justify-center text-gray-400">
+              Select a message to start chatting
             </div>
           )}
         </div>

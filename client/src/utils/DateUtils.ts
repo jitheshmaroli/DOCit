@@ -101,4 +101,19 @@ export class DateUtils {
     }
     return false;
   }
+
+  static formatCreatedAtTime(timestamp: string | Date): string {
+    if (!timestamp) return 'Unknown Time';
+    try {
+      const date = dayjs.utc(timestamp);
+      if (!date.isValid()) return 'Unknown Time';
+      return date.toDate().toLocaleTimeString('en-IN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      });
+    } catch {
+      return 'Unknown Time';
+    }
+  }
 }

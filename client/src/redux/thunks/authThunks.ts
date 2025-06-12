@@ -32,8 +32,20 @@ import {
 } from '../../types/authTypes';
 
 const handleError = (error: any, thunkAPI: any) => {
-  const message = error.message || 'An error occurred';
-  const statusCode = error.status || 500;
+  const statusCode = error.response?.status || 500;
+  const data = error.response?.data as { message?: string; error?: string };
+  const message = data?.message || error.message || 'An error occurred';
+  const errorName = data?.error || '';
+
+  if (
+    statusCode === 403 &&
+    errorName === 'ForbiddenError' &&
+    message === 'User is blocked'
+  ) {
+    thunkAPI.dispatch(clearUser());
+    window.dispatchEvent(new Event('auth:logout'));
+    return thunkAPI.rejectWithValue({ message, statusCode });
+  }
 
   if (statusCode === 401 && error.config?.url.includes('/api/user/me')) {
     thunkAPI.dispatch(setInitialAuthCheckComplete());
@@ -41,7 +53,7 @@ const handleError = (error: any, thunkAPI: any) => {
   }
 
   thunkAPI.dispatch(setError(message));
-  return thunkAPI.rejectWithValue(message);
+  return thunkAPI.rejectWithValue({ message, statusCode });
 };
 
 export const signUpPatientThunk = createAsyncThunk(

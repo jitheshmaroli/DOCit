@@ -23,7 +23,9 @@ interface MessagesProps {
 
 const Messages = ({ patientId }: MessagesProps) => {
   const [threads, setThreads] = useState<MessageThread[]>([]);
-  const [selectedThread, setSelectedThread] = useState<MessageThread | null>(null);
+  const [selectedThread, setSelectedThread] = useState<MessageThread | null>(
+    null
+  );
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [newMessagesCount, setNewMessagesCount] = useState(0);
@@ -63,17 +65,17 @@ const Messages = ({ patientId }: MessagesProps) => {
             senderName: partnerName,
             partnerProfilePicture,
             messages: [...updatedThreads[threadIndex].messages, newMessageObj],
-            timestamp: message.timestamp,
+            createdAt: message.createdAt,
             latestMessage: {
               _id: message.id,
               message: message.message,
-              createdAt: message.timestamp,
+              createdAt: message.createdAt,
               isSender: false,
             },
           };
           return updatedThreads.sort(
             (a, b) =>
-              new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           );
         }
         const newThread: MessageThread = {
@@ -81,19 +83,19 @@ const Messages = ({ patientId }: MessagesProps) => {
           receiverId: partnerId,
           senderName: partnerName,
           subject: 'Conversation',
-          timestamp: message.timestamp,
+          createdAt: message.createdAt,
           partnerProfilePicture,
           latestMessage: {
             _id: message.id,
             message: message.message,
-            createdAt: message.timestamp,
+            createdAt: message.createdAt,
             isSender: false,
           },
           messages: [newMessageObj],
         };
         return [newThread, ...prev].sort(
           (a, b) =>
-            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
       });
 
@@ -105,11 +107,11 @@ const Messages = ({ patientId }: MessagesProps) => {
                 senderName: partnerName,
                 partnerProfilePicture,
                 messages: [...prev.messages, newMessageObj],
-                timestamp: message.timestamp,
+                createdAt: message.createdAt,
                 latestMessage: {
                   _id: message.id,
                   message: message.message,
-                  createdAt: message.timestamp,
+                  createdAt: message.createdAt,
                   isSender: false,
                 },
               }
@@ -138,14 +140,17 @@ const Messages = ({ patientId }: MessagesProps) => {
               senderName = partner.name;
               partnerProfilePicture = partner.profilePicture;
             } catch (error) {
-              console.error(`Failed to fetch details for user ${thread.receiverId}:`, error);
+              console.error(
+                `Failed to fetch details for user ${thread.receiverId}:`,
+                error
+              );
             }
             return {
               id: thread._id,
               receiverId: thread.receiverId,
               senderName,
               subject: thread.subject || 'Conversation',
-              timestamp: thread.timestamp,
+              createdAt: thread.createdAt,
               partnerProfilePicture,
               latestMessage: thread.latestMessage
                 ? {
@@ -159,10 +164,12 @@ const Messages = ({ patientId }: MessagesProps) => {
             };
           })
         );
-        setThreads(formattedThreads.sort(
-          (a, b) =>
-            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-        ));
+        setThreads(
+          formattedThreads.sort(
+            (a, b) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          )
+        );
       } catch (error) {
         console.error('Fetch inbox error:', error);
         toast.error('Failed to load inbox');
@@ -178,14 +185,46 @@ const Messages = ({ patientId }: MessagesProps) => {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const threadId = params.get('thread');
-    if (threadId && threads.length > 0) {
+    if (threadId && !loading && threads.length > 0) {
       const thread = threads.find((t) => t.receiverId === threadId);
       if (thread) {
         setSelectedThread(thread);
-        navigate('/patient/messages', { replace: true });
+        // Only clear the query parameter after selecting the thread
+        navigate('/patient/profile?tab=messages', { replace: true });
+      } else {
+        // If thread not found, try fetching partner details to create a new thread
+        const createNewThread = async () => {
+          try {
+            const partner = await fetchPartnerDetails(threadId);
+            const newThread: MessageThread = {
+              id: threadId,
+              receiverId: threadId,
+              senderName: partner.name,
+              subject: 'Conversation',
+              createdAt: new Date().toISOString(),
+              partnerProfilePicture: partner.profilePicture,
+              latestMessage: null,
+              messages: [],
+            };
+            setThreads((prev) =>
+              [newThread, ...prev].sort(
+                (a, b) =>
+                  new Date(b.createdAt).getTime() -
+                  new Date(a.createdAt).getTime()
+              )
+            );
+            setSelectedThread(newThread);
+            navigate('/patient/profile?tab=messages', { replace: true });
+          } catch (error) {
+            console.error('Failed to create new thread:', error);
+            toast.error('Failed to open chat');
+            navigate('/patient/profile?tab=messages', { replace: true });
+          }
+        };
+        createNewThread();
       }
     }
-  }, [threads, location.search, navigate]);
+  }, [threads, loading, location.search, navigate]);
 
   useEffect(() => {
     const loadMessages = async () => {
@@ -197,7 +236,7 @@ const Messages = ({ patientId }: MessagesProps) => {
           message: msg.message,
           senderId: msg.senderId,
           senderName: msg.senderName || 'Unknown',
-          timestamp: msg.timestamp,
+          createdAt: msg.createdAt,
           isSender: msg.senderId === patientId,
         }));
         setSelectedThread((prev) =>
@@ -238,11 +277,11 @@ const Messages = ({ patientId }: MessagesProps) => {
           ? {
               ...prev,
               messages: [...prev.messages, message],
-              timestamp: message.timestamp,
+              createdAt: message.createdAt,
               latestMessage: {
                 _id: message.id,
                 message: message.message,
-                createdAt: message.timestamp,
+                createdAt: message.createdAt,
                 isSender: true,
               },
             }
@@ -257,17 +296,17 @@ const Messages = ({ patientId }: MessagesProps) => {
           updatedThreads[threadIndex] = {
             ...updatedThreads[threadIndex],
             messages: [...updatedThreads[threadIndex].messages, message],
-            timestamp: message.timestamp,
+            createdAt: message.createdAt,
             latestMessage: {
               _id: message.id,
               message: message.message,
-              createdAt: message.timestamp,
+              createdAt: message.createdAt,
               isSender: true,
             },
           };
           return updatedThreads.sort(
             (a, b) =>
-              new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           );
         }
         return prev;

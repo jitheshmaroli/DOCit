@@ -5,9 +5,14 @@ export interface Message {
   message: string;
   senderId: string;
   senderName: string;
-  timestamp: string;
+  createdAt: string;
   isSender: boolean;
   receiverId?: string;
+  attachment?: {
+    url: string;
+    type: string;
+    name: string;
+  };
 }
 
 export interface LatestMessage {
@@ -22,7 +27,7 @@ export interface MessageThread {
   receiverId: string;
   senderName: string;
   subject: string;
-  timestamp: string;
+  createdAt: string;
   partnerProfilePicture?: string;
   latestMessage: LatestMessage | null;
   messages: Message[];
@@ -33,7 +38,7 @@ export interface InboxThreadResponse {
   receiverId: string;
   senderName?: string;
   subject?: string;
-  timestamp: string;
+  createdAt: string;
   partnerProfilePicture?: string;
   latestMessage: {
     _id: string;
@@ -48,8 +53,12 @@ export interface ChatMessageResponse {
   message: string;
   senderId: string;
   senderName?: string;
-  timestamp: string;
   createdAt: string;
+  attachment?: {
+    url: string;
+    type: string;
+    name: string;
+  };
 }
 
 export interface VideoCallSignal {

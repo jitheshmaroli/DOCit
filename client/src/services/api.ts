@@ -23,10 +23,23 @@ api.interceptors.response.use(
       _retry?: boolean;
     };
     const status = error.response?.status;
-    const message =
-      (error.response?.data as { message?: string })?.message ||
-      error.response?.statusText ||
-      'An error occurred';
+    const data = error.response?.data as { message?: string; error?: string };
+
+    if (
+      status === 403 &&
+      data?.error === 'ForbiddenError' &&
+      data?.message === 'User is blocked'
+    ) {
+      console.log('user blockeddddddddddd');
+      try {
+        await api.post('/api/auth/logout');
+        window.location.href = '/login';
+      } catch (logoutError) {
+        console.error('Logout failed:', logoutError);
+      }
+      window.dispatchEvent(new Event('auth:logout'));
+      return Promise.reject({ message: data?.message, status });
+    }
 
     if (status === 401 && originalRequest && !originalRequest._retry) {
       originalRequest._retry = true;
@@ -36,8 +49,8 @@ api.interceptors.response.use(
         originalRequest.url?.includes('/api/auth/refresh-token') ||
         originalRequest.url?.includes('/api/auth/logout')
       ) {
-        console.error('401 error on auth endpoint:', message);
-        return Promise.reject({ message, status });
+        console.error('401 error on auth endpoint:', data?.message);
+        return Promise.reject({ message: data?.message, status });
       }
 
       if (isRefreshing) {
@@ -81,8 +94,12 @@ api.interceptors.response.use(
       }
     }
 
-    console.error('API error:', { message, status, url: originalRequest?.url });
-    return Promise.reject({ message, status });
+    console.error('API error:', {
+      message: data?.message,
+      status,
+      url: originalRequest?.url,
+    });
+    return Promise.reject({ message: data?.message, status });
   }
 );
 

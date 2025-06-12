@@ -38,8 +38,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
         const result = await fetchNotifications();
         setNotifications(result);
         console.log('notifications:', result);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setUnreadCount(result.filter((n: any) => !n.isRead).length);
+        setUnreadCount(result.filter((n: AppNotification) => !n.isRead).length);
       } catch (error) {
         console.error('Failed to fetch notifications:', error);
       }
@@ -93,7 +92,6 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
     }
   };
 
-  // Portal container
   const portalRoot =
     document.getElementById('notifications-portal') || document.body;
 
@@ -119,7 +117,9 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
             <li
               key={notification._id}
               className={`p-4 flex justify-between items-start hover:bg-white/30 transition-all duration-300 cursor-pointer ${
-                notification.isRead ? 'opacity-70' : ''
+                notification.isRead
+                  ? 'opacity-70 bg-gray-800'
+                  : 'bg-purple-500/20'
               }`}
               onClick={() => handleNotificationClick(notification)}
             >

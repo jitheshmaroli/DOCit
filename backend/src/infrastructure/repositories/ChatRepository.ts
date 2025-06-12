@@ -21,8 +21,7 @@ export class ChatRepository implements IChatRepository {
     return message ? (message.toObject() as ChatMessage) : null;
   }
 
-  async findByParticipants(senderId: string, receiverId: string, params: QueryParams): Promise<ChatMessage[]> {
-    const { page = 1, limit = 10 } = params;
+  async findByParticipants(senderId: string, receiverId: string): Promise<ChatMessage[]> {
     const query = {
       $or: [
         { senderId, receiverId, isDeleted: false },
@@ -30,12 +29,7 @@ export class ChatRepository implements IChatRepository {
       ],
     };
 
-    const messages = await this.model
-      .find(query)
-      .sort({ createdAt: 1 })
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .exec();
+    const messages = await this.model.find(query).sort({ createdAt: 1 }).exec();
 
     return messages.map((msg) => msg.toObject() as ChatMessage);
   }
@@ -77,16 +71,18 @@ export class ChatRepository implements IChatRepository {
         },
       },
       {
+        $sort: { createdAt: -1 },
+      },
+      {
         $group: {
           _id: {
             $cond: [{ $eq: ['$senderId', userId] }, '$receiverId', '$senderId'],
           },
-          latestMessage: { $max: '$createdAt' },
-          message: { $last: '$$ROOT' },
+          latestMessage: { $first: '$$ROOT' },
         },
       },
       {
-        $sort: { latestMessage: -1 },
+        $sort: { 'latestMessage.createdAt': -1 },
       },
       {
         $skip: (page - 1) * limit,
@@ -98,13 +94,13 @@ export class ChatRepository implements IChatRepository {
         $project: {
           partnerId: '$_id',
           latestMessage: {
-            id: '$message._id',
-            senderId: '$message.senderId',
-            receiverId: '$message.receiverId',
-            message: '$message.message',
-            isDeleted: '$message.isDeleted',
-            createdAt: '$message.createdAt',
-            updatedAt: '$message.updatedAt',
+            _id: '$latestMessage._id',
+            senderId: '$latestMessage.senderId',
+            receiverId: '$latestMessage.receiverId',
+            message: '$latestMessage.message',
+            isDeleted: '$latestMessage.isDeleted',
+            createdAt: '$latestMessage.createdAt',
+            updatedAt: '$latestMessage.updatedAt',
           },
         },
       },

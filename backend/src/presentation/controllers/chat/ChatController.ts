@@ -8,6 +8,7 @@ import { ValidationError } from '../../../utils/errors';
 import { CustomRequest, UserRole } from '../../../types';
 import { GetMessagesUseCase } from '../../../core/use-cases/chat/GetMessagesUseCase';
 import { QueryParams } from '../../../types/authTypes';
+import { IImageUploadService } from '../../../core/interfaces/services/IImageUploadService';
 
 export class ChatController {
   private sendMessageUseCase: SendMessageUseCase;
@@ -15,6 +16,7 @@ export class ChatController {
   private deleteMessageUseCase: DeleteMessageUseCase;
   private getChatHistoryUseCase: GetChatHistoryUseCase;
   private getInboxUseCase: GetInboxUseCase;
+  private imageUploadService: IImageUploadService;
 
   constructor(container: Container) {
     this.sendMessageUseCase = container.get('SendMessageUseCase');
@@ -22,6 +24,7 @@ export class ChatController {
     this.deleteMessageUseCase = container.get('DeleteMessageUseCase');
     this.getChatHistoryUseCase = container.get('GetChatHistoryUseCase');
     this.getInboxUseCase = container.get('GetInboxUseCase');
+    this.imageUploadService = container.get('ImageUploadService');
   }
 
   async sendMessage(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
@@ -45,6 +48,34 @@ export class ChatController {
     }
   }
 
+  async sendAttachment(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user?.id;
+      const role = req.user?.role;
+      if (!userId || !role) {
+        throw new ValidationError('User ID not found in request');
+      }
+      const { receiverId, senderName } = req.body;
+      const file = req.file;
+      if (!file) {
+        throw new ValidationError('No file provided');
+      }
+      const chatMessage = await this.sendMessageUseCase.execute(
+        {
+          message: '',
+          senderId: userId,
+          receiverId,
+          role,
+          senderName,
+        },
+        file
+      );
+      res.status(201).json(chatMessage);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getMessages(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const userId = req.user?.id;
@@ -52,8 +83,7 @@ export class ChatController {
         throw new ValidationError('User ID not found in request');
       }
       const { receiverId } = req.params;
-      const params = req.query as QueryParams;
-      const messages = await this.getMessagesUseCase.execute(userId, receiverId, params);
+      const messages = await this.getMessagesUseCase.execute(userId, receiverId);
       res.status(200).json(messages);
     } catch (error) {
       next(error);

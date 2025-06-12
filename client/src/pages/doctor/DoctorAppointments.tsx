@@ -4,7 +4,6 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import { getAppointmentsThunk } from '../../redux/thunks/doctorThunk';
-import { Patient } from '../../types/authTypes';
 import { MessageSquare, Video } from 'lucide-react';
 import { DateUtils } from '../../utils/DateUtils';
 import { VideoCall } from '../../components/VideoCall';
@@ -22,97 +21,6 @@ interface Appointment {
 
 const ITEMS_PER_PAGE = 4;
 
-const PatientDetailsModal: React.FC<{
-  patient: Patient | null;
-  onClose: () => void;
-}> = ({ patient, onClose }) => {
-  if (!patient) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="bg-white/20 backdrop-blur-lg rounded-xl border border-white/30 shadow-2xl max-w-md w-full p-6 relative">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-white hover:text-gray-300"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-6 w-6"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
-        </button>
-        <div className="flex flex-col items-center mb-6">
-          {patient.profilePicture ? (
-            <img
-              src={patient.profilePicture}
-              alt={patient.name}
-              className="w-24 h-24 rounded-full object-cover border-2 border-white/50"
-            />
-          ) : (
-            <div className="w-24 h-24 rounded-full bg-white/20 flex items-center justify-center text-4xl text-white">
-              {patient.name.charAt(0).toUpperCase()}
-            </div>
-          )}
-          <h3 className="mt-4 text-xl font-bold text-white">{patient.name}</h3>
-          <p className="text-gray-300">{patient.email}</p>
-        </div>
-        <div className="grid grid-cols-2 gap-4 text-white">
-          <div>
-            <p className="text-sm text-gray-300">Phone</p>
-            <p className="font-medium">{patient.phone || 'N/A'}</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-300">Age</p>
-            <p className="font-medium">{patient.age || 'N/A'}</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-300">Gender</p>
-            <p className="font-medium">{patient.gender || 'N/A'}</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-300">Status</p>
-            <p className="font-medium">
-              {patient.isBlocked ? (
-                <span className="text-red-400">Blocked</span>
-              ) : (
-                <span className="text-green-400">Active</span>
-              )}
-            </p>
-          </div>
-          <div className="col-span-2">
-            <p className="text-sm text-gray-300">Address</p>
-            <p className="font-medium">{patient.address || 'N/A'}</p>
-            {patient.pincode && (
-              <p className="text-sm text-gray-300">
-                Pincode: {patient.pincode}
-              </p>
-            )}
-          </div>
-          <div className="col-span-2">
-            <p className="text-sm text-gray-300">Subscription</p>
-            <p className="font-medium">
-              {patient.isSubscribed ? (
-                <span className="text-green-400">Subscribed</span>
-              ) : (
-                <span className="text-yellow-400">Not Subscribed</span>
-              )}
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 const DoctorAppointments: React.FC = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
@@ -123,7 +31,6 @@ const DoctorAppointments: React.FC = () => {
   } = useAppSelector((state) => state.doctors);
   const { user } = useAppSelector((state) => state.auth);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [videoCallModal, setVideoCallModal] = useState<{
     appointment: Appointment;
     isInitiator: boolean;
@@ -212,6 +119,10 @@ const DoctorAppointments: React.FC = () => {
     setCurrentPage(page);
   };
 
+  const handleViewPatient = (patientId: string) => {
+    navigate(`/doctor/patient/${patientId}`);
+  };
+
   const filteredAppointments = Array.isArray(appointments)
     ? appointments.filter(
         (appt) =>
@@ -227,10 +138,6 @@ const DoctorAppointments: React.FC = () => {
   return (
     <>
       <ToastContainer position="top-right" autoClose={3000} theme="dark" />
-      <PatientDetailsModal
-        patient={selectedPatient}
-        onClose={() => setSelectedPatient(null)}
-      />
       {videoCallModal && (
         <VideoCall
           appointment={videoCallModal.appointment}
@@ -281,11 +188,10 @@ const DoctorAppointments: React.FC = () => {
                   >
                     <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-white">
                       <button
-                        onClick={() => setSelectedPatient(appt.patientId)}
+                        onClick={() => handleViewPatient(appt.patientId._id)}
                         className="hover:underline hover:text-blue-300 focus:outline-none"
-                      >
-                        {appt.patientId.name || 'N/A'}
-                      </button>
+                      />
+                      {appt.patientId.name || 'N/A'}
                     </td>
                     <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-200">
                       {DateUtils.formatToLocal(appt.date)}

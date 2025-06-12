@@ -12,6 +12,10 @@ const videoCallAuth = [authMiddleware(container), roleMiddleware(['patient', 'do
 
 router.post('/initiate', videoCallAuth, videoCallController.initiateVideoCall.bind(videoCallController));
 router.post('/:sessionId/end', videoCallAuth, videoCallController.endVideoCall.bind(videoCallController));
-router.patch('/:sessionId/settings', videoCallAuth, videoCallController.endVideoCall.bind(videoCallController));
+router.patch(
+  '/:sessionId/settings',
+  videoCallAuth,
+  videoCallController.updateVideoCallSettings.bind(videoCallController)
+);
 
 export default router;

@@ -84,6 +84,7 @@ import { QueryParams } from '../../types/authTypes';
 import { DeleteAllNotificationsUseCase } from '../../core/use-cases/notification/DeleteAllNotificationsUseCase';
 import { MarkNotificationAsReadUseCase } from '../../core/use-cases/notification/MarkNotificationAsReadUseCase';
 import { AdminCancelAppointmentUseCase } from '../../core/use-cases/admin/AdminCancelAppointmentUseCase';
+import { GetUserUseCase } from '../../core/use-cases/user/GetUserUseCase';
 
 export class Container {
   private static instance: Container;
@@ -113,11 +114,11 @@ export class Container {
     const videoCallService = new VideoCallService(videoCallRepository);
     const chatService = new (class implements IChatService {
       constructor(private container: Container) {}
-      async sendMessage(message: ChatMessage): Promise<ChatMessage> {
-        return await this.container.get<SendMessageUseCase>('SendMessageUseCase').execute(message);
+      async sendMessage(message: ChatMessage, file?: Express.Multer.File): Promise<ChatMessage> {
+        return await this.container.get<SendMessageUseCase>('SendMessageUseCase').execute(message, file);
       }
-      async getMessages(senderId: string, receiverId: string, params: QueryParams): Promise<ChatMessage[]> {
-        return this.container.get<GetMessagesUseCase>('GetMessagesUseCase').execute(senderId, receiverId, params);
+      async getMessages(senderId: string, receiverId: string): Promise<ChatMessage[]> {
+        return this.container.get<GetMessagesUseCase>('GetMessagesUseCase').execute(senderId, receiverId);
       }
       async deleteMessage(messageId: string, userId: string): Promise<void> {
         await this.container.get<DeleteMessageUseCase>('DeleteMessageUseCase').execute(messageId, userId);
@@ -186,6 +187,7 @@ export class Container {
       'GetCurrentUserUseCase',
       new GetCurrentUserUseCase(patientRepository, doctorRepository, adminRepository)
     );
+    this.dependencies.set('GerUserUseCase', new GetUserUseCase(patientRepository, doctorRepository, adminRepository));
     this.dependencies.set('CreateDoctorUseCase', new CreateDoctorUseCase(doctorRepository));
     this.dependencies.set('ListPatientsUseCase', new ListPatientsUseCase(patientRepository));
     this.dependencies.set('ListDoctorsUseCase', new ListDoctorsUseCase(doctorRepository));
@@ -297,7 +299,10 @@ export class Container {
         notificationService
       )
     );
-    this.dependencies.set('SendMessageUseCase', new SendMessageUseCase(chatRepository, patientSubscriptionRepository));
+    this.dependencies.set(
+      'SendMessageUseCase',
+      new SendMessageUseCase(chatRepository, patientSubscriptionRepository, imageUploadService)
+    );
     this.dependencies.set('GetMessagesUseCase', new GetMessagesUseCase(chatRepository));
     this.dependencies.set('DeleteMessageUseCase', new DeleteMessageUseCase(chatRepository));
     this.dependencies.set('GetChatHistoryUseCase', new GetChatHistoryUseCase(chatRepository));

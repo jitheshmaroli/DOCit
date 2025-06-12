@@ -29,6 +29,25 @@ export const sendMessage = async (
   return response.data;
 };
 
+export const sendAttachment = async (
+  receiverId: string,
+  file: File
+): Promise<Message> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('receiverId', receiverId);
+
+  const response = await axios.post(
+    `${API_URL}/api/chat/attachment`,
+    formData,
+    {
+      withCredentials: true,
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }
+  );
+  return response.data;
+};
+
 export const deleteMessage = async (messageId: string): Promise<void> => {
   await axios.delete(`${API_URL}/api/chat/${messageId}`, {
     withCredentials: true,
@@ -38,7 +57,7 @@ export const deleteMessage = async (messageId: string): Promise<void> => {
 export const fetchPartnerDetails = async (
   partnerId: string
 ): Promise<{ name: string; profilePicture?: string }> => {
-  const response = await axios.get(`${API_URL}/api/chat/${partnerId}`, {
+  const response = await axios.get(`${API_URL}/api/user/${partnerId}`, {
     withCredentials: true,
   });
   return response.data;

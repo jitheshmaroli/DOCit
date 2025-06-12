@@ -1,4 +1,4 @@
-import { Route, Routes } from 'react-router-dom';
+import { Route, Routes, useNavigate } from 'react-router-dom';
 import LandingPage from './pages/public/LandingPage';
 import LoginPage from './pages/public/Login';
 import SignupPage from './pages/public/Signup';
@@ -25,8 +25,28 @@ import AdminManagePatients from './pages/admin/AdminManagePatients';
 import AdminManageDoctors from './pages/admin/AdminManageDoctors';
 import AppointmentDetails from './pages/patient/AppointmentDetails';
 import Messages from './pages/doctor/Messages';
+import PatientDetails from './pages/doctor/PatientDetails';
+import { useAppDispatch } from './redux/hooks';
+import { useEffect } from 'react';
+import { clearUser } from './redux/slices/authSlice';
 
 const AppRoutes = () => {
+  const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+
+  useEffect(() => {
+    const handleLogout = () => {
+      console.log('Handling auth:logout event');
+      dispatch(clearUser());
+      navigate('/login', { replace: true }); 
+    };
+
+    window.addEventListener('auth:logout', handleLogout);
+
+    return () => {
+      window.removeEventListener('auth:logout', handleLogout);
+    };
+  }, [dispatch, navigate]);
   return (
     <Routes>
       {/* Public routes */}
@@ -42,7 +62,10 @@ const AppRoutes = () => {
           <Route path="find-doctor" element={<FindDoctor />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="doctors/:doctorId" element={<DoctorDetails />} />
-          <Route path="appointment/:appointmentId" element={<AppointmentDetails />} />
+          <Route
+            path="appointment/:appointmentId"
+            element={<AppointmentDetails />}
+          />
         </Route>
       </Route>
 
@@ -55,6 +78,7 @@ const AppRoutes = () => {
           <Route path="appointments" element={<DoctorAppointments />} />
           <Route path="messages" element={<Messages />} />
           <Route path="plans" element={<DoctorPlans />} />
+          <Route path="patient/:patientId" element={<PatientDetails />} />
         </Route>
       </Route>
 

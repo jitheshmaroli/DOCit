@@ -10,5 +10,6 @@ const userController = new UserController(container);
 
 // User routes
 router.get('/me', authMiddleware(container), userController.getCurrentUser.bind(userController));
+router.get('/:userId', authMiddleware(container), userController.getUser.bind(userController));
 
 export default router;

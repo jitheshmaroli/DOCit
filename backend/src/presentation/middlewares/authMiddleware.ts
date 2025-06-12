@@ -1,14 +1,16 @@
 import { Response, NextFunction } from 'express';
 import { ITokenService } from '../../core/interfaces/services/ITokenService';
-import { AuthenticationError } from '../../utils/errors';
+import { AuthenticationError, ForbiddenError } from '../../utils/errors';
 import { Container } from '../../infrastructure/di/container';
 import { CustomRequest, UserRole } from '../../types';
 import logger from '../../utils/logger';
+import { GetUserUseCase } from '../../core/use-cases/user/GetUserUseCase';
 
 export const authMiddleware = (container: Container) => {
   const tokenService: ITokenService = container.get('ITokenService');
+  const getUserUseCase: GetUserUseCase = container.get('GerUserUseCase');
 
-  return (req: CustomRequest, res: Response, next: NextFunction): void => {
+  return async (req: CustomRequest, res: Response, next: NextFunction): Promise<void> => {
     const accessToken = req.cookies.accessToken;
     if (!accessToken) {
       return next(new AuthenticationError('No token provided'));
@@ -23,6 +25,17 @@ export const authMiddleware = (container: Container) => {
       if (!Object.values(UserRole).includes(role)) {
         throw new AuthenticationError('Invalid user role');
       }
+
+      const user = await getUserUseCase.execute(decoded.userId);
+
+      if (!user) {
+        throw new AuthenticationError('User not found');
+      }
+
+      if (user.isBlocked) {
+        throw new ForbiddenError('User is blocked');
+      }
+
       logger.debug('auth middleware:', decoded);
       req.user = { id: decoded.userId, role };
       next();
