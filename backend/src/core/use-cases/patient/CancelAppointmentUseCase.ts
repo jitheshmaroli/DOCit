@@ -7,13 +7,19 @@ import { IAppointmentRepository } from '../../interfaces/repositories/IAppointme
 import { IAvailabilityRepository } from '../../interfaces/repositories/IAvailabilityRepository';
 import { IPatientSubscriptionRepository } from '../../interfaces/repositories/IPatientSubscriptionRepository';
 import { INotificationService } from '../../interfaces/services/INotificationService';
+import { IEmailService } from '../../interfaces/services/IEmailService';
+import { IDoctorRepository } from '../../interfaces/repositories/IDoctorRepository';
+import { IPatientRepository } from '../../interfaces/repositories/IPatientRepository';
 
 export class CancelAppointmentUseCase {
   constructor(
     private appointmentRepository: IAppointmentRepository,
     private availabilityRepository: IAvailabilityRepository,
     private patientSubscriptionRepository: IPatientSubscriptionRepository,
-    private notificationService: INotificationService
+    private notificationService: INotificationService,
+    private emailService: IEmailService,
+    private doctorRepository: IDoctorRepository,
+    private patientRepository: IPatientRepository
   ) {}
 
   async execute(appointmentId: string, patientId: string, cancellationReason?: string): Promise<void> {
@@ -58,6 +64,12 @@ export class CancelAppointmentUseCase {
       throw new ValidationError('Invalid doctor ID');
     }
 
+    const doctor = await this.doctorRepository.findById(doctorId);
+    if (!doctor) throw new NotFoundError('Doctor not found');
+
+    const patient = await this.patientRepository.findById(patientId);
+    if (!patient) throw new NotFoundError('Patient not found');
+
     // Update appointment with cancellation status and reason
     await this.appointmentRepository.update(appointmentId, {
       status: 'cancelled',
@@ -84,16 +96,11 @@ export class CancelAppointmentUseCase {
       }
     }
 
-    const doctorName =
-      typeof appointment.doctorId === 'object' && appointment.doctorId !== null ? appointment.doctorId.name : null;
-    const patientName =
-      typeof appointment.patientId === 'object' && appointment.patientId !== null ? appointment.patientId.name : null;
-
-    // notifications for patient and doctor
+    // Notifications for patient and doctor
     const patientNotification: Notification = {
       userId: patientId,
       type: NotificationType.APPOINTMENT_CANCELLED,
-      message: `Your appointment with Dr. ${doctorName} for ${appointment.startTime} on ${appointment.date.toLocaleDateString()} has been cancelled.${cancellationReason ? ` Reason: ${cancellationReason}` : ''}`,
+      message: `Your appointment with Dr. ${doctor.name} for ${appointment.startTime} on ${appointment.date.toLocaleDateString()} has been cancelled.${cancellationReason ? ` Reason: ${cancellationReason}` : ''}`,
       isRead: false,
       createdAt: new Date(),
     };
@@ -101,15 +108,23 @@ export class CancelAppointmentUseCase {
     const doctorNotification: Notification = {
       userId: doctorId,
       type: NotificationType.APPOINTMENT_CANCELLED,
-      message: `An appointment with ${patientName} for ${appointment.startTime} on ${appointment.date.toLocaleDateString()} has been cancelled.${cancellationReason ? ` Reason: ${cancellationReason}` : ''}`,
+      message: `An appointment with ${patient.name} for ${appointment.startTime} on ${appointment.date.toLocaleDateString()} has been cancelled.${cancellationReason ? ` Reason: ${cancellationReason}` : ''}`,
       isRead: false,
       createdAt: new Date(),
     };
 
-    // Send notifications
+    // Email notifications
+    const patientEmailSubject = 'Appointment Cancellation';
+    const patientEmailText = `Dear ${patient.name},\n\nYour appointment with Dr. ${doctor.name} for ${appointment.startTime} on ${appointment.date.toLocaleDateString()} has been cancelled.${cancellationReason ? ` Reason: ${cancellationReason}` : ''}\n\nBest regards,\nDOCit Team`;
+    const doctorEmailSubject = 'Appointment Cancellation';
+    const doctorEmailText = `Dear Dr. ${doctor.name},\n\nAn appointment with ${patient.name} for ${appointment.startTime} on ${appointment.date.toLocaleDateString()} has been cancelled.${cancellationReason ? ` Reason: ${cancellationReason}` : ''}\n\nBest regards,\nDOCit Team`;
+
+    // Send notifications and emails
     await Promise.all([
       this.notificationService.sendNotification(patientNotification),
       this.notificationService.sendNotification(doctorNotification),
+      this.emailService.sendEmail(patient.email, patientEmailSubject, patientEmailText),
+      this.emailService.sendEmail(doctor.email, doctorEmailSubject, doctorEmailText),
     ]);
   }
 }

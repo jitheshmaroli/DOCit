@@ -149,12 +149,6 @@ export const VideoCall: React.FC<VideoCallProps> = ({
             iceServers: [
               { urls: 'stun:stun.l.google.com:19302' },
               { urls: 'stun:stun1.l.google.com:19302' },
-              // Add TURN servers if available
-              // {
-              //   urls: 'turn:your.turn.server:3478',
-              //   username: 'your_username',
-              //   credential: 'your_credential',
-              // },
             ],
           },
         });

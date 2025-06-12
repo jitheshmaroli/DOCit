@@ -12,7 +12,6 @@ import otpRoutes from './presentation/routes/otpRoutes';
 import userRoutes from './presentation/routes/userRoutes';
 import chatRoutes from './presentation/routes/chatRoutes';
 import notificationRoutes from './presentation/routes/notificationRoutes';
-import videoCallRoutes from './presentation/routes/videoCallRoutes';
 import { env } from './config/env';
 import Stripe from 'stripe';
 import { Container } from './infrastructure/di/container';
@@ -59,7 +58,6 @@ app.use('/api/user', userRoutes);
 app.use('/api/otp', otpRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/notifications', notificationRoutes);
-app.use('/api/video-calls', videoCallRoutes);
 
 // Stripe webhook
 app.post('/api/webhook/stripe', async (req: CustomRequest, res: Response) => {

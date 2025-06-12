@@ -19,13 +19,6 @@ export interface NotificationResponse {
   createdAt: Date;
 }
 
-export type VideoCallSettings = {
-  patientAudio: boolean;
-  patientVideo: boolean;
-  doctorAudio: boolean;
-  doctorVideo: boolean;
-};
-
 export interface InboxResponse {
   partnerId: string;
   partnerName: string;

@@ -10,6 +10,7 @@ import { MongoServerError } from 'mongodb';
 import { Notification, NotificationType } from '../../entities/Notification';
 import { INotificationService } from '../../interfaces/services/INotificationService';
 import { IPatientRepository } from '../../interfaces/repositories/IPatientRepository';
+import { IEmailService } from '../../interfaces/services/IEmailService';
 import logger from '../../../utils/logger';
 
 export class BookAppointmentUseCase {
@@ -20,7 +21,8 @@ export class BookAppointmentUseCase {
     private patientRepository: IPatientRepository,
     private patientSubscriptionRepository: IPatientSubscriptionRepository,
     private checkFreeBookingUseCase: CheckFreeBookingUseCase,
-    private notificationService: INotificationService
+    private notificationService: INotificationService,
+    private emailService: IEmailService
   ) {}
 
   async execute(
@@ -113,7 +115,7 @@ export class BookAppointmentUseCase {
 
     await this.availabilityRepository.updateSlotBookingStatus(doctorId, startOfDay, startTime, true);
 
-    // notifications for patient and doctor
+    // Notifications for patient and doctor
     const patientNotification: Notification = {
       userId: patientId,
       type: NotificationType.APPOINTMENT_BOOKED,
@@ -130,10 +132,18 @@ export class BookAppointmentUseCase {
       createdAt: new Date(),
     };
 
-    // Send notifications
+    // Email notifications
+    const patientEmailSubject = 'Appointment Confirmation';
+    const patientEmailText = `Dear ${patient.name},\n\nYour appointment with Dr. ${doctor.name} has been successfully booked for ${appointment.startTime} on ${appointment.date.toLocaleDateString()}. Please ensure you arrive on time.\n\nBest regards,\nDOCit Team`;
+    const doctorEmailSubject = 'New Appointment Scheduled';
+    const doctorEmailText = `Dear Dr. ${doctor.name},\n\nA new appointment with ${patient.name} has been scheduled for ${appointment.startTime} on ${appointment.date.toLocaleDateString()}.\n\nBest regards,\nDOCit Team`;
+
+    // Send notifications and emails
     await Promise.all([
       this.notificationService.sendNotification(patientNotification),
       this.notificationService.sendNotification(doctorNotification),
+      this.emailService.sendEmail(patient.email, patientEmailSubject, patientEmailText),
+      this.emailService.sendEmail(doctor.email, doctorEmailSubject, doctorEmailText),
     ]);
 
     return savedAppointment;

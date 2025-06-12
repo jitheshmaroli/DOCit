@@ -7,6 +7,8 @@ import moment from 'moment';
 import { StripeService } from '../../../infrastructure/services/StripeService';
 import { Notification, NotificationType } from '../../entities/Notification';
 import { INotificationService } from '../../interfaces/services/INotificationService';
+import { IEmailService } from '../../interfaces/services/IEmailService';
+import { IDoctorRepository } from '../../interfaces/repositories/IDoctorRepository';
 
 export class ConfirmSubscriptionUseCase {
   constructor(
@@ -14,7 +16,9 @@ export class ConfirmSubscriptionUseCase {
     private patientSubscriptionRepository: IPatientSubscriptionRepository,
     private patientRepository: IPatientRepository,
     private stripeService: StripeService,
-    private notificationService: INotificationService
+    private notificationService: INotificationService,
+    private emailService: IEmailService,
+    private doctorRepository: IDoctorRepository
   ) {}
 
   async execute(patientId: string, planId: string, paymentIntentId: string): Promise<PatientSubscription> {
@@ -53,16 +57,39 @@ export class ConfirmSubscriptionUseCase {
     const patient = await this.patientRepository.findById(patientId);
     if (!patient) throw new NotFoundError('Patient not found');
 
-    const doctorNotification: Notification = {
-      userId: plan.doctorId,
-      type: NotificationType.APPOINTMENT_CANCELLED,
-      message: `Your plan: ${plan.name} was subscribed by ${patient.name}.`,
+    const doctor = await this.doctorRepository.findById(plan.doctorId);
+    if (!doctor) throw new NotFoundError('Doctor not found');
+
+    // Notifications for patient and doctor
+    const patientNotification: Notification = {
+      userId: patientId,
+      type: NotificationType.SUBSCRIPTION_CONFIRMED,
+      message: `Your subscription to plan "${plan.name}" with Dr. ${doctor.name} has been confirmed.`,
       isRead: false,
       createdAt: new Date(),
     };
 
-    // Send notifications
-    await this.notificationService.sendNotification(doctorNotification);
+    const doctorNotification: Notification = {
+      userId: plan.doctorId,
+      type: NotificationType.SUBSCRIPTION_CONFIRMED,
+      message: `Your plan "${plan.name}" was subscribed by ${patient.name}.`,
+      isRead: false,
+      createdAt: new Date(),
+    };
+
+    // Email notifications
+    const patientEmailSubject = 'Subscription Confirmation';
+    const patientEmailText = `Dear ${patient.name},\n\nYour subscription to the plan "${plan.name}" with Dr. ${doctor.name} has been successfully confirmed. It is valid until ${endDate.toLocaleDateString()} and includes ${plan.appointmentCount} appointments.\n\nBest regards,\nDOCit Team`;
+    const doctorEmailSubject = 'New Subscription';
+    const doctorEmailText = `Dear Dr. ${doctor.name},\n\n${patient.name} has subscribed to your plan "${plan.name}". The subscription is valid until ${endDate.toLocaleDateString()}.\n\nBest regards,\nDOCit Team`;
+
+    // Send notifications and emails
+    await Promise.all([
+      this.notificationService.sendNotification(patientNotification),
+      this.notificationService.sendNotification(doctorNotification),
+      this.emailService.sendEmail(patient.email, patientEmailSubject, patientEmailText),
+      this.emailService.sendEmail(doctor.email, doctorEmailSubject, doctorEmailText),
+    ]);
 
     const activeSubscriptions = await this.patientSubscriptionRepository.findActiveSubscriptions();
     const hasActiveSubscriptions = activeSubscriptions.some((sub) => sub.patientId === patientId);

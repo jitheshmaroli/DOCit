@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { toast } from 'react-toastify'; // Import toast
+import { toast } from 'react-toastify';
 
 interface CancelAppointmentModalProps {
   isOpen: boolean;
@@ -25,7 +25,7 @@ const CancelAppointmentModal: React.FC<CancelAppointmentModalProps> = ({
         position: 'top-right',
         autoClose: 3000,
         theme: 'dark',
-      }); // Use toast instead of alert
+      });
       return;
     }
     onConfirm(cancellationReason);

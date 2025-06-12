@@ -1,17 +1,3 @@
-// export interface User {
-//   _id: string;
-//   email: string;
-//   name: string;
-//   role: 'patient' | 'doctor' | 'admin';
-//   phone?: string;
-//   isVerified?: boolean;
-//   isBlocked?: boolean;
-//   isSubscribed?: boolean;
-//   licenseNumber?: string;
-//   createdAt?: string;
-//   updatedAt?: string;
-// }
-
 export interface Doctor {
   _id: string;
   email: string;
@@ -30,17 +16,6 @@ export interface Doctor {
   createdAt: string;
   updatedAt: string;
 }
-
-// export interface Patient {
-//   _id: string;
-//   email: string;
-//   name: string;
-//   phone: string;
-//   isSubscribed: boolean;
-//   isBlocked: boolean;
-//   createdAt: string;
-//   updatedAt: string;
-// }
 
 export interface AuthState {
   user: User | null;
@@ -88,20 +63,6 @@ export interface ResetPasswordPayload {
 
 export type UserRole = 'patient' | 'doctor' | 'admin';
 
-// export interface SubscriptionPlan {
-//   _id: string;
-//   doctorId?: string;
-//   name?: string;
-//   description: string;
-//   price: number;
-//   validityDays: number;
-//   appointmentCount: number;
-//   status: 'pending' | 'approved' | 'rejected';
-//   doctorName?: string;
-//   createdAt?: string;
-//   updatedAt?: string;
-// }
-
 export interface Subscription {
   _id: string;
   plan: SubscriptionPlan;
@@ -111,18 +72,6 @@ export interface Subscription {
   status: 'active' | 'inactive';
   stripePaymentId?: string;
 }
-
-// export interface Appointment {
-//   _id: string;
-//   patientName: string;
-//   doctorName?: string;
-//   date: string;
-//   startTime: string;
-//   endTime: string;
-//   isFreeBooking: boolean;
-//   status: 'pending' | 'confirmed' | 'cancelled';
-//   createdAt: string;
-// }
 
 export interface GetDoctorAvailabilityPayload {
   doctorId: string;
@@ -160,21 +109,6 @@ export interface UpdateSubscriptionPlanPayload extends SubscriptionPlanPayload {
   id: string;
 }
 
-// export interface SubscriptionPlan {
-//   _id: string;
-//   name?: string;
-//   description: string;
-//   appointmentCost: number;
-//   duration: number;
-// }
-
-// export interface Speciality {
-//   _id: string;
-//   name: string;
-//   createdAt: string;
-//   updatedAt: string;
-// }
-
 export interface TimeSlot {
   startTime: string;
   endTime: string;
@@ -192,8 +126,6 @@ export interface SlotPickerProps {
   onSlotSelect: React.Dispatch<React.SetStateAction<TimeSlot | null>>;
 }
 
-//new
-
 export interface User {
   _id: string;
   email: string;
@@ -202,55 +134,6 @@ export interface User {
   phone?: string;
   isBlocked?: boolean;
 }
-
-// export interface Patient {
-//   _id: string;
-//   email: string;
-//   name?: string;
-//   role: 'patient';
-//   isBlocked?: boolean;
-//   subscriptionPlan?: string;
-//   subscriptionStatus?: 'active' | 'inactive' | 'cancelled';
-//   createdAt?: string;
-//   updatedAt?: string;
-// }
-
-// export interface Doctor {
-//   _id: string;
-//   email: string;
-//   name?: string;
-//   role: 'doctor';
-//   isBlocked?: boolean;
-//   isApproved?: boolean;
-//   speciality?: string;
-//   createdAt?: string;
-//   updatedAt?: string;
-// }
-
-// export interface Doctor {
-//   _id: string;
-//   name: string;
-//   email: string;
-//   phone: string;
-//   licenseNumber: string;
-//   isVerified: boolean;
-//   isBlocked: boolean;
-//   profilePicture?: string;
-//   createdAt: string;
-//   updatedAt: string;
-// }
-
-// export interface SubscriptionPlan {
-//   _id: string;
-//   name: string;
-//   description: string;
-//   price: number;
-//   duration: number;
-//   features: string[];
-//   isActive: boolean;
-//   createdAt?: string;
-//   updatedAt?: string;
-// }
 
 export interface SubscriptionPlan {
   _id: string;
@@ -266,36 +149,12 @@ export interface SubscriptionPlan {
   updatedAt: string;
 }
 
-// export interface Speciality {
-//   _id: string;
-//   name: string;
-//   description?: string;
-//   doctorId?: string;
-//   doctorName?: string;
-//   createdAt?: string;
-//   updatedAt?: string;
-// }
-
 export interface Speciality {
   _id: string;
   name: string;
   createdAt: string;
   updatedAt: string;
 }
-
-// export interface Appointment {
-//   _id: string;
-//   patientId: string;
-//   patientName?: string;
-//   doctorId: string;
-//   doctorName?: string;
-//   date: string;
-//   startTime: string;
-//   endTime: string;
-//   status: 'pending' | 'confirmed' | 'cancelled';
-//   createdAt?: string;
-//   updatedAt?: string;
-// }
 
 export interface Patient {
   _id: string;

@@ -3,7 +3,6 @@ import { Server as HttpServer } from 'http';
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import { IChatService } from '../../core/interfaces/services/IChatService';
 import { INotificationService } from '../../core/interfaces/services/INotificationService';
-import { IVideoCallService } from '../../core/interfaces/services/IVideoCallService';
 import { ITokenService } from '../../core/interfaces/services/ITokenService';
 import { env } from '../../config/env';
 import { ChatMessage } from '../../core/entities/ChatMessage';
@@ -19,7 +18,6 @@ export class SocketService {
 
   constructor(
     private chatService: IChatService,
-    private videoCallService: IVideoCallService,
     private tokenService: ITokenService
   ) {}
 
@@ -161,98 +159,6 @@ export class SocketService {
         } catch (error: any) {
           logger.error(`Send notification error: ${error.message}`);
           socket.emit('error', { message: (error as Error).message });
-        }
-      });
-
-      // Map to keep track of roomId <-> userId
-      const callRooms: Map<string, { initiator: string; receiver: string }> = new Map();
-
-      socket.on('startCall', (data: { caller: string; receiver: string; appointmentId: string; roomId?: string }) => {
-        // Generate a roomId if not provided
-        const roomId = data.roomId || `${data.appointmentId}-${Date.now()}`;
-        callRooms.set(roomId, { initiator: data.caller, receiver: data.receiver });
-
-        const receiverSocketId = this.connectedUsers.get(data.receiver);
-        if (receiverSocketId) {
-          this.io!.to(receiverSocketId).emit('incomingCall', {
-            caller: data.caller,
-            roomId,
-            appointmentId: data.appointmentId,
-          });
-          logger.info(`Incoming call sent to: ${data.receiver}`);
-        }
-      });
-
-      socket.on('acceptCall', (data: { caller: string; receiver: string; roomId: string; appointmentId: string }) => {
-        const initiatorSocketId = this.connectedUsers.get(data.caller);
-        if (initiatorSocketId) {
-          this.io!.to(initiatorSocketId).emit('callAccepted', {
-            receiver: data.receiver,
-            roomId: data.roomId,
-            appointmentId: data.appointmentId,
-          });
-          logger.info(`Call accepted sent to: ${data.caller}`);
-        }
-      });
-
-      socket.on('offer', (data: { offer: any; roomId: string }) => {
-        const room = callRooms.get(data.roomId);
-        if (room) {
-          const receiverSocketId = this.connectedUsers.get(room.receiver);
-          if (receiverSocketId) {
-            this.io!.to(receiverSocketId).emit('videoCallSignal', {
-              signal: data.offer,
-              from: room.initiator,
-              appointmentId: data.roomId.split('-')[0],
-              roomId: data.roomId,
-            });
-          }
-        }
-      });
-
-      socket.on('answer', (data: { answer: any; roomId: string }) => {
-        const room = callRooms.get(data.roomId);
-        if (room) {
-          const initiatorSocketId = this.connectedUsers.get(room.initiator);
-          if (initiatorSocketId) {
-            this.io!.to(initiatorSocketId).emit('videoCallSignal', {
-              signal: data.answer,
-              from: room.receiver,
-              appointmentId: data.roomId.split('-')[0],
-              roomId: data.roomId,
-            });
-          }
-        }
-      });
-
-      socket.on('iceCandidate', (data: { candidate: any; roomId: string }) => {
-        const room = callRooms.get(data.roomId);
-        if (room) {
-          // Forward candidate to both peers
-          [room.initiator, room.receiver].forEach((userId) => {
-            const socketId = this.connectedUsers.get(userId);
-            if (socketId) {
-              this.io!.to(socketId).emit('videoCallSignal', {
-                signal: data.candidate,
-                from: userId,
-                appointmentId: data.roomId.split('-')[0],
-                roomId: data.roomId,
-              });
-            }
-          });
-        }
-      });
-
-      socket.on('endCall', (data: { roomId: string }) => {
-        const room = callRooms.get(data.roomId);
-        if (room) {
-          [room.initiator, room.receiver].forEach((userId) => {
-            const socketId = this.connectedUsers.get(userId);
-            if (socketId) {
-              this.io!.to(socketId).emit('callEnded', { roomId: data.roomId });
-            }
-          });
-          callRooms.delete(data.roomId);
         }
       });
 

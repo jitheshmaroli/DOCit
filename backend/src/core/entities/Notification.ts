@@ -6,6 +6,7 @@ export enum NotificationType {
   PLAN_REJECTED = 'plan_rejected',
   PLAN_SUBSCRIBED = 'plan_subscribed',
   DOCTOR_VERIFIED = 'doctor_verified',
+  SUBSCRIPTION_CONFIRMED = 'subscription_confirmed',
 }
 
 export interface Notification {

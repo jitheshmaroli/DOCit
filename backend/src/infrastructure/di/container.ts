@@ -63,10 +63,8 @@ import { ConfirmSubscriptionUseCase } from '../../core/use-cases/patient/Confirm
 import { ImageUploadService } from '../services/ImageUploadService';
 import { ChatRepository } from '../repositories/ChatRepository';
 import { NotificationRepository } from '../repositories/NotificationRepository';
-import { VideoCallRepository } from '../repositories/VideoCallRepository';
 import { SocketService } from '../services/SocketService';
 import { NotificationService } from '../services/NotificationService';
-import { VideoCallService } from '../services/VideoCallService';
 import { SendMessageUseCase } from '../../core/use-cases/chat/SendMessageUseCase';
 import { GetMessagesUseCase } from '../../core/use-cases/chat/GetMessagesUseCase';
 import { DeleteMessageUseCase } from '../../core/use-cases/chat/DeleteMessageUseCase';
@@ -75,9 +73,6 @@ import { GetInboxUseCase } from '../../core/use-cases/chat/GetInboxUseCase';
 import { SendNotificationUseCase } from '../../core/use-cases/notification/SendNotificationUseCase';
 import { GetNotificationsUseCase } from '../../core/use-cases/notification/GetNotificationsUseCase';
 import { DeleteNotificationUseCase } from '../../core/use-cases/notification/DeleteNotificationUseCase';
-import { InitiateVideoCallUseCase } from '../../core/use-cases/video-call/InitiateVideoCallUseCase';
-import { EndVideoCallUseCase } from '../../core/use-cases/video-call/EndVideoCallUseCase';
-import { UpdateVideoCallSettingsUseCase } from '../../core/use-cases/video-call/UpdateVideoCallSettingsUseCase';
 import { ChatMessage } from '../../core/entities/ChatMessage';
 import { IChatService } from '../../core/interfaces/services/IChatService';
 import { QueryParams } from '../../types/authTypes';
@@ -103,7 +98,6 @@ export class Container {
     const specialityRepository = new SpecialityRepository();
     const chatRepository = new ChatRepository();
     const notificationRepository = new NotificationRepository();
-    const videoCallRepository = new VideoCallRepository();
 
     // Initialize services
     const emailService = new EmailService();
@@ -111,7 +105,6 @@ export class Container {
     const otpService = new OTPService(otpRepository, emailService);
     const stripeService = new StripeService();
     const imageUploadService = new ImageUploadService();
-    const videoCallService = new VideoCallService(videoCallRepository);
     const chatService = new (class implements IChatService {
       constructor(private container: Container) {}
       async sendMessage(message: ChatMessage, file?: Express.Multer.File): Promise<ChatMessage> {
@@ -127,7 +120,7 @@ export class Container {
         return this.container.get<GetChatHistoryUseCase>('GetChatHistoryUseCase').execute(userId, params);
       }
     })(this);
-    const socketService = new SocketService(chatService, videoCallService, tokenService);
+    const socketService = new SocketService(chatService, tokenService);
     const notificationService = new NotificationService(notificationRepository, socketService);
     socketService.setNotificationService(notificationService);
 
@@ -139,7 +132,6 @@ export class Container {
     this.dependencies.set('ImageUploadService', imageUploadService);
     this.dependencies.set('SocketService', socketService);
     this.dependencies.set('INotificationService', notificationService);
-    this.dependencies.set('IVideoCallService', videoCallService);
 
     // Register repositories
     this.dependencies.set('IPatientRepository', patientRepository);
@@ -153,7 +145,6 @@ export class Container {
     this.dependencies.set('ISpecialityRepository', specialityRepository);
     this.dependencies.set('IChatRepository', chatRepository);
     this.dependencies.set('INotificationRepository', notificationRepository);
-    this.dependencies.set('IVideoCallRepository', videoCallRepository);
 
     // Initialize and register use cases
     this.dependencies.set('SignupPatientUseCase', new SignupPatientUseCase(patientRepository, otpService));
@@ -232,7 +223,8 @@ export class Container {
         patientRepository,
         patientSubscriptionRepository,
         this.dependencies.get('CheckFreeBookingUseCase') as CheckFreeBookingUseCase,
-        notificationService
+        notificationService,
+        emailService
       )
     );
     this.dependencies.set(
@@ -259,7 +251,9 @@ export class Container {
         patientSubscriptionRepository,
         patientRepository,
         stripeService,
-        notificationService
+        notificationService,
+        emailService,
+        doctorRepository
       )
     );
     this.dependencies.set(
@@ -272,7 +266,10 @@ export class Container {
         appointmentRepository,
         availabilityRepository,
         patientSubscriptionRepository,
-        notificationService
+        notificationService,
+        emailService,
+        doctorRepository,
+        patientRepository
       )
     );
     this.dependencies.set('GetDoctorAppointmentsUseCase', new GetDoctorAppointmentsUseCase(appointmentRepository));
@@ -312,12 +309,6 @@ export class Container {
     this.dependencies.set('DeleteNotificationUseCase', new DeleteNotificationUseCase(notificationRepository));
     this.dependencies.set('DeleteAllNotificationsUseCase', new DeleteAllNotificationsUseCase(notificationRepository));
     this.dependencies.set('MarkNotificationAsReadUseCase', new MarkNotificationAsReadUseCase(notificationRepository));
-    this.dependencies.set(
-      'InitiateVideoCallUseCase',
-      new InitiateVideoCallUseCase(videoCallRepository, appointmentRepository)
-    );
-    this.dependencies.set('EndVideoCallUseCase', new EndVideoCallUseCase(videoCallRepository));
-    this.dependencies.set('UpdateVideoCallSettingsUseCase', new UpdateVideoCallSettingsUseCase(videoCallRepository));
   }
 
   static getInstance(): Container {
