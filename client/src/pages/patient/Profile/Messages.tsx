@@ -58,6 +58,8 @@ const Messages = ({ patientId }: MessagesProps) => {
 
       setThreads((prev) => {
         const threadIndex = prev.findIndex((t) => t.receiverId === partnerId);
+        const isViewingThread = selectedThread?.receiverId === partnerId;
+        const incrementUnread = !isViewingThread || !isAtBottom();
         if (threadIndex >= 0) {
           const updatedThreads = [...prev];
           updatedThreads[threadIndex] = {
@@ -72,6 +74,9 @@ const Messages = ({ patientId }: MessagesProps) => {
               createdAt: message.createdAt,
               isSender: false,
             },
+            unreadCount: incrementUnread
+              ? updatedThreads[threadIndex].unreadCount + 1
+              : updatedThreads[threadIndex].unreadCount,
           };
           return updatedThreads.sort(
             (a, b) =>
@@ -92,6 +97,7 @@ const Messages = ({ patientId }: MessagesProps) => {
             isSender: false,
           },
           messages: [newMessageObj],
+          unreadCount: 1,
         };
         return [newThread, ...prev].sort(
           (a, b) =>
@@ -114,10 +120,21 @@ const Messages = ({ patientId }: MessagesProps) => {
                   createdAt: message.createdAt,
                   isSender: false,
                 },
+                unreadCount: isAtBottom() ? 0 : prev.unreadCount + 1,
               }
             : prev
         );
-        if (!isAtBottom()) {
+        if (isAtBottom()) {
+          setTimeout(() => {
+            if (chatContainerRef.current) {
+              chatContainerRef.current.scrollTo({
+                top: chatContainerRef.current.scrollHeight,
+                behavior: 'smooth',
+              });
+            }
+            inputRef.current?.focus();
+          }, 100); // Increased delay to ensure DOM update
+        } else {
           setNewMessagesCount((prev) => prev + 1);
         }
       }
@@ -161,6 +178,7 @@ const Messages = ({ patientId }: MessagesProps) => {
                   }
                 : null,
               messages: [],
+              unreadCount: 0,
             };
           })
         );
@@ -185,34 +203,41 @@ const Messages = ({ patientId }: MessagesProps) => {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const threadId = params.get('thread');
-    if (threadId && !loading && threads.length > 0) {
-      const thread = threads.find((t) => t.receiverId === threadId);
-      if (thread) {
-        setSelectedThread(thread);
-        // Only clear the query parameter after selecting the thread
+    if (threadId && !loading) {
+      const existingThread = threads.find((t) => t.receiverId === threadId);
+      if (existingThread) {
+        setSelectedThread({ ...existingThread, unreadCount: 0 });
+        setThreads((prev) =>
+          prev.map((t) =>
+            t.receiverId === threadId ? { ...t, unreadCount: 0 } : t
+          )
+        );
         navigate('/patient/profile?tab=messages', { replace: true });
       } else {
-        // If thread not found, try fetching partner details to create a new thread
         const createNewThread = async () => {
           try {
             const partner = await fetchPartnerDetails(threadId);
             const newThread: MessageThread = {
               id: threadId,
               receiverId: threadId,
-              senderName: partner.name,
+              senderName: partner.name || 'Unknown Doctor',
               subject: 'Conversation',
               createdAt: new Date().toISOString(),
               partnerProfilePicture: partner.profilePicture,
               latestMessage: null,
               messages: [],
+              unreadCount: 0,
             };
-            setThreads((prev) =>
-              [newThread, ...prev].sort(
+            setThreads((prev) => {
+              if (prev.some((t) => t.receiverId === threadId)) {
+                return prev;
+              }
+              return [newThread, ...prev].sort(
                 (a, b) =>
                   new Date(b.createdAt).getTime() -
                   new Date(a.createdAt).getTime()
-              )
-            );
+              );
+            });
             setSelectedThread(newThread);
             navigate('/patient/profile?tab=messages', { replace: true });
           } catch (error) {
@@ -240,17 +265,22 @@ const Messages = ({ patientId }: MessagesProps) => {
           isSender: msg.senderId === patientId,
         }));
         setSelectedThread((prev) =>
-          prev ? { ...prev, messages: formattedMessages } : prev
+          prev ? { ...prev, messages: formattedMessages, unreadCount: 0 } : prev
         );
         setThreads((prev) =>
           prev.map((thread) =>
             thread.receiverId === selectedThread.receiverId
-              ? { ...thread, messages: formattedMessages }
+              ? { ...thread, messages: formattedMessages, unreadCount: 0 }
               : thread
           )
         );
         setTimeout(() => {
-          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+          if (isAtBottom() && chatContainerRef.current) {
+            chatContainerRef.current.scrollTo({
+              top: chatContainerRef.current.scrollHeight,
+              behavior: 'smooth',
+            });
+          }
           inputRef.current?.focus();
         }, 100);
       } catch (error) {
@@ -263,7 +293,7 @@ const Messages = ({ patientId }: MessagesProps) => {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedThread?.receiverId) return;
+    if (!selectedThread?.receiverId || !newMessage.trim()) return;
 
     const message = await sendMessage({
       receiverId: selectedThread.receiverId,
@@ -284,6 +314,7 @@ const Messages = ({ patientId }: MessagesProps) => {
                 createdAt: message.createdAt,
                 isSender: true,
               },
+              unreadCount: 0,
             }
           : prev
       );
@@ -303,17 +334,42 @@ const Messages = ({ patientId }: MessagesProps) => {
               createdAt: message.createdAt,
               isSender: true,
             },
+            unreadCount: 0,
           };
           return updatedThreads.sort(
             (a, b) =>
               new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           );
         }
-        return prev;
+        const newThread: MessageThread = {
+          id: selectedThread.receiverId,
+          receiverId: selectedThread.receiverId,
+          senderName: selectedThread.senderName,
+          subject: selectedThread.subject,
+          createdAt: message.createdAt,
+          partnerProfilePicture: selectedThread.partnerProfilePicture,
+          latestMessage: {
+            _id: message.id,
+            message: message.message,
+            createdAt: message.createdAt,
+            isSender: true,
+          },
+          messages: [message],
+          unreadCount: 0,
+        };
+        return [newThread, ...prev].sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
       });
       setNewMessage('');
       setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        if (chatContainerRef.current) {
+          chatContainerRef.current.scrollTo({
+            top: chatContainerRef.current.scrollHeight,
+            behavior: 'smooth',
+          });
+        }
         inputRef.current?.focus();
       }, 100);
     }
@@ -326,8 +382,21 @@ const Messages = ({ patientId }: MessagesProps) => {
   };
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTo({
+        top: chatContainerRef.current.scrollHeight,
+        behavior: 'smooth',
+      });
+    }
     setNewMessagesCount(0);
+    setThreads((prev) =>
+      prev.map((thread) =>
+        thread.receiverId === selectedThread?.receiverId
+          ? { ...thread, unreadCount: 0 }
+          : thread
+      )
+    );
+    setSelectedThread((prev) => (prev ? { ...prev, unreadCount: 0 } : prev));
     inputRef.current?.focus();
   };
 
@@ -343,9 +412,24 @@ const Messages = ({ patientId }: MessagesProps) => {
             threads={threads}
             selectedThreadId={selectedThread?.id || null}
             onSelectThread={(thread) => {
-              setSelectedThread(thread);
+              setSelectedThread({ ...thread, unreadCount: 0 });
+              setThreads((prev) =>
+                prev.map((t) =>
+                  t.receiverId === thread.receiverId
+                    ? { ...t, unreadCount: 0 }
+                    : t
+                )
+              );
               setNewMessagesCount(0);
-              setTimeout(() => inputRef.current?.focus(), 100);
+              setTimeout(() => {
+                if (chatContainerRef.current) {
+                  chatContainerRef.current.scrollTo({
+                    top: chatContainerRef.current.scrollHeight,
+                    behavior: 'smooth',
+                  });
+                }
+                inputRef.current?.focus();
+              }, 100);
             }}
             loading={loading}
           />
@@ -361,6 +445,7 @@ const Messages = ({ patientId }: MessagesProps) => {
               chatContainerRef={chatContainerRef}
               newMessagesCount={newMessagesCount}
               onScrollToBottom={scrollToBottom}
+              isAtBottom={isAtBottom}
             />
           ) : (
             <div className="w-full lg:w-2/3 bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 flex items-center justify-center text-gray-200">

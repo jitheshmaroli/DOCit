@@ -57,6 +57,8 @@ const Messages = () => {
 
       setThreads((prev) => {
         const threadIndex = prev.findIndex((t) => t.receiverId === partnerId);
+        const isViewingThread = selectedThread?.receiverId === partnerId;
+        const incrementUnread = !isViewingThread || !isAtBottom();
         if (threadIndex >= 0) {
           const updatedThreads = [...prev];
           updatedThreads[threadIndex] = {
@@ -71,6 +73,9 @@ const Messages = () => {
               createdAt: message.createdAt,
               isSender: false,
             },
+            unreadCount: incrementUnread
+              ? updatedThreads[threadIndex].unreadCount + 1
+              : updatedThreads[threadIndex].unreadCount,
           };
           return updatedThreads.sort(
             (a, b) =>
@@ -91,6 +96,7 @@ const Messages = () => {
             isSender: false,
           },
           messages: [newMessageObj],
+          unreadCount: 1,
         };
         return [newThread, ...prev].sort(
           (a, b) =>
@@ -113,10 +119,21 @@ const Messages = () => {
                   createdAt: message.createdAt,
                   isSender: false,
                 },
+                unreadCount: isAtBottom() ? 0 : prev.unreadCount + 1,
               }
             : prev
         );
-        if (!isAtBottom()) {
+        if (isAtBottom()) {
+          setTimeout(() => {
+            if (chatContainerRef.current) {
+              chatContainerRef.current.scrollTo({
+                top: chatContainerRef.current.scrollHeight,
+                behavior: 'smooth',
+              });
+            }
+            inputRef.current?.focus();
+          }, 100); // Increased delay to ensure DOM update
+        } else {
           setNewMessagesCount((prev) => prev + 1);
         }
       }
@@ -160,10 +177,10 @@ const Messages = () => {
                   }
                 : null,
               messages: [],
+              unreadCount: 0,
             };
           })
         );
-        // Deduplicate threads by receiverId
         const uniqueThreads = Array.from(
           new Map(enrichedThreads.map((t) => [t.receiverId, t])).values()
         );
@@ -191,10 +208,14 @@ const Messages = () => {
     if (threadId && !loading) {
       const thread = threads.find((t) => t.receiverId === threadId);
       if (thread) {
-        setSelectedThread(thread);
+        setSelectedThread({ ...thread, unreadCount: 0 });
+        setThreads((prev) =>
+          prev.map((t) =>
+            t.receiverId === threadId ? { ...t, unreadCount: 0 } : t
+          )
+        );
         navigate('/doctor/messages', { replace: true });
       } else {
-        // Create a new thread if it doesn't exist
         const createNewThread = async () => {
           try {
             const partner = await fetchPartnerDetails(threadId);
@@ -207,6 +228,7 @@ const Messages = () => {
               partnerProfilePicture: partner.profilePicture,
               latestMessage: null,
               messages: [],
+              unreadCount: 0,
             };
             setThreads((prev) => {
               const uniqueThreads = Array.from(
@@ -248,17 +270,22 @@ const Messages = () => {
           receiverId: selectedThread.receiverId,
         }));
         setSelectedThread((prev) =>
-          prev ? { ...prev, messages: formattedMessages } : prev
+          prev ? { ...prev, messages: formattedMessages, unreadCount: 0 } : prev
         );
         setThreads((prev) =>
           prev.map((thread) =>
             thread.receiverId === selectedThread.receiverId
-              ? { ...thread, messages: formattedMessages }
+              ? { ...thread, messages: formattedMessages, unreadCount: 0 }
               : thread
           )
         );
         setTimeout(() => {
-          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+          if (isAtBottom() && chatContainerRef.current) {
+            chatContainerRef.current.scrollTo({
+              top: chatContainerRef.current.scrollHeight,
+              behavior: 'smooth',
+            });
+          }
           inputRef.current?.focus();
         }, 100);
       } catch (error) {
@@ -271,7 +298,7 @@ const Messages = () => {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedThread?.receiverId) return;
+    if (!selectedThread?.receiverId || !newMessage.trim()) return;
 
     const message = await sendMessage({
       receiverId: selectedThread.receiverId,
@@ -292,6 +319,7 @@ const Messages = () => {
                 createdAt: message.createdAt,
                 isSender: true,
               },
+              unreadCount: 0,
             }
           : prev
       );
@@ -311,17 +339,42 @@ const Messages = () => {
               createdAt: message.createdAt,
               isSender: true,
             },
+            unreadCount: 0,
           };
           return updatedThreads.sort(
             (a, b) =>
               new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           );
         }
-        return prev;
+        const newThread: MessageThread = {
+          id: selectedThread.receiverId,
+          receiverId: selectedThread.receiverId,
+          senderName: selectedThread.senderName,
+          subject: selectedThread.subject,
+          createdAt: message.createdAt,
+          partnerProfilePicture: selectedThread.partnerProfilePicture,
+          latestMessage: {
+            _id: message.id,
+            message: message.message,
+            createdAt: message.createdAt,
+            isSender: true,
+          },
+          messages: [message],
+          unreadCount: 0,
+        };
+        return [newThread, ...prev].sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
       });
       setNewMessage('');
       setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        if (chatContainerRef.current) {
+          chatContainerRef.current.scrollTo({
+            top: chatContainerRef.current.scrollHeight,
+            behavior: 'smooth',
+          });
+        }
         inputRef.current?.focus();
       }, 100);
     }
@@ -334,8 +387,21 @@ const Messages = () => {
   };
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTo({
+        top: chatContainerRef.current.scrollHeight,
+        behavior: 'smooth',
+      });
+    }
     setNewMessagesCount(0);
+    setThreads((prev) =>
+      prev.map((thread) =>
+        thread.receiverId === selectedThread?.receiverId
+          ? { ...thread, unreadCount: 0 }
+          : thread
+      )
+    );
+    setSelectedThread((prev) => (prev ? { ...prev, unreadCount: 0 } : prev));
     inputRef.current?.focus();
   };
 
@@ -351,9 +417,24 @@ const Messages = () => {
             threads={threads}
             selectedThreadId={selectedThread?.id || null}
             onSelectThread={(thread) => {
-              setSelectedThread(thread);
+              setSelectedThread({ ...thread, unreadCount: 0 });
+              setThreads((prev) =>
+                prev.map((t) =>
+                  t.receiverId === thread.receiverId
+                    ? { ...t, unreadCount: 0 }
+                    : t
+                )
+              );
               setNewMessagesCount(0);
-              setTimeout(() => inputRef.current?.focus(), 100);
+              setTimeout(() => {
+                if (chatContainerRef.current) {
+                  chatContainerRef.current.scrollTo({
+                    top: chatContainerRef.current.scrollHeight,
+                    behavior: 'smooth',
+                  });
+                }
+                inputRef.current?.focus();
+              }, 100);
             }}
             loading={loading}
           />
@@ -364,11 +445,12 @@ const Messages = () => {
               inputRef={inputRef}
               onMessageChange={setNewMessage}
               onSendMessage={handleSendMessage}
-              onBackToInbox={() => setSelectedThread(null!)}
+              onBackToInbox={() => setSelectedThread(null)}
               messagesEndRef={messagesEndRef}
               chatContainerRef={chatContainerRef}
               newMessagesCount={newMessagesCount}
               onScrollToBottom={scrollToBottom}
+              isAtBottom={isAtBottom}
             />
           ) : (
             <div className="w-full lg:w-2/3 bg-white/10 backdrop-blur border border-gray rounded-2xl p-6 flex items-center justify-center text-gray-400">

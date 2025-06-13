@@ -36,7 +36,7 @@ export const MessageInbox: React.FC<MessageInboxProps> = React.memo(
                 key={`${thread.id}-${thread.createdAt}`}
                 className={`p-4 rounded-xl cursor-pointer transition-all duration-300 hover:bg-white/10 ${
                   selectedThreadId === thread.id ? 'bg-white/20' : ''
-                }`}
+                } ${thread.unreadCount > 0 ? 'bg-purple-900/20 font-bold' : ''}`}
                 onClick={() => onSelectThread(thread)}
               >
                 <div className="flex items-center gap-3">
@@ -50,14 +50,29 @@ export const MessageInbox: React.FC<MessageInboxProps> = React.memo(
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-center">
-                      <h4 className="text-white font-medium truncate">
+                      <h4
+                        className={`text-white truncate ${
+                          thread.unreadCount > 0 ? 'font-bold' : 'font-medium'
+                        }`}
+                      >
                         {thread.senderName}
                       </h4>
-                      <p className="text-gray-400 text-xs">
-                        {DateUtils.formatToLocal(thread.createdAt)}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        {thread.unreadCount > 0 && (
+                          <span className="bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                            {thread.unreadCount}
+                          </span>
+                        )}
+                        <p className="text-gray-400 text-xs">
+                          {DateUtils.formatToLocal(thread.createdAt)}
+                        </p>
+                      </div>
                     </div>
-                    <p className="text-gray-300 text-sm truncate">
+                    <p
+                      className={`text-sm truncate ${
+                        thread.unreadCount > 0 ? 'text-white' : 'text-gray-300'
+                      }`}
+                    >
                       {thread.latestMessage?.message}
                     </p>
                   </div>

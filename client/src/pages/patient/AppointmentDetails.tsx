@@ -343,12 +343,12 @@ const AppointmentDetails: React.FC = () => {
           <h2 className="text-2xl sm:text-3xl font-bold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent">
             Appointment Details
           </h2>
-          <button
+          {/* <button
             onClick={() => navigate('/patient/profile?tab=appointments')}
             className="text-white hover:text-gray-300 transition-colors text-sm sm:text-base"
           >
             ← Back to Appointments
-          </button>
+          </button> */}
         </div>
 
         <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">

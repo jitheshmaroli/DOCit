@@ -191,7 +191,7 @@ const DoctorAppointments: React.FC = () => {
                         onClick={() => handleViewPatient(appt.patientId._id)}
                         className="hover:underline hover:text-blue-300 focus:outline-none"
                       />
-                      {appt.patientId.name || 'N/A'}
+                      {appt.patientId?.name || 'N/A'}
                     </td>
                     <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-200">
                       {DateUtils.formatToLocal(appt.date)}

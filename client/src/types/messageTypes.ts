@@ -31,6 +31,7 @@ export interface MessageThread {
   partnerProfilePicture?: string;
   latestMessage: LatestMessage | null;
   messages: Message[];
+  unreadCount: number;
 }
 
 export interface InboxThreadResponse {

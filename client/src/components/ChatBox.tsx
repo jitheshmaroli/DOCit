@@ -1,4 +1,4 @@
-import React, { useEffect, RefObject } from 'react';
+import React, { RefObject } from 'react';
 import { ArrowLeft, ArrowDown } from 'lucide-react';
 import { DateUtils } from '../utils/DateUtils';
 import { MessageThread } from '../types/messageTypes';
@@ -14,6 +14,7 @@ interface ChatBoxProps {
   chatContainerRef: RefObject<HTMLDivElement | null>;
   newMessagesCount: number;
   onScrollToBottom: () => void;
+  isAtBottom: () => boolean;
 }
 
 export const ChatBox: React.FC<ChatBoxProps> = React.memo(
@@ -28,11 +29,8 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
     chatContainerRef,
     newMessagesCount,
     onScrollToBottom,
+    isAtBottom,
   }) => {
-    useEffect(() => {
-      inputRef.current?.focus();
-    }, [inputRef]);
-
     return (
       <div className="relative w-full lg:w-2/3 bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-4 sm:p-6 flex flex-col h-full">
         <div className="flex justify-between items-center border-b border-white/20 pb-3 mb-4">
@@ -59,7 +57,11 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
           </div>
         </div>
         <div
-          className="flex-1 max-h-[calc(100vh-16rem)] overflow-y-auto space-y-4 px-2 scrollbar-thin scrollbar-thumb-purple-500 scrollbar-track-transparent"
+          className="flex-1 overflow-y-auto space-y-4 px-2 scrollbar-thin scrollbar-thumb-purple-500 scrollbar-track-transparent"
+          style={{
+            maxHeight: 'calc(100vh - 16rem)',
+            overscrollBehavior: 'contain',
+          }}
           ref={chatContainerRef}
         >
           {thread.messages.length === 0 ? (
@@ -89,17 +91,15 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
           )}
           <div ref={messagesEndRef} />
         </div>
-        {newMessagesCount > 0 && (
+        {!isAtBottom() && newMessagesCount > 0 && (
           <button
             onClick={onScrollToBottom}
             className="absolute bottom-20 right-4 bg-purple-600 text-white rounded-full p-2 shadow-lg hover:bg-purple-700 transition-all duration-300"
           >
             <ArrowDown className="w-5 h-5" />
-            {newMessagesCount > 0 && (
-              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                {newMessagesCount}
-              </span>
-            )}
+            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+              {newMessagesCount}
+            </span>
           </button>
         )}
         <form onSubmit={onSendMessage} className="mt-4 flex gap-2">
@@ -114,6 +114,7 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
           <button
             type="submit"
             className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-medium rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
+            disabled={!newMessage.trim()}
           >
             Send
           </button>
