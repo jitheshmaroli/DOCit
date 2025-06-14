@@ -33,6 +33,12 @@ interface PaginationParams {
   isSubscribed?: boolean;
 }
 
+interface Confirmation {
+  isOpen: boolean;
+  message: string;
+  onConfirm: () => void;
+}
+
 const ITEMS_PER_PAGE = 5;
 
 const AdminManagePatients: React.FC = () => {
@@ -56,6 +62,11 @@ const AdminManagePatients: React.FC = () => {
     password: '',
     name: '',
     phone: '',
+  });
+  const [confirmation, setConfirmation] = useState<Confirmation>({
+    isOpen: false,
+    message: '',
+    onConfirm: () => {},
   });
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -114,14 +125,28 @@ const AdminManagePatients: React.FC = () => {
 
   const handleDeletePatient = useCallback(
     async (patient: Patient) => {
-      if (window.confirm('Are you sure you want to delete this patient?')) {
-        try {
-          await dispatch(deletePatientThunk(patient._id)).unwrap();
-          toast.success('Patient deleted successfully');
-        } catch (err) {
-          toast.error(`Failed to delete patient: ${err}`);
-        }
-      }
+      setConfirmation({
+        isOpen: true,
+        message: `Are you sure you want to delete patient ${patient.name}?`,
+        onConfirm: async () => {
+          try {
+            await dispatch(deletePatientThunk(patient._id)).unwrap();
+            toast.success('Patient deleted successfully');
+            setConfirmation({
+              isOpen: false,
+              message: '',
+              onConfirm: () => {},
+            });
+          } catch (err) {
+            toast.error(`Failed to delete patient: ${err}`);
+            setConfirmation({
+              isOpen: false,
+              message: '',
+              onConfirm: () => {},
+            });
+          }
+        },
+      });
     },
     [dispatch]
   );
@@ -129,19 +154,33 @@ const AdminManagePatients: React.FC = () => {
   const handleBlockPatient = useCallback(
     async (patient: Patient) => {
       const action = patient.isBlocked ? 'unblock' : 'block';
-      if (window.confirm(`Are you sure you want to ${action} this patient?`)) {
-        try {
-          await dispatch(
-            blockPatientThunk({
-              id: patient._id,
-              isBlocked: !patient.isBlocked,
-            })
-          ).unwrap();
-          toast.success(`Patient ${action}ed successfully`);
-        } catch (err) {
-          toast.error(`Failed to ${action} patient: ${err}`);
-        }
-      }
+      setConfirmation({
+        isOpen: true,
+        message: `Are you sure you want to ${action} patient ${patient.name}?`,
+        onConfirm: async () => {
+          try {
+            await dispatch(
+              blockPatientThunk({
+                id: patient._id,
+                isBlocked: !patient.isBlocked,
+              })
+            ).unwrap();
+            toast.success(`Patient ${action}ed successfully`);
+            setConfirmation({
+              isOpen: false,
+              message: '',
+              onConfirm: () => {},
+            });
+          } catch (err) {
+            toast.error(`Failed to ${action} patient: ${err}`);
+            setConfirmation({
+              isOpen: false,
+              message: '',
+              onConfirm: () => {},
+            });
+          }
+        },
+      });
     },
     [dispatch]
   );
@@ -429,6 +468,37 @@ const AdminManagePatients: React.FC = () => {
           />
         </Modal>
       )}
+      <Modal
+        isOpen={confirmation.isOpen}
+        onClose={() =>
+          setConfirmation({ isOpen: false, message: '', onConfirm: () => {} })
+        }
+        title="Confirm Action"
+        footer={
+          <>
+            <button
+              onClick={() =>
+                setConfirmation({
+                  isOpen: false,
+                  message: '',
+                  onConfirm: () => {},
+                })
+              }
+              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={confirmation.onConfirm}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all duration-300"
+            >
+              Confirm
+            </button>
+          </>
+        }
+      >
+        <p className="text-gray-300">{confirmation.message}</p>
+      </Modal>
     </div>
   );
 };

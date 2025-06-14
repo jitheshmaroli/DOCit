@@ -43,9 +43,7 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
               <ArrowLeft className="w-5 h-5 text-white" />
             </button>
             <img
-              src={
-                thread.partnerProfilePicture || 'https://via.placeholder.com/40'
-              }
+              src={thread.partnerProfilePicture}
               alt={thread.senderName}
               className="w-10 h-10 rounded-full object-cover border-2 border-white/20"
             />
