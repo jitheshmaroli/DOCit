@@ -6,8 +6,6 @@ import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import { getAppointmentsThunk } from '../../redux/thunks/doctorThunk';
 import { MessageSquare, Video } from 'lucide-react';
 import { DateUtils } from '../../utils/DateUtils';
-import { VideoCall } from '../../components/VideoCall';
-import { useSocket } from '../../hooks/useSocket';
 import Pagination from '../../components/common/Pagination';
 
 interface Appointment {
@@ -31,47 +29,7 @@ const DoctorAppointments: React.FC = () => {
   } = useAppSelector((state) => state.doctors);
   const { user } = useAppSelector((state) => state.auth);
   const [searchTerm, setSearchTerm] = useState('');
-  const [videoCallModal, setVideoCallModal] = useState<{
-    appointment: Appointment;
-    isInitiator: boolean;
-  } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-
-  const { emit } = useSocket(user?._id, {
-    onVideoCallDeclined: (data: { appointmentId: string; from: string }) => {
-      if (
-        videoCallModal &&
-        data.appointmentId === videoCallModal.appointment._id
-      ) {
-        toast.info(
-          `Video call declined by ${videoCallModal.appointment.patientId.name}`
-        );
-        setVideoCallModal(null);
-      }
-    },
-    onCallAccepted: (data: {
-      receiver: string;
-      roomId: string;
-      appointmentId: string;
-    }) => {
-      if (data.appointmentId === videoCallModal?.appointment._id) {
-        setVideoCallModal((prev) => prev);
-      }
-    },
-    onCallEnded: () => {
-      setVideoCallModal(null);
-      toast.info('Video call ended');
-    },
-    onIncomingCall: ({ caller, appointmentId }) => {
-      const appointment = appointments.find(
-        (appt) => appt._id === appointmentId
-      );
-      if (appointment && caller === appointment.patientId._id) {
-        setVideoCallModal({ appointment, isInitiator: false });
-        toast.info(`Incoming video call from ${appointment.patientId.name}`);
-      }
-    },
-  });
 
   useEffect(() => {
     if (user?.role === 'doctor') {
@@ -103,12 +61,6 @@ const DoctorAppointments: React.FC = () => {
       toast.error('User not authenticated');
       return;
     }
-    emit('startCall', {
-      caller: user._id,
-      receiver: appointment.patientId._id,
-      appointmentId: appointment._id,
-    });
-    setVideoCallModal({ appointment, isInitiator: true });
   };
 
   const handleOpenChat = (patientId: string) => {
@@ -138,13 +90,6 @@ const DoctorAppointments: React.FC = () => {
   return (
     <>
       <ToastContainer position="top-right" autoClose={3000} theme="dark" />
-      {videoCallModal && (
-        <VideoCall
-          appointment={videoCallModal.appointment}
-          isInitiator={videoCallModal.isInitiator}
-          onClose={() => setVideoCallModal(null)}
-        />
-      )}
       <div className="bg-white/10 backdrop-blur-lg p-4 sm:p-6 rounded-2xl border border-white/20 shadow-xl">
         <h2 className="text-xl sm:text-2xl font-semibold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent mb-6">
           Appointments
@@ -191,7 +136,7 @@ const DoctorAppointments: React.FC = () => {
                         onClick={() => handleViewPatient(appt.patientId._id)}
                         className="hover:underline hover:text-blue-300 focus:outline-none"
                       >
-                      {appt.patientId.name || 'N/A'}
+                        {appt.patientId.name || 'N/A'}
                       </button>
                     </td>
                     <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-200">

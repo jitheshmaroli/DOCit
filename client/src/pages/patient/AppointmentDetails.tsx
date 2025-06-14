@@ -7,8 +7,6 @@ import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import { cancelAppointmentThunk } from '../../redux/thunks/patientThunk';
 import { DateUtils } from '../../utils/DateUtils';
 import axios from 'axios';
-import { VideoCall } from '../../components/VideoCall';
-import { useSocket } from '../../hooks/useSocket';
 import CancelAppointmentModal from '../../components/CancelAppointmentModal';
 
 interface AppointmentPatient {
@@ -141,31 +139,6 @@ const AppointmentDetails: React.FC = () => {
   const [showCallModal, setShowCallModal] = useState(false);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
 
-  const { emit } = useSocket(user?._id, {
-    onIncomingCall: (data: {
-      caller: string;
-      roomId: string;
-      appointmentId: string;
-    }) => {
-      if (
-        data.appointmentId === appointmentId &&
-        data.caller === appointment?.doctorId._id &&
-        isWithinAppointmentTime() &&
-        appointment?.status === 'pending'
-      ) {
-        console.log('Received incoming video call signal:', data);
-        setShowCallModal(true);
-      }
-    },
-    onCallEnded: () => {
-      setIsVideoCallActive(false);
-      setShowCallModal(false);
-      toast.info('Video call ended');
-    },
-  });
-
-  const [isVideoCallActive, setIsVideoCallActive] = useState(false);
-
   useEffect(() => {
     if (!user?._id) {
       toast.error('Please log in to view appointment details');
@@ -254,28 +227,14 @@ const AppointmentDetails: React.FC = () => {
       toast.error('User not authenticated');
       return;
     }
-
-    emit('startCall', {
-      caller: user._id,
-      receiver: appointment.doctorId._id,
-      appointmentId: appointment._id,
-    });
-    setIsVideoCallActive(true);
   };
 
   const handleAcceptCall = () => {
-    setShowCallModal(false);
-    setIsVideoCallActive(true);
   };
 
   const handleDeclineCall = () => {
     setShowCallModal(false);
     if (appointment?._id && appointment?.doctorId._id && user?._id) {
-      emit('videoCallDeclined', {
-        appointmentId: appointment._id,
-        to: appointment.doctorId._id,
-        from: user._id,
-      });
       toast.info('Video call declined');
     } else {
       toast.error(
@@ -504,14 +463,6 @@ const AppointmentDetails: React.FC = () => {
             </button>
           </div>
         </div>
-
-        {isVideoCallActive && appointment && (
-          <VideoCall
-            appointment={appointment}
-            isInitiator={false}
-            onClose={() => setIsVideoCallActive(false)}
-          />
-        )}
       </div>
     </div>
   );
