@@ -2,7 +2,6 @@ import api from './api';
 
 export const fetchNotifications = async () => {
   const response = await api.get('/api/notifications');
-  console.log('serv:', response.data);
   return response.data;
 };
 

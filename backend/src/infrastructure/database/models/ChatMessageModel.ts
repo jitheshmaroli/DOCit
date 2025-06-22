@@ -7,11 +7,19 @@ const ChatMessageSchema = new Schema<ChatMessage>(
     receiverId: { type: String, required: true },
     message: { type: String },
     isDeleted: { type: Boolean, default: false },
+    unreadBy: [{ type: String }],
+    deletedBy: [{ type: String }],
     attachment: {
       url: { type: String },
       type: { type: String },
       name: { type: String },
     },
+    reactions: [
+      {
+        emoji: { type: String, required: true },
+        userId: { type: String, required: true },
+      },
+    ],
   },
   { timestamps: true }
 );

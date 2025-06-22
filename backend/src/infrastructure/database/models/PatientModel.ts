@@ -17,6 +17,7 @@ const PatientSchema = new Schema<Patient>(
     refreshToken: { type: String },
     gender: { type: String, enum: ['Male', 'Female', 'Other'] },
     googleId: { type: String, unique: true, sparse: true },
+    lastSeen: { type: Date },
   },
   { timestamps: true }
 );

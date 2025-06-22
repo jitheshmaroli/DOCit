@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -8,10 +8,14 @@ import { cancelAppointmentThunk } from '../../redux/thunks/patientThunk';
 import { DateUtils } from '../../utils/DateUtils';
 import axios from 'axios';
 import CancelAppointmentModal from '../../components/CancelAppointmentModal';
+import VideoCallModal from '../../components/VideoCallModal';
+import CallPromptModal from '../../components/CallPromptModal';
+import { SocketManager } from '../../services/SocketManager';
 
 interface AppointmentPatient {
   _id: string;
   name: string;
+  profilePicture?: string;
 }
 
 interface AppointmentDoctor {
@@ -26,12 +30,12 @@ interface AppointmentDoctor {
 
 interface Appointment {
   _id: string;
-  patientId: AppointmentPatient;
-  doctorId: AppointmentDoctor;
+  patientId: AppointmentPatient | string;
+  doctorId: AppointmentDoctor | string;
   date: string;
   startTime: string;
   endTime: string;
-  status: 'pending' | 'completed' | 'cancelled';
+  status: 'pending' | 'confirmed' | 'cancelled';
   isFreeBooking: boolean;
   bookingTime: string;
   createdAt: string;
@@ -41,94 +45,6 @@ interface Appointment {
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
-const VideoCallModal: React.FC<{
-  doctorName: string;
-  appointment: Appointment;
-  onAccept: () => void;
-  onDecline: () => void;
-}> = ({ doctorName, appointment, onAccept, onDecline }) => {
-  const [countdown, setCountdown] = useState(30);
-  const countdownRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    countdownRef.current = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(countdownRef.current!);
-          onDecline();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => {
-      if (countdownRef.current) {
-        clearInterval(countdownRef.current);
-      }
-    };
-  }, [onDecline]);
-
-  return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="bg-white/20 backdrop-blur-lg rounded-xl border border-white/30 shadow-2xl max-w-md w-full p-6">
-        <h3 className="text-xl font-bold text-white mb-4">
-          Incoming Video Call
-        </h3>
-        <p className="text-gray-200 mb-4">
-          Dr. {doctorName} is calling for your appointment at{' '}
-          {DateUtils.formatTimeToLocal(appointment.startTime)}.
-        </p>
-        <p className="text-yellow-300 text-sm mb-4">
-          Call will auto-decline in {countdown} seconds...
-        </p>
-        <div className="flex gap-4 justify-center">
-          <button
-            onClick={onAccept}
-            className="bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-2 rounded-lg hover:from-green-700 hover:to-green-800 transition-all duration-300 flex items-center gap-2"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 10l4.5-4.5M21 12h-6m6 0l-4.5 4.5M9 6v12"
-              />
-            </svg>
-            Accept
-          </button>
-          <button
-            onClick={onDecline}
-            className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-2 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300 flex items-center gap-2"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-            Decline
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 const AppointmentDetails: React.FC = () => {
   const { appointmentId } = useParams<{ appointmentId: string }>();
   const dispatch = useAppDispatch();
@@ -136,8 +52,11 @@ const AppointmentDetails: React.FC = () => {
   const { user } = useAppSelector((state) => state.auth);
   const [appointment, setAppointment] = useState<Appointment | null>(null);
   const [isLoading, setLoading] = useState(true);
-  const [showCallModal, setShowCallModal] = useState(false);
+  const [showVideoCallModal, setShowVideoCallModal] = useState(false);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [showCallPrompt, setShowCallPrompt] = useState(false);
+  const [callerId, setCallerId] = useState<string | null>(null);
+  const socketManager = SocketManager.getInstance();
 
   useEffect(() => {
     if (!user?._id) {
@@ -179,6 +98,24 @@ const AppointmentDetails: React.FC = () => {
     }
   }, [appointmentId]);
 
+  useEffect(() => {
+    socketManager.registerHandlers({
+      onReceiveOffer: (data) => {
+        if (data.appointmentId === appointmentId && appointment) {
+          setCallerId(data.from);
+          setShowCallPrompt(true);
+        }
+      },
+      onCallEnded: (data) => {
+        if (data.appointmentId === appointmentId) {
+          setShowVideoCallModal(false);
+          setShowCallPrompt(false);
+          setCallerId(null);
+        }
+      },
+    });
+  }, [appointmentId, appointment, socketManager]);
+
   const isWithinAppointmentTime = useCallback(() => {
     if (!appointment) return false;
     const now = new Date();
@@ -212,7 +149,7 @@ const AppointmentDetails: React.FC = () => {
     }
   };
 
-  const handleStartVideoCall = () => {
+  const handleStartVideoCall = async () => {
     if (!isWithinAppointmentTime()) {
       toast.error('Video calls are only available during the appointment time');
       return;
@@ -223,34 +160,46 @@ const AppointmentDetails: React.FC = () => {
       return;
     }
 
-    if (!user || !user._id) {
+    if (!user || !user._id || !appointment) {
       toast.error('User not authenticated');
       return;
     }
-  };
 
-  const handleAcceptCall = () => {
-  };
-
-  const handleDeclineCall = () => {
-    setShowCallModal(false);
-    if (appointment?._id && appointment?.doctorId._id && user?._id) {
-      toast.info('Video call declined');
-    } else {
-      toast.error(
-        'Cannot decline call: Missing appointment or user information'
-      );
+    if (!socketManager.isConnected()) {
+      try {
+        await socketManager.connect(user._id);
+      } catch (error) {
+        console.error('Failed to connect socket for video call:', error);
+        toast.error('Failed to initiate video call due to connection issues');
+        return;
+      }
     }
+
+    setShowVideoCallModal(true);
   };
 
   const handleOpenChat = () => {
-    if (appointment?.doctorId._id) {
+    if (
+      appointment?.doctorId &&
+      typeof appointment.doctorId !== 'string' &&
+      appointment.doctorId._id
+    ) {
       navigate(
         `/patient/profile?tab=messages&thread=${appointment.doctorId._id}`
       );
     } else {
       toast.error('Cannot open chat: Doctor information missing');
     }
+  };
+
+  const handleAcceptCall = () => {
+    setShowCallPrompt(false);
+    setShowVideoCallModal(true);
+  };
+
+  const handleDeclineCall = () => {
+    setShowCallPrompt(false);
+    setCallerId(null);
   };
 
   if (isLoading) {
@@ -283,10 +232,29 @@ const AppointmentDetails: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 py-8">
       <ToastContainer position="bottom-right" autoClose={3000} theme="dark" />
-      {showCallModal && (
+      {showVideoCallModal && (
         <VideoCallModal
-          doctorName={appointment.doctorId.name}
+          key={appointmentId}
           appointment={appointment}
+          isCaller={false}
+          onClose={() => setShowVideoCallModal(false)}
+          doctorName={
+            typeof appointment.doctorId === 'string'
+              ? 'Unknown Doctor'
+              : appointment.doctorId.name
+          }
+        />
+      )}
+      {showCallPrompt && callerId && (
+        <CallPromptModal
+          isOpen={showCallPrompt}
+          doctorName={
+            typeof appointment.doctorId === 'string'
+              ? 'Unknown Doctor'
+              : appointment.doctorId.name
+          }
+          appointmentId={appointmentId || ''}
+          callerId={callerId}
           onAccept={handleAcceptCall}
           onDecline={handleDeclineCall}
         />
@@ -302,12 +270,6 @@ const AppointmentDetails: React.FC = () => {
           <h2 className="text-2xl sm:text-3xl font-bold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent">
             Appointment Details
           </h2>
-          {/* <button
-            onClick={() => navigate('/patient/profile?tab=appointments')}
-            className="text-white hover:text-gray-300 transition-colors text-sm sm:text-base"
-          >
-            ← Back to Appointments
-          </button> */}
         </div>
 
         <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">
@@ -327,7 +289,9 @@ const AppointmentDetails: React.FC = () => {
               </p>
               <p className="text-sm text-gray-200">
                 <span className="font-medium">Doctor:</span> Dr.{' '}
-                {appointment.doctorId.name}
+                {typeof appointment.doctorId === 'string'
+                  ? 'Unknown Doctor'
+                  : appointment.doctorId.name}
               </p>
             </div>
             <div className="space-y-2">
@@ -337,7 +301,7 @@ const AppointmentDetails: React.FC = () => {
                   className={`px-2 py-1 rounded-full text-xs font-medium ${
                     appointment.status === 'pending'
                       ? 'bg-yellow-500/20 text-yellow-300'
-                      : appointment.status === 'completed'
+                      : appointment.status === 'confirmed'
                         ? 'bg-green-500/20 text-green-300'
                         : 'bg-red-500/20 text-red-300'
                   }`}
@@ -374,7 +338,7 @@ const AppointmentDetails: React.FC = () => {
           )}
         </div>
 
-        {appointment.doctorId && (
+        {appointment.doctorId && typeof appointment.doctorId !== 'string' && (
           <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">
             <h3 className="text-lg sm:text-xl font-semibold text-white mb-4">
               Doctor Information
@@ -414,7 +378,11 @@ const AppointmentDetails: React.FC = () => {
           </h3>
           <div className="flex flex-col items-center gap-4">
             <p className="text-gray-200 text-center">
-              Connect with Dr. {appointment.doctorId.name} for your consultation
+              Connect with Dr.{' '}
+              {typeof appointment.doctorId === 'string'
+                ? 'Unknown Doctor'
+                : appointment.doctorId.name}{' '}
+              for your consultation
             </p>
 
             <div className="flex gap-4">

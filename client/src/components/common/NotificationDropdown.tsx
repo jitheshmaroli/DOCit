@@ -8,7 +8,7 @@ import {
   deleteAllNotifications,
   markNotificationAsRead,
 } from '../../services/notificationService';
-import { useSocket } from '../../hooks/useSocket';
+import { SocketManager } from '../../services/SocketManager';
 import { DateUtils } from '../../utils/DateUtils';
 
 interface NotificationDropdownProps {
@@ -21,23 +21,24 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-
-  useSocket(userId, {
-    onReceiveNotification: (notification: AppNotification) => {
-      setNotifications((prev) => [notification, ...prev]);
-      if (!notification.isRead) {
-        setUnreadCount((prev) => prev + 1);
-      }
-    },
-  });
+  const socketManager = SocketManager.getInstance();
 
   useEffect(() => {
+    if (!userId) return;
+
+    socketManager.registerHandlers({
+      onReceiveNotification: (notification: AppNotification) => {
+        setNotifications((prev) => [notification, ...prev]);
+        if (!notification.isRead) {
+          setUnreadCount((prev) => prev + 1);
+        }
+      },
+    });
+
     const loadNotifications = async () => {
-      if (!userId) return;
       try {
         const result = await fetchNotifications();
         setNotifications(result);
-        console.log('notifications:', result);
         setUnreadCount(result.filter((n: AppNotification) => !n.isRead).length);
       } catch (error) {
         console.error('Failed to fetch notifications:', error);

@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosError } from 'axios';
 import { API_BASE_URL } from '../utils/config';
+import { SocketManager } from './SocketManager';
 
 let isRefreshing = false;
 type FailedRequest = {
@@ -33,6 +34,7 @@ api.interceptors.response.use(
       console.log('user blockeddddddddddd');
       try {
         await api.post('/api/auth/logout');
+        SocketManager.getInstance().disconnect();
         window.location.href = '/login';
       } catch (logoutError) {
         console.error('Logout failed:', logoutError);
@@ -50,6 +52,7 @@ api.interceptors.response.use(
         originalRequest.url?.includes('/api/auth/logout')
       ) {
         console.error('401 error on auth endpoint:', data?.message);
+        SocketManager.getInstance().disconnect();
         return Promise.reject({ message: data?.message, status });
       }
 
@@ -82,6 +85,7 @@ api.interceptors.response.use(
         ) {
           try {
             await api.post('/api/auth/logout');
+            SocketManager.getInstance().disconnect();
           } catch (logoutError) {
             console.error('Logout failed:', logoutError);
           }

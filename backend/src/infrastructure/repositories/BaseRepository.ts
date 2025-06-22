@@ -1,4 +1,4 @@
-import mongoose, { Model } from 'mongoose';
+import mongoose, { Model, UpdateQuery } from 'mongoose';
 
 export class BaseRepository<T> {
   protected model: Model<T>;
@@ -27,7 +27,7 @@ export class BaseRepository<T> {
     }
   }
 
-  async update(id: string, updates: Partial<T>): Promise<T | null> {
+  async update(id: string, updates: UpdateQuery<T>): Promise<T | null> {
     if (!mongoose.Types.ObjectId.isValid(id)) return null;
     const entity = await this.model.findByIdAndUpdate(id, updates, { new: true }).exec();
     return entity ? (entity.toObject() as T) : null;

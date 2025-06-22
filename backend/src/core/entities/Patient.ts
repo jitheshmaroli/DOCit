@@ -14,6 +14,7 @@ export interface Patient {
   refreshToken?: string;
   gender?: 'Male' | 'Female' | 'Other';
   googleId?: string;
+  lastSeen?: Date;
   createdAt?: Date;
   updatedAt?: Date;
 }

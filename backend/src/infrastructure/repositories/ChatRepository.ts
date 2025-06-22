@@ -1,16 +1,22 @@
-import mongoose, { PipelineStage } from 'mongoose';
+import mongoose, { PipelineStage, UpdateQuery } from 'mongoose';
 import { QueryParams } from '../../types/authTypes';
 import { ChatMessageModel } from '../database/models/ChatMessageModel';
-import logger from '../../utils/logger';
 import { IChatRepository } from '../../core/interfaces/repositories/IChatRepository';
 import { ChatMessage } from '../../core/entities/ChatMessage';
 import { InboxEntry } from '../../types/chatTypes';
+import { BaseRepository } from './BaseRepository';
 
-export class ChatRepository implements IChatRepository {
-  private model = ChatMessageModel;
+export class ChatRepository extends BaseRepository<ChatMessage> implements IChatRepository {
+  constructor() {
+    super(ChatMessageModel);
+  }
 
   async create(message: ChatMessage): Promise<ChatMessage> {
-    const newMessage = new this.model(message);
+    const newMessage = new this.model({
+      ...message,
+      unreadBy: [message.receiverId],
+      deletedBy: [],
+    });
     const savedMessage = await newMessage.save();
     return savedMessage.toObject() as ChatMessage;
   }
@@ -24,8 +30,8 @@ export class ChatRepository implements IChatRepository {
   async findByParticipants(senderId: string, receiverId: string): Promise<ChatMessage[]> {
     const query = {
       $or: [
-        { senderId, receiverId, isDeleted: false },
-        { senderId: receiverId, receiverId: senderId, isDeleted: false },
+        { senderId, receiverId, deletedBy: { $ne: senderId } },
+        { senderId: receiverId, receiverId: senderId, deletedBy: { $ne: senderId } },
       ],
     };
 
@@ -34,17 +40,28 @@ export class ChatRepository implements IChatRepository {
     return messages.map((msg) => msg.toObject() as ChatMessage);
   }
 
-  async softDelete(id: string): Promise<void> {
+  async softDelete(id: string, userId: string): Promise<void> {
     if (!mongoose.Types.ObjectId.isValid(id)) return;
-    await this.model.findByIdAndUpdate(id, { isDeleted: true }).exec();
+    await this.model.findByIdAndUpdate(id, { $addToSet: { deletedBy: userId } }).exec();
+  }
+
+  async markAsRead(messageId: string, userId: string): Promise<void> {
+    if (!mongoose.Types.ObjectId.isValid(messageId)) return;
+    await this.model.findByIdAndUpdate(messageId, { $pull: { unreadBy: userId } }).exec();
+  }
+
+  async update(messageId: string, update: UpdateQuery<ChatMessage>): Promise<ChatMessage | null> {
+    if (!mongoose.Types.ObjectId.isValid(messageId)) return null;
+    const updatedMessage = await this.model.findByIdAndUpdate(messageId, update, { new: true }).exec();
+    return updatedMessage ? (updatedMessage.toObject() as ChatMessage) : null;
   }
 
   async getChatHistory(userId: string, params: QueryParams): Promise<ChatMessage[]> {
     const { page = 1, limit = 10 } = params;
     const query = {
       $or: [
-        { senderId: userId, isDeleted: false },
-        { receiverId: userId, isDeleted: false },
+        { senderId: userId, deletedBy: { $ne: userId } },
+        { receiverId: userId, deletedBy: { $ne: userId } },
       ],
     };
 
@@ -65,8 +82,8 @@ export class ChatRepository implements IChatRepository {
       {
         $match: {
           $or: [
-            { senderId: userId, isDeleted: false },
-            { receiverId: userId, isDeleted: false },
+            { senderId: userId, deletedBy: { $ne: userId } },
+            { receiverId: userId, deletedBy: { $ne: userId } },
           ],
         },
       },
@@ -79,6 +96,11 @@ export class ChatRepository implements IChatRepository {
             $cond: [{ $eq: ['$senderId', userId] }, '$receiverId', '$senderId'],
           },
           latestMessage: { $first: '$$ROOT' },
+          unreadCount: {
+            $sum: {
+              $cond: [{ $in: [userId, { $ifNull: ['$unreadBy', []] }] }, 1, 0],
+            },
+          },
         },
       },
       {
@@ -98,20 +120,21 @@ export class ChatRepository implements IChatRepository {
             senderId: '$latestMessage.senderId',
             receiverId: '$latestMessage.receiverId',
             message: '$latestMessage.message',
-            isDeleted: '$latestMessage.isDeleted',
             createdAt: '$latestMessage.createdAt',
             updatedAt: '$latestMessage.updatedAt',
+            reactions: '$latestMessage.reactions',
           },
+          unreadCount: 1,
         },
       },
     ];
 
     const inboxEntries = await this.model.aggregate(pipeline).exec();
-    logger.info('getInbox: userId=', userId, 'inboxEntries=', inboxEntries);
 
     return inboxEntries.map((entry) => ({
       partnerId: entry.partnerId,
       latestMessage: entry.latestMessage ? (entry.latestMessage as ChatMessage) : null,
+      unreadCount: entry.unreadCount || 0,
     }));
   }
 }

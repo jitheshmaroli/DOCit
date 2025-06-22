@@ -158,26 +158,41 @@ export interface Speciality {
 
 export interface Patient {
   _id: string;
-  email: string;
-  name: string;
-  phone: string;
-  isSubscribed: boolean;
-  isBlocked: boolean;
+  email?: string;
+  name?: string;
+  phone?: string;
+  isSubscribed?: boolean;
+  isBlocked?: boolean;
   address?: string;
   age?: string;
   gender?: string;
   pincode?: string;
   profilePicture?: string;
   profilePicturePublicId?: string;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+interface AppointmentPatient {
+  _id: string;
+  name: string;
+}
+
+interface AppointmentDoctor {
+  _id: string;
+  name: string;
+  profilePicture?: string;
+  speciality?: string[];
+  qualifications?: string[];
+  age?: number;
+  gender?: string;
 }
 
 export interface Appointment {
   _id: string;
-  patientId: Patient;
-  patientName: string;
-  doctorId: { _id: string; name: string };
+  patientId: Patient | AppointmentPatient;
+  patientName?: string;
+  doctorId: { _id: string; name: string } | AppointmentDoctor;
   doctorName: string;
   date: string;
   startTime: string;
@@ -186,6 +201,7 @@ export interface Appointment {
   createdAt: string;
   updatedAt: string;
   isFreeBooking?: boolean;
+  cancellationReason?: string;
 }
 
 export interface QueryParams {

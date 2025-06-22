@@ -30,7 +30,7 @@ const STRIPE_SECRET_KEY = env.STRIPE_SECRET_KEY;
 const STRIPE_WEBHOOK_SECRET = env.STRIPE_WEBHOOK_SECRET;
 
 const stripe = new Stripe(STRIPE_SECRET_KEY, {
-  apiVersion: '2025-03-31.basil',
+  apiVersion: '2025-05-28.basil',
 });
 const container = Container.getInstance();
 const patientSubscriptionRepository = container.get<PatientSubscriptionRepository>('IPatientSubscriptionRepository');
@@ -40,7 +40,14 @@ const socketService = container.get<SocketService>('SocketService');
 socketService.initialize(server);
 
 // Middleware setup
-app.use(cors({ origin: CLIENT_URL, credentials: true }));
+app.use(
+  cors({
+    origin: CLIENT_URL,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+  })
+);
 app.use(express.json());
 app.use(express.raw({ type: 'application/json' })); // For Stripe webhook
 app.use(cookieParser());

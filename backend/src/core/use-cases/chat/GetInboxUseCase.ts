@@ -3,7 +3,6 @@ import { IDoctorRepository } from '../../interfaces/repositories/IDoctorReposito
 import { IChatRepository } from '../../interfaces/repositories/IChatRepository';
 import { QueryParams } from '../../../types/authTypes';
 import { ValidationError } from '../../../utils/errors';
-import logger from '../../../utils/logger';
 
 export interface InboxResponse {
   _id: string;
@@ -18,6 +17,7 @@ export interface InboxResponse {
     createdAt: Date;
     isSender: boolean;
   } | null;
+  unreadCount: number;
 }
 
 export class GetInboxUseCase {
@@ -28,14 +28,10 @@ export class GetInboxUseCase {
   ) {}
 
   async execute(userId: string, role: 'patient' | 'doctor', params: QueryParams): Promise<InboxResponse[]> {
-    logger.debug('GetInboxUseCase: entered', { userId, role });
     const inboxEntries = await this.chatRepository.getInbox(userId, params);
 
-    // Remove duplicates by partnerId
-    const uniqueEntries = Array.from(new Map(inboxEntries.map((entry) => [entry.partnerId, entry])).values());
-
     const inboxResponses: InboxResponse[] = await Promise.all(
-      uniqueEntries.map(async (entry) => {
+      inboxEntries.map(async (entry) => {
         const partnerId = entry.partnerId;
         let partnerName: string;
         let partnerProfilePicture: string | undefined;
@@ -71,11 +67,11 @@ export class GetInboxUseCase {
                 isSender: entry.latestMessage.senderId === userId,
               }
             : null,
+          unreadCount: entry.unreadCount || 0,
         };
       })
     );
 
-    logger.info('GetInboxUseCase: returning responses', { inboxResponses });
     return inboxResponses;
   }
 }

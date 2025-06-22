@@ -1,18 +1,18 @@
-import { SignalData } from 'simple-peer';
-
 export interface Message {
-  id: string;
+  _id: string;
   message: string;
   senderId: string;
   senderName: string;
   createdAt: string;
   isSender: boolean;
   receiverId?: string;
+  unreadBy?: string[];
   attachment?: {
     url: string;
     type: string;
     name: string;
   };
+  reactions?: { emoji: string; userId: string }[];
 }
 
 export interface LatestMessage {
@@ -47,6 +47,7 @@ export interface InboxThreadResponse {
     createdAt: string;
     isSender: boolean;
   } | null;
+  unreadCount: number;
 }
 
 export interface ChatMessageResponse {
@@ -55,30 +56,11 @@ export interface ChatMessageResponse {
   senderId: string;
   senderName?: string;
   createdAt: string;
+  unreadBy?: string[];
   attachment?: {
     url: string;
     type: string;
     name: string;
   };
-}
-
-export interface VideoCallSignal {
-  signal: SignalData;
-  from: string;
-  to: string;
-  appointmentId: string;
-}
-
-export interface VideoCallProps {
-  appointment: {
-    _id: string;
-    patientId: { _id: string; name: string };
-    doctorId?: { _id: string; name: string };
-    date: string;
-    startTime: string;
-    endTime: string;
-    status: string;
-  };
-  isInitiator: boolean;
-  onClose: () => void;
+  reactions?: { emoji: string; userId: string }[];
 }

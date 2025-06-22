@@ -7,14 +7,32 @@ import { getAppointmentsThunk } from '../../redux/thunks/doctorThunk';
 import { MessageSquare, Video } from 'lucide-react';
 import { DateUtils } from '../../utils/DateUtils';
 import Pagination from '../../components/common/Pagination';
+import VideoCallModal from '../../components/VideoCallModal';
+import { SocketManager } from '../../services/SocketManager';
+
+interface AppointmentPatient {
+  _id: string;
+  name?: string;
+  profilePicture?: string;
+}
+interface AppointmentDoctor {
+  _id: string;
+  name: string;
+  profilePicture?: string;
+  speciality?: string[];
+  qualifications?: string[];
+  age?: number;
+  gender?: string;
+}
 
 interface Appointment {
   _id: string;
-  patientId: { _id: string; name: string; profilePicture?: string };
+  patientId: AppointmentPatient;
+  doctorId: AppointmentDoctor;
   date: string;
   startTime: string;
   endTime: string;
-  status: string;
+  status: 'pending' | 'confirmed' | 'cancelled';
 }
 
 const ITEMS_PER_PAGE = 4;
@@ -30,14 +48,16 @@ const DoctorAppointments: React.FC = () => {
   const { user } = useAppSelector((state) => state.auth);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [showVideoCallModal, setShowVideoCallModal] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] =
+    useState<Appointment | null>(null);
+  const socketManager = SocketManager.getInstance();
 
   useEffect(() => {
-    if (user?.role === 'doctor') {
-      dispatch(
-        getAppointmentsThunk({ page: currentPage, limit: ITEMS_PER_PAGE })
-      );
-    }
-  }, [dispatch, user?.role, currentPage]);
+    dispatch(
+      getAppointmentsThunk({ page: currentPage, limit: ITEMS_PER_PAGE })
+    );
+  }, [dispatch, currentPage]);
 
   useEffect(() => {
     if (error) {
@@ -45,7 +65,29 @@ const DoctorAppointments: React.FC = () => {
     }
   }, [error]);
 
-  const handleStartVideoCall = (appointment: Appointment) => {
+  useEffect(() => {
+    socketManager.registerHandlers({
+      onReceiveOffer: (data) => {
+        if (data.appointmentId && user?._id) {
+          const appointment = appointments.find(
+            (appt) => appt._id === data.appointmentId
+          );
+          if (appointment) {
+            setSelectedAppointment(appointment);
+            setShowVideoCallModal(true);
+          }
+        }
+      },
+      onCallEnded: (data) => {
+        if (data.appointmentId === selectedAppointment?._id) {
+          setShowVideoCallModal(false);
+          setSelectedAppointment(null);
+        }
+      },
+    });
+  }, [appointments, user?._id, socketManager, selectedAppointment]);
+
+  const handleStartVideoCall = async (appointment: Appointment) => {
     const now = new Date();
     const startTime = new Date(
       `${appointment.date.split('T')[0]}T${appointment.startTime}`
@@ -61,6 +103,17 @@ const DoctorAppointments: React.FC = () => {
       toast.error('User not authenticated');
       return;
     }
+    if (!socketManager.isConnected()) {
+      try {
+        await socketManager.connect(user._id);
+      } catch (error) {
+        console.error('Failed to connect socket for video call:', error);
+        toast.error('Failed to initiate video call due to connection issues');
+        return;
+      }
+    }
+    setSelectedAppointment(appointment);
+    setShowVideoCallModal(true);
   };
 
   const handleOpenChat = (patientId: string) => {
@@ -90,6 +143,18 @@ const DoctorAppointments: React.FC = () => {
   return (
     <>
       <ToastContainer position="top-right" autoClose={3000} theme="dark" />
+      {showVideoCallModal && selectedAppointment && (
+        <VideoCallModal
+          key={selectedAppointment._id} // Ensure unique key to prevent stale state
+          appointment={selectedAppointment}
+          isCaller={true}
+          onClose={() => {
+            setShowVideoCallModal(false);
+            setSelectedAppointment(null);
+          }}
+          patientName={selectedAppointment.patientId.name}
+        />
+      )}
       <div className="bg-white/10 backdrop-blur-lg p-4 sm:p-6 rounded-2xl border border-white/20 shadow-xl">
         <h2 className="text-xl sm:text-2xl font-semibold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent mb-6">
           Appointments

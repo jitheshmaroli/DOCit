@@ -5,18 +5,20 @@ import 'react-toastify/dist/ReactToastify.css';
 import { useAppSelector } from '../../redux/hooks';
 import { MessageInbox } from '../../components/MessageInbox';
 import { ChatBox } from '../../components/ChatBox';
-import { useSocket } from '../../hooks/useSocket';
 import { useSendMessage } from '../../hooks/useSendMessage';
 import {
   fetchInbox,
   fetchMessages,
   fetchPartnerDetails,
+  deleteMessage,
+  markAsRead,
 } from '../../services/messageService';
 import {
   Message,
   MessageThread,
   InboxThreadResponse,
 } from '../../types/messageTypes';
+import { SocketManager } from '../../services/SocketManager';
 
 const Messages = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -27,118 +29,154 @@ const Messages = () => {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [newMessagesCount, setNewMessagesCount] = useState(0);
+  const [userStatuses, setUserStatuses] = useState<{
+    [key: string]: { status: 'online' | 'offline'; lastSeen?: string };
+  }>({});
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
+  const socketManager = SocketManager.getInstance();
 
-  const { emit } = useSocket(user?._id, {
-    onReceiveMessage: async (message: Message) => {
-      if (message.senderId === user?._id) return;
-      const partnerId = message.senderId;
-      let partnerName = message.senderName || 'Unknown';
-      let partnerProfilePicture: string | undefined;
+  useEffect(() => {
+    if (!user?._id) return;
 
-      try {
-        const partner = await fetchPartnerDetails(partnerId);
-        partnerName = partner.name;
-        partnerProfilePicture = partner.profilePicture;
-      } catch (error) {
-        console.error(`Failed to fetch details for user ${partnerId}:`, error);
-      }
+    socketManager.registerHandlers({
+      onReceiveMessage: async (message: Message) => {
+        if (message.senderId === user._id) return;
+        const partnerId = message.senderId;
+        let partnerName = message.senderName || 'Unknown';
+        let partnerProfilePicture: string | undefined;
 
-      const newMessageObj: Message = {
-        ...message,
-        senderName: partnerName,
-        isSender: false,
-        receiverId: partnerId,
-      };
+        try {
+          const partner = await fetchPartnerDetails(partnerId);
+          partnerName = partner.name;
+          partnerProfilePicture = partner.profilePicture;
+        } catch (error) {
+          console.error(
+            `Failed to fetch details for user ${partnerId}:`,
+            error
+          );
+        }
 
-      setThreads((prev) => {
-        const threadIndex = prev.findIndex((t) => t.receiverId === partnerId);
-        const isViewingThread = selectedThread?.receiverId === partnerId;
-        const incrementUnread = !isViewingThread || !isAtBottom();
-        if (threadIndex >= 0) {
-          const updatedThreads = [...prev];
-          updatedThreads[threadIndex] = {
-            ...updatedThreads[threadIndex],
+        const newMessageObj: Message = {
+          ...message,
+          senderName: partnerName,
+          isSender: false,
+          receiverId: partnerId,
+          unreadBy: message.unreadBy || [],
+        };
+
+        setThreads((prev) => {
+          const threadIndex = prev.findIndex((t) => t.receiverId === partnerId);
+          const isViewingThread = selectedThread?.receiverId === partnerId;
+          const incrementUnread = !isViewingThread || !isAtBottom();
+          if (threadIndex >= 0) {
+            const updatedThreads = [...prev];
+            updatedThreads[threadIndex] = {
+              ...updatedThreads[threadIndex],
+              senderName: partnerName,
+              partnerProfilePicture,
+              messages: [
+                ...updatedThreads[threadIndex].messages,
+                newMessageObj,
+              ],
+              createdAt: message.createdAt,
+              latestMessage: {
+                _id: message._id,
+                message: message.message,
+                createdAt: message.createdAt,
+                isSender: false,
+              },
+              unreadCount: incrementUnread
+                ? updatedThreads[threadIndex].unreadCount + 1
+                : updatedThreads[threadIndex].unreadCount,
+            };
+            return updatedThreads.sort(
+              (a, b) =>
+                new Date(b.createdAt).getTime() -
+                new Date(a.createdAt).getTime()
+            );
+          }
+          const newThread: MessageThread = {
+            id: partnerId,
+            receiverId: partnerId,
             senderName: partnerName,
-            partnerProfilePicture,
-            messages: [...updatedThreads[threadIndex].messages, newMessageObj],
+            subject: 'Conversation',
             createdAt: message.createdAt,
+            partnerProfilePicture,
             latestMessage: {
-              _id: message.id,
+              _id: message._id,
               message: message.message,
               createdAt: message.createdAt,
               isSender: false,
             },
-            unreadCount: incrementUnread
-              ? updatedThreads[threadIndex].unreadCount + 1
-              : updatedThreads[threadIndex].unreadCount,
+            messages: [newMessageObj],
+            unreadCount: 1,
           };
-          return updatedThreads.sort(
+          return [newThread, ...prev].sort(
             (a, b) =>
               new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           );
-        }
-        const newThread: MessageThread = {
-          id: partnerId,
-          receiverId: partnerId,
-          senderName: partnerName,
-          subject: 'Conversation',
-          createdAt: message.createdAt,
-          partnerProfilePicture,
-          latestMessage: {
-            _id: message.id,
-            message: message.message,
-            createdAt: message.createdAt,
-            isSender: false,
-          },
-          messages: [newMessageObj],
-          unreadCount: 1,
-        };
-        return [newThread, ...prev].sort(
-          (a, b) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
-      });
+        });
 
-      if (selectedThread?.receiverId === partnerId) {
-        setSelectedThread((prev) =>
-          prev
-            ? {
-                ...prev,
-                senderName: partnerName,
-                partnerProfilePicture,
-                messages: [...prev.messages, newMessageObj],
-                createdAt: message.createdAt,
-                latestMessage: {
-                  _id: message.id,
-                  message: message.message,
+        if (selectedThread?.receiverId === partnerId) {
+          setSelectedThread((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  senderName: partnerName,
+                  partnerProfilePicture,
+                  messages: [...prev.messages, newMessageObj],
                   createdAt: message.createdAt,
-                  isSender: false,
-                },
-                unreadCount: isAtBottom() ? 0 : prev.unreadCount + 1,
+                  latestMessage: {
+                    _id: message._id,
+                    message: message.message,
+                    createdAt: message.createdAt,
+                    isSender: false,
+                  },
+                  unreadCount: isAtBottom() ? 0 : prev.unreadCount + 1,
+                }
+              : prev
+          );
+          if (isAtBottom()) {
+            setTimeout(() => {
+              if (chatContainerRef.current) {
+                chatContainerRef.current.scrollTo({
+                  top: chatContainerRef.current.scrollHeight,
+                  behavior: 'smooth',
+                });
               }
-            : prev
-        );
-        if (isAtBottom()) {
-          setTimeout(() => {
-            if (chatContainerRef.current) {
-              chatContainerRef.current.scrollTo({
-                top: chatContainerRef.current.scrollHeight,
-                behavior: 'smooth',
-              });
-            }
-            inputRef.current?.focus();
-          }, 100); // Increased delay to ensure DOM update
-        } else {
-          setNewMessagesCount((prev) => prev + 1);
+              inputRef.current?.focus();
+            }, 100);
+          } else {
+            setNewMessagesCount((prev) => prev + 1);
+          }
         }
-      }
-    },
-  });
+      },
+      onError: (error: { message: string }) => {
+        if (
+          error.message.includes('Authentication') ||
+          error.message.includes('Invalid user role')
+        ) {
+          navigate('/login');
+        }
+      },
+      onUserStatus: ({ userId, status, lastSeen }) => {
+        setUserStatuses((prev) => ({
+          ...prev,
+          [userId]: {
+            status,
+            lastSeen: lastSeen ? new Date(lastSeen).toISOString() : undefined,
+          },
+        }));
+      },
+    });
+
+    socketManager.connect(user._id);
+    return () => socketManager.disconnect();
+  }, [user?._id, selectedThread, socketManager, navigate]);
 
   const { sendMessage } = useSendMessage();
 
@@ -177,15 +215,12 @@ const Messages = () => {
                   }
                 : null,
               messages: [],
-              unreadCount: 0,
+              unreadCount: thread.unreadCount || 0,
             };
           })
         );
-        const uniqueThreads = Array.from(
-          new Map(enrichedThreads.map((t) => [t.receiverId, t])).values()
-        );
         setThreads(
-          uniqueThreads.sort(
+          enrichedThreads.sort(
             (a, b) =>
               new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           )
@@ -257,17 +292,20 @@ const Messages = () => {
 
   useEffect(() => {
     const loadMessages = async () => {
-      if (!selectedThread?.receiverId) return;
+      if (!selectedThread?.receiverId || !user?._id) return;
       try {
         const messages = await fetchMessages(selectedThread.receiverId);
-        const formattedMessages = messages.map((msg) => ({
-          id: msg.id,
+        const formattedMessages = messages.map((msg: Message) => ({
+          _id: msg._id,
           message: msg.message,
           senderId: msg.senderId,
           senderName: msg.senderName || 'Unknown',
           createdAt: msg.createdAt,
-          isSender: msg.senderId === user?._id,
+          isSender: msg.senderId === user._id,
           receiverId: selectedThread.receiverId,
+          unreadBy: msg.unreadBy || [],
+          attachment: msg.attachment,
+          reactions: msg.reactions || [],
         }));
         setSelectedThread((prev) =>
           prev ? { ...prev, messages: formattedMessages, unreadCount: 0 } : prev
@@ -279,6 +317,13 @@ const Messages = () => {
               : thread
           )
         );
+        // Mark messages as read
+        const unreadMessages = formattedMessages.filter((msg: Message) =>
+          msg.unreadBy?.includes(user._id)
+        );
+        for (const msg of unreadMessages) {
+          await markAsRead(msg._id);
+        }
         setTimeout(() => {
           if (isAtBottom() && chatContainerRef.current) {
             chatContainerRef.current.scrollTo({
@@ -303,7 +348,6 @@ const Messages = () => {
     const message = await sendMessage({
       receiverId: selectedThread.receiverId,
       messageText: newMessage,
-      emit,
     });
 
     if (message) {
@@ -314,7 +358,7 @@ const Messages = () => {
               messages: [...prev.messages, message],
               createdAt: message.createdAt,
               latestMessage: {
-                _id: message.id,
+                _id: message._id,
                 message: message.message,
                 createdAt: message.createdAt,
                 isSender: true,
@@ -334,7 +378,7 @@ const Messages = () => {
             messages: [...updatedThreads[threadIndex].messages, message],
             createdAt: message.createdAt,
             latestMessage: {
-              _id: message.id,
+              _id: message._id,
               message: message.message,
               createdAt: message.createdAt,
               isSender: true,
@@ -354,7 +398,7 @@ const Messages = () => {
           createdAt: message.createdAt,
           partnerProfilePicture: selectedThread.partnerProfilePicture,
           latestMessage: {
-            _id: message.id,
+            _id: message._id,
             message: message.message,
             createdAt: message.createdAt,
             isSender: true,
@@ -377,6 +421,40 @@ const Messages = () => {
         }
         inputRef.current?.focus();
       }, 100);
+    }
+  };
+
+  const handleDeleteMessages = async (messageIds: string[]) => {
+    try {
+      for (const messageId of messageIds) {
+        await deleteMessage(messageId);
+      }
+      setSelectedThread((prev) =>
+        prev
+          ? {
+              ...prev,
+              messages: prev.messages.filter(
+                (msg) => !messageIds.includes(msg._id)
+              ),
+            }
+          : prev
+      );
+      setThreads((prev) =>
+        prev.map((thread) =>
+          thread.receiverId === selectedThread?.receiverId
+            ? {
+                ...thread,
+                messages: thread.messages.filter(
+                  (msg) => !messageIds.includes(msg._id)
+                ),
+              }
+            : thread
+        )
+      );
+      toast.success('Messages deleted successfully');
+    } catch (error) {
+      console.error('Failed to delete messages:', error);
+      toast.error('Failed to delete messages');
     }
   };
 
@@ -451,6 +529,8 @@ const Messages = () => {
               newMessagesCount={newMessagesCount}
               onScrollToBottom={scrollToBottom}
               isAtBottom={isAtBottom}
+              onDeleteMessages={handleDeleteMessages}
+              userStatus={userStatuses[selectedThread.receiverId]}
             />
           ) : (
             <div className="w-full lg:w-2/3 bg-white/10 backdrop-blur border border-gray rounded-2xl p-6 flex items-center justify-center text-gray-400">

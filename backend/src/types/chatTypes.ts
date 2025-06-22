@@ -34,4 +34,5 @@ export interface InboxResponse {
 export interface InboxEntry {
   partnerId: string;
   latestMessage: ChatMessage | null;
+  unreadCount?: number;
 }

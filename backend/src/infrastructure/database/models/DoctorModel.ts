@@ -20,6 +20,7 @@ const DoctorSchema = new Schema<Doctor>(
     profilePicturePublicId: { type: String },
     refreshToken: { type: String },
     googleId: { type: String, unique: true, sparse: true },
+    lastSeen: { type: Date },
   },
   { timestamps: true }
 );

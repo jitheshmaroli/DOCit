@@ -80,6 +80,8 @@ import { DeleteAllNotificationsUseCase } from '../../core/use-cases/notification
 import { MarkNotificationAsReadUseCase } from '../../core/use-cases/notification/MarkNotificationAsReadUseCase';
 import { AdminCancelAppointmentUseCase } from '../../core/use-cases/admin/AdminCancelAppointmentUseCase';
 import { GetUserUseCase } from '../../core/use-cases/user/GetUserUseCase';
+import { MarkMessageAsReadUseCase } from '../../core/use-cases/chat/MarkMessageAsReadUseCase';
+import { AddReactionUseCase } from '../../core/use-cases/chat/AddReactionUseCase';
 
 export class Container {
   private static instance: Container;
@@ -120,7 +122,7 @@ export class Container {
         return this.container.get<GetChatHistoryUseCase>('GetChatHistoryUseCase').execute(userId, params);
       }
     })(this);
-    const socketService = new SocketService(chatService, tokenService);
+    const socketService = new SocketService(chatService, tokenService, patientRepository, doctorRepository);
     const notificationService = new NotificationService(notificationRepository, socketService);
     socketService.setNotificationService(notificationService);
 
@@ -300,6 +302,8 @@ export class Container {
       'SendMessageUseCase',
       new SendMessageUseCase(chatRepository, patientSubscriptionRepository, imageUploadService)
     );
+    this.dependencies.set('AddReactionUseCase', new AddReactionUseCase(chatRepository));
+    this.dependencies.set('MarkMessageAsReadUseCase', new MarkMessageAsReadUseCase(chatRepository));
     this.dependencies.set('GetMessagesUseCase', new GetMessagesUseCase(chatRepository));
     this.dependencies.set('DeleteMessageUseCase', new DeleteMessageUseCase(chatRepository));
     this.dependencies.set('GetChatHistoryUseCase', new GetChatHistoryUseCase(chatRepository));

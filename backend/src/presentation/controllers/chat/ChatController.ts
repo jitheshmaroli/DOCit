@@ -9,6 +9,8 @@ import { CustomRequest, UserRole } from '../../../types';
 import { GetMessagesUseCase } from '../../../core/use-cases/chat/GetMessagesUseCase';
 import { QueryParams } from '../../../types/authTypes';
 import { IImageUploadService } from '../../../core/interfaces/services/IImageUploadService';
+import { MarkMessageAsReadUseCase } from '../../../core/use-cases/chat/MarkMessageAsReadUseCase';
+import { AddReactionUseCase } from '../../../core/use-cases/chat/AddReactionUseCase';
 
 export class ChatController {
   private sendMessageUseCase: SendMessageUseCase;
@@ -16,6 +18,8 @@ export class ChatController {
   private deleteMessageUseCase: DeleteMessageUseCase;
   private getChatHistoryUseCase: GetChatHistoryUseCase;
   private getInboxUseCase: GetInboxUseCase;
+  private markMessageAsReadUseCase: MarkMessageAsReadUseCase;
+  private addReactionUseCase: AddReactionUseCase;
   private imageUploadService: IImageUploadService;
 
   constructor(container: Container) {
@@ -24,6 +28,8 @@ export class ChatController {
     this.deleteMessageUseCase = container.get('DeleteMessageUseCase');
     this.getChatHistoryUseCase = container.get('GetChatHistoryUseCase');
     this.getInboxUseCase = container.get('GetInboxUseCase');
+    this.markMessageAsReadUseCase = container.get('MarkMessageAsReadUseCase');
+    this.addReactionUseCase = container.get('AddReactionUseCase');
     this.imageUploadService = container.get('ImageUploadService');
   }
 
@@ -99,6 +105,35 @@ export class ChatController {
       const { messageId } = req.params;
       await this.deleteMessageUseCase.execute(messageId, userId);
       res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async markAsRead(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        throw new ValidationError('User ID not found in request');
+      }
+      const { messageId } = req.params;
+      await this.markMessageAsReadUseCase.execute(messageId, userId);
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async addReaction(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        throw new ValidationError('User ID not found in request');
+      }
+      const { messageId } = req.params;
+      const { emoji } = req.body;
+      const updatedMessage = await this.addReactionUseCase.execute(messageId, userId, emoji);
+      res.status(200).json(updatedMessage);
     } catch (error) {
       next(error);
     }

@@ -3,7 +3,6 @@ import { ITokenService } from '../../core/interfaces/services/ITokenService';
 import { AuthenticationError, ForbiddenError } from '../../utils/errors';
 import { Container } from '../../infrastructure/di/container';
 import { CustomRequest, UserRole } from '../../types';
-import logger from '../../utils/logger';
 import { GetUserUseCase } from '../../core/use-cases/user/GetUserUseCase';
 
 export const authMiddleware = (container: Container) => {
@@ -36,7 +35,6 @@ export const authMiddleware = (container: Container) => {
         throw new ForbiddenError('User is blocked');
       }
 
-      logger.debug('auth middleware:', decoded);
       req.user = { id: decoded.userId, role };
       next();
     } catch (error) {

@@ -1,10 +1,37 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { NodeGlobalsPolyfillPlugin } from '@esbuild-plugins/node-globals-polyfill';
+import { NodeModulesPolyfillPlugin } from '@esbuild-plugins/node-modules-polyfill';
 
-// https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
-   define: {
-    global: 'window', // Polyfill global as window for browser compatibility
+  plugins: [
+    react(),
+    NodeGlobalsPolyfillPlugin({
+      process: true,
+      buffer: true,
+    }),
+    NodeModulesPolyfillPlugin(),
+  ],
+  resolve: {
+    alias: {
+      stream: 'stream-browserify',
+      buffer: 'buffer',
+      process: 'process/browser',
+      util: 'util',
+    },
+  },
+  optimizeDeps: {
+    include: [
+      'stream-browserify',
+      'buffer',
+      'process/browser',
+      'util',
+      'simple-peer',
+      'webrtc-adapter',
+    ],
+  },
+  define: {
+    'process.env': {},
+    global: 'window',
   },
 });

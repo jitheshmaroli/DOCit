@@ -5,6 +5,7 @@ import { RootState } from '../../redux/store';
 import Logo from './Logo';
 import useAuth from '../../hooks/useAuth';
 import NotificationDropdown from './NotificationDropdown';
+import { SocketManager } from '../../services/SocketManager';
 
 const Header: React.FC = () => {
   const location = useLocation();
@@ -65,6 +66,12 @@ const Header: React.FC = () => {
   useEffect(() => {
     setIsMenuOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (user?._id && !SocketManager.getInstance().isConnected()) {
+      SocketManager.getInstance().connect(user._id);
+    }
+  }, [user?._id]);
 
   if (loading) {
     return (

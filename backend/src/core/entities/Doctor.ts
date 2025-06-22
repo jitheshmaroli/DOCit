@@ -17,6 +17,7 @@ export interface Doctor {
   profilePicturePublicId?: string;
   refreshToken?: string;
   googleId?: string;
+  lastSeen?: Date;
   createdAt?: Date;
   updatedAt?: Date;
 }

@@ -17,6 +17,8 @@ router.post('/attachment', chatAuth, upload.single('file'), chatController.sendA
 router.get('/inbox', chatAuth, chatController.getInbox.bind(chatController));
 router.get('/:receiverId', chatAuth, chatController.getMessages.bind(chatController));
 router.delete('/:messageId', chatAuth, chatController.deleteMessage.bind(chatController));
+router.patch('/:messageId/read', chatAuth, chatController.markAsRead.bind(chatController));
+router.patch('/:messageId/reaction', chatAuth, chatController.addReaction.bind(chatController));
 router.get('/', chatAuth, chatController.getChatHistory.bind(chatController));
 
 export default router;

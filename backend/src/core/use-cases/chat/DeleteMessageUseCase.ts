@@ -9,9 +9,9 @@ export class DeleteMessageUseCase {
     if (!message) {
       throw new ValidationError('Message not found');
     }
-    if (message.senderId !== userId) {
-      throw new ValidationError('You can only delete your own messages');
+    if (message.senderId !== userId && message.receiverId !== userId) {
+      throw new ValidationError('You can only delete messages you sent or received');
     }
-    await this.chatRepository.softDelete(messageId);
+    await this.chatRepository.softDelete(messageId, userId);
   }
 }
