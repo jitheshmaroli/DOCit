@@ -13,6 +13,8 @@ import { ISpecialityRepository } from '../../../core/interfaces/repositories/ISp
 import { CustomRequest } from '../../../types';
 import { ManageSubscriptionPlanUseCase } from '../../../core/use-cases/admin/ManageSubscriptionPlanUseCase';
 import { QueryParams } from '../../../types/authTypes';
+import { GetDashboardStatsUseCase } from '../../../core/use-cases/doctor/GetDashBoardStatsUseCase';
+import { GetReportsUseCase } from '../../../core/use-cases/doctor/GetReportsUseCase';
 
 export class DoctorController {
   private setAvailabilityUseCase: SetAvailabilityUseCase;
@@ -24,6 +26,8 @@ export class DoctorController {
   private manageSubscriptionPlanUseCase: ManageSubscriptionPlanUseCase;
   private subscriptionPlanRepository: ISubscriptionPlanRepository;
   private specialityRepository: ISpecialityRepository;
+  private getDashboardStatsUseCase: GetDashboardStatsUseCase;
+  private getReportsUseCase: GetReportsUseCase;
 
   constructor(container: Container) {
     this.setAvailabilityUseCase = container.get('SetAvailabilityUseCase');
@@ -35,6 +39,8 @@ export class DoctorController {
     this.manageSubscriptionPlanUseCase = container.get('ManageSubscriptionPlanUseCase');
     this.subscriptionPlanRepository = container.get('ISubscriptionPlanRepository');
     this.specialityRepository = container.get('ISpecialityRepository');
+    this.getDashboardStatsUseCase = container.get('GetDashboardStatsUseCase');
+    this.getReportsUseCase = container.get('GetReportsUseCase');
   }
 
   async setAvailability(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
@@ -251,6 +257,38 @@ export class DoctorController {
     try {
       const specialities = await this.specialityRepository.findAll();
       res.status(200).json(specialities);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getDashboardStats(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const doctorId = req.user?.id;
+      if (!doctorId) {
+        throw new ValidationError('User ID not found in request');
+      }
+      const stats = await this.getDashboardStatsUseCase.execute(doctorId);
+      res.status(200).json(stats);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getReports(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const doctorId = req.user?.id;
+      if (!doctorId) {
+        throw new ValidationError('User ID not found in request');
+      }
+      const { type, startDate, endDate } = req.query;
+      const filter = {
+        type: type as 'daily' | 'monthly' | 'yearly',
+        startDate: startDate ? new Date(startDate as string) : undefined,
+        endDate: endDate ? new Date(endDate as string) : undefined,
+      };
+      const reports = await this.getReportsUseCase.execute(doctorId, filter);
+      res.status(200).json(reports);
     } catch (error) {
       next(error);
     }

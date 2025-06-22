@@ -51,4 +51,8 @@ router.patch(
   doctorProfileController.updateProfile.bind(doctorProfileController)
 );
 
+// New Dashboard Statistics routes
+router.get('/dashboard/stats', doctorAuth, doctorController.getDashboardStats.bind(doctorController));
+router.get('/dashboard/reports', doctorAuth, doctorController.getReports.bind(doctorController));
+
 export default router;

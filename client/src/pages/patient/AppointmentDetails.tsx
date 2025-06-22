@@ -35,7 +35,7 @@ interface Appointment {
   date: string;
   startTime: string;
   endTime: string;
-  status: 'pending' | 'confirmed' | 'cancelled';
+  status: 'pending' | 'completed' | 'cancelled';
   isFreeBooking: boolean;
   bookingTime: string;
   createdAt: string;
@@ -301,7 +301,7 @@ const AppointmentDetails: React.FC = () => {
                   className={`px-2 py-1 rounded-full text-xs font-medium ${
                     appointment.status === 'pending'
                       ? 'bg-yellow-500/20 text-yellow-300'
-                      : appointment.status === 'confirmed'
+                      : appointment.status === 'completed'
                         ? 'bg-green-500/20 text-green-300'
                         : 'bg-red-500/20 text-red-300'
                   }`}

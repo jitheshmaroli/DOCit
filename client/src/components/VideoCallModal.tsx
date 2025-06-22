@@ -20,7 +20,7 @@ interface Appointment {
   date: string;
   startTime: string;
   endTime: string;
-  status?: 'pending' | 'confirmed' | 'cancelled';
+  status?: 'pending' | 'completed' | 'cancelled';
   isFreeBooking?: boolean;
   bookingTime?: string;
   createdAt?: string;

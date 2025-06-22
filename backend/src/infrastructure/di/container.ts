@@ -82,6 +82,8 @@ import { AdminCancelAppointmentUseCase } from '../../core/use-cases/admin/AdminC
 import { GetUserUseCase } from '../../core/use-cases/user/GetUserUseCase';
 import { MarkMessageAsReadUseCase } from '../../core/use-cases/chat/MarkMessageAsReadUseCase';
 import { AddReactionUseCase } from '../../core/use-cases/chat/AddReactionUseCase';
+import { GetReportsUseCase } from '../../core/use-cases/doctor/GetReportsUseCase';
+import { GetDashboardStatsUseCase } from '../../core/use-cases/doctor/GetDashBoardStatsUseCase';
 
 export class Container {
   private static instance: Container;
@@ -313,6 +315,14 @@ export class Container {
     this.dependencies.set('DeleteNotificationUseCase', new DeleteNotificationUseCase(notificationRepository));
     this.dependencies.set('DeleteAllNotificationsUseCase', new DeleteAllNotificationsUseCase(notificationRepository));
     this.dependencies.set('MarkNotificationAsReadUseCase', new MarkNotificationAsReadUseCase(notificationRepository));
+    this.dependencies.set(
+      'GetDashboardStatsUseCase',
+      new GetDashboardStatsUseCase(subscriptionPlanRepository, patientSubscriptionRepository, appointmentRepository)
+    );
+    this.dependencies.set(
+      'GetReportsUseCase',
+      new GetReportsUseCase(subscriptionPlanRepository, patientSubscriptionRepository, appointmentRepository)
+    );
   }
 
   static getInstance(): Container {

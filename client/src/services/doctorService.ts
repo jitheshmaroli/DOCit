@@ -8,6 +8,76 @@ import {
 } from '../types/authTypes';
 import { DateUtils } from '../utils/DateUtils';
 
+// Types
+interface DashboardStats {
+  activePlans: number;
+  totalSubscribers: number;
+  appointmentsThroughPlans: number;
+  freeAppointments: number;
+  totalRevenue: number;
+  planWiseRevenue: Array<{
+    planId: string;
+    planName: string;
+    subscribers: number;
+    revenue: number;
+    appointmentsUsed: number;
+    appointmentsLeft: number;
+  }>;
+}
+
+interface Plan {
+  id: string;
+  name: string;
+  subscribers: number;
+  status: string;
+  expired?: boolean;
+}
+
+interface ReportFilter {
+  type: 'daily' | 'monthly' | 'yearly';
+  startDate?: Date;
+  endDate?: Date;
+}
+
+interface ReportData {
+  daily?: Array<{ date: string; appointments: number; revenue: number }>;
+  monthly?: Array<{ month: string; appointments: number; revenue: number }>;
+  yearly?: Array<{ year: string; appointments: number; revenue: number }>;
+}
+
+interface Appointment {
+  _id: string;
+  patientId: { name: string };
+  date: string;
+  startTime: string;
+  status: 'pending' | 'confirmed' | 'cancelled';
+}
+
+interface SubscriptionPlan {
+  _id: string;
+  name: string;
+  status: string;
+}
+
+interface PlanWiseRevenue {
+  planId: string;
+  planName: string;
+  subscribers: number;
+  revenue: number;
+  appointmentsUsed: number;
+  appointmentsLeft: number;
+}
+
+interface DashboardData {
+  stats: DashboardStats | null;
+  appointments: Appointment[];
+  plans: Plan[];
+  reportData:
+    | ReportData['daily']
+    | ReportData['monthly']
+    | ReportData['yearly'];
+}
+
 export const fetchVerifiedDoctors = async (params: QueryParams = {}) => {
   const response = await api.get('/api/patients/doctors/verified', { params });
   return response.data;
@@ -130,4 +200,77 @@ export const withdrawSubscriptionPlan = async (id: string) => {
 export const fetchSpecialities = async () => {
   const response = await api.get('/api/doctors/specialities');
   return response.data;
+};
+
+export const getDashboardStats = async () => {
+  const response = await api.get('/api/doctors/dashboard/stats');
+  return response.data;
+};
+
+export const getReports = async (filter: {
+  type: 'daily' | 'monthly' | 'yearly';
+  startDate?: string;
+  endDate?: string;
+}) => {
+  const response = await api.get('/api/doctors/dashboard/reports', {
+    params: filter,
+  });
+  return response.data;
+};
+
+export const fetchDashboardData = async ({
+  reportFilter,
+  page = 1,
+  limit = 10,
+}: {
+  reportFilter: ReportFilter;
+  page?: number;
+  limit?: number;
+}): Promise<DashboardData> => {
+  try {
+    const [
+      statsResponse,
+      appointmentsResponse,
+      plansResponse,
+      reportsResponse,
+    ] = await Promise.all([
+      getDashboardStats(),
+      getAppointments(page, limit),
+      getSubscriptionPlans(),
+      getReports({
+        type: reportFilter.type,
+        startDate: reportFilter.startDate
+          ? reportFilter.startDate.toISOString()
+          : undefined,
+        endDate: reportFilter.endDate
+          ? reportFilter.endDate.toISOString()
+          : undefined,
+      }),
+    ]);
+
+    const plans: Plan[] = plansResponse.map((plan: SubscriptionPlan) => ({
+      id: plan._id,
+      name: plan.name,
+      subscribers:
+        statsResponse.planWiseRevenue.find(
+          (p: PlanWiseRevenue) => p.planId === plan._id
+        )?.subscribers || 0,
+      status: plan.status,
+      expired: plan.status === 'rejected',
+    }));
+
+    return {
+      stats: statsResponse,
+      appointments: appointmentsResponse.appointments,
+      plans,
+      reportData:
+        reportFilter.type === 'daily'
+          ? reportsResponse.daily
+          : reportFilter.type === 'yearly'
+            ? reportsResponse.yearly
+            : reportsResponse.monthly,
+    };
+  } catch {
+    throw new Error('Failed to fetch dashboard data');
+  }
 };

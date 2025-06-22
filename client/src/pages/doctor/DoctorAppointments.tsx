@@ -32,7 +32,7 @@ interface Appointment {
   date: string;
   startTime: string;
   endTime: string;
-  status: 'pending' | 'confirmed' | 'cancelled';
+  status: 'pending' | 'completed' | 'cancelled';
 }
 
 const ITEMS_PER_PAGE = 4;
@@ -214,7 +214,7 @@ const DoctorAppointments: React.FC = () => {
                     <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                       <span
                         className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          appt.status === 'confirmed'
+                          appt.status === 'completed'
                             ? 'bg-green-500/20 text-green-300'
                             : appt.status === 'pending'
                               ? 'bg-yellow-500/20 text-yellow-300'
