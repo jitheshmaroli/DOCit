@@ -78,15 +78,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage }) => {
               Plan Management
             </Link>
           </li>
-          <li>
-            <Link
-              to="/admin/reports"
-              className={`flex items-center px-4 py-3 text-sm font-medium ${isActive('reports')} transition-all duration-300`}
-            >
-              <span className="mr-3">📈</span>
-              Reports
-            </Link>
-          </li>
         </ul>
       </nav>
 

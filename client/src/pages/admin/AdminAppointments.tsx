@@ -98,7 +98,7 @@ const AdminAppointments: React.FC = () => {
         accessor: (appt: Appointment): React.ReactNode => (
           <span
             className={`px-2 py-1 text-xs font-semibold rounded-full ${
-              appt.status === 'confirmed'
+              appt.status === 'completed'
                 ? 'bg-green-500/20 text-green-300'
                 : appt.status === 'pending'
                   ? 'bg-yellow-500/20 text-yellow-300'

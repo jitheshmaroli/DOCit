@@ -237,12 +237,14 @@ const AppointmentDetails: React.FC = () => {
           key={appointmentId}
           appointment={appointment}
           isCaller={false}
+          user={user}
           onClose={() => setShowVideoCallModal(false)}
           doctorName={
             typeof appointment.doctorId === 'string'
               ? 'Unknown Doctor'
               : appointment.doctorId.name
           }
+          
         />
       )}
       {showCallPrompt && callerId && (

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -74,6 +74,14 @@ const Messages = () => {
           const incrementUnread = !isViewingThread || !isAtBottom();
           if (threadIndex >= 0) {
             const updatedThreads = [...prev];
+            // Check if message already exists
+            if (
+              updatedThreads[threadIndex].messages.some(
+                (msg) => msg._id === newMessageObj._id
+              )
+            ) {
+              return prev; // Skip duplicate
+            }
             updatedThreads[threadIndex] = {
               ...updatedThreads[threadIndex],
               senderName: partnerName,
@@ -101,6 +109,7 @@ const Messages = () => {
           }
           const newThread: MessageThread = {
             id: partnerId,
+            senderId: user._id,
             receiverId: partnerId,
             senderName: partnerName,
             subject: 'Conversation',
@@ -122,24 +131,27 @@ const Messages = () => {
         });
 
         if (selectedThread?.receiverId === partnerId) {
-          setSelectedThread((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  senderName: partnerName,
-                  partnerProfilePicture,
-                  messages: [...prev.messages, newMessageObj],
-                  createdAt: message.createdAt,
-                  latestMessage: {
-                    _id: message._id,
-                    message: message.message,
-                    createdAt: message.createdAt,
-                    isSender: false,
-                  },
-                  unreadCount: isAtBottom() ? 0 : prev.unreadCount + 1,
-                }
-              : prev
-          );
+          setSelectedThread((prev) => {
+            if (!prev) return prev;
+            // Check if message already exists
+            if (prev.messages.some((msg) => msg._id === newMessageObj._id)) {
+              return prev; // Skip duplicate
+            }
+            return {
+              ...prev,
+              senderName: partnerName,
+              partnerProfilePicture,
+              messages: [...prev.messages, newMessageObj],
+              createdAt: message.createdAt,
+              latestMessage: {
+                _id: message._id,
+                message: message.message,
+                createdAt: message.createdAt,
+                isSender: false,
+              },
+              unreadCount: isAtBottom() ? 0 : prev.unreadCount + 1,
+            };
+          });
           if (isAtBottom()) {
             setTimeout(() => {
               if (chatContainerRef.current) {
@@ -175,8 +187,8 @@ const Messages = () => {
     });
 
     socketManager.connect(user._id);
-    return () => socketManager.disconnect();
-  }, [user?._id, selectedThread, socketManager, navigate]);
+    // return () => socketManager.disconnect('Doctor Message page unmount');
+  }, [user?._id, socketManager, navigate, selectedThread?.receiverId]);
 
   const { sendMessage } = useSendMessage();
 
@@ -240,7 +252,7 @@ const Messages = () => {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const threadId = params.get('thread');
-    if (threadId && !loading) {
+    if (threadId && !loading && !selectedThread) {
       const thread = threads.find((t) => t.receiverId === threadId);
       if (thread) {
         setSelectedThread({ ...thread, unreadCount: 0 });
@@ -256,6 +268,7 @@ const Messages = () => {
             const partner = await fetchPartnerDetails(threadId);
             const newThread: MessageThread = {
               id: threadId,
+              senderId: user?._id,
               receiverId: threadId,
               senderName: partner.name || 'Unknown Patient',
               subject: 'Conversation',
@@ -288,7 +301,7 @@ const Messages = () => {
         createNewThread();
       }
     }
-  }, [threads, loading, location.search, navigate]);
+  }, [threads, loading, selectedThread, location.search, navigate]);
 
   useEffect(() => {
     const loadMessages = async () => {
@@ -355,7 +368,9 @@ const Messages = () => {
         prev
           ? {
               ...prev,
-              messages: [...prev.messages, message],
+              messages: prev.messages.some((msg) => msg._id === message._id)
+                ? prev.messages
+                : [...prev.messages, message],
               createdAt: message.createdAt,
               latestMessage: {
                 _id: message._id,
@@ -373,6 +388,13 @@ const Messages = () => {
         );
         if (threadIndex >= 0) {
           const updatedThreads = [...prev];
+          if (
+            updatedThreads[threadIndex].messages.some(
+              (msg) => msg._id === message._id
+            )
+          ) {
+            return prev; // Skip duplicate
+          }
           updatedThreads[threadIndex] = {
             ...updatedThreads[threadIndex],
             messages: [...updatedThreads[threadIndex].messages, message],
@@ -392,6 +414,7 @@ const Messages = () => {
         }
         const newThread: MessageThread = {
           id: selectedThread.receiverId,
+          senderId: user?._id,
           receiverId: selectedThread.receiverId,
           senderName: selectedThread.senderName,
           subject: selectedThread.subject,
@@ -458,11 +481,11 @@ const Messages = () => {
     }
   };
 
-  const isAtBottom = () => {
+  const isAtBottom = useCallback(() => {
     if (!chatContainerRef.current) return true;
     const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
-    return scrollTop + clientHeight >= scrollHeight - 10;
-  };
+    return scrollTop + clientHeight >= scrollHeight - 20;
+  }, []);
 
   const scrollToBottom = () => {
     if (chatContainerRef.current) {
@@ -531,6 +554,7 @@ const Messages = () => {
               isAtBottom={isAtBottom}
               onDeleteMessages={handleDeleteMessages}
               userStatus={userStatuses[selectedThread.receiverId]}
+              currentUserId={user!._id}
             />
           ) : (
             <div className="w-full lg:w-2/3 bg-white/10 backdrop-blur border border-gray rounded-2xl p-6 flex items-center justify-center text-gray-400">

@@ -28,6 +28,15 @@ export class CreateSubscriptionPlanUseCase {
       throw new ValidationError('Appointment count must be at least 1');
     }
 
+    const existingPlans: SubscriptionPlan[] = await this.subscriptionPlanRepository.findByDoctor(doctorId);
+
+    existingPlans.forEach((existingPlan) => {
+      if (existingPlan.appointmentCount === plan.appointmentCount && existingPlan.name === plan.name) {
+        throw new ValidationError('Paln already exists');
+        return;
+      }
+    });
+
     const subscriptionPlan: SubscriptionPlan = {
       ...plan,
       doctorId,

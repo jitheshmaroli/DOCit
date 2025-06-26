@@ -15,6 +15,10 @@ const adminAuthController = new AdminAuthController(container);
 // Middleware
 const adminAuth = [authMiddleware(container), roleMiddleware(['admin'])];
 
+// Dashboard routes
+router.get('/dashboard-stats', adminAuth, adminController.getDashboardStats.bind(adminController));
+router.post('/reports', adminAuth, adminController.getReports.bind(adminController));
+
 // Subscription plan routes
 router.put('/subscription-plans/:planId/approve', adminAuth, adminController.approvePlan.bind(adminController));
 router.put('/subscription-plans/:planId/reject', adminAuth, adminController.rejectPlan.bind(adminController));

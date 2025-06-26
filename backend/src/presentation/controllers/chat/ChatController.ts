@@ -11,6 +11,7 @@ import { QueryParams } from '../../../types/authTypes';
 import { IImageUploadService } from '../../../core/interfaces/services/IImageUploadService';
 import { MarkMessageAsReadUseCase } from '../../../core/use-cases/chat/MarkMessageAsReadUseCase';
 import { AddReactionUseCase } from '../../../core/use-cases/chat/AddReactionUseCase';
+import { SocketService } from '../../../infrastructure/services/SocketService';
 
 export class ChatController {
   private sendMessageUseCase: SendMessageUseCase;
@@ -21,6 +22,7 @@ export class ChatController {
   private markMessageAsReadUseCase: MarkMessageAsReadUseCase;
   private addReactionUseCase: AddReactionUseCase;
   private imageUploadService: IImageUploadService;
+  private socketService: SocketService;
 
   constructor(container: Container) {
     this.sendMessageUseCase = container.get('SendMessageUseCase');
@@ -31,6 +33,7 @@ export class ChatController {
     this.markMessageAsReadUseCase = container.get('MarkMessageAsReadUseCase');
     this.addReactionUseCase = container.get('AddReactionUseCase');
     this.imageUploadService = container.get('ImageUploadService');
+    this.socketService = container.get('SocketService');
   }
 
   async sendMessage(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
@@ -48,6 +51,7 @@ export class ChatController {
         role,
         senderName,
       });
+      await this.socketService.sendMessageToUsers(chatMessage);
       res.status(201).json(chatMessage);
     } catch (error) {
       next(error);
@@ -76,6 +80,7 @@ export class ChatController {
         },
         file
       );
+      await this.socketService.sendMessageToUsers(chatMessage);
       res.status(201).json(chatMessage);
     } catch (error) {
       next(error);
@@ -131,8 +136,10 @@ export class ChatController {
         throw new ValidationError('User ID not found in request');
       }
       const { messageId } = req.params;
-      const { emoji } = req.body;
-      const updatedMessage = await this.addReactionUseCase.execute(messageId, userId, emoji);
+      const { emoji, replace } = req.body;
+      const updatedMessage = await this.addReactionUseCase.execute(messageId, userId, emoji, replace);
+      const receiverId = updatedMessage.senderId === userId ? updatedMessage.receiverId : updatedMessage.senderId;
+      await this.socketService.sendReactionToUsers(messageId, emoji, userId, receiverId);
       res.status(200).json(updatedMessage);
     } catch (error) {
       next(error);

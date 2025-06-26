@@ -36,7 +36,7 @@ router.get(
 // Subscription plan routes
 router.get('/subscription-plans', doctorAuth, doctorController.getSubscriptionPlans.bind(doctorController));
 router.post('/subscription-plans', doctorAuth, doctorController.createSubscriptionPlan.bind(doctorController));
-router.patch('/subscription-plans/:id', doctorAuth, doctorController.updateSubscriptionPlan.bind(doctorController));
+router.put('/subscription-plans/:id', doctorAuth, doctorController.updateSubscriptionPlan.bind(doctorController));
 router.delete('/subscription-plans/:id', doctorAuth, doctorController.deleteSubscriptionPlan.bind(doctorController));
 
 // Speciality routes

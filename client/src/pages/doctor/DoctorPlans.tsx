@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import { toast, ToastContainer } from 'react-toastify';
@@ -55,7 +56,9 @@ const DoctorPlans: React.FC = () => {
     const appointmentCount = parseInt(planData.appointmentCount);
 
     if (price <= 0 || validityDays <= 0 || appointmentCount <= 0) {
-      toast.error('Price, validity days, and appointment count must be positive numbers');
+      toast.error(
+        'Price, validity days, and appointment count must be positive numbers'
+      );
       return;
     }
 
@@ -89,9 +92,13 @@ const DoctorPlans: React.FC = () => {
         appointmentCount: '',
       });
       dispatch(getSubscriptionPlansThunk());
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      toast.error(`Failed to ${isEditMode ? 'update' : 'create'} plan: ${errorMessage}`);
+    } catch (error: any) {
+      const errorMessage =
+        error?.message || (error as Error)?.message || error || 'Unknown error';
+      console.log(error);
+      toast.error(
+        `Failed to ${isEditMode ? 'update' : 'create'} plan: ${errorMessage}`
+      );
     }
   };
 
@@ -114,8 +121,12 @@ const DoctorPlans: React.FC = () => {
         await dispatch(deleteSubscriptionPlanThunk(planId)).unwrap();
         toast.success('Plan deleted successfully');
         dispatch(getSubscriptionPlansThunk());
-      } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      } catch (error: any) {
+        const errorMessage =
+          error?.message ||
+          (error as Error)?.message ||
+          error ||
+          'Unknown error';
         toast.error(`Failed to delete plan: ${errorMessage}`);
       }
     }
@@ -128,7 +139,8 @@ const DoctorPlans: React.FC = () => {
         toast.success('Plan withdrawn successfully');
         dispatch(getSubscriptionPlansThunk());
       } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        const errorMessage =
+          error instanceof Error ? error.message : 'Unknown error';
         toast.error(`Failed to withdraw plan: ${errorMessage}`);
       }
     }
@@ -169,16 +181,28 @@ const DoctorPlans: React.FC = () => {
                   key={plan._id}
                   className="bg-white/20 backdrop-blur-lg p-4 rounded-lg border border-white/20 shadow-lg hover:shadow-xl transition-all duration-300"
                 >
-                  <h3 className="text-lg font-semibold text-white">{plan.name || 'Unnamed Plan'}</h3>
-                  <p className="text-sm text-gray-200 mt-2">{plan.description || 'No description'}</p>
-                  <p className="text-sm text-gray-200 mt-2">Price: ₹{(plan.price).toFixed(2)}</p>
-                  <p className="text-sm text-gray-200 mt-2">Validity: {plan.validityDays} days</p>
-                  <p className="text-sm text-gray-200 mt-2">Appointments: {plan.appointmentCount}</p>
+                  <h3 className="text-lg font-semibold text-white">
+                    {plan.name || 'Unnamed Plan'}
+                  </h3>
+                  <p className="text-sm text-gray-200 mt-2">
+                    {plan.description || 'No description'}
+                  </p>
+                  <p className="text-sm text-gray-200 mt-2">
+                    Price: ₹{plan.price.toFixed(2)}
+                  </p>
+                  <p className="text-sm text-gray-200 mt-2">
+                    Validity: {plan.validityDays} days
+                  </p>
+                  <p className="text-sm text-gray-200 mt-2">
+                    Appointments: {plan.appointmentCount}
+                  </p>
                   <p
                     className={`text-xs mt-2 inline-flex px-2 py-1 rounded-full ${
-                      plan.status === 'approved' ? 'bg-green-500/20 text-green-300' :
-                      plan.status === 'pending' ? 'bg-yellow-500/20 text-yellow-300' :
-                      'bg-red-500/20 text-red-300'
+                      plan.status === 'approved'
+                        ? 'bg-green-500/20 text-green-300'
+                        : plan.status === 'pending'
+                          ? 'bg-yellow-500/20 text-yellow-300'
+                          : 'bg-red-500/20 text-red-300'
                     }`}
                   >
                     {plan.status}
@@ -275,7 +299,13 @@ const DoctorPlans: React.FC = () => {
                   setIsModalOpen(false);
                   setIsEditMode(false);
                   setSelectedPlanId(null);
-                  setPlanData({ name: '', description: '', price: '', validityDays: '', appointmentCount: '' });
+                  setPlanData({
+                    name: '',
+                    description: '',
+                    price: '',
+                    validityDays: '',
+                    appointmentCount: '',
+                  });
                 }}
                 className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
               >

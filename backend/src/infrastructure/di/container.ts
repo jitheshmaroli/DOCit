@@ -82,8 +82,10 @@ import { AdminCancelAppointmentUseCase } from '../../core/use-cases/admin/AdminC
 import { GetUserUseCase } from '../../core/use-cases/user/GetUserUseCase';
 import { MarkMessageAsReadUseCase } from '../../core/use-cases/chat/MarkMessageAsReadUseCase';
 import { AddReactionUseCase } from '../../core/use-cases/chat/AddReactionUseCase';
-import { GetReportsUseCase } from '../../core/use-cases/doctor/GetReportsUseCase';
 import { GetDashboardStatsUseCase } from '../../core/use-cases/doctor/GetDashBoardStatsUseCase';
+import { GetAdminDashboardStatsUseCase } from '../../core/use-cases/admin/GetAdminDashboardStatsUseCase';
+import { AdminGetReportsUseCase } from '../../core/use-cases/admin/AdminGetReportsUseCase';
+import { DoctorGetReportsUseCase } from '../../core/use-cases/doctor/DoctorGetReportsUseCase';
 
 export class Container {
   private static instance: Container;
@@ -320,8 +322,22 @@ export class Container {
       new GetDashboardStatsUseCase(subscriptionPlanRepository, patientSubscriptionRepository, appointmentRepository)
     );
     this.dependencies.set(
-      'GetReportsUseCase',
-      new GetReportsUseCase(subscriptionPlanRepository, patientSubscriptionRepository, appointmentRepository)
+      'AdminGetReportsUseCase',
+      new AdminGetReportsUseCase(subscriptionPlanRepository, patientSubscriptionRepository, appointmentRepository)
+    );
+    this.dependencies.set(
+      'DoctorGetReportsUseCase',
+      new DoctorGetReportsUseCase(subscriptionPlanRepository, patientSubscriptionRepository, appointmentRepository)
+    );
+    this.dependencies.set(
+      'GetAdminDashboardStatsUseCase',
+      new GetAdminDashboardStatsUseCase(
+        subscriptionPlanRepository,
+        patientSubscriptionRepository,
+        appointmentRepository,
+        doctorRepository,
+        patientRepository
+      )
     );
   }
 

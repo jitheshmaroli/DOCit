@@ -1,11 +1,12 @@
 import { ChatMessage } from '../../entities/ChatMessage';
 import { IChatRepository } from '../../interfaces/repositories/IChatRepository';
 import { ValidationError } from '../../../utils/errors';
+import { UpdateQuery } from 'mongoose';
 
 export class AddReactionUseCase {
   constructor(private chatRepository: IChatRepository) {}
 
-  async execute(messageId: string, userId: string, emoji: string): Promise<ChatMessage> {
+  async execute(messageId: string, userId: string, emoji: string, replace: boolean): Promise<ChatMessage> {
     if (!messageId || !userId || !emoji) {
       throw new ValidationError('Message ID, User ID, and emoji are required');
     }
@@ -15,9 +16,27 @@ export class AddReactionUseCase {
       throw new ValidationError('Message not found');
     }
 
-    const updatedMessage = await this.chatRepository.update(messageId, {
-      $push: { reactions: { emoji, userId } },
-    });
+    let updatedMessage: ChatMessage | null = null;
+
+    if (replace) {
+      // Step 1: Remove existing reaction from the same user
+      const pullQuery: UpdateQuery<ChatMessage> = {
+        $pull: { reactions: { userId } },
+      };
+      await this.chatRepository.update(messageId, pullQuery);
+
+      // Step 2: Add the new reaction
+      const pushQuery: UpdateQuery<ChatMessage> = {
+        $push: { reactions: { emoji, userId } },
+      };
+      updatedMessage = await this.chatRepository.update(messageId, pushQuery);
+    } else {
+      // Only add the new reaction if no replacement is needed
+      const pushQuery: UpdateQuery<ChatMessage> = {
+        $push: { reactions: { emoji, userId } },
+      };
+      updatedMessage = await this.chatRepository.update(messageId, pushQuery);
+    }
 
     if (!updatedMessage) {
       throw new ValidationError('Failed to add reaction');

@@ -196,9 +196,7 @@ export const createSubscriptionPlanThunk = createAsyncThunk(
     try {
       return await createSubscriptionPlan(plan);
     } catch (error: any) {
-      return rejectWithValue(
-        error.message || 'Failed to create subscription plan'
-      );
+      return rejectWithValue(error || 'Failed to create subscription plan');
     }
   }
 );

@@ -143,7 +143,7 @@ export class SocketService {
         try {
           logger.info('Received sendMessage payload:', { message });
           const messagePayload = {
-            id: message._id,
+            _id: message._id,
             message: message.message,
             senderId: message.senderId,
             senderName: message.senderName || 'Unknown',
@@ -151,8 +151,11 @@ export class SocketService {
             isSender: false,
             receiverId: message.receiverId,
             attachment: message.attachment,
+            reactions: message.reactions || [],
+            unreadBy: message.unreadBy || [message.receiverId],
           };
 
+          // Emit to receiver
           const receiverSocketIds = this.connectedUsers.get(message.receiverId);
           if (receiverSocketIds && receiverSocketIds.size > 0) {
             receiverSocketIds.forEach((socketId) => {
@@ -166,8 +169,67 @@ export class SocketService {
             logger.warn(`Receiver not connected: ${message.receiverId}, queuing message`);
             this.queueMessage(message.receiverId, messagePayload);
           }
+
+          // Emit to sender
+          const senderSocketIds = this.connectedUsers.get(message.senderId);
+          if (senderSocketIds && senderSocketIds.size > 0) {
+            const senderPayload = { ...messagePayload, isSender: true };
+            senderSocketIds.forEach((socketId) => {
+              logger.info(`Emitting receiveMessage to: ${message.senderId}, socketId: ${socketId}`, {
+                senderPayload,
+              });
+              this.io!.to(socketId).emit('receiveMessage', senderPayload);
+            });
+            logger.info(`Message sent to sender: ${message.senderId}`);
+          }
         } catch (error: any) {
           logger.error(`Send message error: ${error}`);
+          socket.emit('error', { message: (error as Error).message });
+        }
+      });
+
+      socket.on('sendReaction', async (data: { messageId: string; emoji: string; userId: string }) => {
+        try {
+          logger.info('Received sendReaction payload:', { data });
+          const reactionPayload = {
+            messageId: data.messageId,
+            emoji: data.emoji,
+            userId: data.userId,
+          };
+
+          const message = await this.chatService
+            .getMessages(data.userId, '', {})
+            .then((messages) => messages.find((m) => m._id === data.messageId));
+          if (!message) {
+            throw new Error('Message not found');
+          }
+
+          // Emit to receiver
+          const receiverId = message.senderId === data.userId ? message.receiverId : message.senderId;
+          const receiverSocketIds = this.connectedUsers.get(receiverId);
+          if (receiverSocketIds && receiverSocketIds.size > 0) {
+            receiverSocketIds.forEach((socketId) => {
+              logger.info(`Emitting receiveReaction to: ${receiverId}, socketId: ${socketId}`, {
+                reactionPayload,
+              });
+              this.io!.to(socketId).emit('receiveReaction', reactionPayload);
+            });
+            logger.info(`Reaction sent to receiver: ${receiverId}`);
+          }
+
+          // Emit to sender
+          const senderSocketIds = this.connectedUsers.get(data.userId);
+          if (senderSocketIds && senderSocketIds.size > 0) {
+            senderSocketIds.forEach((socketId) => {
+              logger.info(`Emitting receiveReaction to: ${data.userId}, socketId: ${socketId}`, {
+                reactionPayload,
+              });
+              this.io!.to(socketId).emit('receiveReaction', reactionPayload);
+            });
+            logger.info(`Reaction sent to sender: ${data.userId}`);
+          }
+        } catch (error: any) {
+          logger.error(`Send reaction error: ${error}`);
           socket.emit('error', { message: (error as Error).message });
         }
       });
@@ -227,9 +289,12 @@ export class SocketService {
             this.io!.to(socketId).emit('receiveIceCandidate', {
               candidate: data.candidate,
               appointmentId: data.appointmentId,
+              from: data.from,
             });
           });
-          logger.info(`ICE candidate sent to: ${data.to} for appointment: ${data.appointmentId}`);
+          logger.info(
+            `ICE candidate sent to: ${data.to} for appointment: ${data.appointmentId} candidata: ${data.candidate}`
+          );
         }
       });
 
@@ -287,6 +352,89 @@ export class SocketService {
         this.io!.to(socketId).emit('receiveNotification', notification);
       });
       logger.info(`Notification sent to user: ${userId}, socketCount=${socketIds.size}`);
+    }
+  }
+
+  async sendMessageToUsers(message: ChatMessage): Promise<void> {
+    if (!this.io) {
+      throw new Error('Socket.IO server not initialized');
+    }
+
+    const messagePayload = {
+      _id: message._id,
+      message: message.message,
+      senderId: message.senderId,
+      senderName: message.senderName || 'Unknown',
+      createdAt: message.createdAt || new Date(),
+      isSender: false,
+      receiverId: message.receiverId,
+      attachment: message.attachment,
+      reactions: message.reactions || [],
+      unreadBy: message.unreadBy || [message.receiverId],
+    };
+
+    // Emit to receiver
+    const receiverSocketIds = this.connectedUsers.get(message.receiverId);
+    if (receiverSocketIds && receiverSocketIds.size > 0) {
+      receiverSocketIds.forEach((socketId) => {
+        logger.info(`Emitting receiveMessage to: ${message.receiverId}, socketId: ${socketId}`, {
+          messagePayload,
+        });
+        this.io!.to(socketId).emit('receiveMessage', messagePayload);
+      });
+      logger.info(`Message sent to receiver: ${message.receiverId}`);
+    } else {
+      logger.warn(`Receiver not connected: ${message.receiverId}, queuing message`);
+      this.queueMessage(message.receiverId, messagePayload);
+    }
+
+    // Emit to sender
+    const senderSocketIds = this.connectedUsers.get(message.senderId);
+    if (senderSocketIds && senderSocketIds.size > 0) {
+      const senderPayload = { ...messagePayload, isSender: true };
+      senderSocketIds.forEach((socketId) => {
+        logger.info(`Emitting receiveMessage to: ${message.senderId}, socketId: ${socketId}`, {
+          senderPayload,
+        });
+        this.io!.to(socketId).emit('receiveMessage', senderPayload);
+      });
+      logger.info(`Message sent to sender: ${message.senderId}`);
+    }
+  }
+
+  async sendReactionToUsers(messageId: string, emoji: string, userId: string, receiverId: string): Promise<void> {
+    if (!this.io) {
+      throw new Error('Socket.IO server not initialized');
+    }
+
+    const reactionPayload = {
+      messageId,
+      emoji,
+      userId,
+    };
+
+    // Emit to receiver
+    const receiverSocketIds = this.connectedUsers.get(receiverId);
+    if (receiverSocketIds && receiverSocketIds.size > 0) {
+      receiverSocketIds.forEach((socketId) => {
+        logger.info(`Emitting receiveReaction to: ${receiverId}, socketId: ${socketId}`, {
+          reactionPayload,
+        });
+        this.io!.to(socketId).emit('receiveReaction', reactionPayload);
+      });
+      logger.info(`Reaction sent to receiver: ${receiverId}`);
+    }
+
+    // Emit to sender
+    const senderSocketIds = this.connectedUsers.get(userId);
+    if (senderSocketIds && senderSocketIds.size > 0) {
+      senderSocketIds.forEach((socketId) => {
+        logger.info(`Emitting receiveReaction to: ${userId}, socketId: ${socketId}`, {
+          reactionPayload,
+        });
+        this.io!.to(socketId).emit('receiveReaction', reactionPayload);
+      });
+      logger.info(`Reaction sent to sender: ${userId}`);
     }
   }
 }

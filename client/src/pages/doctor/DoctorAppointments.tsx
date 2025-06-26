@@ -148,6 +148,7 @@ const DoctorAppointments: React.FC = () => {
           key={selectedAppointment._id} // Ensure unique key to prevent stale state
           appointment={selectedAppointment}
           isCaller={true}
+          user={user}
           onClose={() => {
             setShowVideoCallModal(false);
             setSelectedAppointment(null);

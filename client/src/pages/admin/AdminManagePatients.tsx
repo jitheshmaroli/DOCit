@@ -39,6 +39,13 @@ interface Confirmation {
   onConfirm: () => void;
 }
 
+interface Action {
+  label: string;
+  onClick: (item: Patient) => void | Promise<void>;
+  className?: string;
+  condition?: (item: Patient) => boolean;
+}
+
 const ITEMS_PER_PAGE = 5;
 
 const AdminManagePatients: React.FC = () => {
@@ -127,7 +134,7 @@ const AdminManagePatients: React.FC = () => {
     async (patient: Patient) => {
       setConfirmation({
         isOpen: true,
-        message: `Are you sure you want to delete patient ${patient.name}?`,
+        message: `Are you sure you want to delete patient ${patient.name || 'Unknown'}?`,
         onConfirm: async () => {
           try {
             await dispatch(deletePatientThunk(patient._id)).unwrap();
@@ -156,7 +163,7 @@ const AdminManagePatients: React.FC = () => {
       const action = patient.isBlocked ? 'unblock' : 'block';
       setConfirmation({
         isOpen: true,
-        message: `Are you sure you want to ${action} patient ${patient.name}?`,
+        message: `Are you sure you want to ${action} patient ${patient.name || 'Unknown'}?`,
         onConfirm: async () => {
           try {
             await dispatch(
@@ -192,12 +199,12 @@ const AdminManagePatients: React.FC = () => {
         accessor: (patient: Patient): React.ReactNode => (
           <div className="flex items-center">
             <Avatar
-              name={patient.name}
+              name={patient.name || 'Unknown'}
               id={patient._id}
-              profilePicture={patient.profilePicture}
+              profilePicture={patient.profilePicture ?? ''}
             />
             <span className="ml-4 text-sm font-medium text-white">
-              {patient.name}
+              {patient.name || 'Unknown'}
             </span>
           </div>
         ),
@@ -213,7 +220,7 @@ const AdminManagePatients: React.FC = () => {
       {
         header: 'Joined Date',
         accessor: (patient: Patient): React.ReactNode =>
-          formatDate(patient.createdAt),
+          patient.createdAt ? formatDate(patient.createdAt) : 'N/A',
       },
       {
         header: 'Status',
@@ -236,7 +243,7 @@ const AdminManagePatients: React.FC = () => {
     []
   );
 
-  const actions = useMemo(
+  const actions = useMemo<Action[]>(
     () => [
       {
         label: 'Edit',
@@ -252,13 +259,13 @@ const AdminManagePatients: React.FC = () => {
         label: 'Block',
         onClick: handleBlockPatient,
         className: 'bg-yellow-600 hover:bg-yellow-700',
-        condition: (patient: Patient) => !patient.isBlocked,
+        condition: (patient: Patient) => patient.isBlocked === false,
       },
       {
         label: 'Unblock',
         onClick: handleBlockPatient,
         className: 'bg-green-600 hover:bg-green-700',
-        condition: (patient: Patient) => patient.isBlocked,
+        condition: (patient: Patient) => patient.isBlocked === true,
       },
     ],
     [handleDeletePatient, handleBlockPatient]

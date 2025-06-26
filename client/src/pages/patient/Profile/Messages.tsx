@@ -1,3 +1,4 @@
+// F:\DOCit\client\src\pages\patient\Profile\Messages.tsx
 import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ToastContainer, toast } from 'react-toastify';
@@ -76,6 +77,14 @@ const Messages = ({ patientId }: MessagesProps) => {
           const incrementUnread = !isViewingThread || !isAtBottom();
           if (threadIndex >= 0) {
             const updatedThreads = [...prev];
+            // Check if message already exists
+            if (
+              updatedThreads[threadIndex].messages.some(
+                (msg) => msg._id === newMessageObj._id
+              )
+            ) {
+              return prev; // Skip duplicate
+            }
             updatedThreads[threadIndex] = {
               ...updatedThreads[threadIndex],
               senderName: partnerName,
@@ -103,6 +112,7 @@ const Messages = ({ patientId }: MessagesProps) => {
           }
           const newThread: MessageThread = {
             id: partnerId,
+            senderId: patientId,
             receiverId: partnerId,
             senderName: partnerName,
             subject: 'Conversation',
@@ -124,24 +134,27 @@ const Messages = ({ patientId }: MessagesProps) => {
         });
 
         if (selectedThread?.receiverId === partnerId) {
-          setSelectedThread((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  senderName: partnerName,
-                  partnerProfilePicture,
-                  messages: [...prev.messages, newMessageObj],
-                  createdAt: message.createdAt,
-                  latestMessage: {
-                    _id: message._id,
-                    message: message.message,
-                    createdAt: message.createdAt,
-                    isSender: false,
-                  },
-                  unreadCount: isAtBottom() ? 0 : prev.unreadCount + 1,
-                }
-              : prev
-          );
+          setSelectedThread((prev) => {
+            if (!prev) return prev;
+            // Check if message already exists
+            if (prev.messages.some((msg) => msg._id === newMessageObj._id)) {
+              return prev; // Skip duplicate
+            }
+            return {
+              ...prev,
+              senderName: partnerName,
+              partnerProfilePicture,
+              messages: [...prev.messages, newMessageObj],
+              createdAt: message.createdAt,
+              latestMessage: {
+                _id: message._id,
+                message: message.message,
+                createdAt: message.createdAt,
+                isSender: false,
+              },
+              unreadCount: isAtBottom() ? 0 : prev.unreadCount + 1,
+            };
+          });
           if (isAtBottom()) {
             setTimeout(() => {
               if (chatContainerRef.current) {
@@ -178,8 +191,8 @@ const Messages = ({ patientId }: MessagesProps) => {
 
     socketManager.connect(patientId);
 
-    return () => socketManager.disconnect();
-  }, [patientId, selectedThread, socketManager, navigate]);
+    // return () => socketManager.disconnect('Patient message page unmount');
+  }, [patientId, socketManager, navigate, selectedThread?.receiverId]);
 
   const { sendMessage } = useSendMessage();
 
@@ -243,7 +256,7 @@ const Messages = ({ patientId }: MessagesProps) => {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const threadId = params.get('thread');
-    if (threadId && !loading) {
+    if (threadId && !loading && !selectedThread) {
       const existingThread = threads.find((t) => t.receiverId === threadId);
       if (existingThread) {
         setSelectedThread({ ...existingThread, unreadCount: 0 });
@@ -259,6 +272,7 @@ const Messages = ({ patientId }: MessagesProps) => {
             const partner = await fetchPartnerDetails(threadId);
             const newThread: MessageThread = {
               id: threadId,
+              senderId: patientId,
               receiverId: threadId,
               senderName: partner.name || 'Unknown Doctor',
               subject: 'Conversation',
@@ -289,7 +303,7 @@ const Messages = ({ patientId }: MessagesProps) => {
         createNewThread();
       }
     }
-  }, [threads, loading, location.search, navigate]);
+  }, [threads, loading, location.search, navigate, selectedThread]);
 
   useEffect(() => {
     const loadMessages = async () => {
@@ -356,7 +370,9 @@ const Messages = ({ patientId }: MessagesProps) => {
         prev
           ? {
               ...prev,
-              messages: [...prev.messages, message],
+              messages: prev.messages.some((msg) => msg._id === message._id)
+                ? prev.messages
+                : [...prev.messages, message],
               createdAt: message.createdAt,
               latestMessage: {
                 _id: message._id,
@@ -374,6 +390,13 @@ const Messages = ({ patientId }: MessagesProps) => {
         );
         if (threadIndex >= 0) {
           const updatedThreads = [...prev];
+          if (
+            updatedThreads[threadIndex].messages.some(
+              (msg) => msg._id === message._id
+            )
+          ) {
+            return prev; // Skip duplicate
+          }
           updatedThreads[threadIndex] = {
             ...updatedThreads[threadIndex],
             messages: [...updatedThreads[threadIndex].messages, message],
@@ -393,6 +416,7 @@ const Messages = ({ patientId }: MessagesProps) => {
         }
         const newThread: MessageThread = {
           id: selectedThread.receiverId,
+          senderId: patientId,
           receiverId: selectedThread.receiverId,
           senderName: selectedThread.senderName,
           subject: selectedThread.subject,
@@ -462,7 +486,7 @@ const Messages = ({ patientId }: MessagesProps) => {
   const isAtBottom = () => {
     if (!chatContainerRef.current) return true;
     const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
-    return scrollTop + clientHeight >= scrollHeight - 10;
+    return scrollTop + clientHeight >= scrollHeight - 20;
   };
 
   const scrollToBottom = () => {
@@ -532,6 +556,7 @@ const Messages = ({ patientId }: MessagesProps) => {
               isAtBottom={isAtBottom}
               onDeleteMessages={handleDeleteMessages}
               userStatus={userStatuses[selectedThread.receiverId]}
+              currentUserId={patientId}
             />
           ) : (
             <div className="w-full lg:w-2/3 bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 flex items-center justify-center text-gray-200">

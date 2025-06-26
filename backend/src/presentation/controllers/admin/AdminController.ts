@@ -6,16 +6,24 @@ import { CreateDoctorUseCase } from '../../../core/use-cases/admin/CreateDoctorU
 import { AdminCancelAppointmentUseCase } from '../../../core/use-cases/admin/AdminCancelAppointmentUseCase';
 import { ListDoctorsUseCase } from '../../../core/use-cases/admin/ListDoctorsUseCase';
 import { ValidationError } from '../../../utils/errors';
-import { GetSpecialitiesUseCase } from '../../../core/use-cases/admin/GetSpecialityUseCase';
 import { AddSpecialityUseCase } from '../../../core/use-cases/admin/AddSpecialityUseCase';
 import { UpdateSpecialityUseCase } from '../../../core/use-cases/admin/UpdateSpecialityUseCase';
 import { DeleteSpecialityUseCase } from '../../../core/use-cases/admin/DeleteSpecialityUseCase';
-import { GetPatientSubscriptionsUseCase } from '../../../core/use-cases/admin/GetpatientSubscriptions';
+import { GetAdminDashboardStatsUseCase } from '../../../core/use-cases/admin/GetAdminDashboardStatsUseCase';
 import { PaginatedResponse, QueryParams } from '../../../types/authTypes';
 import { SubscriptionPlan } from '../../../core/entities/SubscriptionPlan';
 import { Appointment } from '../../../core/entities/Appointment';
 import { Speciality } from '../../../core/entities/Speciality';
 import logger from '../../../utils/logger';
+import { AdminGetReportsUseCase } from '../../../core/use-cases/admin/AdminGetReportsUseCase';
+import { GetSpecialitiesUseCase } from '../../../core/use-cases/admin/GetSpecialityUseCase';
+import { GetPatientSubscriptionsUseCase } from '../../../core/use-cases/admin/GetpatientSubscriptions';
+
+interface ReportFilter {
+  type: 'daily' | 'monthly' | 'yearly';
+  startDate?: string;
+  endDate?: string;
+}
 
 export class AdminController {
   private manageSubscriptionPlanUseCase: ManageSubscriptionPlanUseCase;
@@ -28,6 +36,8 @@ export class AdminController {
   private deleteSpecialityUseCase: DeleteSpecialityUseCase;
   private createDoctorUseCase: CreateDoctorUseCase;
   private listDoctorsUseCase: ListDoctorsUseCase;
+  private getAdminDashboardStatsUseCase: GetAdminDashboardStatsUseCase;
+  private adminGetReportsUseCase: AdminGetReportsUseCase;
 
   constructor(container: Container) {
     this.createDoctorUseCase = container.get('CreateDoctorUseCase');
@@ -40,6 +50,39 @@ export class AdminController {
     this.addSpecialityUseCase = container.get('AddSpecialityUseCase');
     this.updateSpecialityUseCase = container.get('UpdateSpecialityUseCase');
     this.deleteSpecialityUseCase = container.get('DeleteSpecialityUseCase');
+    this.getAdminDashboardStatsUseCase = container.get('GetAdminDashboardStatsUseCase');
+    this.adminGetReportsUseCase = container.get('AdminGetReportsUseCase');
+  }
+
+  async getDashboardStats(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const stats = await this.getAdminDashboardStatsUseCase.execute();
+      res.status(200).json(stats);
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error);
+      next(error);
+    }
+  }
+
+  async getReports(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { type, startDate, endDate } = req.body as ReportFilter;
+      if (!type || !['daily', 'monthly', 'yearly'].includes(type)) {
+        throw new ValidationError('Invalid report type');
+      }
+      if (type === 'daily' && (!startDate || !endDate)) {
+        throw new ValidationError('Start and end dates are required for daily reports');
+      }
+      const reportData = await this.adminGetReportsUseCase.execute({
+        type,
+        startDate: startDate ? new Date(startDate) : undefined,
+        endDate: endDate ? new Date(endDate) : undefined,
+      });
+      res.status(200).json(reportData);
+    } catch (error) {
+      console.error('Error fetching reports:', error);
+      next(error);
+    }
   }
 
   async getAllPlans(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -169,9 +212,7 @@ export class AdminController {
       const { id } = req.params;
       const { name } = req.body;
       if (!name) throw new ValidationError('Speciality name is required');
-      const speciality = await this.updateSpecialityUseCase.execute(id, {
-        name,
-      });
+      const speciality = await this.updateSpecialityUseCase.execute(id, { name });
       res.status(200).json(speciality);
     } catch (error) {
       next(error);

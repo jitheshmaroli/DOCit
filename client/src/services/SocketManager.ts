@@ -31,6 +31,11 @@ interface SocketHandlers {
     appointmentId: string;
   }) => void;
   onCallEnded?: (data: { from: string; appointmentId: string }) => void;
+  onReceiveReaction?: (data: {
+    messageId: string;
+    emoji: string;
+    userId: string;
+  }) => void;
 }
 
 export class SocketManager {
@@ -143,6 +148,16 @@ export class SocketManager {
       );
 
     this.socket
+      .off('receiveReaction')
+      .on(
+        'receiveReaction',
+        (data: { messageId: string; emoji: string; userId: string }) => {
+          console.log('Received reaction:', data);
+          this.handlers.onReceiveReaction?.(data);
+        }
+      );
+
+    this.socket
       .off('receiveOffer')
       .on(
         'receiveOffer',
@@ -177,6 +192,7 @@ export class SocketManager {
             appointmentId: data.appointmentId,
             from: data.from,
           });
+          console.log('data:', data);
           this.handlers.onReceiveIceCandidate?.(data);
         }
       );
@@ -216,6 +232,7 @@ export class SocketManager {
           candidate?: any;
         }
       | { roomId: string }
+      | { messageId: string; emoji: string; userId: string }
   ): Promise<void> {
     if (!this.userId) {
       console.warn('No userId set, cannot emit:', event);
@@ -238,6 +255,7 @@ export class SocketManager {
         appointmentId: (data as any).appointmentId,
         to: (data as any).to,
         from: (data as any).from,
+        messageId: (data as any).messageId,
       });
       this.socket.emit(event, data);
     } else {
@@ -246,10 +264,10 @@ export class SocketManager {
     }
   }
 
-  public disconnect(): void {
+  public disconnect(reason: string = 'Manual disconnect'): void {
     if (this.socket) {
       this.socket.disconnect();
-      console.log('Socket disconnected intentionally');
+      console.log(`Socket disconnected intentionally: ${reason}`);
       this.socket = null;
       this.userId = null;
       this.handlers = {};

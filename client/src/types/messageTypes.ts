@@ -24,6 +24,7 @@ export interface LatestMessage {
 
 export interface MessageThread {
   id: string;
+  senderId?: string;
   receiverId: string;
   senderName: string;
   subject: string;

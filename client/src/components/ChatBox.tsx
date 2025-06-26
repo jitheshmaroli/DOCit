@@ -1,9 +1,10 @@
-import React, { RefObject, useState, useRef } from 'react';
+import React, { RefObject, useState, useRef, useEffect } from 'react';
 import { ArrowLeft, ArrowDown, Paperclip, Trash2, Smile } from 'lucide-react';
 import EmojiPicker from 'emoji-picker-react';
 import { DateUtils } from '../utils/DateUtils';
-import { MessageThread } from '../types/messageTypes';
+import { MessageThread, Message } from '../types/messageTypes';
 import { sendAttachment, addReaction } from '../services/messageService';
+import { SocketManager } from '../services/SocketManager';
 
 interface ChatBoxProps {
   thread: MessageThread;
@@ -19,6 +20,7 @@ interface ChatBoxProps {
   isAtBottom: () => boolean;
   onDeleteMessages: (messageIds: string[]) => void;
   userStatus?: { status: 'online' | 'offline'; lastSeen?: string };
+  currentUserId: string;
 }
 
 export const ChatBox: React.FC<ChatBoxProps> = React.memo(
@@ -36,6 +38,7 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
     isAtBottom,
     onDeleteMessages,
     userStatus,
+    currentUserId,
   }) => {
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [selectedMessages, setSelectedMessages] = useState<string[]>([]);
@@ -43,9 +46,86 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
     const [reactionPickerMessageId, setReactionPickerMessageId] = useState<
       string | null
     >(null);
+    const [messages, setMessages] = useState<Message[]>(thread.messages);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const socketManager = SocketManager.getInstance();
 
     const defaultEmojis = ['😊', '👍', '❤️', '😂', '😢', '😮'];
+
+    useEffect(() => {
+      // Deduplicate messages when thread.messages changes
+      setMessages((prev) => {
+        const existingIds = new Set(prev.map((msg) => msg._id));
+        const newMessages = thread.messages.filter(
+          (msg) => !existingIds.has(msg._id)
+        );
+        return [...prev, ...newMessages];
+      });
+    }, [thread.messages]);
+
+    useEffect(() => {
+      if (chatContainerRef.current && isAtBottom()) {
+        chatContainerRef.current.scrollTo({
+          top: chatContainerRef.current.scrollHeight,
+          behavior: 'smooth',
+        });
+      }
+    }, [messages, isAtBottom]);
+
+    useEffect(() => {
+      socketManager.registerHandlers({
+        onReceiveMessage: (message: Message) => {
+          if (
+            message.receiverId === thread.receiverId ||
+            message.senderId === thread.receiverId
+          ) {
+            setMessages((prev) => {
+              // Avoid adding duplicate messages
+              if (prev.some((msg) => msg._id === message._id)) {
+                return prev;
+              }
+              const updatedMessages = [...prev, message];
+              if (chatContainerRef.current && isAtBottom()) {
+                chatContainerRef.current.scrollTo({
+                  top: chatContainerRef.current.scrollHeight,
+                  behavior: 'smooth',
+                });
+              }
+              return updatedMessages;
+            });
+          }
+        },
+        onReceiveReaction: (data: {
+          messageId: string;
+          emoji: string;
+          userId: string;
+        }) => {
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg._id === data.messageId
+                ? {
+                    ...msg,
+                    reactions: [
+                      // Remove existing reaction from the same user
+                      ...(msg.reactions || []).filter(
+                        (r) => r.userId !== data.userId
+                      ),
+                      { emoji: data.emoji, userId: data.userId },
+                    ],
+                  }
+                : msg
+            )
+          );
+        },
+      });
+
+      return () => {
+        socketManager.registerHandlers({
+          onReceiveMessage: undefined,
+          onReceiveReaction: undefined,
+        });
+      };
+    }, [thread.receiverId, socketManager, isAtBottom]);
 
     const handleEmojiClick = (emojiObject: { emoji: string }) => {
       onMessageChange(newMessage + emojiObject.emoji);
@@ -76,6 +156,10 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
       }
     };
 
+    const handleDeleteMessage = (messageId: string) => {
+      onDeleteMessages([messageId]);
+    };
+
     const toggleMessageSelection = (messageId: string) => {
       setSelectedMessages((prev) =>
         prev.includes(messageId)
@@ -84,13 +168,29 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
       );
     };
 
-    const handleDeleteMessage = (messageId: string) => {
-      onDeleteMessages([messageId]);
-    };
-
     const handleReaction = async (messageId: string, emoji: string) => {
       try {
-        await addReaction(messageId, emoji);
+        // Check if the user already has a reaction
+        const message = messages.find((msg) => msg._id === messageId);
+        const existingReaction = message?.reactions?.find(
+          (r) => r.userId === currentUserId
+        );
+
+        if (existingReaction) {
+          // Replace existing reaction
+          await addReaction(messageId, emoji, true); // Pass a flag to indicate replacement
+        } else {
+          // Add new reaction
+          await addReaction(messageId, emoji);
+        }
+        if (!thread.senderId) {
+          throw new Error('Sender ID is not defined');
+        }
+        await socketManager.emit('sendReaction', {
+          messageId,
+          emoji,
+          userId: currentUserId,
+        });
         setReactionPickerMessageId(null);
       } catch (error) {
         console.error('Failed to add reaction:', error);
@@ -117,7 +217,7 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
               onClick={onBackToInbox}
               title="Back to Inbox"
             >
-              <ArrowLeft className="w-5 h-5 text-white" />
+              <ArrowLeft className="w-5 h-5 text-white"></ArrowLeft>
             </button>
             <img
               src={thread.partnerProfilePicture}
@@ -141,7 +241,7 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
               onClick={() => onDeleteMessages(selectedMessages)}
               title="Delete Selected Messages"
             >
-              <Trash2 className="w-5 h-5 text-white" />
+              <Trash2 className="w-5 h-5 text-white"></Trash2>
             </button>
           )}
         </div>
@@ -153,12 +253,12 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
           }}
           ref={chatContainerRef}
         >
-          {thread.messages.length === 0 ? (
+          {messages.length === 0 ? (
             <div className="text-gray-200 text-center py-8">
               No messages yet
             </div>
           ) : (
-            thread.messages.map((message) => (
+            messages.map((message) => (
               <div
                 key={message._id}
                 className={`flex ${message.isSender ? 'justify-end' : 'justify-start'} mb-2 items-center group relative`}
@@ -172,14 +272,14 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
                         className="p-1 rounded-full hover:bg-gray-600/50"
                         title="Add Reaction"
                       >
-                        <Smile className="w-4 h-4 text-gray-300" />
+                        <Smile className="w-4 h-4 text-gray-300"></Smile>
                       </button>
                       <button
                         onClick={() => handleDeleteMessage(message._id)}
                         className="p-1 rounded-full hover:bg-red-600/50"
                         title="Delete Message"
                       >
-                        <Trash2 className="w-4 h-4 text-red-400" />
+                        <Trash2 className="w-4 h-4 text-red"></Trash2>
                       </button>
                     </div>
                   )}
@@ -239,14 +339,14 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
                         className="p-1 rounded-full hover:bg-gray-600/50"
                         title="Add Reaction"
                       >
-                        <Smile className="w-4 h-4 text-gray-300" />
+                        <Smile className="w-4 h-4 text-gray-300"></Smile>
                       </button>
                       <button
                         onClick={() => handleDeleteMessage(message._id)}
                         className="p-1 rounded-full hover:bg-red-600/50"
                         title="Delete Message"
                       >
-                        <Trash2 className="w-4 h-4 text-red-400" />
+                        <Trash2 className="w-4 h-4 text-red-400"></Trash2>
                       </button>
                     </div>
                   )}

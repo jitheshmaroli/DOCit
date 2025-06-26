@@ -14,7 +14,7 @@ import { CustomRequest } from '../../../types';
 import { ManageSubscriptionPlanUseCase } from '../../../core/use-cases/admin/ManageSubscriptionPlanUseCase';
 import { QueryParams } from '../../../types/authTypes';
 import { GetDashboardStatsUseCase } from '../../../core/use-cases/doctor/GetDashBoardStatsUseCase';
-import { GetReportsUseCase } from '../../../core/use-cases/doctor/GetReportsUseCase';
+import { DoctorGetReportsUseCase } from '../../../core/use-cases/doctor/DoctorGetReportsUseCase';
 
 export class DoctorController {
   private setAvailabilityUseCase: SetAvailabilityUseCase;
@@ -27,7 +27,7 @@ export class DoctorController {
   private subscriptionPlanRepository: ISubscriptionPlanRepository;
   private specialityRepository: ISpecialityRepository;
   private getDashboardStatsUseCase: GetDashboardStatsUseCase;
-  private getReportsUseCase: GetReportsUseCase;
+  private doctorGetReportsUseCase: DoctorGetReportsUseCase;
 
   constructor(container: Container) {
     this.setAvailabilityUseCase = container.get('SetAvailabilityUseCase');
@@ -40,7 +40,7 @@ export class DoctorController {
     this.subscriptionPlanRepository = container.get('ISubscriptionPlanRepository');
     this.specialityRepository = container.get('ISpecialityRepository');
     this.getDashboardStatsUseCase = container.get('GetDashboardStatsUseCase');
-    this.getReportsUseCase = container.get('GetReportsUseCase');
+    this.doctorGetReportsUseCase = container.get('DoctorGetReportsUseCase');
   }
 
   async setAvailability(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
@@ -287,7 +287,7 @@ export class DoctorController {
         startDate: startDate ? new Date(startDate as string) : undefined,
         endDate: endDate ? new Date(endDate as string) : undefined,
       };
-      const reports = await this.getReportsUseCase.execute(doctorId, filter);
+      const reports = await this.doctorGetReportsUseCase.execute(doctorId, filter);
       res.status(200).json(reports);
     } catch (error) {
       next(error);

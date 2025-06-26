@@ -17,7 +17,7 @@ interface ReportData {
   yearly?: Array<{ year: string; appointments: number; revenue: number }>;
 }
 
-export class GetReportsUseCase {
+export class DoctorGetReportsUseCase {
   constructor(
     private subscriptionPlanRepository: ISubscriptionPlanRepository,
     private patientSubscriptionRepository: IPatientSubscriptionRepository,

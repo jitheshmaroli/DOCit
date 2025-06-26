@@ -11,19 +11,34 @@ const App = () => {
 
   useEffect(() => {
     if (user?._id) {
-      socketManager.connect(user._id).catch((error) => {
-        console.error('Failed to connect socket:', error);
-        toast.error('Failed to connect to real-time service');
-      });
+      const connectSocket = async () => {
+        try {
+          await socketManager.connect(user._id);
+
+          // Handle automatic reconnection
+          socketManager.getSocket()?.on('disconnect', (reason) => {
+            if (reason === 'io server disconnect') {
+              // Server-initiated disconnect, attempt to reconnect
+              setTimeout(() => connectSocket(), 1000);
+            }
+          });
+        } catch (error) {
+          console.error('Failed to connect socket:', error);
+          toast.error('Failed to connect to real-time service');
+        }
+      };
+
+      connectSocket();
     }
 
-    // Cleanup only when the app unmounts (e.g., user logs out)
     return () => {
+      // Only disconnect if user logs out
       if (!user?._id) {
-        socketManager.disconnect();
+        socketManager.disconnect('User logged out');
       }
     };
-  }, [user?._id, socketManager]);
+  }, [user?._id]);
+
   return (
     <BrowserRouter>
       <ToastContainer position="top-right" autoClose={3000} theme="dark" />

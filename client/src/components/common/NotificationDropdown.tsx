@@ -45,7 +45,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
       }
     };
     loadNotifications();
-  }, [userId]);
+  }, [socketManager, userId]);
 
   const handleToggleDropdown = () => {
     setIsOpen(!isOpen);

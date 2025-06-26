@@ -176,6 +176,8 @@ export const getSubscriptionPlans = async () => {
 
 export const createSubscriptionPlan = async (plan: SubscriptionPlanPayload) => {
   const response = await api.post('/api/doctors/subscription-plans', plan);
+  console.log('the response:', response.data);
+  console.log('the response:', response.data.message);
   return response.data;
 };
 

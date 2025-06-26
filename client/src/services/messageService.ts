@@ -89,11 +89,15 @@ export const markAsRead = async (messageId: string) => {
   }
 };
 
-export const addReaction = async (messageId: string, emoji: string) => {
+export const addReaction = async (
+  messageId: string,
+  emoji: string,
+  replace: boolean = false
+) => {
   try {
     const response = await api.patch<ChatMessageResponse>(
       `${API_BASE_URL}/api/chat/${messageId}/reaction`,
-      { emoji }
+      { emoji, replace }
     );
     return response.data;
   } catch (error) {

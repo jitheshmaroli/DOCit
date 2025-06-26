@@ -35,8 +35,14 @@ export const useSendMessage = () => {
           createdAt: savedMessage.createdAt,
           isSender: true,
           receiverId,
+          unreadBy: [receiverId],
+          attachment: savedMessage.attachment,
+          reactions: savedMessage.reactions || [],
         };
-        socketManager.emit('sendMessage', updatedMessage);
+        // Emit only if message was successfully saved
+        if (savedMessage) {
+          socketManager.emit('sendMessage', updatedMessage);
+        }
         return updatedMessage;
       } catch (error) {
         console.error('Send message error:', error);
@@ -46,7 +52,7 @@ export const useSendMessage = () => {
         setSending(false);
       }
     },
-    [user, sending]
+    [user?._id, user?.name, sending, socketManager]
   );
 
   return { sendMessage: send, sending };
