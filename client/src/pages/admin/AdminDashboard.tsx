@@ -1,4 +1,3 @@
-// F:\DOCit\client\src\pages\admin\AdminDashboard.tsx
 import React, { useState, useEffect } from 'react';
 import { format, subMonths } from 'date-fns';
 import {
@@ -162,7 +161,7 @@ const AdminDashboard: React.FC = () => {
   };
 
   return (
-    <div className="bg-white/10 backdrop-blur-lg p-4 md:p-6 rounded-2xl border border-white/20 shadow-xl space-y-6">
+    <div className="bg-white/10 backdrop-blur-lg p-4 sm:p-6 lg:p-8 rounded-2xl border border-white/20 shadow-xl space-y-6">
       <h1 className="text-xl font-semibold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent mb-6">
         Admin Dashboard
       </h1>
@@ -323,13 +322,13 @@ const AdminDashboard: React.FC = () => {
       {/* Reports Section */}
       <div className="bg-white/5 p-4 rounded-lg shadow-md">
         <h2 className="text-lg font-medium text-white mb-4">Revenue Reports</h2>
-        <div className="flex flex-col sm:flex-row gap-3 mb-4">
+        <div className="flex flex-col sm:flex-row gap-3 mb-4 items-start sm:items-center">
           <select
             value={reportType}
             onChange={(e) =>
               setReportType(e.target.value as ReportFilter['type'])
             }
-            className="bg-gray-800 text-white p-2 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+            className="bg-gray-800 text-white p-2 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm w-full sm:w-48"
           >
             <option value="daily">Daily</option>
             <option value="monthly">Monthly</option>
@@ -341,30 +340,32 @@ const AdminDashboard: React.FC = () => {
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="bg-gray-800 text-white p-2 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                className="bg-gray-800 text-white p-2 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm w-full sm:w-48"
               />
               <input
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="bg-gray-800 text-white p-2 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                className="bg-gray-800 text-white p-2 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm w-full sm:w-48"
               />
             </>
           )}
-          <button
-            onClick={fetchReports}
-            disabled={loading}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:bg-blue-400 transition-colors text-sm"
-          >
-            Generate Report
-          </button>
-          <button
-            onClick={generatePDF}
-            disabled={reportData.length === 0}
-            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:bg-green-400 transition-colors text-sm"
-          >
-            Export PDF
-          </button>
+          <div className="flex gap-3 w-full sm:w-auto">
+            <button
+              onClick={fetchReports}
+              disabled={loading}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:bg-blue-400 transition-colors text-sm flex-1 sm:flex-none"
+            >
+              Generate Report
+            </button>
+            <button
+              onClick={generatePDF}
+              disabled={reportData.length === 0}
+              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:bg-green-400 transition-colors text-sm flex-1 sm:flex-none"
+            >
+              Export PDF
+            </button>
+          </div>
         </div>
         {reportData.length === 0 ? (
           <p className="text-white text-center">No report data available</p>

@@ -86,6 +86,15 @@ import { GetDashboardStatsUseCase } from '../../core/use-cases/doctor/GetDashBoa
 import { GetAdminDashboardStatsUseCase } from '../../core/use-cases/admin/GetAdminDashboardStatsUseCase';
 import { AdminGetReportsUseCase } from '../../core/use-cases/admin/AdminGetReportsUseCase';
 import { DoctorGetReportsUseCase } from '../../core/use-cases/doctor/DoctorGetReportsUseCase';
+import { GetDoctorSubscriptionPlansUseCase } from '../../core/use-cases/doctor/GetDoctorSubscriptionPlansUseCase';
+import { UpdateDoctorSubscriptionPlanUseCase } from '../../core/use-cases/doctor/UpdateDoctorSubscriptionPlanUseCase';
+import { GetAllSpecialitiesUseCase } from '../../core/use-cases/doctor/GetAllSpecialitiesUseCase';
+import { CompleteAppointmentUseCase } from '../../core/use-cases/doctor/CompleteAppointmentUseCase';
+import { GetPatientActiveSubscriptionUseCase } from '../../core/use-cases/patient/GetPatientActiveSubscriptionUseCase';
+import { GetDoctorApprovedPlansUseCase } from '../../core/use-cases/patient/GetDoctorApprovedPlansUseCase';
+import { GetPatientAppointmentsUseCase } from '../../core/use-cases/patient/GetPatientAppointmentsUseCase';
+import { GetAppointmentByIdUseCase } from '../../core/use-cases/patient/GetAppointmentByIdUseCase';
+import { GetSingleAppointmentUseCase } from '../../core/use-cases/doctor/GetSingleAppointmentUseCase';
 
 export class Container {
   private static instance: Container;
@@ -184,7 +193,7 @@ export class Container {
       'GetCurrentUserUseCase',
       new GetCurrentUserUseCase(patientRepository, doctorRepository, adminRepository)
     );
-    this.dependencies.set('GerUserUseCase', new GetUserUseCase(patientRepository, doctorRepository, adminRepository));
+    this.dependencies.set('GetUserUseCase', new GetUserUseCase(patientRepository, doctorRepository, adminRepository));
     this.dependencies.set('CreateDoctorUseCase', new CreateDoctorUseCase(doctorRepository));
     this.dependencies.set('ListPatientsUseCase', new ListPatientsUseCase(patientRepository));
     this.dependencies.set('ListDoctorsUseCase', new ListDoctorsUseCase(doctorRepository));
@@ -251,6 +260,18 @@ export class Container {
       )
     );
     this.dependencies.set(
+      'GetDoctorSubscriptionPlansUseCase',
+      new GetDoctorSubscriptionPlansUseCase(subscriptionPlanRepository)
+    );
+    this.dependencies.set(
+      'GetDoctorApprovedPlansUseCase',
+      new GetDoctorApprovedPlansUseCase(subscriptionPlanRepository)
+    );
+    this.dependencies.set(
+      'UpdateDoctorSubscriptionPlanUseCase',
+      new UpdateDoctorSubscriptionPlanUseCase(subscriptionPlanRepository)
+    );
+    this.dependencies.set(
       'ConfirmSubscriptionUseCase',
       new ConfirmSubscriptionUseCase(
         subscriptionPlanRepository,
@@ -278,6 +299,10 @@ export class Container {
         patientRepository
       )
     );
+    this.dependencies.set('GetSingleAppointmentUseCase', new GetSingleAppointmentUseCase(appointmentRepository));
+    this.dependencies.set('GetAppointmentByIdUseCase', new GetAppointmentByIdUseCase(appointmentRepository));
+    this.dependencies.set('GetPatientAppointmentsUseCase', new GetPatientAppointmentsUseCase(appointmentRepository));
+    this.dependencies.set('CompleteAppointmentUseCase', new CompleteAppointmentUseCase(appointmentRepository));
     this.dependencies.set('GetDoctorAppointmentsUseCase', new GetDoctorAppointmentsUseCase(appointmentRepository));
     this.dependencies.set('GetAllAppointmentsUseCase', new GetAllAppointmentsUseCase(appointmentRepository));
     this.dependencies.set('GetDoctorUseCase', new GetDoctorUseCase(doctorRepository));
@@ -293,6 +318,11 @@ export class Container {
       'GetPatientSubscriptionsUseCase',
       new GetPatientSubscriptionsUseCase(patientSubscriptionRepository)
     );
+    this.dependencies.set(
+      'GetPatientActiveSubscriptionUseCase',
+      new GetPatientActiveSubscriptionUseCase(patientSubscriptionRepository)
+    );
+    this.dependencies.set('GetAllSpecialitiesUseCase', new GetAllSpecialitiesUseCase(specialityRepository));
     this.dependencies.set(
       'AdminCancelAppointmentUseCase',
       new AdminCancelAppointmentUseCase(

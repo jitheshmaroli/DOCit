@@ -13,6 +13,7 @@ import {
   updateSubscriptionPlan,
   deleteSubscriptionPlan,
   withdrawSubscriptionPlan,
+  completeAppointment,
 } from '../../services/doctorService';
 import {
   confirmSubscription,
@@ -128,6 +129,33 @@ export const getAppointmentsThunk = createAsyncThunk<
     } catch (error: any) {
       console.error('Error in getAppointmentsThunk:', error);
       return rejectWithValue(error.message || 'Failed to fetch appointments');
+    }
+  }
+);
+
+export const completeAppointmentThunk = createAsyncThunk<
+  Appointment,
+  {
+    appointmentId: string;
+    prescription: {
+      medications: Array<{
+        name: string;
+        dosage: string;
+        frequency: string;
+        duration: string;
+      }>;
+      notes?: string;
+    };
+  },
+  { rejectValue: string }
+>(
+  'doctors/completeAppointment',
+  async ({ appointmentId, prescription }, { rejectWithValue }) => {
+    try {
+      const response = await completeAppointment(appointmentId, prescription);
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to complete appointment');
     }
   }
 );

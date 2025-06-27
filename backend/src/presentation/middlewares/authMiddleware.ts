@@ -7,7 +7,7 @@ import { GetUserUseCase } from '../../core/use-cases/user/GetUserUseCase';
 
 export const authMiddleware = (container: Container) => {
   const tokenService: ITokenService = container.get('ITokenService');
-  const getUserUseCase: GetUserUseCase = container.get('GerUserUseCase');
+  const getUserUseCase: GetUserUseCase = container.get('GetUserUseCase');
 
   return async (req: CustomRequest, res: Response, next: NextFunction): Promise<void> => {
     const accessToken = req.cookies.accessToken;

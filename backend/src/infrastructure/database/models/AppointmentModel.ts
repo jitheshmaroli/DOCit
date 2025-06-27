@@ -16,6 +16,7 @@ const AppointmentSchema = new Schema<Appointment>(
     isFreeBooking: { type: Boolean, default: false },
     bookingTime: { type: Date, default: Date.now },
     cancellationReason: { type: String, required: false },
+    prescriptionId: { type: String, ref: 'Prescription', required: false },
   },
   { timestamps: true }
 );

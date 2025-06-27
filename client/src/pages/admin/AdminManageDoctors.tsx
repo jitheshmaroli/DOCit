@@ -224,29 +224,29 @@ const AdminManageDoctors: React.FC = () => {
       {
         label: 'Edit',
         onClick: (doctor: Doctor) => setEditDoctor(doctor),
-        className: 'bg-purple-600 hover:bg-purple-700',
+        className: 'bg-purple-600 hover:bg-purple-700 px-3 py-1 rounded-lg',
       },
       {
         label: 'Delete',
         onClick: handleDeleteDoctor,
-        className: 'bg-red-600 hover:bg-red-700',
+        className: 'bg-red-600 hover:bg-red-700 px-3 py-1 rounded-lg',
       },
       {
         label: 'Block',
         onClick: handleBlockDoctor,
-        className: 'bg-yellow-600 hover:bg-yellow-700',
+        className: 'bg-yellow-600 hover:bg-yellow-700 px-3 py-1 rounded-lg',
         condition: (doctor: Doctor) => !doctor.isBlocked,
       },
       {
         label: 'Unblock',
         onClick: handleBlockDoctor,
-        className: 'bg-green-600 hover:bg-green-700',
+        className: 'bg-green-600 hover:bg-green-700 px-3 py-1 rounded-lg',
         condition: (doctor: Doctor) => doctor.isBlocked,
       },
       {
         label: 'Verify',
         onClick: handleVerifyDoctor,
-        className: 'bg-purple-600 hover:bg-purple-700',
+        className: 'bg-purple-600 hover:bg-purple-700 px-3 py-1 rounded-lg',
         condition: (doctor: Doctor) => !doctor.isVerified,
       },
     ],
@@ -295,31 +295,34 @@ const AdminManageDoctors: React.FC = () => {
   }, []);
 
   return (
-    <div className="bg-white/10 backdrop-blur-lg p-4 md:p-6 rounded-2xl border border-white/20 shadow-xl">
-      <div className="flex flex-col md:flex-row justify-between mb-6 gap-4">
+    <div className="bg-white/10 backdrop-blur-lg p-4 sm:p-6 lg:p-8 rounded-2xl border border-white/20 shadow-xl">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <SearchBar
           value={searchTerm}
           onChange={handleSearch}
           placeholder="Search doctors..."
         />
-        <div className="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-4">
+        <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
           <FilterSelect
             value={statusFilter}
             options={statusOptions}
             onChange={setStatusFilter}
             label="Status"
+            className="w-full sm:w-48"
           />
           <FilterSelect
             value={specialtyFilter}
             options={specialtyOptions}
             onChange={setSpecialtyFilter}
             label="Specialty"
+            className="w-full sm:w-48"
           />
           <FilterSelect
             value={sortFilter}
             options={sortOptions}
             onChange={setSortFilter}
             label="Sort By"
+            className="w-full sm:w-48"
           />
           <button
             onClick={() => setIsModalOpen(true)}
@@ -369,7 +372,7 @@ const AdminManageDoctors: React.FC = () => {
         onClose={() => setIsModalOpen(false)}
         title="Add Doctor"
         footer={
-          <>
+          <div className="flex justify-end gap-3">
             <button
               onClick={() => setIsModalOpen(false)}
               className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
@@ -382,7 +385,7 @@ const AdminManageDoctors: React.FC = () => {
             >
               Submit
             </button>
-          </>
+          </div>
         }
       >
         <input
@@ -436,7 +439,7 @@ const AdminManageDoctors: React.FC = () => {
           onClose={() => setEditDoctor(null)}
           title="Edit Doctor"
           footer={
-            <>
+            <div className="flex justify-end gap-3">
               <button
                 onClick={() => setEditDoctor(null)}
                 className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
@@ -449,7 +452,7 @@ const AdminManageDoctors: React.FC = () => {
               >
                 Submit
               </button>
-            </>
+            </div>
           }
         >
           <input

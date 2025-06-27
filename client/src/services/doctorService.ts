@@ -78,6 +78,16 @@ interface DashboardData {
     | ReportData['yearly'];
 }
 
+interface Prescription {
+  medications: Array<{
+    name: string;
+    dosage: string;
+    frequency: string;
+    duration: string;
+  }>;
+  notes?: string;
+}
+
 export const fetchVerifiedDoctors = async (params: QueryParams = {}) => {
   const response = await api.get('/api/patients/doctors/verified', { params });
   return response.data;
@@ -154,6 +164,11 @@ export const getAppointments = async (page: number = 1, limit: number = 5) => {
   return response.data;
 };
 
+export const getAppointmentById = async (appointmentId: string) => {
+  const response = await api.get(`/api/doctors/appointments/${appointmentId}`);
+  return response.data;
+};
+
 export const getPatientAppointments = async (
   patientId: string,
   doctorId: string,
@@ -166,6 +181,17 @@ export const getPatientAppointments = async (
       params: { doctorId, page, limit },
     }
   );
+  return response.data;
+};
+
+export const completeAppointment = async (
+  appointmentId: string,
+  prescription: Prescription
+) => {
+  const response = await api.post('/api/doctors/appointments/complete', {
+    appointmentId,
+    prescription,
+  });
   return response.data;
 };
 

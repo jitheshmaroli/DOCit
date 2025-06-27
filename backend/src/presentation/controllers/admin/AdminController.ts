@@ -18,6 +18,8 @@ import logger from '../../../utils/logger';
 import { AdminGetReportsUseCase } from '../../../core/use-cases/admin/AdminGetReportsUseCase';
 import { GetSpecialitiesUseCase } from '../../../core/use-cases/admin/GetSpecialityUseCase';
 import { GetPatientSubscriptionsUseCase } from '../../../core/use-cases/admin/GetpatientSubscriptions';
+import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
+import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 
 interface ReportFilter {
   type: 'daily' | 'monthly' | 'yearly';
@@ -57,7 +59,7 @@ export class AdminController {
   async getDashboardStats(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const stats = await this.getAdminDashboardStatsUseCase.execute();
-      res.status(200).json(stats);
+      res.status(HttpStatusCode.OK).json(stats);
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
       next(error);
@@ -68,17 +70,17 @@ export class AdminController {
     try {
       const { type, startDate, endDate } = req.body as ReportFilter;
       if (!type || !['daily', 'monthly', 'yearly'].includes(type)) {
-        throw new ValidationError('Invalid report type');
+        throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
       if (type === 'daily' && (!startDate || !endDate)) {
-        throw new ValidationError('Start and end dates are required for daily reports');
+        throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
       const reportData = await this.adminGetReportsUseCase.execute({
         type,
         startDate: startDate ? new Date(startDate) : undefined,
         endDate: endDate ? new Date(endDate) : undefined,
       });
-      res.status(200).json(reportData);
+      res.status(HttpStatusCode.OK).json(reportData);
     } catch (error) {
       console.error('Error fetching reports:', error);
       next(error);
@@ -92,7 +94,7 @@ export class AdminController {
       const { page = 1, limit = 10 } = params;
       const totalPages = Math.ceil(totalItems / limit);
 
-      res.status(200).json({
+      res.status(HttpStatusCode.OK).json({
         data: plans,
         totalPages,
         currentPage: page,
@@ -108,7 +110,7 @@ export class AdminController {
     try {
       const { planId } = req.params;
       const updatedPlan = await this.manageSubscriptionPlanUseCase.approve(planId);
-      res.status(200).json({ data: updatedPlan, message: 'Plan approved' });
+      res.status(HttpStatusCode.OK).json({ data: updatedPlan, message: ResponseMessages.PLAN_APPROVED });
     } catch (error) {
       console.error('Error approving plan:', error);
       next(error);
@@ -119,7 +121,7 @@ export class AdminController {
     try {
       const { planId } = req.params;
       const updatedPlan = await this.manageSubscriptionPlanUseCase.reject(planId);
-      res.status(200).json({ data: updatedPlan, message: 'Plan rejected' });
+      res.status(HttpStatusCode.OK).json({ data: updatedPlan, message: ResponseMessages.PLAN_REJECTED });
     } catch (error) {
       console.error('Error rejecting plan:', error);
       next(error);
@@ -130,7 +132,7 @@ export class AdminController {
     try {
       const { planId } = req.params;
       await this.manageSubscriptionPlanUseCase.delete(planId);
-      res.status(200).json({ message: 'Plan deleted successfully' });
+      res.status(HttpStatusCode.OK).json({ message: ResponseMessages.PLAN_DELETED });
     } catch (error) {
       console.error('Error deleting plan:', error);
       next(error);
@@ -144,7 +146,7 @@ export class AdminController {
       const { page = 1, limit = 10 } = params;
       const totalPages = Math.ceil(totalItems / limit);
 
-      res.status(200).json({
+      res.status(HttpStatusCode.OK).json({
         data: appointments,
         totalPages,
         currentPage: page,
@@ -161,7 +163,7 @@ export class AdminController {
       logger.debug('params:', req.params);
       const { appointmentId } = req.params;
       await this.AdminCancelAppointmentUseCase.execute(appointmentId);
-      res.status(200).json({ message: 'Appointment cancelled successfully' });
+      res.status(HttpStatusCode.OK).json({ message: ResponseMessages.APPOINTMENT_CANCELLED });
     } catch (error) {
       console.error('Error cancelling appointment:', error);
       next(error);
@@ -171,7 +173,7 @@ export class AdminController {
   async getPatientSubscriptions(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const subscriptions = await this.getPatientSubscriptionsUseCase.execute();
-      res.status(200).json({ data: subscriptions });
+      res.status(HttpStatusCode.OK).json({ data: subscriptions });
     } catch (error) {
       console.error('Error fetching subscriptions:', error);
       next(error);
@@ -185,7 +187,7 @@ export class AdminController {
       const { page = 1, limit = 10 } = params;
       const totalPages = Math.ceil(totalItems / limit);
 
-      res.status(200).json({
+      res.status(HttpStatusCode.OK).json({
         data: specialities,
         totalPages,
         currentPage: page,
@@ -199,9 +201,9 @@ export class AdminController {
   async addSpeciality(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { name } = req.body;
-      if (!name) throw new ValidationError('Speciality name is required');
+      if (!name) throw new ValidationError(ResponseMessages.BAD_REQUEST);
       const speciality = await this.addSpecialityUseCase.execute({ name });
-      res.status(201).json(speciality);
+      res.status(HttpStatusCode.CREATED).json(speciality);
     } catch (error) {
       next(error);
     }
@@ -211,9 +213,9 @@ export class AdminController {
     try {
       const { id } = req.params;
       const { name } = req.body;
-      if (!name) throw new ValidationError('Speciality name is required');
+      if (!name) throw new ValidationError(ResponseMessages.BAD_REQUEST);
       const speciality = await this.updateSpecialityUseCase.execute(id, { name });
-      res.status(200).json(speciality);
+      res.status(HttpStatusCode.OK).json(speciality);
     } catch (error) {
       next(error);
     }
@@ -223,7 +225,7 @@ export class AdminController {
     try {
       const { id } = req.params;
       await this.deleteSpecialityUseCase.execute(id);
-      res.status(204).send();
+      res.status(HttpStatusCode.NO_CONTENT).send();
     } catch (error) {
       next(error);
     }

@@ -5,6 +5,8 @@ import { Container } from '../../../infrastructure/di/container';
 import { ValidationError } from '../../../utils/errors';
 import fs from 'fs';
 import { CustomRequest } from '../../../types';
+import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
+import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 
 export class PatientProfileController {
   private viewPatientProfileUseCase: ViewPatientProfileUseCase;
@@ -20,10 +22,10 @@ export class PatientProfileController {
       const { id } = req.params;
       const requesterId = req.user?.id;
       if (!requesterId) {
-        throw new ValidationError('User ID not found in request');
+        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const patient = await this.viewPatientProfileUseCase.execute(id, requesterId);
-      res.status(200).json(patient);
+      res.status(HttpStatusCode.OK).json(patient);
     } catch (error) {
       next(error);
     }
@@ -34,7 +36,7 @@ export class PatientProfileController {
       const { id } = req.params;
       const requesterId = req.user?.id;
       if (!requesterId) {
-        throw new ValidationError('User ID not found in request');
+        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const updates = req.body;
 
@@ -45,10 +47,10 @@ export class PatientProfileController {
       }
 
       if (!patient) {
-        throw new ValidationError('Failed to update profile');
+        throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
 
-      res.status(200).json(patient);
+      res.status(HttpStatusCode.OK).json(patient);
     } catch (error) {
       if (req.file) {
         fs.unlinkSync(req.file.path);

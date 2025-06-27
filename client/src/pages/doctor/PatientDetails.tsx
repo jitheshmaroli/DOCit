@@ -138,7 +138,7 @@ const PatientDetails: React.FC = () => {
                     />
                   ) : (
                     <div className="w-24 h-24 rounded-full bg-white/20 flex items-center justify-center text-4xl text-white">
-                      {patient.name.charAt(0).toUpperCase()}
+                      {patient.name?.charAt(0).toUpperCase()}
                     </div>
                   )}
                   <h3 className="mt-4 text-xl font-bold text-white">

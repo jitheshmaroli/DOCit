@@ -46,7 +46,6 @@ const AdminAppointments: React.FC = () => {
         params.status = statusFilter;
       }
 
-      console.log('Dispatching getAllAppointmentsThunk with params:', params); // Debug log
       dispatch(getAllAppointmentsThunk(params));
     }
   }, [dispatch, user?.role, currentPage, searchTerm, statusFilter, sortFilter]);
@@ -118,7 +117,7 @@ const AdminAppointments: React.FC = () => {
       {
         label: 'Cancel',
         onClick: handleCancelAppointment,
-        className: 'bg-red-600 hover:bg-red-700',
+        className: 'bg-red-600 hover:bg-red-700 px-3 py-1 rounded-lg',
         condition: (appt: Appointment) => appt.status !== 'cancelled',
       },
     ],
@@ -129,7 +128,7 @@ const AdminAppointments: React.FC = () => {
     () => [
       { value: 'all', label: 'All Statuses' },
       { value: 'pending', label: 'Pending' },
-      { value: 'completed', label: 'completed' },
+      { value: 'completed', label: 'Completed' },
       { value: 'cancelled', label: 'Cancelled' },
     ],
     []
@@ -150,34 +149,35 @@ const AdminAppointments: React.FC = () => {
   }, []);
 
   const handleSearch = useCallback((term: string) => {
-    console.log('Search Term:', term);
     setSearchTerm(term);
     setCurrentPage(1);
   }, []);
 
   return (
-    <div className="bg-white/10 backdrop-blur-lg p-4 md:p-6 rounded-2xl border border-white/20 shadow-xl">
+    <div className="bg-white/10 backdrop-blur-lg p-4 sm:p-6 lg:p-8 rounded-2xl border border-white/20 shadow-xl">
       <h2 className="text-xl font-semibold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent mb-6">
         All Appointments
       </h2>
-      <div className="flex flex-col md:flex-row justify-between mb-6 gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <SearchBar
           value={searchTerm}
           onChange={handleSearch}
           placeholder="Search by patient or doctor..."
         />
-        <div className="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-4">
+        <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
           <FilterSelect
             value={statusFilter}
             options={statusOptions}
             onChange={setStatusFilter}
             label="Status"
+            className="w-full sm:w-48"
           />
           <FilterSelect
             value={sortFilter}
             options={sortOptions}
             onChange={setSortFilter}
             label="Sort By"
+            className="w-full sm:w-48"
           />
         </div>
       </div>
@@ -200,8 +200,6 @@ const AdminAppointments: React.FC = () => {
             sortOrder,
             status: statusFilter !== 'all' ? statusFilter : undefined,
           };
-
-          console.log('Retrying getAllAppointmentsThunk with params:', params); // Debug log
           dispatch(getAllAppointmentsThunk(params));
         }}
       />

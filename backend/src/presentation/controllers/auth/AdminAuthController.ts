@@ -17,6 +17,8 @@ import { LoginAdminUseCase } from '../../../core/use-cases/auth/admin/LoginAdmin
 import { PaginatedResponse, QueryParams } from '../../../types/authTypes';
 import { Patient } from '../../../core/entities/Patient';
 import { Doctor } from '../../../core/entities/Doctor';
+import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
+import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 
 export class AdminAuthController {
   private loginAdminUseCase: LoginAdminUseCase;
@@ -50,10 +52,10 @@ export class AdminAuthController {
   async login(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { email, password } = req.body;
-      if (!email || !password) throw new ValidationError('Email and password are required');
+      if (!email || !password) throw new ValidationError(ResponseMessages.BAD_REQUEST);
       const { accessToken, refreshToken } = await this.loginAdminUseCase.execute(email, password);
       setTokensInCookies(res, accessToken, refreshToken);
-      res.status(200).json({ message: 'Logged in successfully' });
+      res.status(HttpStatusCode.OK).json({ message: ResponseMessages.LOGGED_IN });
     } catch (error) {
       next(error);
     }
@@ -66,7 +68,7 @@ export class AdminAuthController {
       const { page = 1, limit = 10 } = params;
       const totalPages = Math.ceil(totalItems / limit);
 
-      res.status(200).json({
+      res.status(HttpStatusCode.OK).json({
         data: patients,
         totalPages,
         currentPage: page,
@@ -81,7 +83,7 @@ export class AdminAuthController {
     try {
       const doctor = req.body;
       const newDoctor = await this.createDoctorUseCase.execute(doctor);
-      res.status(201).json(newDoctor);
+      res.status(HttpStatusCode.CREATED).json(newDoctor);
     } catch (error) {
       next(error);
     }
@@ -94,7 +96,7 @@ export class AdminAuthController {
       const { page = 1, limit = 5 } = params;
       const totalPages = Math.ceil(totalItems / limit);
 
-      res.status(200).json({
+      res.status(HttpStatusCode.OK).json({
         data: doctors,
         totalPages,
         currentPage: page,
@@ -108,9 +110,9 @@ export class AdminAuthController {
   async verifyDoctor(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { doctorId } = req.params;
-      if (!doctorId) throw new ValidationError('Doctor ID is required');
+      if (!doctorId) throw new ValidationError(ResponseMessages.BAD_REQUEST);
       const doctor = await this.verifyDoctorUseCase.execute(doctorId);
-      res.status(200).json(doctor);
+      res.status(HttpStatusCode.OK).json(doctor);
     } catch (error) {
       next(error);
     }
@@ -120,9 +122,9 @@ export class AdminAuthController {
     try {
       const { id } = req.params;
       const updates = req.body;
-      if (!id) throw new ValidationError('Doctor ID is required');
+      if (!id) throw new ValidationError(ResponseMessages.BAD_REQUEST);
       const doctor = await this.updateDoctorUseCase.execute(id, updates);
-      res.status(200).json(doctor);
+      res.status(HttpStatusCode.OK).json(doctor);
     } catch (error) {
       next(error);
     }
@@ -131,9 +133,9 @@ export class AdminAuthController {
   async deleteDoctor(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      if (!id) throw new ValidationError('Doctor ID is required');
+      if (!id) throw new ValidationError(ResponseMessages.BAD_REQUEST);
       await this.deleteDoctorUseCase.execute(id);
-      res.status(204).send();
+      res.status(HttpStatusCode.NO_CONTENT).send();
     } catch (error) {
       next(error);
     }
@@ -143,10 +145,9 @@ export class AdminAuthController {
     try {
       const { id } = req.params;
       const { isBlocked } = req.body;
-      if (!id || typeof isBlocked !== 'boolean')
-        throw new ValidationError('Doctor ID and isBlocked (boolean) are required');
+      if (!id || typeof isBlocked !== 'boolean') throw new ValidationError(ResponseMessages.BAD_REQUEST);
       const doctor = await this.blockDoctorUseCase.execute(id, isBlocked);
-      res.status(200).json(doctor);
+      res.status(HttpStatusCode.OK).json(doctor);
     } catch (error) {
       next(error);
     }
@@ -156,7 +157,7 @@ export class AdminAuthController {
     try {
       const patient = req.body;
       const newPatient = await this.createPatientUseCase.execute(patient);
-      res.status(201).json(newPatient);
+      res.status(HttpStatusCode.CREATED).json(newPatient);
     } catch (error) {
       next(error);
     }
@@ -166,9 +167,9 @@ export class AdminAuthController {
     try {
       const { id } = req.params;
       const updates = req.body;
-      if (!id) throw new ValidationError('Patient ID is required');
+      if (!id) throw new ValidationError(ResponseMessages.BAD_REQUEST);
       const patient = await this.updatePatientUseCase.execute(id, updates);
-      res.status(200).json(patient);
+      res.status(HttpStatusCode.OK).json(patient);
     } catch (error) {
       next(error);
     }
@@ -177,9 +178,9 @@ export class AdminAuthController {
   async deletePatient(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      if (!id) throw new ValidationError('Patient ID is required');
+      if (!id) throw new ValidationError(ResponseMessages.BAD_REQUEST);
       await this.deletePatientUseCase.execute(id);
-      res.status(204).send();
+      res.status(HttpStatusCode.NO_CONTENT).send();
     } catch (error) {
       next(error);
     }
@@ -189,10 +190,9 @@ export class AdminAuthController {
     try {
       const { id } = req.params;
       const { isBlocked } = req.body;
-      if (!id || typeof isBlocked !== 'boolean')
-        throw new ValidationError('Patient ID and isBlocked (boolean) are required');
+      if (!id || typeof isBlocked !== 'boolean') throw new ValidationError(ResponseMessages.BAD_REQUEST);
       const patient = await this.blockPatientUseCase.execute(id, isBlocked);
-      res.status(200).json(patient);
+      res.status(HttpStatusCode.OK).json(patient);
     } catch (error) {
       next(error);
     }

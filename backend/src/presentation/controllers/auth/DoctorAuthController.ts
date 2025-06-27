@@ -6,6 +6,8 @@ import { setTokensInCookies } from '../../../utils/cookieUtils';
 import { SignupDoctorUseCase } from '../../../core/use-cases/auth/doctor/SignupDoctorUseCase';
 import { LoginDoctorUseCase } from '../../../core/use-cases/auth/doctor/LoginDoctorUseCase';
 import { GoogleSignInDoctorUseCase } from '../../../core/use-cases/auth/doctor/GoogleSignInDoctorUseCase';
+import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
+import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 
 export class DoctorAuthController {
   private signupDoctorUseCase: SignupDoctorUseCase;
@@ -28,10 +30,10 @@ export class DoctorAuthController {
         !validatePhone(doctor.phone) ||
         !doctor.licenseNumber
       ) {
-        throw new ValidationError('Invalid input: email, password, phone, and licenseNumber are required');
+        throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
       await this.signupDoctorUseCase.execute(doctor);
-      res.status(200).json({ message: 'OTP sent to your email' });
+      res.status(HttpStatusCode.OK).json({ message: ResponseMessages.OTP_SENT });
     } catch (error) {
       next(error);
     }
@@ -40,10 +42,10 @@ export class DoctorAuthController {
   async login(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { email, password } = req.body;
-      if (!email || !password) throw new ValidationError('Email and password are required');
+      if (!email || !password) throw new ValidationError(ResponseMessages.BAD_REQUEST);
       const { accessToken, refreshToken } = await this.loginDoctorUseCase.execute(email, password);
       setTokensInCookies(res, accessToken, refreshToken);
-      res.status(200).json({ message: 'Logged in successfully' });
+      res.status(HttpStatusCode.OK).json({ message: ResponseMessages.LOGGED_IN });
     } catch (error) {
       next(error);
     }
@@ -52,10 +54,10 @@ export class DoctorAuthController {
   async googleSignIn(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { token } = req.body;
-      if (!token) throw new ValidationError('Google ID is required');
+      if (!token) throw new ValidationError(ResponseMessages.BAD_REQUEST);
       const { accessToken, refreshToken } = await this.googleSignInDoctorUseCase.execute(token);
       setTokensInCookies(res, accessToken, refreshToken);
-      res.status(200).json({ message: 'Logged in successfully' });
+      res.status(HttpStatusCode.OK).json({ message: ResponseMessages.LOGGED_IN });
     } catch (error) {
       next(error);
     }

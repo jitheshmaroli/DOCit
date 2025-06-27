@@ -29,6 +29,7 @@ import PatientDetails from './pages/doctor/PatientDetails';
 import { useAppDispatch } from './redux/hooks';
 import { useEffect } from 'react';
 import { clearUser } from './redux/slices/authSlice';
+import DoctorAppointmentDetails from './pages/doctor/DoctorAppointmentDetails';
 
 const AppRoutes = () => {
   const navigate = useNavigate();
@@ -38,7 +39,7 @@ const AppRoutes = () => {
     const handleLogout = () => {
       console.log('Handling auth:logout event');
       dispatch(clearUser());
-      navigate('/login', { replace: true }); 
+      navigate('/login', { replace: true });
     };
 
     window.addEventListener('auth:logout', handleLogout);
@@ -79,6 +80,10 @@ const AppRoutes = () => {
           <Route path="messages" element={<Messages />} />
           <Route path="plans" element={<DoctorPlans />} />
           <Route path="patient/:patientId" element={<PatientDetails />} />
+          <Route
+            path="appointment/:appointmentId"
+            element={<DoctorAppointmentDetails />}
+          />
         </Route>
       </Route>
 

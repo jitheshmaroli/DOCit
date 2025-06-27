@@ -8,6 +8,8 @@ import { CustomRequest } from '../../../types';
 import { QueryParams } from '../../../types/authTypes';
 import { MarkNotificationAsReadUseCase } from '../../../core/use-cases/notification/MarkNotificationAsReadUseCase';
 import { DeleteAllNotificationsUseCase } from '../../../core/use-cases/notification/DeleteAllNotificationsUseCase';
+import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
+import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 
 export class NotificationController {
   private sendNotificationUseCase: SendNotificationUseCase;
@@ -28,7 +30,7 @@ export class NotificationController {
     try {
       const userId = req.user?.id;
       if (!userId) {
-        throw new ValidationError('User ID not found in request');
+        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const { userId: targetUserId, type, message } = req.body;
       const notification = await this.sendNotificationUseCase.execute({
@@ -36,7 +38,7 @@ export class NotificationController {
         type,
         message,
       });
-      res.status(201).json(notification);
+      res.status(HttpStatusCode.CREATED).json(notification);
     } catch (error) {
       next(error);
     }
@@ -46,11 +48,11 @@ export class NotificationController {
     try {
       const userId = req.user?.id;
       if (!userId) {
-        throw new ValidationError('User ID not found in request');
+        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const params = req.query as QueryParams;
       const notifications = await this.getNotificationsUseCase.execute(userId, params);
-      res.status(200).json(notifications);
+      res.status(HttpStatusCode.OK).json(notifications);
     } catch (error) {
       next(error);
     }
@@ -60,11 +62,11 @@ export class NotificationController {
     try {
       const userId = req.user?.id;
       if (!userId) {
-        throw new ValidationError('User ID not found in request');
+        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const { notificationId } = req.params;
       await this.deleteNotificationUseCase.execute(notificationId, userId);
-      res.status(204).send();
+      res.status(HttpStatusCode.NO_CONTENT).send();
     } catch (error) {
       next(error);
     }
@@ -74,11 +76,11 @@ export class NotificationController {
     try {
       const userId = req.user?.id;
       if (!userId) {
-        throw new ValidationError('User ID not found in request');
+        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const { notificationId } = req.params;
       await this.markNotificationAsReadUseCase.execute(notificationId, userId);
-      res.status(200).send();
+      res.status(HttpStatusCode.OK).send();
     } catch (error) {
       next(error);
     }
@@ -88,10 +90,10 @@ export class NotificationController {
     try {
       const userId = req.user?.id;
       if (!userId) {
-        throw new ValidationError('User ID not found in request');
+        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       await this.deleteAllNotificationsUseCase.execute(userId);
-      res.status(204).send();
+      res.status(HttpStatusCode.NO_CONTENT).send();
     } catch (error) {
       next(error);
     }

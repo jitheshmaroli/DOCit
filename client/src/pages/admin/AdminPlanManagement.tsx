@@ -32,7 +32,7 @@ const AdminPlanManagement: React.FC = () => {
         getAllPlansThunk({
           page: currentPage,
           limit: itemsPerPage,
-          search: searchTerm,
+          search: searchTerm || undefined,
         })
       );
     }
@@ -73,7 +73,7 @@ const AdminPlanManagement: React.FC = () => {
           await dispatch(deletePlanThunk(plan._id)).unwrap();
           toast.success('Plan deleted successfully');
         } catch (err) {
-          toast.error(`${err}`);
+          toast.error(`Failed to delete plan: ${err}`);
         }
       }
     },
@@ -95,7 +95,7 @@ const AdminPlanManagement: React.FC = () => {
       {
         header: 'Price',
         accessor: (plan: SubscriptionPlan): React.ReactNode =>
-          `₹${(plan.price).toFixed(2)}`,
+          `₹${plan.price.toFixed(2)}`,
       },
       {
         header: 'Validity',
@@ -103,23 +103,18 @@ const AdminPlanManagement: React.FC = () => {
           `${plan.validityDays} days`,
       },
       {
-        header: 'Appointments',
-        accessor: (plan: SubscriptionPlan): React.ReactNode =>
-          plan.appointmentCount,
-      },
-      {
         header: 'Status',
         accessor: (plan: SubscriptionPlan): React.ReactNode => (
           <span
             className={`px-2 py-1 text-xs font-semibold rounded-full ${
-              plan.status === 'pending'
-                ? 'bg-yellow-500/20 text-yellow-300'
-                : plan.status === 'approved'
-                  ? 'bg-green-500/20 text-green-300'
+              plan.status === 'approved'
+                ? 'bg-green-500/20 text-green-300'
+                : plan.status === 'pending'
+                  ? 'bg-yellow-500/20 text-yellow-300'
                   : 'bg-red-500/20 text-red-300'
             }`}
           >
-            {plan.status}
+            {plan.status || 'Pending'}
           </span>
         ),
       },
@@ -132,19 +127,20 @@ const AdminPlanManagement: React.FC = () => {
       {
         label: 'Approve',
         onClick: handleApprovePlan,
-        className: 'bg-green-600 hover:bg-green-700',
+        className:
+          'bg-green-600 hover:bg-green-700 px-3 py-1 rounded-lg text-sm',
         condition: (plan: SubscriptionPlan) => plan.status === 'pending',
       },
       {
         label: 'Reject',
         onClick: handleRejectPlan,
-        className: 'bg-red-600 hover:bg-red-700',
+        className: 'bg-red-600 hover:bg-red-700 px-3 py-1 rounded-lg text-sm',
         condition: (plan: SubscriptionPlan) => plan.status === 'pending',
       },
       {
         label: 'Delete',
         onClick: handleDeletePlan,
-        className: 'bg-gray-600 hover:bg-gray-700',
+        className: 'bg-red-600 hover:bg-red-700 px-3 py-1 rounded-lg text-sm',
       },
     ],
     [handleApprovePlan, handleRejectPlan, handleDeletePlan]
@@ -160,15 +156,15 @@ const AdminPlanManagement: React.FC = () => {
   }, []);
 
   return (
-    <div className="bg-white/10 backdrop-blur-lg p-4 md:p-6 rounded-2xl border border-white/20 shadow-xl">
+    <div className="bg-white/10 backdrop-blur-lg p-4 sm:p-6 lg:p-8 rounded-2xl border border-white/20 shadow-xl">
       <h2 className="text-xl font-semibold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent mb-6">
         Plan Management
       </h2>
-      <div className="flex flex-col md:flex-row gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <SearchBar
           value={searchTerm}
           onChange={handleSearch}
-          placeholder="Search by plan name or doctor..."
+          placeholder="Search plans..."
         />
       </div>
       <DataTable
@@ -177,15 +173,15 @@ const AdminPlanManagement: React.FC = () => {
         actions={actions}
         isLoading={loading}
         error={error}
-        onRetry={() =>
+        onRetry={() => {
           dispatch(
             getAllPlansThunk({
               page: currentPage,
               limit: itemsPerPage,
-              search: searchTerm,
+              search: searchTerm || undefined,
             })
-          )
-        }
+          );
+        }}
       />
       <Pagination
         currentPage={currentPage}

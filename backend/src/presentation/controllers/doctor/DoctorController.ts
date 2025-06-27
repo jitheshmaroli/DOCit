@@ -4,17 +4,22 @@ import { GetAvailabilityUseCase } from '../../../core/use-cases/doctor/GetAvaila
 import { Container } from '../../../infrastructure/di/container';
 import { NotFoundError, ValidationError } from '../../../utils/errors';
 import { CreateSubscriptionPlanUseCase } from '../../../core/use-cases/doctor/CreateSubscriptionPlanUseCase';
-import { ISubscriptionPlanRepository } from '../../../core/interfaces/repositories/ISubscriptionPlanRepository';
 import { GetDoctorAppointmentsUseCase } from '../../../core/use-cases/doctor/GetDoctorAppointmentUseCase';
 import { RemoveSlotUseCase } from '../../../core/use-cases/doctor/RemoveSlotUseCase';
 import { UpdateSlotUseCase } from '../../../core/use-cases/doctor/UpdateSlotUseCase';
 import { DateUtils } from '../../../utils/DateUtils';
-import { ISpecialityRepository } from '../../../core/interfaces/repositories/ISpecialityRepository';
 import { CustomRequest } from '../../../types';
 import { ManageSubscriptionPlanUseCase } from '../../../core/use-cases/admin/ManageSubscriptionPlanUseCase';
 import { QueryParams } from '../../../types/authTypes';
 import { GetDashboardStatsUseCase } from '../../../core/use-cases/doctor/GetDashBoardStatsUseCase';
 import { DoctorGetReportsUseCase } from '../../../core/use-cases/doctor/DoctorGetReportsUseCase';
+import { GetDoctorSubscriptionPlansUseCase } from '../../../core/use-cases/doctor/GetDoctorSubscriptionPlansUseCase';
+import { UpdateDoctorSubscriptionPlanUseCase } from '../../../core/use-cases/doctor/UpdateDoctorSubscriptionPlanUseCase';
+import { GetAllSpecialitiesUseCase } from '../../../core/use-cases/doctor/GetAllSpecialitiesUseCase';
+import { CompleteAppointmentUseCase } from '../../../core/use-cases/doctor/CompleteAppointmentUseCase';
+import { GetSingleAppointmentUseCase } from '../../../core/use-cases/doctor/GetSingleAppointmentUseCase';
+import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
+import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 
 export class DoctorController {
   private setAvailabilityUseCase: SetAvailabilityUseCase;
@@ -24,10 +29,13 @@ export class DoctorController {
   private createSubscriptionPlanUseCase: CreateSubscriptionPlanUseCase;
   private getDoctorAppointmentsUseCase: GetDoctorAppointmentsUseCase;
   private manageSubscriptionPlanUseCase: ManageSubscriptionPlanUseCase;
-  private subscriptionPlanRepository: ISubscriptionPlanRepository;
-  private specialityRepository: ISpecialityRepository;
+  private getDoctorSubscriptionPlansUseCase: GetDoctorSubscriptionPlansUseCase;
+  private updateDoctorSubscriptionPlanUseCase: UpdateDoctorSubscriptionPlanUseCase;
+  private getAllSpecialitiesUseCase: GetAllSpecialitiesUseCase;
   private getDashboardStatsUseCase: GetDashboardStatsUseCase;
   private doctorGetReportsUseCase: DoctorGetReportsUseCase;
+  private completeAppointmentUseCase: CompleteAppointmentUseCase;
+  private getSingleAppointmentUseCase: GetSingleAppointmentUseCase;
 
   constructor(container: Container) {
     this.setAvailabilityUseCase = container.get('SetAvailabilityUseCase');
@@ -37,25 +45,28 @@ export class DoctorController {
     this.createSubscriptionPlanUseCase = container.get('CreateSubscriptionPlanUseCase');
     this.getDoctorAppointmentsUseCase = container.get('GetDoctorAppointmentsUseCase');
     this.manageSubscriptionPlanUseCase = container.get('ManageSubscriptionPlanUseCase');
-    this.subscriptionPlanRepository = container.get('ISubscriptionPlanRepository');
-    this.specialityRepository = container.get('ISpecialityRepository');
+    this.getDoctorSubscriptionPlansUseCase = container.get('GetDoctorSubscriptionPlansUseCase');
+    this.updateDoctorSubscriptionPlanUseCase = container.get('UpdateDoctorSubscriptionPlanUseCase');
+    this.getAllSpecialitiesUseCase = container.get('GetAllSpecialitiesUseCase');
     this.getDashboardStatsUseCase = container.get('GetDashboardStatsUseCase');
     this.doctorGetReportsUseCase = container.get('DoctorGetReportsUseCase');
+    this.completeAppointmentUseCase = container.get('CompleteAppointmentUseCase');
+    this.getSingleAppointmentUseCase = container.get('GetSingleAppointmentUseCase');
   }
 
   async setAvailability(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const doctorId = req.user?.id;
       if (!doctorId) {
-        throw new ValidationError('User ID not found in request');
+        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const { date, timeSlots } = req.body;
       if (!date || !timeSlots || !Array.isArray(timeSlots)) {
-        throw new ValidationError('Date and timeSlots array are required');
+        throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
       const utcDate = DateUtils.parseToUTC(date);
       const availability = await this.setAvailabilityUseCase.execute(doctorId, utcDate, timeSlots);
-      res.status(201).json(availability);
+      res.status(HttpStatusCode.CREATED).json(availability);
     } catch (error) {
       next(error);
     }
@@ -65,16 +76,16 @@ export class DoctorController {
     try {
       const doctorId = req.user?.id;
       if (!doctorId) {
-        throw new ValidationError('User ID not found in request');
+        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const { startDate, endDate } = req.query;
       if (!startDate || !endDate) {
-        throw new ValidationError('startDate and endDate are required');
+        throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
       const utcStartDate = DateUtils.parseToUTC(startDate as string);
       const utcEndDate = DateUtils.parseToUTC(endDate as string);
       const availability = await this.getAvailabilityUseCase.execute(doctorId, utcStartDate, utcEndDate);
-      res.status(200).json(availability);
+      res.status(HttpStatusCode.OK).json(availability);
     } catch (error) {
       next(error);
     }
@@ -84,20 +95,20 @@ export class DoctorController {
     try {
       const doctorId = req.user?.id;
       if (!doctorId) {
-        throw new ValidationError('User ID not found in request');
+        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const { availabilityId, slotIndex } = req.body;
       if (!availabilityId || slotIndex === undefined) {
-        throw new ValidationError('availabilityId and slotIndex are required');
+        throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
       const availability = await this.removeSlotUseCase.execute(availabilityId, slotIndex, doctorId);
       if (!availability) {
-        res.status(200).json({
-          message: 'Slot removed and availability deleted (no slots remain)',
+        res.status(HttpStatusCode.OK).json({
+          message: ResponseMessages.PLAN_DELETED,
         });
         return;
       }
-      res.status(200).json(availability);
+      res.status(HttpStatusCode.OK).json(availability);
     } catch (error) {
       next(error);
     }
@@ -107,11 +118,11 @@ export class DoctorController {
     try {
       const doctorId = req.user?.id;
       if (!doctorId) {
-        throw new ValidationError('User ID not found in request');
+        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const { availabilityId, slotIndex, startTime, endTime } = req.body;
       if (!availabilityId || slotIndex === undefined || !startTime || !endTime) {
-        throw new ValidationError('availabilityId, slotIndex, startTime, and endTime are required');
+        throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
       const availability = await this.updateSlotUseCase.execute(
         availabilityId,
@@ -119,8 +130,8 @@ export class DoctorController {
         { startTime, endTime },
         doctorId
       );
-      if (!availability) throw new NotFoundError('Availability not found');
-      res.status(200).json(availability);
+      if (!availability) throw new NotFoundError(ResponseMessages.NOT_FOUND);
+      res.status(HttpStatusCode.OK).json(availability);
     } catch (error) {
       next(error);
     }
@@ -130,7 +141,7 @@ export class DoctorController {
     try {
       const doctorId = req.user?.id;
       if (!doctorId) {
-        throw new ValidationError('User ID not found in request');
+        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const { name, description, price, validityDays, appointmentCount } = req.body;
 
@@ -142,7 +153,7 @@ export class DoctorController {
         appointmentCount,
       });
 
-      res.status(201).json(plan);
+      res.status(HttpStatusCode.CREATED).json(plan);
     } catch (error) {
       next(error);
     }
@@ -152,7 +163,7 @@ export class DoctorController {
     try {
       const doctorId = req.user?.id;
       if (!doctorId) {
-        throw new ValidationError('User ID not found in request');
+        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const { page = 1, limit = 5 } = req.query;
       const queryParams: QueryParams = {
@@ -161,10 +172,28 @@ export class DoctorController {
       };
 
       const result = await this.getDoctorAppointmentsUseCase.execute(doctorId, queryParams);
-      res.status(200).json({
+      res.status(HttpStatusCode.OK).json({
         appointments: result.data,
         totalItems: result.totalItems,
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getSingleAppointment(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const doctorId = req.user?.id;
+      if (!doctorId) {
+        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
+      }
+      const { appointmentId } = req.params;
+      if (!appointmentId) {
+        throw new ValidationError(ResponseMessages.BAD_REQUEST);
+      }
+
+      const appointment = await this.getSingleAppointmentUseCase.execute(doctorId, appointmentId);
+      res.status(HttpStatusCode.OK).json(appointment);
     } catch (error) {
       next(error);
     }
@@ -174,7 +203,7 @@ export class DoctorController {
     try {
       const doctorId = req.user?.id;
       if (!doctorId) {
-        throw new ValidationError('User ID not found in request');
+        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const { patientId } = req.params;
       const { page = 1, limit = 5 } = req.query;
@@ -184,7 +213,7 @@ export class DoctorController {
       };
 
       const result = await this.getDoctorAppointmentsUseCase.executeForPatient(doctorId, patientId, queryParams);
-      res.status(200).json({
+      res.status(HttpStatusCode.OK).json({
         appointments: result.data,
         totalItems: result.totalItems,
       });
@@ -197,10 +226,10 @@ export class DoctorController {
     try {
       const doctorId = req.user?.id;
       if (!doctorId) {
-        throw new ValidationError('User ID not found in request');
+        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
-      const plans = await this.subscriptionPlanRepository.findByDoctor(doctorId);
-      res.status(200).json(plans);
+      const plans = await this.getDoctorSubscriptionPlansUseCase.execute(doctorId);
+      res.status(HttpStatusCode.OK).json(plans);
     } catch (error) {
       next(error);
     }
@@ -210,20 +239,12 @@ export class DoctorController {
     try {
       const doctorId = req.user?.id;
       if (!doctorId) {
-        throw new ValidationError('User ID not found in request');
+        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const { id } = req.params;
       const { name, description, price, validityDays, appointmentCount } = req.body;
 
-      const plan = await this.subscriptionPlanRepository.findById(id);
-      if (!plan) {
-        throw new NotFoundError('Plan not found');
-      }
-      if (plan.doctorId !== doctorId) {
-        throw new ValidationError('Unauthorized to update this plan');
-      }
-
-      const updatedPlan = await this.subscriptionPlanRepository.update(id, {
+      const updatedPlan = await this.updateDoctorSubscriptionPlanUseCase.execute(id, doctorId, {
         name,
         description,
         price,
@@ -232,7 +253,7 @@ export class DoctorController {
         status: 'pending',
       });
 
-      res.status(200).json(updatedPlan);
+      res.status(HttpStatusCode.OK).json(updatedPlan);
     } catch (error) {
       next(error);
     }
@@ -242,12 +263,12 @@ export class DoctorController {
     try {
       const doctorId = req.user?.id;
       if (!doctorId) {
-        throw new ValidationError('User ID not found in request');
+        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const { id } = req.params;
 
       await this.manageSubscriptionPlanUseCase.delete(id);
-      res.status(200).json({ message: 'Plan deleted successfully' });
+      res.status(HttpStatusCode.OK).json({ message: ResponseMessages.PLAN_DELETED });
     } catch (error) {
       next(error);
     }
@@ -255,8 +276,8 @@ export class DoctorController {
 
   async getAllSpecialities(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const specialities = await this.specialityRepository.findAll();
-      res.status(200).json(specialities);
+      const specialities = await this.getAllSpecialitiesUseCase.execute();
+      res.status(HttpStatusCode.OK).json(specialities);
     } catch (error) {
       next(error);
     }
@@ -266,10 +287,10 @@ export class DoctorController {
     try {
       const doctorId = req.user?.id;
       if (!doctorId) {
-        throw new ValidationError('User ID not found in request');
+        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const stats = await this.getDashboardStatsUseCase.execute(doctorId);
-      res.status(200).json(stats);
+      res.status(HttpStatusCode.OK).json(stats);
     } catch (error) {
       next(error);
     }
@@ -279,7 +300,7 @@ export class DoctorController {
     try {
       const doctorId = req.user?.id;
       if (!doctorId) {
-        throw new ValidationError('User ID not found in request');
+        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const { type, startDate, endDate } = req.query;
       const filter = {
@@ -288,7 +309,24 @@ export class DoctorController {
         endDate: endDate ? new Date(endDate as string) : undefined,
       };
       const reports = await this.doctorGetReportsUseCase.execute(doctorId, filter);
-      res.status(200).json(reports);
+      res.status(HttpStatusCode.OK).json(reports);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async completeAppointment(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const doctorId = req.user?.id;
+      if (!doctorId) {
+        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
+      }
+      const { appointmentId, prescription } = req.body;
+      if (!appointmentId || !prescription) {
+        throw new ValidationError(ResponseMessages.BAD_REQUEST);
+      }
+      const appointment = await this.completeAppointmentUseCase.execute(doctorId, appointmentId, prescription);
+      res.status(HttpStatusCode.OK).json(appointment);
     } catch (error) {
       next(error);
     }

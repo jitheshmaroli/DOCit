@@ -1,12 +1,14 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
+import { X } from 'lucide-react';
 
 interface SidebarProps {
   activePage: string;
+  isOpen: boolean;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activePage }) => {
+const Sidebar: React.FC<SidebarProps> = ({ activePage, isOpen }) => {
   const { logout } = useAuth();
   const navigate = useNavigate();
 
@@ -21,66 +23,60 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage }) => {
       : 'text-gray-200 hover:bg-white/30';
 
   return (
-    <aside className="w-full md:w-64 bg-white/10 backdrop-blur-lg border-r border-white/20 flex flex-col shadow-xl">
+    <aside
+      className={`fixed inset-y-0 left-0 z-50 w-64 bg-white/10 backdrop-blur-lg border-r border-white/20 flex flex-col shadow-xl transition-transform duration-300 transform ${
+        isOpen ? 'translate-x-0' : '-translate-x-full'
+      } md:translate-x-0 md:static md:w-64`}
+    >
+      <div className="flex items-center justify-between p-4 md:p-0 md:pt-4">
+        <h2 className="text-lg font-semibold text-white hidden md:block">
+          Admin Menu
+        </h2>
+        <button
+          className="md:hidden text-white"
+          onClick={() => document.dispatchEvent(new Event('closeSidebar'))}
+        >
+          <X size={24} />
+        </button>
+      </div>
       <nav className="flex-1 py-4">
         <ul>
-          <li>
-            <Link
-              to="/admin/dashboard"
-              className={`flex items-center px-4 py-3 text-sm font-medium ${isActive('dashboard')} transition-all duration-300`}
-            >
-              <span className="mr-3">📊</span>
-              Dashboard
-            </Link>
-          </li>
-          <li>
-            <Link
-              to="/admin/manage-patients"
-              className={`flex items-center px-4 py-3 text-sm font-medium ${isActive('patients')} transition-all duration-300`}
-            >
-              <span className="mr-3">👥</span>
-              Manage Patients
-            </Link>
-          </li>
-          <li>
-            <Link
-              to="/admin/manage-doctors"
-              className={`flex items-center px-4 py-3 text-sm font-medium ${isActive('doctors')} transition-all duration-300`}
-            >
-              <span className="mr-3">👨‍⚕️</span>
-              Manage Doctors
-            </Link>
-          </li>
-          <li>
-            <Link
-              to="/admin/specialities"
-              className={`flex items-center px-4 py-3 text-sm font-medium ${isActive('specialities')} transition-all duration-300`}
-            >
-              <span className="mr-3">🩺</span>
-              Specialities
-            </Link>
-          </li>
-          <li>
-            <Link
-              to="/admin/appointments"
-              className={`flex items-center px-4 py-3 text-sm font-medium ${isActive('appointments')} transition-all duration-300`}
-            >
-              <span className="mr-3">📅</span>
-              View Appointments
-            </Link>
-          </li>
-          <li>
-            <Link
-              to="/admin/plan-management"
-              className={`flex items-center px-4 py-3 text-sm font-medium ${isActive('plan-management')} transition-all duration-300`}
-            >
-              <span className="mr-3">💼</span>
-              Plan Management
-            </Link>
-          </li>
+          {[
+            { to: '/admin/dashboard', label: 'Dashboard', icon: '📊' },
+            {
+              to: '/admin/manage-patients',
+              label: 'Manage Patients',
+              icon: '👥',
+            },
+            {
+              to: '/admin/manage-doctors',
+              label: 'Manage Doctors',
+              icon: '👨‍⚕️',
+            },
+            { to: '/admin/specialities', label: 'Specialities', icon: '🩺' },
+            {
+              to: '/admin/appointments',
+              label: 'View Appointments',
+              icon: '📅',
+            },
+            {
+              to: '/admin/plan-management',
+              label: 'Plan Management',
+              icon: '💼',
+            },
+          ].map((item) => (
+            <li key={item.to}>
+              <Link
+                to={item.to}
+                className={`flex items-center px-4 py-3 text-sm font-medium ${isActive(item.to.split('/')[2])} transition-all duration-300`}
+              >
+                <span className="mr-3">{item.icon}</span>
+                {item.label}
+              </Link>
+            </li>
+          ))}
         </ul>
       </nav>
-
       <div className="p-4 border-t border-white/20 flex items-center">
         <div>
           <p className="text-sm font-medium text-white">ADMIN</p>

@@ -105,7 +105,7 @@ const AdminLoginPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-md rounded-2xl bg-white/10 backdrop-blur-lg shadow-2xl border border-white/20 p-8">
+      <div className="w-full max-w-md rounded-2xl bg-white/10 backdrop-blur-lg shadow-2xl border border-white/20 p-6 sm:p-8">
         <header className="mb-6">
           <Logo />
           <h2 className="text-2xl sm:text-3xl font-bold text-white mt-4 bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent">
@@ -128,7 +128,7 @@ const AdminLoginPage: React.FC = () => {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-4">
           <div>
             <input
               type="email"
@@ -182,8 +182,9 @@ const AdminLoginPage: React.FC = () => {
           </div>
 
           <button
-            type="submit"
+            type="button"
             disabled={isSubmitDisabled}
+            onClick={handleSubmit}
             className={`w-full p-3 rounded-lg text-white font-medium transition-all duration-300 ${
               isSubmitDisabled
                 ? 'bg-gray-500/50 cursor-not-allowed'
@@ -192,7 +193,7 @@ const AdminLoginPage: React.FC = () => {
           >
             {loading ? 'Logging in...' : 'Login as Admin'}
           </button>
-        </form>
+        </div>
 
         <p className="text-center mt-6 text-gray-200 text-sm">
           Not an admin?{' '}

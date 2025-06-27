@@ -1,6 +1,7 @@
 import React, { useMemo, useCallback } from 'react';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { Loader2 } from 'lucide-react';
 
 export interface Column<T> {
   header: string;
@@ -27,8 +28,8 @@ const DataTable = React.memo(
   <T,>({
     data,
     columns,
-    actions,
-    isLoading,
+    actions = [],
+    isLoading = false,
     error,
     onRetry,
     emptyMessage = 'No data found.',
@@ -37,20 +38,24 @@ const DataTable = React.memo(
       if (typeof column.accessor === 'function') {
         return column.accessor(item);
       }
-      return String(item[column.accessor]);
+      const value = item[column.accessor];
+      return value != null ? String(value) : 'N/A';
     }, []);
-    console.log('data:', data);
 
     const tableContent = useMemo(() => {
       if (isLoading) {
         return (
           <tr>
             <td
-              colSpan={columns.length + (actions ? 1 : 0)}
+              colSpan={columns.length + (actions.length > 0 ? 1 : 0)}
               className="py-8 text-center"
             >
               <div className="flex justify-center items-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div>
+                <Loader2
+                  className="animate-spin text-purple-400"
+                  size={32}
+                  aria-label="Loading data"
+                />
               </div>
             </td>
           </tr>
@@ -61,15 +66,16 @@ const DataTable = React.memo(
         return (
           <tr>
             <td
-              colSpan={columns.length + (actions ? 1 : 0)}
+              colSpan={columns.length + (actions.length > 0 ? 1 : 0)}
               className="py-8 text-center"
             >
-              <div className="bg-red-500/20 border-l-4 border-red-500 p-4 rounded-lg text-white">
+              <div className="bg-red-500/20 border-l-4 border-red-500 p-4 rounded-lg text-white max-w-md mx-auto">
                 <p className="text-sm">Error: {error}</p>
                 {onRetry && (
                   <button
                     onClick={onRetry}
-                    className="mt-2 text-sm text-purple-300 hover:text-purple-200"
+                    className="mt-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all duration-300 focus:ring-2 focus:ring-purple-400 focus:outline-none"
+                    aria-label="Retry loading data"
                   >
                     Retry
                   </button>
@@ -84,8 +90,8 @@ const DataTable = React.memo(
         return (
           <tr>
             <td
-              colSpan={columns.length + (actions ? 1 : 0)}
-              className="py-8 text-center text-gray-200"
+              colSpan={columns.length + (actions.length > 0 ? 1 : 0)}
+              className="py-8 text-center text-gray-200 text-sm"
             >
               {emptyMessage}
             </td>
@@ -96,30 +102,34 @@ const DataTable = React.memo(
       return data.map((item, index) => (
         <tr
           key={index}
-          className="hover:bg-white/30 transition-all duration-300"
+          className="border-b border-white/10 hover:bg-white/5 transition-all duration-300"
         >
           {columns.map((column) => (
             <td
               key={String(column.accessor)}
-              className={`px-4 py-4 text-sm text-white ${column.className || ''}`}
+              className={`px-4 py-3 text-sm text-white ${column.className || ''}`}
             >
               {renderCell(item, column)}
             </td>
           ))}
-          {actions && (
-            <td className="px-4 py-4 text-sm space-x-2">
-              {actions.map(
-                (action, idx) =>
-                  (!action.condition || action.condition(item)) && (
+          {actions.length > 0 && (
+            <td className="px-4 py-3 text-sm">
+              <div className="flex flex-wrap gap-2">
+                {actions
+                  .filter(
+                    (action) => !action.condition || action.condition(item)
+                  )
+                  .map((action, idx) => (
                     <button
                       key={idx}
                       onClick={() => action.onClick(item)}
-                      className={`px-3 py-1 rounded-lg text-white ${action.className || 'bg-purple-600 hover:bg-purple-700'}`}
+                      className={`px-3 py-1 rounded-lg text-white text-sm font-medium transition-all duration-300 focus:ring-2 focus:ring-purple-400 focus:outline-none ${action.className || 'bg-purple-600 hover:bg-purple-700'}`}
+                      aria-label={action.label}
                     >
                       {action.label}
                     </button>
-                  )
-              )}
+                  ))}
+              </div>
             </td>
           )}
         </tr>
@@ -139,25 +149,25 @@ const DataTable = React.memo(
       <>
         <ToastContainer position="top-right" autoClose={3000} theme="dark" />
         <div className="overflow-x-auto">
-          <table className="min-w-full bg-white/20 backdrop-blur-lg border border-white/20 rounded-lg">
+          <table className="min-w-full bg-white/10 backdrop-blur-lg border border-white/20 rounded-lg">
             <thead>
-              <tr className="bg-white/10 border-b border-white/20">
+              <tr className="bg-white/5 border-b border-white/20">
                 {columns.map((column) => (
                   <th
                     key={String(column.accessor)}
-                    className={`px-4 py-3 text-left text-xs font-bold text-gray-200 uppercase tracking-wider ${column.className || ''}`}
+                    className={`px-4 py-3 text-left text-xs font-semibold text-gray-200 uppercase tracking-wider ${column.className || ''}`}
                   >
                     {column.header}
                   </th>
                 ))}
-                {actions && (
-                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-200 uppercase tracking-wider">
+                {actions.length > 0 && (
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-200 uppercase tracking-wider">
                     Actions
                   </th>
                 )}
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/20">{tableContent}</tbody>
+            <tbody className="divide-y divide-white/10">{tableContent}</tbody>
           </table>
         </div>
       </>

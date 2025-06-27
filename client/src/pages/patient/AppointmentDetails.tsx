@@ -28,6 +28,23 @@ interface AppointmentDoctor {
   gender?: string;
 }
 
+interface Prescription {
+  _id: string;
+  appointmentId: string;
+  patientId: string | { _id: string; name: string };
+  doctorId: string | { _id: string; name: string };
+  medications: Array<{
+    name: string;
+    dosage: string;
+    frequency: string;
+    duration: string;
+    _id?: string;
+  }>;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface Appointment {
   _id: string;
   patientId: AppointmentPatient | string;
@@ -41,6 +58,16 @@ interface Appointment {
   createdAt: string;
   updatedAt: string;
   cancellationReason?: string;
+  prescriptionId?: Prescription;
+  prescription?: {
+    medications: Array<{
+      name: string;
+      dosage: string;
+      frequency: string;
+      duration: string;
+    }>;
+    notes?: string;
+  };
 }
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
@@ -82,6 +109,18 @@ const AppointmentDetails: React.FC = () => {
         }
         if (typeof appt.doctorId === 'string') {
           appt.doctorId = { _id: appt.doctorId, name: 'Unknown Doctor' };
+        }
+        if (appt.prescriptionId) {
+          appt.prescription = {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            medications: appt.prescriptionId.medications.map((med: any) => ({
+              name: med.name,
+              dosage: med.dosage,
+              frequency: med.frequency,
+              duration: med.duration,
+            })),
+            notes: appt.prescriptionId.notes,
+          };
         }
         setAppointment(appt);
       } catch (error) {
@@ -244,7 +283,6 @@ const AppointmentDetails: React.FC = () => {
               ? 'Unknown Doctor'
               : appointment.doctorId.name
           }
-          
         />
       )}
       {showCallPrompt && callerId && (
@@ -370,6 +408,41 @@ const AppointmentDetails: React.FC = () => {
                     </p>
                   )}
               </div>
+            </div>
+          </div>
+        )}
+
+        {appointment.prescription && (
+          <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">
+            <h3 className="text-lg sm:text-xl font-semibold text-white mb-4">
+              Prescription
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <h4 className="text-sm text-gray-300">Medications</h4>
+                {appointment.prescription.medications.map((med, index) => (
+                  <div key={index} className="border-b border-white/20 py-2">
+                    <p className="text-white">
+                      <strong>Name:</strong> {med.name}
+                    </p>
+                    <p className="text-white">
+                      <strong>Dosage:</strong> {med.dosage}
+                    </p>
+                    <p className="text-white">
+                      <strong>Frequency:</strong> {med.frequency}
+                    </p>
+                    <p className="text-white">
+                      <strong>Duration:</strong> {med.duration}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              {appointment.prescription.notes && (
+                <div>
+                  <h4 className="text-sm text-gray-300">Additional Notes</h4>
+                  <p className="text-white">{appointment.prescription.notes}</p>
+                </div>
+              )}
             </div>
           </div>
         )}

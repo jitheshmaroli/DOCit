@@ -27,11 +27,13 @@ router.patch('/availability/slots', doctorAuth, doctorController.updateSlot.bind
 
 // Appointment routes
 router.get('/appointments', doctorAuth, doctorController.getAppointments.bind(doctorController));
+router.get('/appointments/:appointmentId', doctorAuth, doctorController.getSingleAppointment.bind(doctorController));
 router.get(
   '/patient/:patientId/appointments',
   doctorAuth,
   doctorController.getPatientAppointments.bind(doctorController)
 );
+router.post('/appointments/complete', doctorAuth, doctorController.completeAppointment.bind(doctorController));
 
 // Subscription plan routes
 router.get('/subscription-plans', doctorAuth, doctorController.getSubscriptionPlans.bind(doctorController));
@@ -51,7 +53,7 @@ router.patch(
   doctorProfileController.updateProfile.bind(doctorProfileController)
 );
 
-// New Dashboard Statistics routes
+// Dashboard Statistics routes
 router.get('/dashboard/stats', doctorAuth, doctorController.getDashboardStats.bind(doctorController));
 router.get('/dashboard/reports', doctorAuth, doctorController.getReports.bind(doctorController));
 

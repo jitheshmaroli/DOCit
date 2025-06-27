@@ -2,6 +2,8 @@ import { NextFunction, Request, Response } from 'express';
 import { CustomError } from '../../utils/errors';
 import logger from '../../utils/logger';
 import multer from 'multer';
+import { HttpStatusCode } from '../../core/constants/HttpStatusCode';
+import { ResponseMessages } from '../../core/constants/ResponseMessages';
 
 export const errorMiddleware = (err: Error, req: Request, res: Response, next: NextFunction): void => {
   logger.error(`Error in ${req.method} ${req.url}`, {
@@ -18,34 +20,34 @@ export const errorMiddleware = (err: Error, req: Request, res: Response, next: N
       message: err.message,
     });
   } else if (err.name === 'TokenExpiredError') {
-    res.status(401).json({
+    res.status(HttpStatusCode.UNAUTHORIZED).json({
       success: false,
       error: 'TokenExpiredError',
-      message: 'Access token has expired',
+      message: ResponseMessages.TOKEN_EXPIRED,
     });
   } else if (err.name === 'JsonWebTokenError') {
-    res.status(401).json({
+    res.status(HttpStatusCode.UNAUTHORIZED).json({
       success: false,
       error: 'JsonWebTokenError',
-      message: 'Invalid token',
+      message: ResponseMessages.INVALID_TOKEN,
     });
   } else if (err instanceof multer.MulterError) {
-    res.status(400).json({
+    res.status(HttpStatusCode.BAD_REQUEST).json({
       success: false,
       error: 'MulterError',
-      message: `File upload error: ${err.message}`,
+      message: `${ResponseMessages.FILE_UPLOAD_ERROR}: ${err.message}`,
     });
-  } else if (err.message === 'Only images (jpeg, jpg, png) are allowed') {
-    res.status(400).json({
+  } else if (err.message === ResponseMessages.INVALID_FILE_TYPE) {
+    res.status(HttpStatusCode.BAD_REQUEST).json({
       success: false,
       error: 'InvalidFileType',
       message: err.message,
     });
   } else {
-    res.status(500).json({
+    res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json({
       success: false,
       error: 'InternalServerError',
-      message: 'Something went wrong on the server',
+      message: ResponseMessages.INTERNAL_SERVER_ERROR,
     });
   }
   next();

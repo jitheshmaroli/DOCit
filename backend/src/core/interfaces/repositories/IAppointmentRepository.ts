@@ -1,4 +1,5 @@
 import { Appointment } from '../../entities/Appointment';
+import { Prescription } from '../../entities/Prescription';
 import { QueryParams } from '../../../types/authTypes';
 
 export interface IAppointmentRepository {
@@ -19,4 +20,8 @@ export interface IAppointmentRepository {
   findByDoctor(doctorId: string): Promise<Appointment[]>;
   findByDoctorWithQuery(doctorId: string, params: QueryParams): Promise<{ data: Appointment[]; totalItems: number }>;
   findAllWithQuery(params: QueryParams): Promise<{ data: Appointment[]; totalItems: number }>;
+  completeAppointmentAndCreatePrescription(
+    appointmentId: string,
+    prescription: Omit<Prescription, '_id' | 'appointmentId' | 'patientId' | 'doctorId' | 'createdAt' | 'updatedAt'>
+  ): Promise<Appointment>;
 }

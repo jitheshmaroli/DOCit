@@ -12,6 +12,8 @@ import { IImageUploadService } from '../../../core/interfaces/services/IImageUpl
 import { MarkMessageAsReadUseCase } from '../../../core/use-cases/chat/MarkMessageAsReadUseCase';
 import { AddReactionUseCase } from '../../../core/use-cases/chat/AddReactionUseCase';
 import { SocketService } from '../../../infrastructure/services/SocketService';
+import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
+import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 
 export class ChatController {
   private sendMessageUseCase: SendMessageUseCase;
@@ -41,7 +43,7 @@ export class ChatController {
       const userId = req.user?.id;
       const role = req.user?.role;
       if (!userId || !role) {
-        throw new ValidationError('User ID not found in request');
+        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const { receiverId, message, senderName } = req.body;
       const chatMessage = await this.sendMessageUseCase.execute({
@@ -52,7 +54,7 @@ export class ChatController {
         senderName,
       });
       await this.socketService.sendMessageToUsers(chatMessage);
-      res.status(201).json(chatMessage);
+      res.status(HttpStatusCode.CREATED).json(chatMessage);
     } catch (error) {
       next(error);
     }
@@ -63,12 +65,12 @@ export class ChatController {
       const userId = req.user?.id;
       const role = req.user?.role;
       if (!userId || !role) {
-        throw new ValidationError('User ID not found in request');
+        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const { receiverId, senderName } = req.body;
       const file = req.file;
       if (!file) {
-        throw new ValidationError('No file provided');
+        throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
       const chatMessage = await this.sendMessageUseCase.execute(
         {
@@ -81,7 +83,7 @@ export class ChatController {
         file
       );
       await this.socketService.sendMessageToUsers(chatMessage);
-      res.status(201).json(chatMessage);
+      res.status(HttpStatusCode.CREATED).json(chatMessage);
     } catch (error) {
       next(error);
     }
@@ -91,11 +93,11 @@ export class ChatController {
     try {
       const userId = req.user?.id;
       if (!userId) {
-        throw new ValidationError('User ID not found in request');
+        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const { receiverId } = req.params;
       const messages = await this.getMessagesUseCase.execute(userId, receiverId);
-      res.status(200).json(messages);
+      res.status(HttpStatusCode.OK).json(messages);
     } catch (error) {
       next(error);
     }
@@ -105,11 +107,11 @@ export class ChatController {
     try {
       const userId = req.user?.id;
       if (!userId) {
-        throw new ValidationError('User ID not found in request');
+        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const { messageId } = req.params;
       await this.deleteMessageUseCase.execute(messageId, userId);
-      res.status(204).send();
+      res.status(HttpStatusCode.NO_CONTENT).send();
     } catch (error) {
       next(error);
     }
@@ -119,11 +121,11 @@ export class ChatController {
     try {
       const userId = req.user?.id;
       if (!userId) {
-        throw new ValidationError('User ID not found in request');
+        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const { messageId } = req.params;
       await this.markMessageAsReadUseCase.execute(messageId, userId);
-      res.status(204).send();
+      res.status(HttpStatusCode.NO_CONTENT).send();
     } catch (error) {
       next(error);
     }
@@ -133,14 +135,14 @@ export class ChatController {
     try {
       const userId = req.user?.id;
       if (!userId) {
-        throw new ValidationError('User ID not found in request');
+        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const { messageId } = req.params;
       const { emoji, replace } = req.body;
       const updatedMessage = await this.addReactionUseCase.execute(messageId, userId, emoji, replace);
       const receiverId = updatedMessage.senderId === userId ? updatedMessage.receiverId : updatedMessage.senderId;
       await this.socketService.sendReactionToUsers(messageId, emoji, userId, receiverId);
-      res.status(200).json(updatedMessage);
+      res.status(HttpStatusCode.OK).json(updatedMessage);
     } catch (error) {
       next(error);
     }
@@ -150,11 +152,11 @@ export class ChatController {
     try {
       const userId = req.user?.id;
       if (!userId) {
-        throw new ValidationError('User ID not found in request');
+        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const params = req.query as QueryParams;
       const history = await this.getChatHistoryUseCase.execute(userId, params);
-      res.status(200).json(history);
+      res.status(HttpStatusCode.OK).json(history);
     } catch (error) {
       next(error);
     }
@@ -165,11 +167,11 @@ export class ChatController {
       const userId = req.user?.id;
       const role = req.user?.role;
       if (!userId || !role) {
-        throw new ValidationError('User ID or role not found in request');
+        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const params = req.query as QueryParams;
       const inbox = await this.getInboxUseCase.execute(userId, role as UserRole.Patient | UserRole.Doctor, params);
-      res.status(200).json(inbox);
+      res.status(HttpStatusCode.OK).json(inbox);
     } catch (error) {
       next(error);
     }

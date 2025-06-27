@@ -19,19 +19,16 @@ export class AddReactionUseCase {
     let updatedMessage: ChatMessage | null = null;
 
     if (replace) {
-      // Step 1: Remove existing reaction from the same user
       const pullQuery: UpdateQuery<ChatMessage> = {
         $pull: { reactions: { userId } },
       };
       await this.chatRepository.update(messageId, pullQuery);
 
-      // Step 2: Add the new reaction
       const pushQuery: UpdateQuery<ChatMessage> = {
         $push: { reactions: { emoji, userId } },
       };
       updatedMessage = await this.chatRepository.update(messageId, pushQuery);
     } else {
-      // Only add the new reaction if no replacement is needed
       const pushQuery: UpdateQuery<ChatMessage> = {
         $push: { reactions: { emoji, userId } },
       };
