@@ -21,10 +21,10 @@ export class AppointmentRepository implements IAppointmentRepository {
     return savedAppointment.toObject() as Appointment;
   }
 
-  async findById(id: string): Promise<Appointment | null> {
-    if (!mongoose.Types.ObjectId.isValid(id)) return null;
+  async findById(appointmentId: string): Promise<Appointment | null> {
+    if (!mongoose.Types.ObjectId.isValid(appointmentId)) return null;
     const appointment = await this.model
-      .findById(id)
+      .findById(appointmentId)
       .populate('patientId', 'name')
       .populate('doctorId', 'name')
       .populate('prescriptionId')
@@ -100,14 +100,14 @@ export class AppointmentRepository implements IAppointmentRepository {
       .exec();
   }
 
-  async update(id: string, updates: Partial<Appointment>): Promise<void> {
-    if (!mongoose.Types.ObjectId.isValid(id)) return;
-    await this.model.findByIdAndUpdate(id, updates).exec();
+  async update(appointmentId: string, updates: Partial<Appointment>): Promise<void> {
+    if (!mongoose.Types.ObjectId.isValid(appointmentId)) return;
+    await this.model.findByIdAndUpdate(appointmentId, updates).exec();
   }
 
-  async deleteById(id: string): Promise<void> {
-    if (!mongoose.Types.ObjectId.isValid(id)) return;
-    await this.model.findByIdAndDelete(id).exec();
+  async deleteById(appointmentId: string): Promise<void> {
+    if (!mongoose.Types.ObjectId.isValid(appointmentId)) return;
+    await this.model.findByIdAndDelete(appointmentId).exec();
   }
 
   async findByPatient(patientId: string): Promise<Appointment[]> {

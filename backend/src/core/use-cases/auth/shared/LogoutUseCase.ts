@@ -9,13 +9,13 @@ export class LogoutUseCase {
     private adminRepository: IAdminRepository
   ) {}
 
-  async execute(id: string, role: 'patient' | 'doctor' | 'admin'): Promise<void> {
+  async execute(userId: string, role: 'patient' | 'doctor' | 'admin'): Promise<void> {
     if (role === 'patient') {
-      await this.patientRepository.update(id, { refreshToken: '' });
+      await this.patientRepository.update(userId, { refreshToken: '' });
     } else if (role === 'doctor') {
-      await this.doctorRepository.update(id, { refreshToken: '' });
+      await this.doctorRepository.update(userId, { refreshToken: '' });
     } else {
-      await this.adminRepository.update(id, { refreshToken: '' });
+      await this.adminRepository.update(userId, { refreshToken: '' });
     }
   }
 }

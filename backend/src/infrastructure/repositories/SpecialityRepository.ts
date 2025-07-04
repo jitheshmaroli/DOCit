@@ -35,8 +35,8 @@ export class SpecialityRepository extends BaseRepository<Speciality> implements 
     return { data: specialities.map((spec) => spec.toObject() as Speciality), totalItems };
   }
 
-  async findByIds(ids: string[]): Promise<Speciality[]> {
-    const specialities = await this.model.find({ _id: { $in: ids } }).exec();
+  async findByIds(specialityIds: string[]): Promise<Speciality[]> {
+    const specialities = await this.model.find({ _id: { $in: specialityIds } }).exec();
     return specialities.map((spec) => spec.toObject() as Speciality);
   }
 }

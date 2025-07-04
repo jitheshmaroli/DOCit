@@ -20,9 +20,9 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
     return doctor ? (doctor.toObject() as Doctor) : null;
   }
 
-  async getDoctorDetails(id: string): Promise<Doctor | null> {
-    if (!mongoose.Types.ObjectId.isValid(id)) return null;
-    const doctor = await this.model.findById(id).select('-password').exec();
+  async getDoctorDetails(doctorId: string): Promise<Doctor | null> {
+    if (!mongoose.Types.ObjectId.isValid(doctorId)) return null;
+    const doctor = await this.model.findById(doctorId).select('-password').exec();
     return doctor ? (doctor.toObject() as Doctor) : null;
   }
 

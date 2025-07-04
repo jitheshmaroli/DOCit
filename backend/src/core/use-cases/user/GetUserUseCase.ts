@@ -12,14 +12,14 @@ export class GetUserUseCase {
     private adminRepository: IAdminRepository
   ) {}
 
-  async execute(id: string): Promise<Patient | Doctor | Admin | null> {
-    const patient = await this.patientRepository.findById(id);
+  async execute(userId: string): Promise<Patient | Doctor | Admin | null> {
+    const patient = await this.patientRepository.findById(userId);
     if (patient) return patient;
 
-    const doctor = await this.doctorRepository.getDoctorDetails(id);
+    const doctor = await this.doctorRepository.getDoctorDetails(userId);
     if (doctor) return doctor;
 
-    const admin = await this.adminRepository.getAdminDetails(id);
+    const admin = await this.adminRepository.getAdminDetails(userId);
     if (admin) return admin;
 
     return null;

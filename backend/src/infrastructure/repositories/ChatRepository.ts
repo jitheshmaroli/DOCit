@@ -21,9 +21,9 @@ export class ChatRepository extends BaseRepository<ChatMessage> implements IChat
     return savedMessage.toObject() as ChatMessage;
   }
 
-  async findById(id: string): Promise<ChatMessage | null> {
-    if (!mongoose.Types.ObjectId.isValid(id)) return null;
-    const message = await this.model.findById(id).exec();
+  async findById(messageId: string): Promise<ChatMessage | null> {
+    if (!mongoose.Types.ObjectId.isValid(messageId)) return null;
+    const message = await this.model.findById(messageId).exec();
     return message ? (message.toObject() as ChatMessage) : null;
   }
 
@@ -40,9 +40,9 @@ export class ChatRepository extends BaseRepository<ChatMessage> implements IChat
     return messages.map((msg) => msg.toObject() as ChatMessage);
   }
 
-  async softDelete(id: string, userId: string): Promise<void> {
-    if (!mongoose.Types.ObjectId.isValid(id)) return;
-    await this.model.findByIdAndUpdate(id, { $addToSet: { deletedBy: userId } }).exec();
+  async softDelete(messageId: string, userId: string): Promise<void> {
+    if (!mongoose.Types.ObjectId.isValid(messageId)) return;
+    await this.model.findByIdAndUpdate(messageId, { $addToSet: { deletedBy: userId } }).exec();
   }
 
   async markAsRead(messageId: string, userId: string): Promise<void> {

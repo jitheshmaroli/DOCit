@@ -76,7 +76,7 @@ export class GetAdminDashboardStatsUseCase {
           logger.warn(`Invalid patientId in subscription: ${sub._id || 'unknown'}`);
           return acc;
         }
-        const patientIdStr = patientId.toString(); // Normalize to string
+        const patientIdStr = patientId.toString();
         if (!acc[patientIdStr]) {
           const patient = patients.data.find((p) => p._id && p._id.toString() === patientIdStr);
           acc[patientIdStr] = {

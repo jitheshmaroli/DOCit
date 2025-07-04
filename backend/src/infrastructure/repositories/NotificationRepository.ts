@@ -28,9 +28,9 @@ export class NotificationRepository extends BaseRepository<Notification> impleme
     await this.model.deleteMany({ userId }).exec();
   }
 
-  async markAsRead(id: string): Promise<Notification | null> {
-    if (!mongoose.Types.ObjectId.isValid(id)) return null;
-    const notification = await this.model.findByIdAndUpdate(id, { isRead: true }, { new: true }).exec();
+  async markAsRead(notificationId: string): Promise<Notification | null> {
+    if (!mongoose.Types.ObjectId.isValid(notificationId)) return null;
+    const notification = await this.model.findByIdAndUpdate(notificationId, { isRead: true }, { new: true }).exec();
     return notification ? (notification.toObject() as Notification) : null;
   }
 }

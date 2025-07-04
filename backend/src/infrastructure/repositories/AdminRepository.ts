@@ -14,9 +14,9 @@ export class AdminRepository extends BaseRepository<Admin> implements IAdminRepo
     return admin ? (admin.toObject() as Admin) : null;
   }
 
-  async getAdminDetails(id: string): Promise<Admin | null> {
-    if (!mongoose.Types.ObjectId.isValid(id)) return null;
-    const admin = await this.model.findById(id).select('-password').exec();
+  async getAdminDetails(adminId: string): Promise<Admin | null> {
+    if (!mongoose.Types.ObjectId.isValid(adminId)) return null;
+    const admin = await this.model.findById(adminId).select('-password').exec();
     return admin ? (admin.toObject() as Admin) : null;
   }
 }

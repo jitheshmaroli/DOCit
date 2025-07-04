@@ -5,15 +5,15 @@ import { ISpecialityRepository } from '../../interfaces/repositories/ISpeciality
 export class UpdateSpecialityUseCase {
   constructor(private specialityRepository: ISpecialityRepository) {}
 
-  async execute(id: string, updates: Partial<Speciality>): Promise<Speciality> {
+  async execute(specialityId: string, updates: Partial<Speciality>): Promise<Speciality> {
     if (!updates.name) throw new ValidationError('Speciality name is required');
     const existing = await this.specialityRepository.findAll();
-    if (existing.some((s) => s.name.toLowerCase() === updates.name!.toLowerCase() && s._id !== id)) {
+    if (existing.some((s) => s.name.toLowerCase() === updates.name?.toLowerCase() && s._id !== specialityId)) {
       throw new ValidationError('Speciality name already exists');
     }
-    const speciality = await this.specialityRepository.findById(id);
+    const speciality = await this.specialityRepository.findById(specialityId);
     if (!speciality) throw new NotFoundError('Speciality not found');
-    const updatedSpeciality = await this.specialityRepository.update(id, { name: updates.name });
+    const updatedSpeciality = await this.specialityRepository.update(specialityId, { name: updates.name });
     if (!updatedSpeciality) throw new NotFoundError('Failed to update speciality');
     return updatedSpeciality;
   }

@@ -9,14 +9,14 @@ export class UpdateDoctorUseCase {
     private specialityRepository: ISpecialityRepository
   ) {}
 
-  async execute(id: string, updates: Partial<Doctor>): Promise<Doctor> {
+  async execute(doctorId: string, updates: Partial<Doctor>): Promise<Doctor> {
     if (updates.speciality) {
       const validSpecialities = await this.specialityRepository.findByIds([updates.speciality]);
       if (validSpecialities.length !== updates.speciality.length) {
         throw new ValidationError('One or more selected specialities are invalid');
       }
     }
-    const updated = await this.doctorRepository.update(id, updates);
+    const updated = await this.doctorRepository.update(doctorId, updates);
     if (!updated) throw new NotFoundError('Doctor not found');
     return updated;
   }

@@ -197,12 +197,12 @@ export class SocketManager {
         }
       );
 
-    this.socket
-      .off('callEnded')
-      .on('callEnded', (data: { from: string; appointmentId: string }) => {
-        console.log('Received callEnded:', data);
-        this.handlers.onCallEnded?.(data);
-      });
+    // this.socket
+    //   .off('callEnded')
+    //   .on('callEnded', (data: { from: string; appointmentId: string }) => {
+    //     console.log('Received callEnded:', data);
+    //     this.handlers.onCallEnded?.(data);
+    //   });
 
     this.socket.off('error').on('error', (error: { message: string }) => {
       console.error('Socket error:', error);

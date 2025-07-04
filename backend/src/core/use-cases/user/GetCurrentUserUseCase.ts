@@ -13,14 +13,14 @@ export class GetCurrentUserUseCase {
     private adminRepository: IAdminRepository
   ) {}
 
-  async execute(id: string, role: 'patient' | 'doctor' | 'admin'): Promise<Patient | Doctor | Admin | null> {
+  async execute(userId: string, role: 'patient' | 'doctor' | 'admin'): Promise<Patient | Doctor | Admin | null> {
     switch (role) {
       case 'patient':
-        return this.patientRepository.findById(id);
+        return this.patientRepository.findById(userId);
       case 'doctor':
-        return this.doctorRepository.getDoctorDetails(id);
+        return this.doctorRepository.getDoctorDetails(userId);
       case 'admin':
-        return this.adminRepository.getAdminDetails(id);
+        return this.adminRepository.getAdminDetails(userId);
       default:
         throw new ValidationError('Invalid user role');
     }

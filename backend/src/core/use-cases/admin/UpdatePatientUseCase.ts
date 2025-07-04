@@ -5,9 +5,9 @@ import { NotFoundError } from '../../../utils/errors';
 export class UpdatePatientUseCase {
   constructor(private patientRepository: IPatientRepository) {}
 
-  async execute(id: string, updates: Partial<Patient>): Promise<Patient | null> {
-    const patient = await this.patientRepository.findById(id);
+  async execute(patientId: string, updates: Partial<Patient>): Promise<Patient | null> {
+    const patient = await this.patientRepository.findById(patientId);
     if (!patient) throw new NotFoundError('Patient not found');
-    return this.patientRepository.update(id, updates);
+    return this.patientRepository.update(patientId, updates);
   }
 }

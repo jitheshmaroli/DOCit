@@ -70,7 +70,7 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
           behavior: 'smooth',
         });
       }
-    }, [messages, isAtBottom]);
+    }, [messages, isAtBottom, chatContainerRef]);
 
     useEffect(() => {
       socketManager.registerHandlers({
@@ -125,7 +125,7 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
           onReceiveReaction: undefined,
         });
       };
-    }, [thread.receiverId, socketManager, isAtBottom]);
+    }, [thread.receiverId, socketManager, isAtBottom, chatContainerRef]);
 
     const handleEmojiClick = (emojiObject: { emoji: string }) => {
       onMessageChange(newMessage + emojiObject.emoji);

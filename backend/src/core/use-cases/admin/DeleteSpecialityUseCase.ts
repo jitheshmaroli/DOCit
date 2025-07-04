@@ -8,13 +8,13 @@ export class DeleteSpecialityUseCase {
     private doctorRepository: IDoctorRepository
   ) {}
 
-  async execute(id: string): Promise<void> {
-    const speciality = await this.specialityRepository.findById(id);
+  async execute(specialityId: string): Promise<void> {
+    const speciality = await this.specialityRepository.findById(specialityId);
     if (!speciality) throw new NotFoundError('Speciality not found');
-    const doctors = await this.doctorRepository.findBySpeciality(id);
+    const doctors = await this.doctorRepository.findBySpeciality(specialityId);
     if (doctors.length > 0) {
       throw new ValidationError('Cannot delete speciality used by doctors');
     }
-    await this.specialityRepository.delete(id);
+    await this.specialityRepository.delete(specialityId);
   }
 }
