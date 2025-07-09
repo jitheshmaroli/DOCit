@@ -21,6 +21,7 @@ const DoctorSchema = new Schema<Doctor>(
     refreshToken: { type: String },
     googleId: { type: String, unique: true, sparse: true },
     lastSeen: { type: Date },
+    reviewIds: { type: [String] },
   },
   { timestamps: true }
 );

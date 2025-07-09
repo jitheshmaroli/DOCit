@@ -8,7 +8,7 @@ import {
   deleteAllNotifications,
   markNotificationAsRead,
 } from '../../services/notificationService';
-import { SocketManager } from '../../services/SocketManager';
+import { useSocket } from '../../context/SocketContext';
 import { DateUtils } from '../../utils/DateUtils';
 
 interface NotificationDropdownProps {
@@ -21,12 +21,12 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const socketManager = SocketManager.getInstance();
+  const { registerHandlers } = useSocket();
 
   useEffect(() => {
     if (!userId) return;
 
-    socketManager.registerHandlers({
+    registerHandlers({
       onReceiveNotification: (notification: AppNotification) => {
         setNotifications((prev) => [notification, ...prev]);
         if (!notification.isRead) {
@@ -45,7 +45,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
       }
     };
     loadNotifications();
-  }, [socketManager, userId]);
+  }, [registerHandlers, userId]);
 
   const handleToggleDropdown = () => {
     setIsOpen(!isOpen);

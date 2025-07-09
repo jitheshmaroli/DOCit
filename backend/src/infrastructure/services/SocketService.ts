@@ -155,7 +155,6 @@ export class SocketService {
             unreadBy: message.unreadBy || [message.receiverId],
           };
 
-          // Emit to receiver
           const receiverSocketIds = this.connectedUsers.get(message.receiverId);
           if (receiverSocketIds && receiverSocketIds.size > 0) {
             receiverSocketIds.forEach((socketId) => {
@@ -170,7 +169,6 @@ export class SocketService {
             this.queueMessage(message.receiverId, messagePayload);
           }
 
-          // Emit to sender
           const senderSocketIds = this.connectedUsers.get(message.senderId);
           if (senderSocketIds && senderSocketIds.size > 0) {
             const senderPayload = { ...messagePayload, isSender: true };
@@ -204,7 +202,6 @@ export class SocketService {
             throw new Error('Message not found');
           }
 
-          // Emit to receiver
           const receiverId = message.senderId === data.userId ? message.receiverId : message.senderId;
           const receiverSocketIds = this.connectedUsers.get(receiverId);
           if (receiverSocketIds && receiverSocketIds.size > 0) {
@@ -217,7 +214,6 @@ export class SocketService {
             logger.info(`Reaction sent to receiver: ${receiverId}`);
           }
 
-          // Emit to sender
           const senderSocketIds = this.connectedUsers.get(data.userId);
           if (senderSocketIds && senderSocketIds.size > 0) {
             senderSocketIds.forEach((socketId) => {
@@ -255,56 +251,143 @@ export class SocketService {
         }
       });
 
-      socket.on('offer', (data: { appointmentId: string; to: string; from: string; offer: any }) => {
-        const receiverSocketIds = this.connectedUsers.get(data.to);
-        if (receiverSocketIds && receiverSocketIds.size > 0) {
-          receiverSocketIds.forEach((socketId) => {
-            this.io!.to(socketId).emit('receiveOffer', {
-              offer: data.offer,
-              from: data.from,
-              appointmentId: data.appointmentId,
+      socket.on('initiateVideoCall', async (data: { appointmentId: string; receiverId: string }) => {
+        try {
+          logger.info('Received initiateVideoCall:', { data });
+          const receiverSocketIds = this.connectedUsers.get(data.receiverId);
+          if (receiverSocketIds && receiverSocketIds.size > 0) {
+            receiverSocketIds.forEach((socketId) => {
+              this.io!.to(socketId).emit('incomingCall', {
+                appointmentId: data.appointmentId,
+                callerId: userId,
+                callerRole: role,
+              });
             });
-          });
-          logger.info(`Offer sent to: ${data.to} for appointment: ${data.appointmentId}`);
-        } else {
-          logger.warn(`Receiver not connected for offer: ${data.to}`);
-          socket.emit('error', { message: 'Receiver not connected' });
+            logger.info(`Incoming call sent to: ${data.receiverId}`);
+          } else {
+            logger.warn(`Receiver not connected for video call: ${data.receiverId}`);
+            socket.emit('error', { message: 'Receiver not available' });
+          }
+        } catch (error: any) {
+          logger.error(`Initiate video call error: ${error}`);
+          socket.emit('error', { message: (error as Error).message });
         }
       });
 
-      socket.on('answer', (data: { appointmentId: string; to: string; from: string; answer: any }) => {
-        const receiverSocketIds = this.connectedUsers.get(data.to);
-        if (receiverSocketIds && receiverSocketIds.size > 0) {
-          receiverSocketIds.forEach((socketId) => {
-            this.io!.to(socketId).emit('receiveAnswer', { answer: data.answer, appointmentId: data.appointmentId });
-          });
-          logger.info(`Answer sent to: ${data.to} for appointment: ${data.appointmentId}`);
-        }
-      });
-
-      socket.on('iceCandidate', (data: { appointmentId: string; to: string; from: string; candidate: any }) => {
-        const receiverSocketIds = this.connectedUsers.get(data.to);
-        if (receiverSocketIds && receiverSocketIds.size > 0) {
-          receiverSocketIds.forEach((socketId) => {
-            this.io!.to(socketId).emit('receiveIceCandidate', {
-              candidate: data.candidate,
-              appointmentId: data.appointmentId,
-              from: data.from,
+      socket.on('acceptCall', async (data: { appointmentId: string; callerId: string }) => {
+        try {
+          logger.info('Received acceptCall:', { data });
+          const callerSocketIds = this.connectedUsers.get(data.callerId);
+          if (callerSocketIds && callerSocketIds.size > 0) {
+            callerSocketIds.forEach((socketId) => {
+              this.io!.to(socketId).emit('callAccepted', {
+                appointmentId: data.appointmentId,
+                acceptorId: userId,
+              });
             });
-          });
-          logger.info(
-            `ICE candidate sent to: ${data.to} for appointment: ${data.appointmentId} candidata: ${data.candidate}`
-          );
+            logger.info(`Call accepted sent to: ${data.callerId}`);
+          }
+        } catch (error: any) {
+          logger.error(`Accept call error: ${error}`);
+          socket.emit('error', { message: (error as Error).message });
         }
       });
 
-      socket.on('endCall', (data: { appointmentId: string; to: string; from: string }) => {
-        const receiverSocketIds = this.connectedUsers.get(data.to);
-        if (receiverSocketIds && receiverSocketIds.size > 0) {
-          receiverSocketIds.forEach((socketId) => {
-            this.io!.to(socketId).emit('callEnded', { appointmentId: data.appointmentId });
-          });
-          logger.info(`Call ended signal sent to: ${data.to} for appointment: ${data.appointmentId}`);
+      socket.on('rejectCall', async (data: { appointmentId: string; callerId: string }) => {
+        try {
+          logger.info('Received rejectCall:', { data });
+          const callerSocketIds = this.connectedUsers.get(data.callerId);
+          if (callerSocketIds && callerSocketIds.size > 0) {
+            callerSocketIds.forEach((socketId) => {
+              this.io!.to(socketId).emit('callRejected', {
+                appointmentId: data.appointmentId,
+                rejectorId: userId,
+              });
+            });
+            logger.info(`Call rejected sent to: ${data.callerId}`);
+          }
+        } catch (error: any) {
+          logger.error(`Reject call error: ${error}`);
+          socket.emit('error', { message: (error as Error).message });
+        }
+      });
+
+      socket.on('signal', async (data: { appointmentId: string; receiverId: string; signal: any }) => {
+        try {
+          logger.info('Received signal:', { appointmentId: data.appointmentId });
+          const receiverSocketIds = this.connectedUsers.get(data.receiverId);
+          if (receiverSocketIds && receiverSocketIds.size > 0) {
+            receiverSocketIds.forEach((socketId) => {
+              this.io!.to(socketId).emit('signal', {
+                appointmentId: data.appointmentId,
+                senderId: userId,
+                signal: data.signal,
+              });
+            });
+            logger.info(`Signal sent to: ${data.receiverId}`);
+          }
+        } catch (error: any) {
+          logger.error(`Signal error: ${error}`);
+          socket.emit('error', { message: (error as Error).message });
+        }
+      });
+
+      socket.on('endCall', async (data: { appointmentId: string; receiverId: string }) => {
+        try {
+          logger.info('Received endCall:', { data });
+          const receiverSocketIds = this.connectedUsers.get(data.receiverId);
+          if (receiverSocketIds && receiverSocketIds.size > 0) {
+            receiverSocketIds.forEach((socketId) => {
+              this.io!.to(socketId).emit('callEnded', {
+                appointmentId: data.appointmentId,
+                enderId: userId,
+              });
+            });
+            logger.info(`Call ended sent to: ${data.receiverId}`);
+          }
+        } catch (error: any) {
+          logger.error(`End call error: ${error}`);
+          socket.emit('error', { message: (error as Error).message });
+        }
+      });
+
+      socket.on('handRaise', async (data: { appointmentId: string; receiverId: string; isRaised: boolean }) => {
+        try {
+          logger.info('Received handRaise:', { data });
+          const receiverSocketIds = this.connectedUsers.get(data.receiverId);
+          if (receiverSocketIds && receiverSocketIds.size > 0) {
+            receiverSocketIds.forEach((socketId) => {
+              this.io!.to(socketId).emit('handRaise', {
+                appointmentId: data.appointmentId,
+                userId,
+                isRaised: data.isRaised,
+              });
+            });
+            logger.info(`Hand raise sent to: ${data.receiverId}`);
+          }
+        } catch (error: any) {
+          logger.error(`Hand raise error: ${error}`);
+          socket.emit('error', { message: (error as Error).message });
+        }
+      });
+
+      socket.on('muteStatus', async (data: { appointmentId: string; receiverId: string; isMuted: boolean }) => {
+        try {
+          logger.info('Received muteStatus:', { data });
+          const receiverSocketIds = this.connectedUsers.get(data.receiverId);
+          if (receiverSocketIds && receiverSocketIds.size > 0) {
+            receiverSocketIds.forEach((socketId) => {
+              this.io!.to(socketId).emit('muteStatus', {
+                appointmentId: data.appointmentId,
+                userId,
+                isMuted: data.isMuted,
+              });
+            });
+            logger.info(`Mute status sent to: ${data.receiverId}`);
+          }
+        } catch (error: any) {
+          logger.error(`Mute status error: ${error}`);
+          socket.emit('error', { message: (error as Error).message });
         }
       });
 
@@ -373,7 +456,6 @@ export class SocketService {
       unreadBy: message.unreadBy || [message.receiverId],
     };
 
-    // Emit to receiver
     const receiverSocketIds = this.connectedUsers.get(message.receiverId);
     if (receiverSocketIds && receiverSocketIds.size > 0) {
       receiverSocketIds.forEach((socketId) => {
@@ -388,7 +470,6 @@ export class SocketService {
       this.queueMessage(message.receiverId, messagePayload);
     }
 
-    // Emit to sender
     const senderSocketIds = this.connectedUsers.get(message.senderId);
     if (senderSocketIds && senderSocketIds.size > 0) {
       const senderPayload = { ...messagePayload, isSender: true };
@@ -413,7 +494,6 @@ export class SocketService {
       userId,
     };
 
-    // Emit to receiver
     const receiverSocketIds = this.connectedUsers.get(receiverId);
     if (receiverSocketIds && receiverSocketIds.size > 0) {
       receiverSocketIds.forEach((socketId) => {
@@ -425,7 +505,6 @@ export class SocketService {
       logger.info(`Reaction sent to receiver: ${receiverId}`);
     }
 
-    // Emit to sender
     const senderSocketIds = this.connectedUsers.get(userId);
     if (senderSocketIds && senderSocketIds.size > 0) {
       senderSocketIds.forEach((socketId) => {

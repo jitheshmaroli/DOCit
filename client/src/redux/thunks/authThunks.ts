@@ -30,7 +30,6 @@ import {
   User,
   VerifyOtpPayload,
 } from '../../types/authTypes';
-import { SocketManager } from '../../services/SocketManager';
 
 const handleError = (error: any, thunkAPI: any) => {
   const statusCode = error.response?.status || 500;
@@ -44,7 +43,6 @@ const handleError = (error: any, thunkAPI: any) => {
     message === 'User is blocked'
   ) {
     thunkAPI.dispatch(clearUser());
-    SocketManager.getInstance().disconnect();
     window.dispatchEvent(new Event('auth:logout'));
     return thunkAPI.rejectWithValue({ message, statusCode });
   }
@@ -174,7 +172,6 @@ export const logoutThunk = createAsyncThunk(
       thunkAPI.dispatch(setLoading(true));
       await logout();
       thunkAPI.dispatch(clearUser());
-      SocketManager.getInstance().disconnect();
     } catch (error) {
       return handleError(error, thunkAPI);
     } finally {
@@ -222,12 +219,10 @@ export const checkAuthThunk = createAsyncThunk(
         } catch (refreshError) {
           console.error('Refresh token failed in checkAuth:', refreshError);
           thunkAPI.dispatch(clearUser());
-          SocketManager.getInstance().disconnect();
           return handleError(refreshError, thunkAPI);
         }
       }
       thunkAPI.dispatch(clearUser());
-      SocketManager.getInstance().disconnect();
       return handleError(error, thunkAPI);
     } finally {
       thunkAPI.dispatch(setLoading(false));

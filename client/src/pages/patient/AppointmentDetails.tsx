@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ToastContainer, toast } from 'react-toastify';
@@ -9,8 +10,7 @@ import { DateUtils } from '../../utils/DateUtils';
 import axios from 'axios';
 import CancelAppointmentModal from '../../components/CancelAppointmentModal';
 import VideoCallModal from '../../components/VideoCallModal';
-import CallPromptModal from '../../components/CallPromptModal';
-import { SocketManager } from '../../services/SocketManager';
+import { useSocket } from '../../context/SocketContext';
 
 interface AppointmentPatient {
   _id: string;
@@ -77,13 +77,15 @@ const AppointmentDetails: React.FC = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const { user } = useAppSelector((state) => state.auth);
+  const { socket, registerHandlers } = useSocket();
   const [appointment, setAppointment] = useState<Appointment | null>(null);
   const [isLoading, setLoading] = useState(true);
-  const [showVideoCallModal, setShowVideoCallModal] = useState(false);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
-  const [showCallPrompt, setShowCallPrompt] = useState(false);
-  const [callerId, setCallerId] = useState<string | null>(null);
-  const socketManager = SocketManager.getInstance();
+  const [isVideoCallOpen, setIsVideoCallOpen] = useState(false);
+  const [isCaller, setIsCaller] = useState(false);
+  const [callerInfo, setCallerInfo] = useState<
+    { callerId: string; callerRole: string } | undefined
+  >(undefined);
 
   useEffect(() => {
     if (!user?._id) {
@@ -112,7 +114,6 @@ const AppointmentDetails: React.FC = () => {
         }
         if (appt.prescriptionId) {
           appt.prescription = {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             medications: appt.prescriptionId.medications.map((med: any) => ({
               name: med.name,
               dosage: med.dosage,
@@ -123,7 +124,7 @@ const AppointmentDetails: React.FC = () => {
           };
         }
         setAppointment(appt);
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Failed to load appointment details:', error);
         toast.error('Failed to load appointment details');
         setAppointment(null);
@@ -138,22 +139,46 @@ const AppointmentDetails: React.FC = () => {
   }, [appointmentId]);
 
   useEffect(() => {
-    socketManager.registerHandlers({
-      onReceiveOffer: (data) => {
-        if (data.appointmentId === appointmentId && appointment) {
-          setCallerId(data.from);
-          setShowCallPrompt(true);
-        }
-      },
-      onCallEnded: (data) => {
+    if (!socket || !appointment) return;
+
+    const handlers = {
+      onIncomingCall: (data: {
+        appointmentId: string;
+        callerId: string;
+        callerRole: string;
+      }) => {
         if (data.appointmentId === appointmentId) {
-          setShowVideoCallModal(false);
-          setShowCallPrompt(false);
-          setCallerId(null);
+          setCallerInfo({
+            callerId: data.callerId,
+            callerRole: data.callerRole,
+          });
+          setIsVideoCallOpen(true);
+          setIsCaller(false);
+          toast.info(`Incoming call from ${data.callerRole}`);
         }
       },
-    });
-  }, [appointmentId, appointment, socketManager]);
+      onCallAccepted: (data: { appointmentId: string; acceptorId: string }) => {
+        if (data.appointmentId === appointmentId) {
+          setIsVideoCallOpen(true);
+          setIsCaller(true);
+          toast.success('Call accepted');
+        }
+      },
+      onCallRejected: (data: { appointmentId: string; rejectorId: string }) => {
+        if (data.appointmentId === appointmentId) {
+          setIsVideoCallOpen(false);
+          setCallerInfo(undefined);
+          toast.info('Call rejected');
+        }
+      },
+    };
+
+    registerHandlers(handlers);
+
+    return () => {
+      // Handlers are managed by SocketContext
+    };
+  }, [socket, appointment, appointmentId, registerHandlers]);
 
   const isWithinAppointmentTime = useCallback(() => {
     if (!appointment) return false;
@@ -189,32 +214,27 @@ const AppointmentDetails: React.FC = () => {
   };
 
   const handleStartVideoCall = async () => {
-    if (!isWithinAppointmentTime()) {
-      toast.error('Video calls are only available during the appointment time');
+    if (
+      !appointment ||
+      !user?._id ||
+      typeof appointment.doctorId === 'string'
+    ) {
+      toast.error(
+        'Cannot start video call: Missing appointment or doctor information'
+      );
       return;
     }
-
-    if (appointment?.status !== 'pending') {
-      toast.error('Video call is only available for pending appointments');
-      return;
+    try {
+      await socket?.emit('initiateVideoCall', {
+        appointmentId,
+        receiverId: appointment.doctorId._id,
+      });
+      setIsVideoCallOpen(true);
+      setIsCaller(true);
+    } catch (error) {
+      console.error('Failed to initiate video call:', error);
+      toast.error('Failed to start video call');
     }
-
-    if (!user || !user._id || !appointment) {
-      toast.error('User not authenticated');
-      return;
-    }
-
-    if (!socketManager.isConnected()) {
-      try {
-        await socketManager.connect(user._id);
-      } catch (error) {
-        console.error('Failed to connect socket for video call:', error);
-        toast.error('Failed to initiate video call due to connection issues');
-        return;
-      }
-    }
-
-    setShowVideoCallModal(true);
   };
 
   const handleOpenChat = () => {
@@ -229,16 +249,6 @@ const AppointmentDetails: React.FC = () => {
     } else {
       toast.error('Cannot open chat: Doctor information missing');
     }
-  };
-
-  const handleAcceptCall = () => {
-    setShowCallPrompt(false);
-    setShowVideoCallModal(true);
-  };
-
-  const handleDeclineCall = () => {
-    setShowCallPrompt(false);
-    setCallerId(null);
   };
 
   if (isLoading) {
@@ -271,39 +281,27 @@ const AppointmentDetails: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 py-8">
       <ToastContainer position="bottom-right" autoClose={3000} theme="dark" />
-      {showVideoCallModal && (
-        <VideoCallModal
-          key={appointmentId}
-          appointment={appointment}
-          isCaller={false}
-          user={user}
-          onClose={() => setShowVideoCallModal(false)}
-          doctorName={
-            typeof appointment.doctorId === 'string'
-              ? 'Unknown Doctor'
-              : appointment.doctorId.name
-          }
-        />
-      )}
-      {showCallPrompt && callerId && (
-        <CallPromptModal
-          isOpen={showCallPrompt}
-          doctorName={
-            typeof appointment.doctorId === 'string'
-              ? 'Unknown Doctor'
-              : appointment.doctorId.name
-          }
-          appointmentId={appointmentId || ''}
-          callerId={callerId}
-          onAccept={handleAcceptCall}
-          onDecline={handleDeclineCall}
-        />
-      )}
       <CancelAppointmentModal
         isOpen={isCancelModalOpen}
         onClose={() => setIsCancelModalOpen(false)}
         onConfirm={handleCancelAppointment}
         appointmentId={appointmentId || ''}
+      />
+      <VideoCallModal
+        isOpen={isVideoCallOpen}
+        onClose={() => {
+          setIsVideoCallOpen(false);
+          setCallerInfo(undefined);
+        }}
+        appointmentId={appointmentId || ''}
+        userId={user?._id || ''}
+        receiverId={
+          typeof appointment.doctorId !== 'string'
+            ? appointment.doctorId._id
+            : ''
+        }
+        isCaller={isCaller}
+        callerInfo={callerInfo}
       />
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between mb-6">

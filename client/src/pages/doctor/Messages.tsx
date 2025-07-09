@@ -18,7 +18,7 @@ import {
   MessageThread,
   InboxThreadResponse,
 } from '../../types/messageTypes';
-import { SocketManager } from '../../services/SocketManager';
+import { useSocket } from '../../context/SocketContext';
 
 const Messages = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -37,12 +37,12 @@ const Messages = () => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
-  const socketManager = SocketManager.getInstance();
+  const { connect, registerHandlers } = useSocket();
 
   useEffect(() => {
     if (!user?._id) return;
 
-    socketManager.registerHandlers({
+    registerHandlers({
       onReceiveMessage: async (message: Message) => {
         if (message.senderId === user._id) return;
         const partnerId = message.senderId;
@@ -74,7 +74,6 @@ const Messages = () => {
           const incrementUnread = !isViewingThread || !isAtBottom();
           if (threadIndex >= 0) {
             const updatedThreads = [...prev];
-            // Check if message already exists
             if (
               updatedThreads[threadIndex].messages.some(
                 (msg) => msg._id === newMessageObj._id
@@ -133,7 +132,6 @@ const Messages = () => {
         if (selectedThread?.receiverId === partnerId) {
           setSelectedThread((prev) => {
             if (!prev) return prev;
-            // Check if message already exists
             if (prev.messages.some((msg) => msg._id === newMessageObj._id)) {
               return prev; // Skip duplicate
             }
@@ -184,11 +182,13 @@ const Messages = () => {
           },
         }));
       },
+     
     });
 
-    socketManager.connect(user._id);
-    // return () => socketManager.disconnect('Doctor Message page unmount');
-  }, [user?._id, socketManager, navigate, selectedThread?.receiverId]);
+    connect(user._id);
+
+    // Cleanup is handled by SocketContext
+  }, [user?._id, connect, registerHandlers, navigate, selectedThread?.receiverId]);
 
   const { sendMessage } = useSendMessage();
 
@@ -393,7 +393,7 @@ const Messages = () => {
               (msg) => msg._id === message._id
             )
           ) {
-            return prev; // Skip duplicate
+            return prev;
           }
           updatedThreads[threadIndex] = {
             ...updatedThreads[threadIndex],

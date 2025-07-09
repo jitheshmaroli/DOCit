@@ -1,4 +1,3 @@
-// F:\DOCit\client\src\pages\patient\Profile\Messages.tsx
 import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ToastContainer, toast } from 'react-toastify';
@@ -18,7 +17,7 @@ import {
   MessageThread,
   InboxThreadResponse,
 } from '../../../types/messageTypes';
-import { SocketManager } from '../../../services/SocketManager';
+import { useSocket } from '../../../context/SocketContext';
 
 interface MessagesProps {
   patientId: string;
@@ -40,12 +39,12 @@ const Messages = ({ patientId }: MessagesProps) => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
-  const socketManager = SocketManager.getInstance();
+  const { connect, registerHandlers } = useSocket();
 
   useEffect(() => {
     if (!patientId) return;
 
-    socketManager.registerHandlers({
+    registerHandlers({
       onReceiveMessage: async (message: Message) => {
         if (message.senderId === patientId) return;
         const partnerId = message.senderId;
@@ -77,7 +76,6 @@ const Messages = ({ patientId }: MessagesProps) => {
           const incrementUnread = !isViewingThread || !isAtBottom();
           if (threadIndex >= 0) {
             const updatedThreads = [...prev];
-            // Check if message already exists
             if (
               updatedThreads[threadIndex].messages.some(
                 (msg) => msg._id === newMessageObj._id
@@ -136,7 +134,6 @@ const Messages = ({ patientId }: MessagesProps) => {
         if (selectedThread?.receiverId === partnerId) {
           setSelectedThread((prev) => {
             if (!prev) return prev;
-            // Check if message already exists
             if (prev.messages.some((msg) => msg._id === newMessageObj._id)) {
               return prev; // Skip duplicate
             }
@@ -187,12 +184,13 @@ const Messages = ({ patientId }: MessagesProps) => {
           },
         }));
       },
+      
     });
 
-    socketManager.connect(patientId);
+    connect(patientId);
 
-    // return () => socketManager.disconnect('Patient message page unmount');
-  }, [patientId, socketManager, navigate, selectedThread?.receiverId]);
+    // Cleanup is handled by SocketContext
+  }, [patientId, connect, registerHandlers, navigate, selectedThread?.receiverId]);
 
   const { sendMessage } = useSendMessage();
 
@@ -344,7 +342,7 @@ const Messages = ({ patientId }: MessagesProps) => {
             chatContainerRef.current.scrollTo({
               top: chatContainerRef.current.scrollHeight,
               behavior: 'smooth',
-            });
+          });
           }
           inputRef.current?.focus();
         }, 100);

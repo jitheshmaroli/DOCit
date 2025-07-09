@@ -19,6 +19,7 @@ export const ResponseMessages = {
   LOGGED_IN: 'Logged in successfully',
   LOGGED_OUT: 'Logged out successfully',
   PASSWORD_RESET: 'Password reset successfully',
+  MISSING_REQUIRED_FIELDS: 'Required fields are missing',
   APPOINTMENT_CANCELLED: 'Appointment cancelled successfully',
   PLAN_APPROVED: 'Plan approved',
   PLAN_REJECTED: 'Plan rejected',

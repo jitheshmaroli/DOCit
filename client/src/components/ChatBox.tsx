@@ -4,7 +4,7 @@ import EmojiPicker from 'emoji-picker-react';
 import { DateUtils } from '../utils/DateUtils';
 import { MessageThread, Message } from '../types/messageTypes';
 import { sendAttachment, addReaction } from '../services/messageService';
-import { SocketManager } from '../services/SocketManager';
+import { useSocket } from '../context/SocketContext';
 
 interface ChatBoxProps {
   thread: MessageThread;
@@ -48,7 +48,7 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
     >(null);
     const [messages, setMessages] = useState<Message[]>(thread.messages);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
-    const socketManager = SocketManager.getInstance();
+    const { registerHandlers, emit } = useSocket();
 
     const defaultEmojis = ['😊', '👍', '❤️', '😂', '😢', '😮'];
 
@@ -73,7 +73,7 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
     }, [messages, isAtBottom, chatContainerRef]);
 
     useEffect(() => {
-      socketManager.registerHandlers({
+      registerHandlers({
         onReceiveMessage: (message: Message) => {
           if (
             message.receiverId === thread.receiverId ||
@@ -106,7 +106,6 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
                 ? {
                     ...msg,
                     reactions: [
-                      // Remove existing reaction from the same user
                       ...(msg.reactions || []).filter(
                         (r) => r.userId !== data.userId
                       ),
@@ -120,12 +119,12 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
       });
 
       return () => {
-        socketManager.registerHandlers({
+        registerHandlers({
           onReceiveMessage: undefined,
           onReceiveReaction: undefined,
         });
       };
-    }, [thread.receiverId, socketManager, isAtBottom, chatContainerRef]);
+    }, [thread.receiverId, registerHandlers, isAtBottom, chatContainerRef]);
 
     const handleEmojiClick = (emojiObject: { emoji: string }) => {
       onMessageChange(newMessage + emojiObject.emoji);
@@ -170,23 +169,20 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
 
     const handleReaction = async (messageId: string, emoji: string) => {
       try {
-        // Check if the user already has a reaction
         const message = messages.find((msg) => msg._id === messageId);
         const existingReaction = message?.reactions?.find(
           (r) => r.userId === currentUserId
         );
 
         if (existingReaction) {
-          // Replace existing reaction
-          await addReaction(messageId, emoji, true); // Pass a flag to indicate replacement
+          await addReaction(messageId, emoji, true);
         } else {
-          // Add new reaction
           await addReaction(messageId, emoji);
         }
         if (!thread.senderId) {
           throw new Error('Sender ID is not defined');
         }
-        await socketManager.emit('sendReaction', {
+        await emit('sendReaction', {
           messageId,
           emoji,
           userId: currentUserId,

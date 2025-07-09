@@ -15,4 +15,5 @@ export interface Appointment {
   reminderSent?: boolean;
   cancellationReason?: string;
   prescriptionId?: string;
+  hasReview?: boolean;
 }

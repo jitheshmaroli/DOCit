@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { DateUtils } from '../utils/DateUtils';
 import { MessageThread } from '../types/messageTypes';
-import { SocketManager } from '../services/SocketManager';
+import { useSocket } from '../context/SocketContext';
 
 interface MessageInboxProps {
   threads: MessageThread[];
@@ -15,10 +15,10 @@ export const MessageInbox: React.FC<MessageInboxProps> = React.memo(
     const [userStatuses, setUserStatuses] = React.useState<{
       [key: string]: { status: 'online' | 'offline'; lastSeen?: string };
     }>({});
-    const socketManager = SocketManager.getInstance();
+    const { registerHandlers } = useSocket();
 
     useEffect(() => {
-      socketManager.registerHandlers({
+      registerHandlers({
         onUserStatus: ({ userId, status, lastSeen }) => {
           console.log('Received userStatus:', { userId, status, lastSeen });
           setUserStatuses((prev) => ({
@@ -32,9 +32,9 @@ export const MessageInbox: React.FC<MessageInboxProps> = React.memo(
       });
 
       return () => {
-        socketManager.registerHandlers({ onUserStatus: undefined });
+        registerHandlers({ onUserStatus: undefined });
       };
-    }, [socketManager]);
+    }, [registerHandlers]);
 
     const formatLastSeen = (lastSeen?: string) => {
       if (!lastSeen) return 'Last seen: Unknown';

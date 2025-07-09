@@ -5,7 +5,7 @@ import { RootState } from '../../redux/store';
 import Logo from './Logo';
 import useAuth from '../../hooks/useAuth';
 import NotificationDropdown from './NotificationDropdown';
-import { SocketManager } from '../../services/SocketManager';
+import { useSocket } from '../../context/SocketContext';
 
 const Header: React.FC = () => {
   const location = useLocation();
@@ -13,6 +13,7 @@ const Header: React.FC = () => {
   const { user, loading } = useSelector((state: RootState) => state.auth);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { logout } = useAuth();
+  const { connect, isConnected } = useSocket();
 
   const isAuthenticated = !!user;
 
@@ -68,10 +69,10 @@ const Header: React.FC = () => {
   }, [location.pathname]);
 
   useEffect(() => {
-    if (user?._id && !SocketManager.getInstance().isConnected()) {
-      SocketManager.getInstance().connect(user._id);
+    if (user?._id && !isConnected) {
+      connect(user._id);
     }
-  }, [user?._id]);
+  }, [user?._id, isConnected, connect]);
 
   if (loading) {
     return (

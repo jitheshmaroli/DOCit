@@ -3,7 +3,7 @@ import { toast } from 'react-toastify';
 import { sendMessage } from '../services/messageService';
 import { Message } from '../types/messageTypes';
 import { useAppSelector } from '../redux/hooks';
-import { SocketManager } from '../services/SocketManager';
+import { useSocket } from '../context/SocketContext';
 
 interface SendMessageProps {
   receiverId: string;
@@ -13,7 +13,7 @@ interface SendMessageProps {
 export const useSendMessage = () => {
   const { user } = useAppSelector((state) => state.auth);
   const [sending, setSending] = useState(false);
-  const socketManager = SocketManager.getInstance();
+  const { emit } = useSocket();
 
   const send = useCallback(
     async ({
@@ -39,9 +39,8 @@ export const useSendMessage = () => {
           attachment: savedMessage.attachment,
           reactions: savedMessage.reactions || [],
         };
-        // Emit only if message was successfully saved
         if (savedMessage) {
-          socketManager.emit('sendMessage', updatedMessage);
+          await emit('sendMessage', updatedMessage);
         }
         return updatedMessage;
       } catch (error) {
@@ -52,7 +51,7 @@ export const useSendMessage = () => {
         setSending(false);
       }
     },
-    [user?._id, user?.name, sending, socketManager]
+    [user?._id, user?.name, sending, emit]
   );
 
   return { sendMessage: send, sending };

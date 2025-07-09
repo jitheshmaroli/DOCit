@@ -57,4 +57,7 @@ router.patch(
   patientProfileController.updateProfile.bind(patientProfileController)
 );
 
+// Review routes
+router.post('/review', patientAuth, patientController.createReview.bind(patientController));
+
 export default router;

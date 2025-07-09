@@ -22,6 +22,8 @@ import { Appointment } from '../../../core/entities/Appointment';
 import { GetPatientActiveSubscriptionUseCase } from '../../../core/use-cases/patient/GetPatientActiveSubscriptionUseCase';
 import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
+import { CreateReviewUseCase } from '../../../core/use-cases/review/CreateReviewUseCase';
+import sanitizeHtml from 'sanitize-html';
 
 export class PatientController {
   private bookAppointmentUseCase: BookAppointmentUseCase;
@@ -38,6 +40,7 @@ export class PatientController {
   private getDoctorApprovedPlansUseCase: GetDoctorApprovedPlansUseCase;
   private getPatientAppointmentsUseCase: GetPatientAppointmentsUseCase;
   private getAppointmentByIdUseCase: GetAppointmentByIdUseCase;
+  private createReviewUseCase: CreateReviewUseCase;
 
   constructor(container: Container) {
     this.bookAppointmentUseCase = container.get('BookAppointmentUseCase');
@@ -54,6 +57,7 @@ export class PatientController {
     this.getDoctorApprovedPlansUseCase = container.get('GetDoctorApprovedPlansUseCase');
     this.getPatientAppointmentsUseCase = container.get('GetPatientAppointmentsUseCase');
     this.getAppointmentByIdUseCase = container.get('GetAppointmentByIdUseCase');
+    this.createReviewUseCase = container.get('CreateReviewUseCase');
   }
 
   async getDoctorAvailability(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
@@ -298,6 +302,64 @@ export class PatientController {
     try {
       const specialities = await this.getAllSpecialitiesUseCase.execute();
       res.status(HttpStatusCode.OK).json(specialities);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async createReview(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const patientId = req.user?.id;
+      if (!patientId) {
+        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
+      }
+      if (req.user?.role !== 'patient') {
+        throw new ValidationError(ResponseMessages.UNAUTHORIZED);
+      }
+
+      const { appointmentId, doctorId, rating, comment } = req.body;
+
+      // Syntactic validation (moved from use case)
+      if (!appointmentId || !doctorId || rating === undefined || !comment) {
+        throw new ValidationError(ResponseMessages.MISSING_REQUIRED_FIELDS);
+      }
+
+      if (typeof appointmentId !== 'string' || !mongoose.Types.ObjectId.isValid(appointmentId)) {
+        throw new ValidationError('Appointment id is not valid');
+      }
+
+      if (typeof doctorId !== 'string' || !mongoose.Types.ObjectId.isValid(doctorId)) {
+        throw new ValidationError('Doctro id is not valid');
+      }
+
+      if (typeof rating !== 'number' || !Number.isInteger(rating) || rating < 1 || rating > 5) {
+        throw new ValidationError('Rating must be number and between 1 to 5');
+      }
+
+      if (typeof comment !== 'string' || comment.trim() === '' || comment.length > 1000) {
+        throw new ValidationError('Invalid comment');
+      }
+
+      // Sanitize comment to prevent XSS
+      const sanitizedComment = sanitizeHtml(comment, {
+        allowedTags: [],
+        allowedAttributes: {},
+      });
+
+      // Execute use case
+      const review = await this.createReviewUseCase.execute(
+        patientId,
+        doctorId,
+        appointmentId,
+        rating,
+        sanitizedComment
+      );
+
+      res.status(HttpStatusCode.CREATED).json({
+        success: true,
+        data: review,
+        message: 'Review created successfully',
+      });
     } catch (error) {
       next(error);
     }

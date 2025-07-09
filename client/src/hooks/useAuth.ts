@@ -26,7 +26,6 @@ import {
   User,
   VerifyOtpPayload,
 } from '../types/authTypes';
-import { SocketManager } from '../services/SocketManager';
 
 interface AuthHook {
   user: User | null;
@@ -58,7 +57,6 @@ const useAuth = (): AuthHook => {
   const { user, loading, error, otpSent } = useSelector(
     (state: RootState) => state.auth
   );
-  const socketManager = SocketManager.getInstance();
 
   return {
     user,
@@ -78,9 +76,6 @@ const useAuth = (): AuthHook => {
 
     verifySignUpOtp: async (payload: VerifyOtpPayload) => {
       const result = await dispatch(verifySignUpOtpThunk(payload));
-      if (verifySignUpOtpThunk.fulfilled.match(result)) {
-        socketManager.connect(result.payload._id);
-      }
       return result;
     },
 
@@ -90,7 +85,6 @@ const useAuth = (): AuthHook => {
     ) => {
       const result = await dispatch(loginThunk(payload));
       if (loginThunk.fulfilled.match(result)) {
-        socketManager.connect(result.payload._id);
         options?.onSuccess?.();
       } else {
         options?.onError?.(result.payload as string);
@@ -110,23 +104,16 @@ const useAuth = (): AuthHook => {
 
     logout: async () => {
       const result = await dispatch(logoutThunk());
-      socketManager.disconnect();
       return result;
     },
 
     googleSignInPatient: async (token: string) => {
       const result = await dispatch(googleSignInPatientThunk(token));
-      if (googleSignInPatientThunk.fulfilled.match(result)) {
-        socketManager.connect(result.payload._id);
-      }
       return result;
     },
 
     googleSignInDoctor: async (token: string) => {
       const result = await dispatch(googleSignInDoctorThunk(token));
-      if (googleSignInDoctorThunk.fulfilled.match(result)) {
-        socketManager.connect(result.payload._id);
-      }
       return result;
     },
 
@@ -134,9 +121,6 @@ const useAuth = (): AuthHook => {
       expectedRole: 'patient' | 'doctor' | 'admin' | undefined
     ) => {
       const result = await dispatch(checkAuthThunk(expectedRole));
-      if (checkAuthThunk.fulfilled.match(result)) {
-        socketManager.connect(result.payload._id);
-      }
       return result;
     },
 
