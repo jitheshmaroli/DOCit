@@ -31,9 +31,6 @@ const Messages = ({ patientId }: MessagesProps) => {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [newMessagesCount, setNewMessagesCount] = useState(0);
-  const [userStatuses, setUserStatuses] = useState<{
-    [key: string]: { status: 'online' | 'offline'; lastSeen?: string };
-  }>({});
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -174,17 +171,7 @@ const Messages = ({ patientId }: MessagesProps) => {
         ) {
           navigate('/login');
         }
-      },
-      onUserStatus: ({ userId, status, lastSeen }) => {
-        setUserStatuses((prev) => ({
-          ...prev,
-          [userId]: {
-            status,
-            lastSeen: lastSeen ? new Date(lastSeen).toISOString() : undefined,
-          },
-        }));
-      },
-      
+      },      
     });
 
     connect(patientId);
@@ -553,7 +540,6 @@ const Messages = ({ patientId }: MessagesProps) => {
               onScrollToBottom={scrollToBottom}
               isAtBottom={isAtBottom}
               onDeleteMessages={handleDeleteMessages}
-              userStatus={userStatuses[selectedThread.receiverId]}
               currentUserId={patientId}
             />
           ) : (

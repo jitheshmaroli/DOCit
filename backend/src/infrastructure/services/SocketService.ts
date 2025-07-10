@@ -43,18 +43,6 @@ export class SocketService {
     this.setupSocketEvents();
   }
 
-  private async updateLastSeen(userId: string, role: string): Promise<void> {
-    try {
-      if (role === 'patient') {
-        await this.patientRepository.update(userId, { lastSeen: new Date() });
-      } else if (role === 'doctor') {
-        await this.doctorRepository.update(userId, { lastSeen: new Date() });
-      }
-    } catch (error) {
-      logger.error(`Failed to update last seen for user ${userId}:`, error);
-    }
-  }
-
   private setupSocketEvents(): void {
     if (!this.io) {
       throw new Error('Socket.IO server not initialized');
@@ -133,9 +121,6 @@ export class SocketService {
       logger.info(
         `User connected: ${userId}, socketId=${socket.id}, totalSockets=${this.connectedUsers.get(userId)!.size}`
       );
-
-      await this.updateLastSeen(userId, role);
-      this.io!.emit('userStatus', { userId, status: 'online' });
 
       this.deliverQueuedMessages(userId, socket);
 
@@ -397,8 +382,6 @@ export class SocketService {
           userSockets.delete(socket.id);
           if (userSockets.size === 0) {
             this.connectedUsers.delete(userId);
-            await this.updateLastSeen(userId, role);
-            this.io!.emit('userStatus', { userId, status: 'offline', lastSeen: new Date().toISOString() });
           }
           logger.info(
             `User socket disconnected: ${userId}, socketId=${socket.id}, remainingSockets=${userSockets?.size || 0}`

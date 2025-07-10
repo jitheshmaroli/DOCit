@@ -1,7 +1,5 @@
-import React, { useEffect } from 'react';
-import { DateUtils } from '../utils/DateUtils';
+import React from 'react';
 import { MessageThread } from '../types/messageTypes';
-import { useSocket } from '../context/SocketContext';
 
 interface MessageInboxProps {
   threads: MessageThread[];
@@ -12,36 +10,6 @@ interface MessageInboxProps {
 
 export const MessageInbox: React.FC<MessageInboxProps> = React.memo(
   ({ threads, selectedThreadId, onSelectThread, loading }) => {
-    const [userStatuses, setUserStatuses] = React.useState<{
-      [key: string]: { status: 'online' | 'offline'; lastSeen?: string };
-    }>({});
-    const { registerHandlers } = useSocket();
-
-    useEffect(() => {
-      registerHandlers({
-        onUserStatus: ({ userId, status, lastSeen }) => {
-          console.log('Received userStatus:', { userId, status, lastSeen });
-          setUserStatuses((prev) => ({
-            ...prev,
-            [userId]: {
-              status,
-              lastSeen: lastSeen ? new Date(lastSeen).toISOString() : undefined,
-            },
-          }));
-        },
-      });
-
-      return () => {
-        registerHandlers({ onUserStatus: undefined });
-      };
-    }, [registerHandlers]);
-
-    const formatLastSeen = (lastSeen?: string) => {
-      if (!lastSeen) return 'Last seen: Unknown';
-      const date = new Date(lastSeen);
-      return `Last seen: ${DateUtils.formatToLocal(date.toDateString())}`;
-    };
-
     return (
       <div className="w-full lg:w-1/3 bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-4 sm:p-6 h-full overflow-hidden">
         <h3 className="text-lg sm:text-xl font-semibold text-white mb-4">
@@ -72,9 +40,6 @@ export const MessageInbox: React.FC<MessageInboxProps> = React.memo(
                       alt={thread.senderName}
                       className="w-10 h-10 rounded-full object-cover border-2 border-white/20"
                     />
-                    {userStatuses[thread.receiverId]?.status === 'online' && (
-                      <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white/20"></span>
-                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-center">
@@ -91,13 +56,6 @@ export const MessageInbox: React.FC<MessageInboxProps> = React.memo(
                             {thread.unreadCount}
                           </span>
                         )}
-                        <p className="text-gray-400 text-xs">
-                          {userStatuses[thread.receiverId]?.status === 'online'
-                            ? 'Online'
-                            : formatLastSeen(
-                                userStatuses[thread.receiverId]?.lastSeen
-                              )}
-                        </p>
                       </div>
                     </div>
                     <p

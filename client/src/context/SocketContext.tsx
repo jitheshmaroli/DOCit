@@ -11,11 +11,6 @@ interface SocketHandlers {
   onReceiveMessage?: (message: Message) => void;
   onReceiveNotification?: (notification: AppNotification) => void;
   onError?: (error: { message: string }) => void;
-  onUserStatus?: (data: {
-    userId: string;
-    status: 'online' | 'offline';
-    lastSeen?: string;
-  }) => void;
   onReceiveReaction?: (data: {
     messageId: string;
     emoji: string;
@@ -91,18 +86,6 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
         handlersRef.current.onReceiveNotification?.(notification);
       });
 
-    socket
-      .off('userStatus')
-      .on(
-        'userStatus',
-        (data: {
-          userId: string;
-          status: 'online' | 'offline';
-          lastSeen?: string;
-        }) => {
-          handlersRef.current.onUserStatus?.(data);
-        }
-      );
 
     socket
       .off('receiveReaction')

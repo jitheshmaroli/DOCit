@@ -19,7 +19,6 @@ interface ChatBoxProps {
   onScrollToBottom: () => void;
   isAtBottom: () => boolean;
   onDeleteMessages: (messageIds: string[]) => void;
-  userStatus?: { status: 'online' | 'offline'; lastSeen?: string };
   currentUserId: string;
 }
 
@@ -37,7 +36,6 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
     onScrollToBottom,
     isAtBottom,
     onDeleteMessages,
-    userStatus,
     currentUserId,
   }) => {
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -53,7 +51,6 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
     const defaultEmojis = ['😊', '👍', '❤️', '😂', '😢', '😮'];
 
     useEffect(() => {
-      // Deduplicate messages when thread.messages changes
       setMessages((prev) => {
         const existingIds = new Set(prev.map((msg) => msg._id));
         const newMessages = thread.messages.filter(
@@ -199,11 +196,6 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
       );
     };
 
-    const formatLastSeen = (lastSeen?: string) => {
-      if (!lastSeen) return 'Last seen: Unknown';
-      return `Last seen: ${DateUtils.formatToLocal(new Date(lastSeen).toDateString())}`;
-    };
-
     return (
       <div className="relative w-full lg:w-2/3 bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-4 sm:p-6 flex flex-col h-full">
         <div className="flex justify-between items-center border-b border-white/20 pb-3 mb-4">
@@ -224,11 +216,6 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
               <h3 className="text-lg font-semibold text-white">
                 {thread.senderName}
               </h3>
-              <p className="text-xs text-gray-400">
-                {userStatus?.status === 'online'
-                  ? 'Online'
-                  : formatLastSeen(userStatus?.lastSeen)}
-              </p>
             </div>
           </div>
           {selectedMessages.length > 0 && (
