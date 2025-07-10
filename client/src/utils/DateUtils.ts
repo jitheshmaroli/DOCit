@@ -102,18 +102,51 @@ export class DateUtils {
     return false;
   }
 
-  static formatCreatedAtTime(timestamp: string | Date): string {
-    if (!timestamp) return 'Unknown Time';
-    try {
-      const date = dayjs.utc(timestamp);
-      if (!date.isValid()) return 'Unknown Time';
-      return date.toDate().toLocaleTimeString('en-IN', {
+  static formatCreatedAtTime(date: string): string {
+    const parsedDate = new Date(date);
+    const now = new Date();
+    const diffInMs = now.getTime() - parsedDate.getTime();
+    const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
+    const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
+    const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+
+    if (diffInMinutes < 60) {
+      return `${diffInMinutes} minute${diffInMinutes === 1 ? '' : 's'} ago`;
+    } else if (diffInHours < 24) {
+      return `${diffInHours} hour${diffInHours === 1 ? '' : 's'} ago`;
+    } else if (diffInDays < 7) {
+      return `${diffInDays} day${diffInDays === 1 ? '' : 's'} ago`;
+    } else {
+      return parsedDate.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+    }
+  }
+
+  static formatLastSeen(date: string): string {
+    const parsedDate = new Date(date);
+    const now = new Date();
+    const diffInMs = now.getTime() - parsedDate.getTime();
+    const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
+    const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
+    const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+
+    if (diffInMinutes < 60) {
+      return `${diffInMinutes} minute${diffInMinutes === 1 ? '' : 's'} ago`;
+    } else if (diffInHours < 24) {
+      return `${diffInHours} hour${diffInHours === 1 ? '' : 's'} ago`;
+    } else if (diffInDays < 7) {
+      return `${diffInDays} day${diffInDays === 1 ? '' : 's'} ago`;
+    } else {
+      return parsedDate.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
-        hour12: true,
       });
-    } catch {
-      return 'Unknown Time';
     }
   }
 }

@@ -38,11 +38,29 @@ export const fetchPartnerDetails = async (userId: string) => {
   }
 };
 
+export const fetchUserStatus = async (userId: string, role: string) => {
+  try {
+    const response = await api.get(
+      `${API_BASE_URL}/api/chat/status/${userId}/${role}`,
+      {
+        withCredentials: true,
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Fetch user status error:', error);
+    throw error;
+  }
+};
+
 export const sendMessage = async (receiverId: string, message: string) => {
   try {
     const response = await api.post<ChatMessageResponse>(
       `${API_BASE_URL}/api/chat`,
-      { receiverId, message }
+      {
+        receiverId,
+        message,
+      }
     );
     return response.data;
   } catch (error) {
@@ -97,7 +115,10 @@ export const addReaction = async (
   try {
     const response = await api.patch<ChatMessageResponse>(
       `${API_BASE_URL}/api/chat/${messageId}/reaction`,
-      { emoji, replace }
+      {
+        emoji,
+        replace,
+      }
     );
     return response.data;
   } catch (error) {

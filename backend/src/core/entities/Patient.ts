@@ -15,6 +15,7 @@ export interface Patient {
   gender?: 'Male' | 'Female' | 'Other';
   googleId?: string;
   lastSeen?: Date;
+  isOnline?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }

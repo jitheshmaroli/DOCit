@@ -45,11 +45,13 @@ const Messages = () => {
         const partnerId = message.senderId;
         let partnerName = message.senderName || 'Unknown';
         let partnerProfilePicture: string | undefined;
+        let partnerRole: 'patient' | 'doctor' = 'patient'; // Default to patient, as doctors typically message patients
 
         try {
           const partner = await fetchPartnerDetails(partnerId);
           partnerName = partner.name;
           partnerProfilePicture = partner.profilePicture;
+          partnerRole = partner.role;
         } catch (error) {
           console.error(
             `Failed to fetch details for user ${partnerId}:`,
@@ -82,6 +84,7 @@ const Messages = () => {
               ...updatedThreads[threadIndex],
               senderName: partnerName,
               partnerProfilePicture,
+              role: partnerRole,
               messages: [
                 ...updatedThreads[threadIndex].messages,
                 newMessageObj,
@@ -119,6 +122,9 @@ const Messages = () => {
             },
             messages: [newMessageObj],
             unreadCount: 1,
+            isOnline: false, // Will be updated by socket
+            lastSeen: null,
+            role: partnerRole,
           };
           return [newThread, ...prev].sort(
             (a, b) =>
@@ -136,6 +142,7 @@ const Messages = () => {
               ...prev,
               senderName: partnerName,
               partnerProfilePicture,
+              role: partnerRole,
               messages: [...prev.messages, newMessageObj],
               createdAt: message.createdAt,
               latestMessage: {
@@ -170,13 +177,45 @@ const Messages = () => {
           navigate('/login');
         }
       },
-     
+      onUserStatusUpdate: (status) => {
+        console.log(
+          `User status updated: ${status.userId} is ${status.isOnline ? 'online' : 'offline'}`
+        );
+        setThreads((prev) =>
+          prev.map((thread) =>
+            thread.id === status.userId
+              ? {
+                  ...thread,
+                  isOnline: status.isOnline,
+                  lastSeen: status.lastSeen,
+                }
+              : thread
+          )
+        );
+        if (selectedThread?.id === status.userId) {
+          setSelectedThread((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  isOnline: status.isOnline,
+                  lastSeen: status.lastSeen,
+                }
+              : prev
+          );
+        }
+      },
     });
 
     connect(user._id);
 
     // Cleanup is handled by SocketContext
-  }, [user?._id, connect, registerHandlers, navigate, selectedThread?.receiverId]);
+  }, [
+    user?._id,
+    connect,
+    registerHandlers,
+    navigate,
+    selectedThread?.receiverId,
+  ]);
 
   const { sendMessage } = useSendMessage();
 
@@ -189,10 +228,12 @@ const Messages = () => {
           inboxThreads.map(async (thread: InboxThreadResponse) => {
             let senderName = thread.senderName || 'Unknown';
             let partnerProfilePicture: string | undefined;
+            let role: 'patient' | 'doctor' = 'patient'; // Default to patient
             try {
               const partner = await fetchPartnerDetails(thread.receiverId);
               senderName = partner.name;
               partnerProfilePicture = partner.profilePicture;
+              role = partner.role;
             } catch (error) {
               console.error(
                 `Failed to fetch details for user ${thread.receiverId}:`,
@@ -216,6 +257,9 @@ const Messages = () => {
                 : null,
               messages: [],
               unreadCount: thread.unreadCount || 0,
+              isOnline: thread.isOnline,
+              lastSeen: thread.lastSeen,
+              role,
             };
           })
         );
@@ -265,6 +309,9 @@ const Messages = () => {
               latestMessage: null,
               messages: [],
               unreadCount: 0,
+              isOnline: false, // Will be updated by socket or API
+              lastSeen: null,
+              role: partner.role || 'patient',
             };
             setThreads((prev) => {
               const uniqueThreads = Array.from(
@@ -289,7 +336,7 @@ const Messages = () => {
         createNewThread();
       }
     }
-  }, [threads, loading, selectedThread, location.search, navigate]);
+  }, [threads, loading, selectedThread, location.search, navigate, user?._id]);
 
   useEffect(() => {
     const loadMessages = async () => {
@@ -318,7 +365,6 @@ const Messages = () => {
               : thread
           )
         );
-        // Mark messages as read
         const unreadMessages = formattedMessages.filter((msg: Message) =>
           msg.unreadBy?.includes(user._id)
         );
@@ -416,6 +462,9 @@ const Messages = () => {
           },
           messages: [message],
           unreadCount: 0,
+          isOnline: selectedThread.isOnline,
+          lastSeen: selectedThread.lastSeen,
+          role: selectedThread.role,
         };
         return [newThread, ...prev].sort(
           (a, b) =>

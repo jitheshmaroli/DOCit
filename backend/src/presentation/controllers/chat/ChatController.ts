@@ -176,4 +176,24 @@ export class ChatController {
       next(error);
     }
   }
+
+  async getUserStatus(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user?.id;
+      const role = req.user?.role;
+      if (!userId || !role) {
+        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
+      }
+      const { targetUserId, targetRole } = req.params;
+      const isOnline = this.socketService.isUserOnline(targetUserId);
+      const lastSeen = await this.socketService.getUserLastSeen(targetUserId, targetRole);
+      res.status(HttpStatusCode.OK).json({
+        userId: targetUserId,
+        isOnline,
+        lastSeen: lastSeen ? lastSeen.toISOString() : null,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }

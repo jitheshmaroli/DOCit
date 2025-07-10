@@ -7,13 +7,20 @@ import { useSocket } from './hooks/useSocket';
 
 const App = () => {
   const { user } = useAppSelector((state) => state.auth);
-  const { connect, disconnect } = useSocket();
+  const { connect, disconnect, registerHandlers } = useSocket();
 
   useEffect(() => {
     if (user?._id) {
       const connectSocket = async () => {
         try {
           await connect(user._id);
+          registerHandlers({
+            onUserStatusUpdate: (status) => {
+              console.log(
+                `User status updated: ${status.userId} is ${status.isOnline ? 'online' : 'offline'}`
+              );
+            },
+          });
         } catch (error) {
           console.error('Failed to connect socket:', error);
           toast.error('Failed to connect to real-time service');
@@ -28,7 +35,7 @@ const App = () => {
         disconnect('User logged out');
       }
     };
-  }, [user?._id, connect, disconnect]);
+  }, [user?._id, connect, disconnect, registerHandlers]);
 
   return (
     <BrowserRouter>

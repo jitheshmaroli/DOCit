@@ -20,5 +20,5 @@ router.delete('/:messageId', chatAuth, chatController.deleteMessage.bind(chatCon
 router.patch('/:messageId/read', chatAuth, chatController.markAsRead.bind(chatController));
 router.patch('/:messageId/reaction', chatAuth, chatController.addReaction.bind(chatController));
 router.get('/', chatAuth, chatController.getChatHistory.bind(chatController));
-
+router.get('/status/:targetUserId/:targetRole', chatAuth, chatController.getUserStatus.bind(chatController));
 export default router;

@@ -47,11 +47,13 @@ const Messages = ({ patientId }: MessagesProps) => {
         const partnerId = message.senderId;
         let partnerName = message.senderName || 'Unknown';
         let partnerProfilePicture: string | undefined;
+        let partnerRole: 'patient' | 'doctor' = 'doctor'; // Default to doctor, as patients typically message doctors
 
         try {
           const partner = await fetchPartnerDetails(partnerId);
           partnerName = partner.name;
           partnerProfilePicture = partner.profilePicture;
+          partnerRole = partner.role;
         } catch (error) {
           console.error(
             `Failed to fetch details for user ${partnerId}:`,
@@ -84,6 +86,7 @@ const Messages = ({ patientId }: MessagesProps) => {
               ...updatedThreads[threadIndex],
               senderName: partnerName,
               partnerProfilePicture,
+              role: partnerRole,
               messages: [
                 ...updatedThreads[threadIndex].messages,
                 newMessageObj,
@@ -121,6 +124,9 @@ const Messages = ({ patientId }: MessagesProps) => {
             },
             messages: [newMessageObj],
             unreadCount: 1,
+            isOnline: false, // Will be updated by socket
+            lastSeen: null,
+            role: partnerRole,
           };
           return [newThread, ...prev].sort(
             (a, b) =>
@@ -138,6 +144,7 @@ const Messages = ({ patientId }: MessagesProps) => {
               ...prev,
               senderName: partnerName,
               partnerProfilePicture,
+              role: partnerRole,
               messages: [...prev.messages, newMessageObj],
               createdAt: message.createdAt,
               latestMessage: {
@@ -171,13 +178,46 @@ const Messages = ({ patientId }: MessagesProps) => {
         ) {
           navigate('/login');
         }
-      },      
+      },
+      onUserStatusUpdate: (status) => {
+        console.log(
+          `User status updated: ${status.userId} is ${status.isOnline ? 'online' : 'offline'}`
+        );
+        setThreads((prev) =>
+          prev.map((thread) =>
+            thread.id === status.userId
+              ? {
+                  ...thread,
+                  isOnline: status.isOnline,
+                  lastSeen: status.lastSeen,
+                }
+              : thread
+          )
+        );
+        if (selectedThread?.id === status.userId) {
+          setSelectedThread((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  isOnline: status.isOnline,
+                  lastSeen: status.lastSeen,
+                }
+              : prev
+          );
+        }
+      },
     });
 
     connect(patientId);
 
     // Cleanup is handled by SocketContext
-  }, [patientId, connect, registerHandlers, navigate, selectedThread?.receiverId]);
+  }, [
+    patientId,
+    connect,
+    registerHandlers,
+    navigate,
+    selectedThread?.receiverId,
+  ]);
 
   const { sendMessage } = useSendMessage();
 
@@ -190,10 +230,12 @@ const Messages = ({ patientId }: MessagesProps) => {
           inboxThreads.map(async (thread: InboxThreadResponse) => {
             let senderName = thread.senderName || 'Unknown';
             let partnerProfilePicture: string | undefined;
+            let role: 'patient' | 'doctor' = 'doctor'; // Default to doctor
             try {
               const partner = await fetchPartnerDetails(thread.receiverId);
               senderName = partner.name;
               partnerProfilePicture = partner.profilePicture;
+              role = partner.role;
             } catch (error) {
               console.error(
                 `Failed to fetch details for user ${thread.receiverId}:`,
@@ -217,6 +259,9 @@ const Messages = ({ patientId }: MessagesProps) => {
                 : null,
               messages: [],
               unreadCount: thread.unreadCount || 0,
+              isOnline: thread.isOnline,
+              lastSeen: thread.lastSeen,
+              role,
             };
           })
         );
@@ -266,6 +311,9 @@ const Messages = ({ patientId }: MessagesProps) => {
               latestMessage: null,
               messages: [],
               unreadCount: 0,
+              isOnline: false, // Will be updated by socket or API
+              lastSeen: null,
+              role: partner.role || 'doctor',
             };
             setThreads((prev) => {
               if (prev.some((t) => t.receiverId === threadId)) {
@@ -288,7 +336,7 @@ const Messages = ({ patientId }: MessagesProps) => {
         createNewThread();
       }
     }
-  }, [threads, loading, location.search, navigate, selectedThread]);
+  }, [threads, loading, location.search, navigate, selectedThread, patientId]);
 
   useEffect(() => {
     const loadMessages = async () => {
@@ -317,7 +365,6 @@ const Messages = ({ patientId }: MessagesProps) => {
               : thread
           )
         );
-        // Mark messages as read
         const unreadMessages = formattedMessages.filter((msg: Message) =>
           msg.unreadBy?.includes(patientId)
         );
@@ -329,7 +376,7 @@ const Messages = ({ patientId }: MessagesProps) => {
             chatContainerRef.current.scrollTo({
               top: chatContainerRef.current.scrollHeight,
               behavior: 'smooth',
-          });
+            });
           }
           inputRef.current?.focus();
         }, 100);
@@ -415,6 +462,9 @@ const Messages = ({ patientId }: MessagesProps) => {
           },
           messages: [message],
           unreadCount: 0,
+          isOnline: selectedThread.isOnline,
+          lastSeen: selectedThread.lastSeen,
+          role: selectedThread.role,
         };
         return [newThread, ...prev].sort(
           (a, b) =>

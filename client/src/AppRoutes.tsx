@@ -48,6 +48,7 @@ const AppRoutes = () => {
       window.removeEventListener('auth:logout', handleLogout);
     };
   }, [dispatch, navigate]);
+
   return (
     <Routes>
       {/* Public routes */}

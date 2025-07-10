@@ -18,6 +18,7 @@ export interface Doctor {
   refreshToken?: string;
   googleId?: string;
   lastSeen?: Date;
+  isOnline?: boolean;
   averageRating?: number;
   reviewIds?: string[];
   createdAt?: Date;

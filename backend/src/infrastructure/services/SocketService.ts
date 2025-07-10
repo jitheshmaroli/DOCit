@@ -43,6 +43,25 @@ export class SocketService {
     this.setupSocketEvents();
   }
 
+  private async updateUserLastSeen(userId: string, role: string): Promise<void> {
+    const lastSeen = new Date();
+    if (role === 'patient') {
+      await this.patientRepository.update(userId, { lastSeen });
+    } else if (role === 'doctor') {
+      await this.doctorRepository.update(userId, { lastSeen });
+    }
+  }
+
+  private broadcastUserStatus(userId: string, isOnline: boolean, lastSeen?: Date): void {
+    if (!this.io) return;
+    this.io.emit('userStatusUpdate', {
+      userId,
+      isOnline,
+      lastSeen: lastSeen ? lastSeen.toISOString() : null,
+    });
+    logger.info(`Broadcasted user status: userId=${userId}, isOnline=${isOnline}`);
+  }
+
   private setupSocketEvents(): void {
     if (!this.io) {
       throw new Error('Socket.IO server not initialized');
@@ -121,6 +140,10 @@ export class SocketService {
       logger.info(
         `User connected: ${userId}, socketId=${socket.id}, totalSockets=${this.connectedUsers.get(userId)!.size}`
       );
+
+      // Update last seen and broadcast online status
+      await this.updateUserLastSeen(userId, role);
+      this.broadcastUserStatus(userId, true);
 
       this.deliverQueuedMessages(userId, socket);
 
@@ -382,6 +405,8 @@ export class SocketService {
           userSockets.delete(socket.id);
           if (userSockets.size === 0) {
             this.connectedUsers.delete(userId);
+            await this.updateUserLastSeen(userId, role);
+            this.broadcastUserStatus(userId, false, new Date());
           }
           logger.info(
             `User socket disconnected: ${userId}, socketId=${socket.id}, remainingSockets=${userSockets?.size || 0}`
@@ -498,5 +523,20 @@ export class SocketService {
       });
       logger.info(`Reaction sent to sender: ${userId}`);
     }
+  }
+
+  isUserOnline(userId: string): boolean {
+    return this.connectedUsers.has(userId) && this.connectedUsers.get(userId)!.size > 0;
+  }
+
+  async getUserLastSeen(userId: string, role: string): Promise<Date | null> {
+    if (role === 'patient') {
+      const patient = await this.patientRepository.findById(userId);
+      return patient?.lastSeen || null;
+    } else if (role === 'doctor') {
+      const doctor = await this.doctorRepository.findById(userId);
+      return doctor?.lastSeen || null;
+    }
+    return null;
   }
 }

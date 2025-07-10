@@ -36,3 +36,13 @@ export interface InboxEntry {
   latestMessage: ChatMessage | null;
   unreadCount?: number;
 }
+
+export interface UserStatus {
+  isOnline: boolean;
+  lastSeen?: Date;
+}
+
+export interface MessagesWithStatus {
+  messages: ChatMessage[];
+  userStatus: UserStatus;
+}

@@ -3,6 +3,7 @@ import { IDoctorRepository } from '../../interfaces/repositories/IDoctorReposito
 import { IChatRepository } from '../../interfaces/repositories/IChatRepository';
 import { QueryParams } from '../../../types/authTypes';
 import { ValidationError } from '../../../utils/errors';
+import { SocketService } from '../../../infrastructure/services/SocketService';
 
 export interface InboxResponse {
   _id: string;
@@ -18,13 +19,16 @@ export interface InboxResponse {
     isSender: boolean;
   } | null;
   unreadCount: number;
+  isOnline: boolean;
+  lastSeen?: string;
 }
 
 export class GetInboxUseCase {
   constructor(
     private chatRepository: IChatRepository,
     private patientRepository: IPatientRepository,
-    private doctorRepository: IDoctorRepository
+    private doctorRepository: IDoctorRepository,
+    private socketService: SocketService
   ) {}
 
   async execute(userId: string, role: 'patient' | 'doctor', params: QueryParams): Promise<InboxResponse[]> {
@@ -35,6 +39,9 @@ export class GetInboxUseCase {
         const partnerId = entry.partnerId;
         let partnerName: string;
         let partnerProfilePicture: string | undefined;
+        let lastSeen: Date | undefined; // Changed from Date | null to match entity type
+
+        const isOnline = this.socketService.isUserOnline(partnerId);
 
         if (role === 'patient') {
           const doctor = await this.doctorRepository.findById(partnerId);
@@ -43,6 +50,7 @@ export class GetInboxUseCase {
           }
           partnerName = doctor.name || 'Unknown Doctor';
           partnerProfilePicture = doctor.profilePicture;
+          lastSeen = doctor.lastSeen;
         } else {
           const patient = await this.patientRepository.findById(partnerId);
           if (!patient) {
@@ -50,6 +58,7 @@ export class GetInboxUseCase {
           }
           partnerName = patient.name || 'Unknown Patient';
           partnerProfilePicture = patient.profilePicture;
+          lastSeen = patient.lastSeen;
         }
 
         return {
@@ -68,6 +77,8 @@ export class GetInboxUseCase {
               }
             : null,
           unreadCount: entry.unreadCount || 0,
+          isOnline,
+          lastSeen: lastSeen ? lastSeen.toISOString() : undefined,
         };
       })
     );

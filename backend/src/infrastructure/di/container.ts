@@ -344,7 +344,10 @@ export class Container {
     this.dependencies.set('GetMessagesUseCase', new GetMessagesUseCase(chatRepository));
     this.dependencies.set('DeleteMessageUseCase', new DeleteMessageUseCase(chatRepository));
     this.dependencies.set('GetChatHistoryUseCase', new GetChatHistoryUseCase(chatRepository));
-    this.dependencies.set('GetInboxUseCase', new GetInboxUseCase(chatRepository, patientRepository, doctorRepository));
+    this.dependencies.set(
+      'GetInboxUseCase',
+      new GetInboxUseCase(chatRepository, patientRepository, doctorRepository, socketService)
+    );
     this.dependencies.set('SendNotificationUseCase', new SendNotificationUseCase(notificationRepository));
     this.dependencies.set('GetNotificationsUseCase', new GetNotificationsUseCase(notificationRepository));
     this.dependencies.set('DeleteNotificationUseCase', new DeleteNotificationUseCase(notificationRepository));

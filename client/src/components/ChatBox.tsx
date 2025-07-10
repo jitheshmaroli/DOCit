@@ -3,7 +3,11 @@ import { ArrowLeft, ArrowDown, Paperclip, Trash2, Smile } from 'lucide-react';
 import EmojiPicker from 'emoji-picker-react';
 import { DateUtils } from '../utils/DateUtils';
 import { MessageThread, Message } from '../types/messageTypes';
-import { sendAttachment, addReaction } from '../services/messageService';
+import {
+  sendAttachment,
+  addReaction,
+  fetchUserStatus,
+} from '../services/messageService';
 import { useSocket } from '../hooks/useSocket';
 
 interface ChatBoxProps {
@@ -45,10 +49,38 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
       string | null
     >(null);
     const [messages, setMessages] = useState<Message[]>(thread.messages);
+    const [userStatus, setUserStatus] = useState<{
+      isOnline: boolean;
+      lastSeen: string | null;
+    }>({
+      isOnline: thread.isOnline ?? false,
+      lastSeen: thread.lastSeen ?? null,
+    });
     const fileInputRef = useRef<HTMLInputElement | null>(null);
-    const { registerHandlers, emit } = useSocket();
+    const { registerHandlers, emit, userStatuses } = useSocket();
 
     const defaultEmojis = ['😊', '👍', '❤️', '😂', '😢', '😮'];
+
+    useEffect(() => {
+      const fetchStatus = async () => {
+        if (thread.id && thread.role) {
+          try {
+            const status = await fetchUserStatus(thread.id, thread.role);
+            setUserStatus(status);
+          } catch (error) {
+            console.error('Failed to fetch user status:', error);
+          }
+        }
+      };
+      fetchStatus();
+    }, [thread.id, thread.role]);
+
+    useEffect(() => {
+      const status = userStatuses.get(thread.id);
+      if (status) {
+        setUserStatus({ isOnline: status.isOnline, lastSeen: status.lastSeen });
+      }
+    }, [userStatuses, thread.id]);
 
     useEffect(() => {
       setMessages((prev) => {
@@ -77,7 +109,6 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
             message.senderId === thread.receiverId
           ) {
             setMessages((prev) => {
-              // Avoid adding duplicate messages
               if (prev.some((msg) => msg._id === message._id)) {
                 return prev;
               }
@@ -138,7 +169,16 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
     const handleFileUpload = async () => {
       if (selectedFile && thread.receiverId) {
         try {
-          await sendAttachment(thread.receiverId, selectedFile);
+          const savedMessage = await sendAttachment(
+            thread.receiverId,
+            selectedFile
+          );
+          await emit('sendMessage', {
+            ...savedMessage,
+            isSender: true,
+            senderName: thread.senderName,
+            unreadBy: [thread.receiverId],
+          });
           setSelectedFile(null);
           if (chatContainerRef.current) {
             chatContainerRef.current.scrollTo({
@@ -207,15 +247,27 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
             >
               <ArrowLeft className="w-5 h-5 text-white"></ArrowLeft>
             </button>
-            <img
-              src={thread.partnerProfilePicture}
-              alt={thread.senderName}
-              className="w-10 h-10 rounded-full object-cover border-2 border-white/20"
-            />
+            <div className="relative">
+              <img
+                src={thread.partnerProfilePicture}
+                alt={thread.senderName}
+                className="w-10 h-10 rounded-full object-cover border-2 border-white/20"
+              />
+              {userStatus.isOnline && (
+                <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></span>
+              )}
+            </div>
             <div>
               <h3 className="text-lg font-semibold text-white">
                 {thread.senderName}
               </h3>
+              <p className="text-xs text-gray-400">
+                {userStatus.isOnline
+                  ? 'Online'
+                  : userStatus.lastSeen
+                    ? `Last seen ${DateUtils.formatLastSeen(userStatus.lastSeen)}`
+                    : 'Offline'}
+              </p>
             </div>
           </div>
           {selectedMessages.length > 0 && (
@@ -336,9 +388,7 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
                 </div>
                 {reactionPickerMessageId === message._id && (
                   <div
-                    className={`absolute z-10 ${
-                      message.isSender ? 'right-0' : 'left-0'
-                    } top-0 translate-y-[-100%]`}
+                    className={`absolute z-10 ${message.isSender ? 'right-0' : 'left-0'} top-0 translate-y-[-100%]`}
                   >
                     <div className="bg-gray-800 p-2 rounded-lg flex gap-1">
                       {defaultEmojis.map((emoji) => (

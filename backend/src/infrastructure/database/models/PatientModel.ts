@@ -18,6 +18,7 @@ const PatientSchema = new Schema<Patient>(
     gender: { type: String, enum: ['Male', 'Female', 'Other'] },
     googleId: { type: String, unique: true, sparse: true },
     lastSeen: { type: Date },
+    isOnline: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

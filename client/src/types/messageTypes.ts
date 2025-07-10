@@ -33,6 +33,9 @@ export interface MessageThread {
   latestMessage: LatestMessage | null;
   messages: Message[];
   unreadCount: number;
+  isOnline: boolean;
+  lastSeen?: string | null;
+  role: 'patient' | 'doctor';
 }
 
 export interface InboxThreadResponse {
@@ -49,6 +52,9 @@ export interface InboxThreadResponse {
     isSender: boolean;
   } | null;
   unreadCount: number;
+  isOnline: boolean;
+  lastSeen?: string;
+  role: 'patient' | 'doctor';
 }
 
 export interface ChatMessageResponse {
