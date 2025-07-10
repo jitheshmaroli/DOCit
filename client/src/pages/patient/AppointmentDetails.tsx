@@ -10,7 +10,7 @@ import { DateUtils } from '../../utils/DateUtils';
 import axios from 'axios';
 import CancelAppointmentModal from '../../components/CancelAppointmentModal';
 import VideoCallModal from '../../components/VideoCallModal';
-import { useSocket } from '../../context/SocketContext';
+import { useSocket } from '../../hooks/useSocket';
 
 interface AppointmentPatient {
   _id: string;

@@ -5,7 +5,7 @@ import { RootState } from '../../redux/store';
 import Logo from './Logo';
 import useAuth from '../../hooks/useAuth';
 import NotificationDropdown from './NotificationDropdown';
-import { useSocket } from '../../context/SocketContext';
+import { useSocket } from '../../hooks/useSocket';
 
 const Header: React.FC = () => {
   const location = useLocation();

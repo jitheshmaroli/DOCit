@@ -8,8 +8,8 @@ import {
   deleteAllNotifications,
   markNotificationAsRead,
 } from '../../services/notificationService';
-import { useSocket } from '../../context/SocketContext';
 import { DateUtils } from '../../utils/DateUtils';
+import { useSocket } from '../../hooks/useSocket';
 
 interface NotificationDropdownProps {
   userId: string | undefined;

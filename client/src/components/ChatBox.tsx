@@ -4,7 +4,7 @@ import EmojiPicker from 'emoji-picker-react';
 import { DateUtils } from '../utils/DateUtils';
 import { MessageThread, Message } from '../types/messageTypes';
 import { sendAttachment, addReaction } from '../services/messageService';
-import { useSocket } from '../context/SocketContext';
+import { useSocket } from '../hooks/useSocket';
 
 interface ChatBoxProps {
   thread: MessageThread;

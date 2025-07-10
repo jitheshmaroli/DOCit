@@ -2,8 +2,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Peer from 'simple-peer';
 import { toast } from 'react-toastify';
-import { useSocket } from '../context/SocketContext';
 import { Video, Mic, MicOff, VideoOff, Hand } from 'lucide-react';
+import { useSocket } from '../hooks/useSocket';
 
 interface VideoCallModalProps {
   isOpen: boolean;

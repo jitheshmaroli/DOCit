@@ -3,7 +3,7 @@ import AppRoutes from './AppRoutes';
 import { useAppSelector } from './redux/hooks';
 import { useEffect } from 'react';
 import { toast, ToastContainer } from 'react-toastify';
-import { useSocket } from './context/SocketContext';
+import { useSocket } from './hooks/useSocket';
 
 const App = () => {
   const { user } = useAppSelector((state) => state.auth);

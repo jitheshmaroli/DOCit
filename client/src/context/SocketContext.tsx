@@ -1,11 +1,12 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { createContext, useContext, useRef, useState } from 'react';
+import React, { createContext, useRef, useState } from 'react';
 import io, { Socket } from 'socket.io-client';
 import { toast } from 'react-toastify';
 import { Message } from '../types/messageTypes';
 import { AppNotification } from '../types/authTypes';
 
 const SOCKET_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
+type SignalData = RTCSessionDescriptionInit | RTCIceCandidateInit | unknown;
 
 interface SocketHandlers {
   onReceiveMessage?: (message: Message) => void;
@@ -32,11 +33,19 @@ interface SocketHandlers {
   onSignal?: (data: {
     appointmentId: string;
     senderId: string;
-    signal: any;
+    signal: SignalData;
   }) => void;
   onCallEnded?: (data: { appointmentId: string; enderId: string }) => void;
-  onHandRaise?: (data: { appointmentId: string; userId: string; isRaised: boolean }) => void;
-  onMuteStatus?: (data: { appointmentId: string; userId: string; isMuted: boolean }) => void;
+  onHandRaise?: (data: {
+    appointmentId: string;
+    userId: string;
+    isRaised: boolean;
+  }) => void;
+  onMuteStatus?: (data: {
+    appointmentId: string;
+    userId: string;
+    isMuted: boolean;
+  }) => void;
 }
 
 interface SocketContextType {
@@ -52,7 +61,7 @@ interface SocketContextType {
       | { roomId: string }
       | { messageId: string; emoji: string; userId: string }
       | { appointmentId: string; receiverId: string }
-      | { appointmentId: string; receiverId: string; signal: any }
+      | { appointmentId: string; receiverId: string; signal: SignalData }
       | { appointmentId: string; callerId: string }
       | { appointmentId: string; receiverId: string; isRaised: boolean }
       | { appointmentId: string; receiverId: string; isMuted: boolean }
@@ -85,7 +94,6 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
       .on('receiveNotification', (notification: AppNotification) => {
         handlersRef.current.onReceiveNotification?.(notification);
       });
-
 
     socket
       .off('receiveReaction')
@@ -131,7 +139,11 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
       .off('signal')
       .on(
         'signal',
-        (data: { appointmentId: string; senderId: string; signal: any }) => {
+        (data: {
+          appointmentId: string;
+          senderId: string;
+          signal: SignalData;
+        }) => {
           handlersRef.current.onSignal?.(data);
         }
       );
@@ -146,7 +158,11 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
       .off('handRaise')
       .on(
         'handRaise',
-        (data: { appointmentId: string; userId: string; isRaised: boolean }) => {
+        (data: {
+          appointmentId: string;
+          userId: string;
+          isRaised: boolean;
+        }) => {
           handlersRef.current.onHandRaise?.(data);
         }
       );
@@ -244,8 +260,8 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
       | AppNotification
       | { roomId: string }
       | { messageId: string; emoji: string; userId: string }
-      | { appointmentId: string; receiverId: string}
-      | { appointmentId: string; receiverId: string; signal: any }
+      | { appointmentId: string; receiverId: string }
+      | { appointmentId: string; receiverId: string; signal: SignalData }
       | { appointmentId: string; callerId: string }
       | { appointmentId: string; receiverId: string; isRaised: boolean }
       | { appointmentId: string; receiverId: string; isMuted: boolean }
@@ -303,10 +319,4 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 };
 
-export const useSocket = () => {
-  const context = useContext(SocketContext);
-  if (!context) {
-    throw new Error('useSocket must be used within a SocketProvider');
-  }
-  return context;
-};
+export { SocketContext };

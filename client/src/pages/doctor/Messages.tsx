@@ -18,7 +18,7 @@ import {
   MessageThread,
   InboxThreadResponse,
 } from '../../types/messageTypes';
-import { useSocket } from '../../context/SocketContext';
+import { useSocket } from '../../hooks/useSocket';
 
 const Messages = () => {
   const { user } = useAppSelector((state) => state.auth);

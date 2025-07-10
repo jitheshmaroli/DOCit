@@ -3,7 +3,7 @@ import { toast } from 'react-toastify';
 import { sendMessage } from '../services/messageService';
 import { Message } from '../types/messageTypes';
 import { useAppSelector } from '../redux/hooks';
-import { useSocket } from '../context/SocketContext';
+import { useSocket } from './useSocket';
 
 interface SendMessageProps {
   receiverId: string;

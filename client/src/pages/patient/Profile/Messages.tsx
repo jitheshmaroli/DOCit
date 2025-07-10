@@ -17,7 +17,7 @@ import {
   MessageThread,
   InboxThreadResponse,
 } from '../../../types/messageTypes';
-import { useSocket } from '../../../context/SocketContext';
+import { useSocket } from '../../../hooks/useSocket';
 
 interface MessagesProps {
   patientId: string;

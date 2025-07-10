@@ -9,7 +9,7 @@ import { DateUtils } from '../../utils/DateUtils';
 import { MessageSquare, Video } from 'lucide-react';
 import api from '../../services/api';
 import VideoCallModal from '../../components/VideoCallModal';
-import { useSocket } from '../../context/SocketContext';
+import { useSocket } from '../../hooks/useSocket';
 
 interface AppointmentPatient {
   _id: string;
