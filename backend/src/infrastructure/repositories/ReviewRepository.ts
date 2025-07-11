@@ -13,7 +13,7 @@ export class ReviewRepository extends BaseRepository<Review> implements IReviewR
   }
 
   async findByDoctorId(doctorId: string): Promise<Review[]> {
-    const reviews = await this.model.find({ doctorId }).exec();
+    const reviews = await this.model.find({ doctorId }).populate('patientId', 'name').exec();
     return reviews as Review[];
   }
 }

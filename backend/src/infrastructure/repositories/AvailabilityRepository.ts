@@ -81,7 +81,6 @@ export class AvailabilityRepository extends BaseRepository<Availability> impleme
         },
       ])
       .exec();
-    logger.debug('availabities:', availabilities);
     return availabilities as Availability[];
   }
 

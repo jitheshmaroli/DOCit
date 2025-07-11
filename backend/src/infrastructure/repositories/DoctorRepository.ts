@@ -21,20 +21,17 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
   }
 
   async getDoctorDetails(doctorId: string): Promise<Doctor | null> {
-    if (!mongoose.Types.ObjectId.isValid(doctorId)) return null;
+    if (!mongoose.Types.ObjectId.isValid(doctorId)) {
+      logger.error(`Invalid doctorId format: ${doctorId}`);
+      return null;
+    }
     const pipeline: PipelineStage[] = [
       { $match: { _id: new mongoose.Types.ObjectId(doctorId) } },
       {
         $lookup: {
           from: 'reviews',
-          let: { doctorId: { $toString: '$_id' } },
-          pipeline: [
-            {
-              $match: {
-                $expr: { $eq: ['$doctorId', '$$doctorId'] },
-              },
-            },
-          ],
+          localField: '_id',
+          foreignField: 'doctorId',
           as: 'reviews',
         },
       },
@@ -46,15 +43,51 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
         },
       },
       {
+        $lookup: {
+          from: 'specialities',
+          localField: 'speciality',
+          foreignField: '_id',
+          as: 'specialityObjects',
+        },
+      },
+      {
         $project: {
-          password: 0,
-          reviews: 0,
-          averageRating: 0,
+          _id: 1,
+          name: 1,
+          email: 1,
+          phone: 1,
+          qualifications: 1,
+          licenseNumber: 1,
+          location: 1,
+          speciality: {
+            $map: {
+              input: '$specialityObjects',
+              as: 'spec',
+              in: '$$spec.name',
+            },
+          },
+          experience: 1,
+          allowFreeBooking: 1,
+          gender: 1,
+          isVerified: 1,
+          isBlocked: 1,
+          profilePicture: 1,
+          profilePicturePublicId: 1,
+          averageRating: 1,
+          createdAt: 1,
+          updatedAt: 1,
         },
       },
     ];
-    const [doctor] = await this.model.aggregate(pipeline).exec();
-    return doctor ? (doctor as Doctor) : null;
+    try {
+      logger.debug(`Executing getDoctorDetails pipeline for doctorId: ${doctorId}`, { pipeline });
+      const [doctor] = await this.model.aggregate(pipeline).exec();
+      logger.debug(`getDoctorDetails result for doctorId: ${doctorId}`, { doctor });
+      return doctor ? (doctor as Doctor) : null;
+    } catch (error) {
+      logger.error(`Error in getDoctorDetails for doctorId: ${doctorId}`, { error });
+      throw error;
+    }
   }
 
   async findByCriteria(criteria: Partial<Doctor>): Promise<Doctor[]> {

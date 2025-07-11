@@ -8,8 +8,8 @@ import { DateUtils } from '../utils/DateUtils';
 
 export interface Review {
   _id?: string;
-  patientId: string | { _id: string; name?: string };
-  doctorId: string | { _id: string; name?: string };
+  patientId: string;
+  doctorId: string;
   appointmentId: string;
   rating: number;
   comment: string;
@@ -156,5 +156,6 @@ export const createReview = async (
 
 export const getDoctorReviews = async (doctorId: string): Promise<Review[]> => {
   const response = await api.get(`/api/patients/doctors/${doctorId}/reviews`);
-  return response.data;
+  console.log('reviews:', response.data);
+  return response.data ;
 };

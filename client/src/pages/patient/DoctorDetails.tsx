@@ -39,12 +39,14 @@ interface Availability {
 
 interface Review {
   _id?: string;
-  patientId: string | { _id: string; name?: string };
-  doctorId: string | { _id: string; name?: string };
+  patientId: string | { _id?: string; name: string };
+  doctorId: string;
   appointmentId: string;
   rating: number;
   comment: string;
   createdAt?: string;
+  updatedAt?: string;
+  patientName?: string; // Added patientName
 }
 
 const ITEMS_PER_PAGE = 5;
@@ -153,7 +155,10 @@ const DoctorDetails: React.FC = () => {
         }
       });
       getDoctorReviews(doctorId)
-        .then(setReviews)
+        .then((reviews) => {
+          console.log('Fetched reviews:', reviews);
+          setReviews(reviews);
+        })
         .catch(() => {
           toast.error('Failed to load reviews');
           setReviews([]);
@@ -441,16 +446,29 @@ const DoctorDetails: React.FC = () => {
                 Qualifications:{' '}
                 {selectedDoctor.qualifications?.join(', ') || 'N/A'}
               </p>
-              <p className="text-sm text-gray-200 mb-2">
-                Age: {selectedDoctor.age || 'N/A'} | Gender:{' '}
-                {selectedDoctor.gender || 'N/A'}
-              </p>
-              <p className="text-sm text-gray-200 mb-2">
-                Average Rating:{' '}
-                {selectedDoctor.averageRating
-                  ? selectedDoctor.averageRating.toFixed(1)
-                  : 'No ratings yet'}
-              </p>
+              <div className="flex items-center mb-2">
+                <p className="text-sm text-gray-200 mr-2">Average Rating:</p>
+                <div className="flex">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <span
+                      key={star}
+                      className={`text-lg ${
+                        selectedDoctor.averageRating &&
+                        selectedDoctor.averageRating >= star - 0.5
+                          ? 'text-yellow-400'
+                          : 'text-gray-400'
+                      }`}
+                    >
+                      ★
+                    </span>
+                  ))}
+                </div>
+                <p className="text-sm text-gray-200 ml-2">
+                  {selectedDoctor.averageRating !== undefined
+                    ? selectedDoctor.averageRating.toFixed(1)
+                    : 'No ratings yet'}
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -477,10 +495,12 @@ const DoctorDetails: React.FC = () => {
                       ))}
                     </div>
                     <p className="text-sm text-gray-300">
-                      {typeof review.patientId === 'string'
-                        ? 'Anonymous'
-                        : review.patientId.name || 'Anonymous'}
+                      {typeof review.patientId === 'object' &&
+                      review.patientId?.name
+                        ? review.patientId.name
+                        : 'Anonymous'}
                     </p>
+
                     {review.createdAt && (
                       <p className="text-sm text-gray-400">
                         {DateUtils.formatToLocal(review.createdAt)}

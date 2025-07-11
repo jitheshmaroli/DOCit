@@ -96,6 +96,7 @@ export const fetchVerifiedDoctors = async (params: QueryParams = {}) => {
 
 export const getDoctorById = async (doctorId: string) => {
   const response = await api.get(`/api/patients/doctors/${doctorId}`);
+  console.log('doctordetails:', response.data);
   return response.data;
 };
 
