@@ -90,6 +90,7 @@ interface Prescription {
 
 export const fetchVerifiedDoctors = async (params: QueryParams = {}) => {
   const response = await api.get('/api/patients/doctors/verified', { params });
+  console.log('verified doctors:', response.data);
   return response.data;
 };
 

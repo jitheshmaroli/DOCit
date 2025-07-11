@@ -10,15 +10,6 @@ import { getImageUrl } from '../../utils/config';
 import { clearError as clearDoctorError } from '../../redux/slices/doctorSlice';
 import api from '../../services/api';
 
-interface Doctor {
-  _id: string;
-  name: string;
-  profilePicture?: string;
-  speciality: string[];
-  availability?: string;
-  averageRating?: number;
-}
-
 interface Filters {
   searchQuery: string;
   speciality: string;
@@ -28,7 +19,7 @@ interface Filters {
   sortOrder: 'asc' | 'desc';
   availabilityStart?: string;
   availabilityEnd?: string;
-  minRating?: string;
+  minRating?: number;
 }
 
 const ITEMS_PER_PAGE = 5;
@@ -52,7 +43,7 @@ const FindDoctor: React.FC = () => {
     sortOrder: 'asc',
     availabilityStart: '',
     availabilityEnd: '',
-    minRating: '',
+    minRating: undefined,
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
@@ -83,7 +74,8 @@ const FindDoctor: React.FC = () => {
       sortOrder: filters.sortOrder || undefined,
       availabilityStart: filters.availabilityStart || undefined,
       availabilityEnd: filters.availabilityEnd || undefined,
-      minRating: filters.minRating || undefined,
+      minRating:
+        filters.minRating !== undefined ? Number(filters.minRating) : undefined,
     };
     dispatch(fetchVerifiedDoctorsThunk(params));
   }, [dispatch, currentPage, filters]);
@@ -95,10 +87,19 @@ const FindDoctor: React.FC = () => {
     }
   }, [doctorError, dispatch]);
 
+  // Debug log to inspect doctors data
+  useEffect(() => {
+    console.log('Doctors data:', doctors);
+  }, [doctors]);
+
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
-  const handleFilterChange = (name: keyof Filters, value: string) => {
-    setFilters((prev) => ({ ...prev, [name]: value }));
+  const handleFilterChange = (name: keyof Filters, value: string | number) => {
+    setFilters((prev) => ({
+      ...prev,
+      [name]:
+        name === 'minRating' ? (value ? Number(value) : undefined) : value,
+    }));
     setCurrentPage(1);
   };
 
@@ -221,7 +222,7 @@ const FindDoctor: React.FC = () => {
                 Minimum Rating
               </label>
               <select
-                value={filters.minRating}
+                value={filters.minRating ?? ''}
                 onChange={(e) =>
                   handleFilterChange('minRating', e.target.value)
                 }
@@ -254,7 +255,7 @@ const FindDoctor: React.FC = () => {
               </label>
               <input
                 type="date"
-                value={filters.availabilityStart}
+                value={filters.availabilityStart ?? ''}
                 onChange={(e) =>
                   handleFilterChange('availabilityStart', e.target.value)
                 }
@@ -267,7 +268,7 @@ const FindDoctor: React.FC = () => {
               </label>
               <input
                 type="date"
-                value={filters.availabilityEnd}
+                value={filters.availabilityEnd ?? ''}
                 onChange={(e) =>
                   handleFilterChange('availabilityEnd', e.target.value)
                 }
@@ -372,8 +373,8 @@ const FindDoctor: React.FC = () => {
                               <span
                                 key={star}
                                 className={`text-lg ${
-                                  doctor.averageRating &&
-                                  star <= Math.round(doctor.averageRating)
+                                  doctor.averageRating !== undefined &&
+                                  doctor.averageRating >= star - 0.5
                                     ? 'text-yellow-400'
                                     : 'text-gray-400'
                                 }`}
@@ -383,14 +384,11 @@ const FindDoctor: React.FC = () => {
                             ))}
                           </div>
                           <p className="text-sm text-gray-300 ml-2">
-                            {doctor.averageRating
+                            {doctor.averageRating !== undefined
                               ? doctor.averageRating.toFixed(1)
                               : 'No ratings'}
                           </p>
                         </div>
-                        <p className="text-sm text-gray-300 mb-4">
-                          {doctor.availability || 'Availability TBD'}
-                        </p>
                         <button
                           onClick={() =>
                             navigate(`/patient/doctors/${doctor._id}`, {

@@ -27,20 +27,29 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
       {
         $lookup: {
           from: 'reviews',
-          localField: '_id',
-          foreignField: 'doctorId',
+          let: { doctorId: { $toString: '$_id' } },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ['$doctorId', '$$doctorId'] },
+              },
+            },
+          ],
           as: 'reviews',
         },
       },
       {
         $addFields: {
-          averageRating: { $avg: '$reviews.rating' },
+          averageRating: {
+            $ifNull: [{ $avg: '$reviews.rating' }, 0],
+          },
         },
       },
       {
         $project: {
           password: 0,
           reviews: 0,
+          averageRating: 0,
         },
       },
     ];
@@ -150,13 +159,13 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
         pipeline.push({
           $lookup: {
             from: 'availabilities',
-            let: { doctorId: '$_id' },
+            let: { doctorId: { $toString: '$_id' } },
             pipeline: [
               {
                 $match: {
                   $expr: {
                     $and: [
-                      { $eq: [{ $toObjectId: '$doctorId' }, '$$doctorId'] },
+                      { $eq: ['$doctorId', '$$doctorId'] },
                       { $gte: ['$date', startDate] },
                       { $lte: ['$date', endDate] },
                       {
@@ -192,19 +201,27 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
       }
     }
 
-    // Add reviews lookup and averageRating calculation
+    // reviews lookup and averageRating calculation
     pipeline.push(
       {
         $lookup: {
           from: 'reviews',
-          localField: '_id',
-          foreignField: 'doctorId',
+          let: { doctorId: { $toString: '$_id' } },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ['$doctorId', '$$doctorId'] },
+              },
+            },
+          ],
           as: 'reviews',
         },
       },
       {
         $addFields: {
-          averageRating: { $avg: '$reviews.rating' },
+          averageRating: {
+            $ifNull: [{ $avg: '$reviews.rating' }, 0],
+          },
         },
       }
     );
@@ -246,7 +263,6 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
           },
           experience: 1,
           allowFreeBooking: 1,
-          age: 1,
           gender: 1,
           isVerified: 1,
           isBlocked: 1,
@@ -269,13 +285,13 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
             {
               $lookup: {
                 from: 'availabilities',
-                let: { doctorId: '$_id' },
+                let: { doctorId: { $toString: '$_id' } },
                 pipeline: [
                   {
                     $match: {
                       $expr: {
                         $and: [
-                          { $eq: [{ $toObjectId: '$doctorId' }, '$$doctorId'] },
+                          { $eq: ['$doctorId', '$$doctorId'] },
                           { $gte: ['$date', DateUtils.startOfDayUTC(DateUtils.parseToUTC(availabilityStart))] },
                           { $lte: ['$date', DateUtils.endOfDayUTC(DateUtils.parseToUTC(availabilityEnd))] },
                           {
@@ -310,14 +326,22 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
       {
         $lookup: {
           from: 'reviews',
-          localField: '_id',
-          foreignField: 'doctorId',
+          let: { doctorId: { $toString: '$_id' } },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ['$doctorId', '$$doctorId'] },
+              },
+            },
+          ],
           as: 'reviews',
         },
       },
       {
         $addFields: {
-          averageRating: { $avg: '$reviews.rating' },
+          averageRating: {
+            $ifNull: [{ $avg: '$reviews.rating' }, 0],
+          },
         },
       },
       ...(minRating !== undefined
@@ -332,11 +356,8 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
       { $count: 'totalItems' },
     ];
 
-    logger.debug('Aggregation pipeline:', JSON.stringify(pipeline, null, 2));
     const doctors = await this.model.aggregate(pipeline).exec();
-    logger.debug('Doctors result:', doctors);
     const countResult = await this.model.aggregate(countPipeline).exec();
-    logger.debug('Count result:', countResult);
     const totalItems = countResult[0]?.totalItems || 0;
     const totalPages = Math.ceil(totalItems / validatedLimit);
 
@@ -469,7 +490,7 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
       });
     }
 
-    // Add reviews lookup and averageRating calculation
+    // reviews lookup and averageRating calculation
     pipeline.push(
       {
         $lookup: {
@@ -481,7 +502,7 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
       },
       {
         $addFields: {
-          averageRating: { $avg: '$reviews.rating' },
+          averageRating: { $ifNull: [{ $avg: '$reviews.rating' }, 0] },
         },
       }
     );
@@ -592,7 +613,7 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
       },
       {
         $addFields: {
-          averageRating: { $avg: '$reviews.rating' },
+          averageRating: { $ifNull: [{ $avg: '$reviews.rating' }, 0] },
         },
       },
       ...(minRating !== undefined
@@ -611,9 +632,6 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
     const countResult = await this.model.aggregate(countPipeline).exec();
     const totalItems = countResult[0]?.totalItems || 0;
     const totalPages = Math.ceil(totalItems / validatedLimit);
-
-    logger.debug('pipeline:', pipeline);
-    logger.debug('data:', doctors);
 
     return {
       data: doctors as Doctor[],
