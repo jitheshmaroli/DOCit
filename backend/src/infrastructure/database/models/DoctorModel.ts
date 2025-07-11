@@ -22,6 +22,7 @@ const DoctorSchema = new Schema<Doctor>(
     googleId: { type: String, unique: true, sparse: true },
     lastSeen: { type: Date },
     isOnline: { type: Boolean, default: false },
+    averageRating: { type: Number, min: 0, max: 5, default: 0 },
     reviewIds: { type: [String] },
   },
   { timestamps: true }

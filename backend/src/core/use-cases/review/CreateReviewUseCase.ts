@@ -1,13 +1,14 @@
-// F:\DOCit\backend\src\core\use-cases\review\CreateReviewUseCase.ts
 import { ConflictError, ValidationError } from '../../../utils/errors';
 import { Review } from '../../entities/Review';
 import { IAppointmentRepository } from '../../interfaces/repositories/IAppointmentRepository';
 import { IReviewRepository } from '../../interfaces/repositories/IReviewRepository';
+import { IDoctorRepository } from '../../interfaces/repositories/IDoctorRepository';
 
 export class CreateReviewUseCase {
   constructor(
     private reviewRepository: IReviewRepository,
-    private appointmentRepository: IAppointmentRepository // Fixed typo
+    private appointmentRepository: IAppointmentRepository,
+    private doctorRepository: IDoctorRepository
   ) {}
 
   async execute(
@@ -27,9 +28,9 @@ export class CreateReviewUseCase {
     }
 
     // Validate patient ownership
-    // if (appointment.patientId !== patientId) {
-    //   throw new AuthenticationError('Unauthorized: Patient does not match appointment');
-    // }
+    if (typeof appointment.patientId === 'string' && appointment.patientId !== patientId) {
+      throw new ValidationError('Unauthorized: Patient does not match appointment');
+    }
 
     // Check for existing review
     const existingReview = await this.reviewRepository.findByAppointmentId(appointmentId);
@@ -50,6 +51,14 @@ export class CreateReviewUseCase {
 
     // Update appointment to mark it as reviewed
     await this.appointmentRepository.update(appointmentId, { hasReview: true });
+
+    // Update doctor's average rating and reviewIds
+    const reviews = await this.reviewRepository.findByDoctorId(doctorId);
+    const averageRating = reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length;
+    await this.doctorRepository.update(doctorId, {
+      averageRating,
+      reviewIds: [...(reviews.map((r) => r._id!).filter((id) => id) as string[]), createdReview._id!],
+    });
 
     return createdReview;
   }

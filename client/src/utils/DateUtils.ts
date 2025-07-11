@@ -149,4 +149,23 @@ export class DateUtils {
       });
     }
   }
+
+  static generateRecurringDates(
+    startDate: Date,
+    endDate: Date,
+    recurringDays: number[]
+  ): Date[] {
+    const dates: Date[] = [];
+    let currentDate = dayjs.utc(startDate);
+    const end = dayjs.utc(endDate);
+
+    while (currentDate.isBefore(end) || currentDate.isSame(end, 'day')) {
+      if (recurringDays.includes(currentDate.day())) {
+        dates.push(currentDate.toDate());
+      }
+      currentDate = currentDate.add(1, 'day');
+    }
+
+    return dates;
+  }
 }

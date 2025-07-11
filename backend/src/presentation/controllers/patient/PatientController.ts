@@ -24,6 +24,7 @@ import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 import { CreateReviewUseCase } from '../../../core/use-cases/review/CreateReviewUseCase';
 import sanitizeHtml from 'sanitize-html';
+import { GetDoctorReviewsUseCase } from '../../../core/use-cases/review/GetDoctorReviewsUseCase';
 
 export class PatientController {
   private bookAppointmentUseCase: BookAppointmentUseCase;
@@ -41,6 +42,7 @@ export class PatientController {
   private getPatientAppointmentsUseCase: GetPatientAppointmentsUseCase;
   private getAppointmentByIdUseCase: GetAppointmentByIdUseCase;
   private createReviewUseCase: CreateReviewUseCase;
+  private getDoctorReviewsUseCase: GetDoctorReviewsUseCase;
 
   constructor(container: Container) {
     this.bookAppointmentUseCase = container.get('BookAppointmentUseCase');
@@ -58,6 +60,7 @@ export class PatientController {
     this.getPatientAppointmentsUseCase = container.get('GetPatientAppointmentsUseCase');
     this.getAppointmentByIdUseCase = container.get('GetAppointmentByIdUseCase');
     this.createReviewUseCase = container.get('CreateReviewUseCase');
+    this.getDoctorReviewsUseCase = container.get('GetDoctorReviewsUseCase');
   }
 
   async getDoctorAvailability(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
@@ -242,6 +245,7 @@ export class PatientController {
         availabilityStart: req.query.availabilityStart as string | undefined,
         availabilityEnd: req.query.availabilityEnd as string | undefined,
         gender: req.query.gender as string | undefined,
+        minRating: req.query.minRating ? parseFloat(String(req.query.minRating)) : undefined,
       };
       const result = await this.getVerifiedDoctorsUseCase.execute(params);
       res.status(HttpStatusCode.OK).json(result);
@@ -319,7 +323,7 @@ export class PatientController {
 
       const { appointmentId, doctorId, rating, comment } = req.body;
 
-      // Syntactic validation (moved from use case)
+      // Syntactic validation
       if (!appointmentId || !doctorId || rating === undefined || !comment) {
         throw new ValidationError(ResponseMessages.MISSING_REQUIRED_FIELDS);
       }
@@ -329,7 +333,7 @@ export class PatientController {
       }
 
       if (typeof doctorId !== 'string' || !mongoose.Types.ObjectId.isValid(doctorId)) {
-        throw new ValidationError('Doctro id is not valid');
+        throw new ValidationError('Doctor id is not valid');
       }
 
       if (typeof rating !== 'number' || !Number.isInteger(rating) || rating < 1 || rating > 5) {
@@ -360,6 +364,20 @@ export class PatientController {
         data: review,
         message: 'Review created successfully',
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getDoctorReviews(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { doctorId } = req.params;
+      if (!doctorId || !mongoose.Types.ObjectId.isValid(doctorId)) {
+        throw new ValidationError('Invalid doctor ID');
+      }
+
+      const reviews = await this.getDoctorReviewsUseCase.execute(doctorId);
+      res.status(HttpStatusCode.OK).json(reviews);
     } catch (error) {
       next(error);
     }

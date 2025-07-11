@@ -15,6 +15,7 @@ export interface QueryParams {
   patientId?: string;
   experience?: string;
   gender?: string;
+  minRating?: number;
 }
 
 export interface PaginatedResponse<T> {

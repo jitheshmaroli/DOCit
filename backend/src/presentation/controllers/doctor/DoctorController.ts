@@ -60,13 +60,28 @@ export class DoctorController {
       if (!doctorId) {
         throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
-      const { date, timeSlots } = req.body;
+      const { date, timeSlots, isRecurring, recurringEndDate, recurringDays, forceCreate = true } = req.body;
       if (!date || !timeSlots || !Array.isArray(timeSlots)) {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
+      if (isRecurring && (!recurringEndDate || !recurringDays || !Array.isArray(recurringDays))) {
+        throw new ValidationError('Recurring end date and days are required for recurring slots');
+      }
       const utcDate = DateUtils.parseToUTC(date);
-      const availability = await this.setAvailabilityUseCase.execute(doctorId, utcDate, timeSlots);
-      res.status(HttpStatusCode.CREATED).json(availability);
+      const utcRecurringEndDate = recurringEndDate ? DateUtils.parseToUTC(recurringEndDate) : undefined;
+      const result = await this.setAvailabilityUseCase.execute(
+        doctorId,
+        utcDate,
+        timeSlots,
+        isRecurring,
+        utcRecurringEndDate,
+        recurringDays,
+        forceCreate
+      );
+      res.status(HttpStatusCode.CREATED).json({
+        availabilities: result.availabilities,
+        conflicts: result.conflicts,
+      });
     } catch (error) {
       next(error);
     }

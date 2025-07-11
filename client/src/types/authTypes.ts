@@ -13,6 +13,8 @@ export interface Doctor {
   qualifications?: string[];
   age?: string;
   gender?: string;
+  averageRating?: number;
+  reviewIds?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -95,6 +97,9 @@ export interface AvailabilityPayload {
 export interface SetAvailabilityPayload {
   date: Date;
   timeSlots: { startTime: string; endTime: string }[];
+  isRecurring?: boolean; 
+  recurringEndDate?: Date; 
+  recurringDays?: number[];
 }
 
 export interface SubscriptionPlanPayload {

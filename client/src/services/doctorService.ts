@@ -114,10 +114,22 @@ export const getAvailability = async ({
 export const setAvailability = async ({
   date,
   timeSlots,
-}: SetAvailabilityPayload) => {
+  isRecurring,
+  recurringEndDate,
+  recurringDays,
+}: SetAvailabilityPayload & {
+  isRecurring?: boolean;
+  recurringEndDate?: Date;
+  recurringDays?: number[];
+}) => {
   const payload = {
     date: DateUtils.formatToISO(date),
     timeSlots,
+    isRecurring,
+    recurringEndDate: recurringEndDate
+      ? DateUtils.formatToISO(recurringEndDate)
+      : undefined,
+    recurringDays,
   };
   const response = await api.post('/api/doctors/availability', payload);
   return response.data;

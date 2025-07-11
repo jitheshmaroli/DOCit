@@ -33,6 +33,7 @@ router.get(
   patientAuth,
   patientController.getActiveSubscription.bind(patientController)
 );
+router.get('/doctors/:doctorId/reviews', patientAuth, patientController.getDoctorReviews.bind(patientController));
 
 // Speciality route
 router.get('/specialities', patientAuth, patientController.getAllSpecialities.bind(patientController));

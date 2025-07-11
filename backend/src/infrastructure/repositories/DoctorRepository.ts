@@ -4,7 +4,7 @@ import { Doctor } from '../../core/entities/Doctor';
 import { BaseRepository } from './BaseRepository';
 import { DoctorModel } from '../database/models/DoctorModel';
 import { SubscriptionPlanModel } from '../database/models/SubscriptionPlanModel';
-import { QueryParams, PaginatedResponse } from '../../types/authTypes';
+import { PaginatedResponse, QueryParams } from '../../types/authTypes';
 import { ValidationError } from '../../utils/errors';
 import logger from '../../utils/logger';
 import { SpecialityModel } from '../database/models/SpecialityModel';
@@ -22,8 +22,30 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
 
   async getDoctorDetails(doctorId: string): Promise<Doctor | null> {
     if (!mongoose.Types.ObjectId.isValid(doctorId)) return null;
-    const doctor = await this.model.findById(doctorId).select('-password').exec();
-    return doctor ? (doctor.toObject() as Doctor) : null;
+    const pipeline: PipelineStage[] = [
+      { $match: { _id: new mongoose.Types.ObjectId(doctorId) } },
+      {
+        $lookup: {
+          from: 'reviews',
+          localField: '_id',
+          foreignField: 'doctorId',
+          as: 'reviews',
+        },
+      },
+      {
+        $addFields: {
+          averageRating: { $avg: '$reviews.rating' },
+        },
+      },
+      {
+        $project: {
+          password: 0,
+          reviews: 0,
+        },
+      },
+    ];
+    const [doctor] = await this.model.aggregate(pipeline).exec();
+    return doctor ? (doctor as Doctor) : null;
   }
 
   async findByCriteria(criteria: Partial<Doctor>): Promise<Doctor[]> {
@@ -50,6 +72,7 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
       gender,
       availabilityStart,
       availabilityEnd,
+      minRating,
     } = params;
 
     // Validate parameters
@@ -59,6 +82,9 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
     if (validatedLimit < 1 || validatedLimit > 100) throw new ValidationError('Limit must be between 1 and 100');
     if (sortOrder && !['asc', 'desc'].includes(sortOrder)) {
       throw new ValidationError('Sort order must be "asc" or "desc"');
+    }
+    if (minRating !== undefined && (isNaN(Number(minRating)) || Number(minRating) < 1 || Number(minRating) > 5)) {
+      throw new ValidationError('Minimum rating must be between 1 and 5');
     }
 
     const query: FilterQuery<Doctor> = { isVerified: true, isBlocked: false };
@@ -130,7 +156,7 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
                 $match: {
                   $expr: {
                     $and: [
-                      { $eq: [{ $toObjectId: '$doctorId' }, '$$doctorId'] }, // Convert doctorId to ObjectId
+                      { $eq: [{ $toObjectId: '$doctorId' }, '$$doctorId'] },
                       { $gte: ['$date', startDate] },
                       { $lte: ['$date', endDate] },
                       {
@@ -166,6 +192,33 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
       }
     }
 
+    // Add reviews lookup and averageRating calculation
+    pipeline.push(
+      {
+        $lookup: {
+          from: 'reviews',
+          localField: '_id',
+          foreignField: 'doctorId',
+          as: 'reviews',
+        },
+      },
+      {
+        $addFields: {
+          averageRating: { $avg: '$reviews.rating' },
+        },
+      }
+    );
+
+    // Handle minRating filter
+    if (minRating !== undefined) {
+      pipeline.push({
+        $match: {
+          averageRating: { $gte: Number(minRating) },
+        },
+      });
+    }
+
+    // Project fields
     pipeline.push(
       {
         $lookup: {
@@ -199,6 +252,7 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
           isBlocked: 1,
           profilePicture: 1,
           profilePicturePublicId: 1,
+          averageRating: 1,
           createdAt: 1,
           updatedAt: 1,
         },
@@ -221,7 +275,7 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
                     $match: {
                       $expr: {
                         $and: [
-                          { $eq: [{ $toObjectId: '$doctorId' }, '$$doctorId'] }, // Convert doctorId to ObjectId
+                          { $eq: [{ $toObjectId: '$doctorId' }, '$$doctorId'] },
                           { $gte: ['$date', DateUtils.startOfDayUTC(DateUtils.parseToUTC(availabilityStart))] },
                           { $lte: ['$date', DateUtils.endOfDayUTC(DateUtils.parseToUTC(availabilityEnd))] },
                           {
@@ -249,6 +303,28 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
             {
               $match: {
                 'availabilities.0': { $exists: true },
+              },
+            },
+          ]
+        : []),
+      {
+        $lookup: {
+          from: 'reviews',
+          localField: '_id',
+          foreignField: 'doctorId',
+          as: 'reviews',
+        },
+      },
+      {
+        $addFields: {
+          averageRating: { $avg: '$reviews.rating' },
+        },
+      },
+      ...(minRating !== undefined
+        ? [
+            {
+              $match: {
+                averageRating: { $gte: Number(minRating) },
               },
             },
           ]
@@ -286,6 +362,7 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
       gender,
       availabilityStart,
       availabilityEnd,
+      minRating,
     } = params;
 
     // Validate parameters
@@ -295,6 +372,9 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
     if (validatedLimit < 1 || validatedLimit > 100) throw new ValidationError('Limit must be between 1 and 100');
     if (sortOrder && !['asc', 'desc'].includes(sortOrder)) {
       throw new ValidationError('Sort order must be "asc" or "desc"');
+    }
+    if (minRating !== undefined && (isNaN(Number(minRating)) || Number(minRating) < 1 || Number(minRating) > 5)) {
+      throw new ValidationError('Minimum rating must be between 1 and 5');
     }
 
     const query: FilterQuery<Doctor> = {};
@@ -389,6 +469,32 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
       });
     }
 
+    // Add reviews lookup and averageRating calculation
+    pipeline.push(
+      {
+        $lookup: {
+          from: 'reviews',
+          localField: '_id',
+          foreignField: 'doctorId',
+          as: 'reviews',
+        },
+      },
+      {
+        $addFields: {
+          averageRating: { $avg: '$reviews.rating' },
+        },
+      }
+    );
+
+    // Handle minRating filter
+    if (minRating !== undefined) {
+      pipeline.push({
+        $match: {
+          averageRating: { $gte: Number(minRating) },
+        },
+      });
+    }
+
     pipeline.push(
       {
         $lookup: {
@@ -421,6 +527,7 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
           isBlocked: 1,
           profilePicture: 1,
           profilePicturePublicId: 1,
+          averageRating: 1,
           createdAt: 1,
           updatedAt: 1,
         },
@@ -471,6 +578,28 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
             {
               $match: {
                 'availabilities.0': { $exists: true },
+              },
+            },
+          ]
+        : []),
+      {
+        $lookup: {
+          from: 'reviews',
+          localField: '_id',
+          foreignField: 'doctorId',
+          as: 'reviews',
+        },
+      },
+      {
+        $addFields: {
+          averageRating: { $avg: '$reviews.rating' },
+        },
+      },
+      ...(minRating !== undefined
+        ? [
+            {
+              $match: {
+                averageRating: { $gte: Number(minRating) },
               },
             },
           ]

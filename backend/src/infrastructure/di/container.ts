@@ -97,6 +97,7 @@ import { GetAppointmentByIdUseCase } from '../../core/use-cases/patient/GetAppoi
 import { GetSingleAppointmentUseCase } from '../../core/use-cases/doctor/GetSingleAppointmentUseCase';
 import { CreateReviewUseCase } from '../../core/use-cases/review/CreateReviewUseCase';
 import { ReviewRepository } from '../repositories/ReviewRepository';
+import { GetDoctorReviewsUseCase } from '../../core/use-cases/review/GetDoctorReviewsUseCase';
 
 export class Container {
   private static instance: Container;
@@ -375,7 +376,11 @@ export class Container {
         patientRepository
       )
     );
-    this.dependencies.set('CreateReviewUseCase', new CreateReviewUseCase(reviewRepository, appointmentRepository));
+    this.dependencies.set(
+      'CreateReviewUseCase',
+      new CreateReviewUseCase(reviewRepository, appointmentRepository, doctorRepository)
+    );
+    this.dependencies.set('GetDoctorReviewsUseCase', new GetDoctorReviewsUseCase(reviewRepository));
   }
 
   static getInstance(): Container {

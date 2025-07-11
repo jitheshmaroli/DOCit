@@ -10,6 +10,15 @@ import { getImageUrl } from '../../utils/config';
 import { clearError as clearDoctorError } from '../../redux/slices/doctorSlice';
 import api from '../../services/api';
 
+interface Doctor {
+  _id: string;
+  name: string;
+  profilePicture?: string;
+  speciality: string[];
+  availability?: string;
+  averageRating?: number;
+}
+
 interface Filters {
   searchQuery: string;
   speciality: string;
@@ -19,6 +28,7 @@ interface Filters {
   sortOrder: 'asc' | 'desc';
   availabilityStart?: string;
   availabilityEnd?: string;
+  minRating?: string;
 }
 
 const ITEMS_PER_PAGE = 5;
@@ -42,6 +52,7 @@ const FindDoctor: React.FC = () => {
     sortOrder: 'asc',
     availabilityStart: '',
     availabilityEnd: '',
+    minRating: '',
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
@@ -72,6 +83,7 @@ const FindDoctor: React.FC = () => {
       sortOrder: filters.sortOrder || undefined,
       availabilityStart: filters.availabilityStart || undefined,
       availabilityEnd: filters.availabilityEnd || undefined,
+      minRating: filters.minRating || undefined,
     };
     dispatch(fetchVerifiedDoctorsThunk(params));
   }, [dispatch, currentPage, filters]);
@@ -206,6 +218,38 @@ const FindDoctor: React.FC = () => {
             </div>
             <div className="mb-6">
               <label className="block text-gray-200 text-sm mb-2">
+                Minimum Rating
+              </label>
+              <select
+                value={filters.minRating}
+                onChange={(e) =>
+                  handleFilterChange('minRating', e.target.value)
+                }
+                className="w-full p-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-400 appearance-none"
+                style={dropdownStyle}
+              >
+                <option value="" className="bg-gray-800 text-white">
+                  All Ratings
+                </option>
+                <option value="1" className="bg-gray-800 text-white">
+                  1+ Stars
+                </option>
+                <option value="2" className="bg-gray-800 text-white">
+                  2+ Stars
+                </option>
+                <option value="3" className="bg-gray-800 text-white">
+                  3+ Stars
+                </option>
+                <option value="4" className="bg-gray-800 text-white">
+                  4+ Stars
+                </option>
+                <option value="5" className="bg-gray-800 text-white">
+                  5 Stars
+                </option>
+              </select>
+            </div>
+            <div className="mb-6">
+              <label className="block text-gray-200 text-sm mb-2">
                 Availability Start Date
               </label>
               <input
@@ -265,6 +309,18 @@ const FindDoctor: React.FC = () => {
                 >
                   Experience (High to Low)
                 </option>
+                <option
+                  value="averageRating:desc"
+                  className="bg-gray-800 text-white"
+                >
+                  Rating (High to Low)
+                </option>
+                <option
+                  value="averageRating:asc"
+                  className="bg-gray-800 text-white"
+                >
+                  Rating (Low to High)
+                </option>
               </select>
             </div>
           </div>
@@ -309,6 +365,29 @@ const FindDoctor: React.FC = () => {
                         <p className="text-sm text-purple-300 mb-2">
                           {doctor.speciality?.join(', ') || 'Speciality N/A'}
                         </p>
+                        <div className="flex items-center justify-center sm:justify-start mb-2">
+                          <p className="text-sm text-gray-300 mr-2">Rating:</p>
+                          <div className="flex">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <span
+                                key={star}
+                                className={`text-lg ${
+                                  doctor.averageRating &&
+                                  star <= Math.round(doctor.averageRating)
+                                    ? 'text-yellow-400'
+                                    : 'text-gray-400'
+                                }`}
+                              >
+                                ★
+                              </span>
+                            ))}
+                          </div>
+                          <p className="text-sm text-gray-300 ml-2">
+                            {doctor.averageRating
+                              ? doctor.averageRating.toFixed(1)
+                              : 'No ratings'}
+                          </p>
+                        </div>
                         <p className="text-sm text-gray-300 mb-4">
                           {doctor.availability || 'Availability TBD'}
                         </p>

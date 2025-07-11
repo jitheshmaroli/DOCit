@@ -108,4 +108,27 @@ export class DateUtils {
       }))
     ); // Debugging log
   }
+
+  // Generate recurring dates based on start date, end date, and selected days of the week
+  static generateRecurringDates(startDate: Date, endDate: Date, recurringDays: number[]): Date[] {
+    if (!recurringDays || recurringDays.length === 0) {
+      throw new ValidationError('At least one recurring day is required');
+    }
+    const dates: Date[] = [];
+    let currentDate = moment.utc(startDate);
+    const end = moment.utc(endDate);
+
+    while (currentDate.isBefore(end) || currentDate.isSame(end, 'day')) {
+      if (recurringDays.includes(currentDate.day())) {
+        dates.push(currentDate.toDate());
+      }
+      currentDate = currentDate.add(1, 'day');
+    }
+
+    logger.debug(
+      'Generated recurring dates:',
+      dates.map((d) => moment.utc(d).format('YYYY-MM-DD'))
+    );
+    return dates;
+  }
 }

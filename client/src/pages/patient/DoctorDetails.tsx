@@ -27,13 +27,24 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import { TimeSlot } from '../../types/authTypes';
 import Pagination from '../../components/common/Pagination';
-import CancelAppointmentModal from '../../components/CancelAppointmentModal'; // Import the modal
+import CancelAppointmentModal from '../../components/CancelAppointmentModal';
+import { getDoctorReviews } from '../../services/patientService';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);
 
 interface Availability {
   date: string;
   timeSlots: TimeSlot[];
+}
+
+interface Review {
+  _id?: string;
+  patientId: string | { _id: string; name?: string };
+  doctorId: string | { _id: string; name?: string };
+  appointmentId: string;
+  rating: number;
+  comment: string;
+  createdAt?: string;
 }
 
 const ITEMS_PER_PAGE = 5;
@@ -59,7 +70,6 @@ const DoctorDetails: React.FC = () => {
     loading: patientLoading,
     error: patientError,
   } = useAppSelector((state) => state.patient);
-
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [availableDates, setAvailableDates] = useState<string[]>([]);
@@ -73,10 +83,11 @@ const DoctorDetails: React.FC = () => {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false); // State for modal
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [appointmentToCancel, setAppointmentToCancel] = useState<string | null>(
     null
-  ); // Track appointment to cancel
+  );
+  const [reviews, setReviews] = useState<Review[]>([]);
 
   const specialityFromState = (location.state as { speciality?: string[] })
     ?.speciality;
@@ -141,6 +152,12 @@ const DoctorDetails: React.FC = () => {
           setAvailability([]);
         }
       });
+      getDoctorReviews(doctorId)
+        .then(setReviews)
+        .catch(() => {
+          toast.error('Failed to load reviews');
+          setReviews([]);
+        });
     }
   }, [dispatch, doctorId, currentPage]);
 
@@ -428,11 +445,55 @@ const DoctorDetails: React.FC = () => {
                 Age: {selectedDoctor.age || 'N/A'} | Gender:{' '}
                 {selectedDoctor.gender || 'N/A'}
               </p>
-              <p className="text-sm text-gray-200">
-                Availability: {selectedDoctor.availability || 'TBD'}
+              <p className="text-sm text-gray-200 mb-2">
+                Average Rating:{' '}
+                {selectedDoctor.averageRating
+                  ? selectedDoctor.averageRating.toFixed(1)
+                  : 'No ratings yet'}
               </p>
             </div>
           </div>
+        </div>
+
+        <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">
+          <h2 className="text-2xl font-bold text-white mb-6">Reviews</h2>
+          {reviews.length > 0 ? (
+            <div className="space-y-4">
+              {reviews.map((review) => (
+                <div key={review._id} className="border-b border-white/20 py-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="flex">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <span
+                          key={star}
+                          className={`text-lg ${
+                            star <= review.rating
+                              ? 'text-yellow-400'
+                              : 'text-gray-400'
+                          }`}
+                        >
+                          ★
+                        </span>
+                      ))}
+                    </div>
+                    <p className="text-sm text-gray-300">
+                      {typeof review.patientId === 'string'
+                        ? 'Anonymous'
+                        : review.patientId.name || 'Anonymous'}
+                    </p>
+                    {review.createdAt && (
+                      <p className="text-sm text-gray-400">
+                        {DateUtils.formatToLocal(review.createdAt)}
+                      </p>
+                    )}
+                  </div>
+                  <p className="text-white">{review.comment}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-300">No reviews yet.</p>
+          )}
         </div>
 
         <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">
@@ -618,42 +679,42 @@ const DoctorDetails: React.FC = () => {
             )}
           </div>
         )}
-      </div>
 
-      {isPaymentModalOpen && selectedPlan && clientSecret && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 shadow-xl w-full max-w-md">
-            <h2 className="text-xl font-bold text-white mb-4">
-              Complete Payment
-            </h2>
-            <Elements stripe={stripePromise} options={{ clientSecret }}>
-              <PaymentForm
-                planId={selectedPlan.id}
-                price={selectedPlan.price}
-                onSuccess={() => {
+        {isPaymentModalOpen && selectedPlan && clientSecret && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 shadow-xl w-full max-w-md">
+              <h2 className="text-xl font-bold text-white mb-4">
+                Complete Payment
+              </h2>
+              <Elements stripe={stripePromise} options={{ clientSecret }}>
+                <PaymentForm
+                  planId={selectedPlan.id}
+                  price={selectedPlan.price}
+                  onSuccess={() => {
+                    setIsPaymentModalOpen(false);
+                    setSelectedPlan(null);
+                    setClientSecret(null);
+                    dispatch(getPatientSubscriptionThunk(doctorId!));
+                  }}
+                  onError={(error) => {
+                    toast.error(error);
+                  }}
+                />
+              </Elements>
+              <button
+                onClick={() => {
                   setIsPaymentModalOpen(false);
                   setSelectedPlan(null);
                   setClientSecret(null);
-                  dispatch(getPatientSubscriptionThunk(doctorId!));
                 }}
-                onError={(error) => {
-                  toast.error(error);
-                }}
-              />
-            </Elements>
-            <button
-              onClick={() => {
-                setIsPaymentModalOpen(false);
-                setSelectedPlan(null);
-                setClientSecret(null);
-              }}
-              className="mt-4 w-full bg-gray-600 text-white py-2 rounded-lg hover:bg-gray-700 transition-all duration-300"
-            >
-              Cancel
-            </button>
+                className="mt-4 w-full bg-gray-600 text-white py-2 rounded-lg hover:bg-gray-700 transition-all duration-300"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

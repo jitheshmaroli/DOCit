@@ -11,7 +11,7 @@ import {
 } from '../../redux/thunks/doctorThunk';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
-import { Box, Button, useMediaQuery } from '@mui/material';
+import { Box, Button, useMediaQuery, FormControlLabel, Checkbox } from '@mui/material';
 import dayjs, { Dayjs } from 'dayjs';
 import { DateUtils } from '../../utils/DateUtils';
 
@@ -41,6 +41,9 @@ const DoctorAvailability: React.FC = () => {
   const [newSlots, setNewSlots] = useState<TimeSlot[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [dateFilter, setDateFilter] = useState<Dayjs | null>(dayjs());
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurringEndDate, setRecurringEndDate] = useState<Dayjs | null>(null);
+  const [recurringDays, setRecurringDays] = useState<number[]>([]);
   const isMobile = useMediaQuery('(max-width:600px)');
 
   useEffect(() => {
@@ -72,6 +75,7 @@ const DoctorAvailability: React.FC = () => {
     }
 
     setSelectedDate(selected);
+    setRecurringDays([dayjs(selected).day()]); // Set the selected day as the default recurring day
     const existingAvailability = availability.find((avail: Availability) =>
       dayjs(avail.date).isSame(date, 'day')
     );
@@ -187,7 +191,8 @@ const DoctorAvailability: React.FC = () => {
 
   const isSubmitDisabled =
     newSlots.length === 0 ||
-    newSlots.some((slot) => !slot.startTime || !slot.endTime);
+    newSlots.some((slot) => !slot.startTime || !slot.endTime) ||
+    (isRecurring && (!recurringEndDate || recurringDays.length === 0));
 
   const handleSubmitAvailability = async () => {
     if (!selectedDate || newSlots.length === 0) {
@@ -212,19 +217,39 @@ const DoctorAvailability: React.FC = () => {
     }
 
     try {
-      await dispatch(
-        setAvailabilityThunk({ date: selectedDate, timeSlots: newSlots })
-      ).unwrap();
+      const payload: any = {
+        date: selectedDate,
+        timeSlots: newSlots,
+      };
+
+      if (isRecurring && recurringEndDate && recurringDays.length > 0) {
+        payload.isRecurring = true;
+        payload.recurringEndDate = recurringEndDate.toDate();
+        payload.recurringDays = recurringDays;
+      }
+
+      await dispatch(setAvailabilityThunk(payload)).unwrap();
       toast.success('New slots added successfully');
       setIsModalOpen(false);
       setNewSlots([]);
       setTimeSlots([]);
+      setIsRecurring(false);
+      setRecurringEndDate(null);
+      setRecurringDays([]);
       const startDate = dayjs(selectedDate).startOf('month').toDate();
       const endDate = dayjs(selectedDate).endOf('month').toDate();
       dispatch(getAvailabilityThunk({ startDate, endDate }));
     } catch (err: any) {
       toast.error(err.message || 'Failed to add new slots');
     }
+  };
+
+  const handleRecurringDayChange = (day: number) => {
+    setRecurringDays((prev) =>
+      prev.includes(day)
+        ? prev.filter((d) => d !== day)
+        : [...prev, day]
+    );
   };
 
   return (
@@ -354,6 +379,78 @@ const DoctorAvailability: React.FC = () => {
               Set Availability for{' '}
               {DateUtils.formatToLocalDisplay(selectedDate)}
             </h2>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={isRecurring}
+                  onChange={(e) => setIsRecurring(e.target.checked)}
+                  sx={{ color: 'white', '&.Mui-checked': { color: 'purple' } }}
+                />
+              }
+              label="Make this slot recurring"
+              sx={{ color: 'white', mb: 2 }}
+            />
+            {isRecurring && (
+              <>
+                <LocalizationProvider dateAdapter={AdapterDayjs}>
+                  <div className="mb-4">
+                    <label className="block text-gray-200 text-sm mb-2">
+                      Recurring Until
+                    </label>
+                    <DatePicker
+                      value={recurringEndDate}
+                      onChange={(newValue) => setRecurringEndDate(newValue)}
+                      minDate={dayjs(selectedDate).add(1, 'day')}
+                      slotProps={{
+                        textField: {
+                          fullWidth: true,
+                          sx: {
+                            '& .MuiInputBase-root': {
+                              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                              border: '1px solid rgba(255, 255, 255, 0.2)',
+                              borderRadius: '8px',
+                              color: 'white',
+                            },
+                            '& .MuiInputLabel-root': {
+                              color: 'rgba(255, 255, 255, 0.7)',
+                            },
+                            '& .Mui-focused': {
+                              borderColor: 'rgba(192, 132, 252, 0.4)',
+                            },
+                          },
+                        },
+                      }}
+                    />
+                  </div>
+                </LocalizationProvider>
+                <div className="mb-4">
+                  <label className="block text-gray-200 text-sm mb-2">
+                    Recurring Days
+                  </label>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(
+                      (day, index) => (
+                        <FormControlLabel
+                          key={day}
+                          control={
+                            <Checkbox
+                              checked={recurringDays.includes(index)}
+                              onChange={() => handleRecurringDayChange(index)}
+                              sx={{
+                                color: 'white',
+                                '&.Mui-checked': { color: 'purple' },
+                              }}
+                            />
+                          }
+                          label={day}
+                          sx={{ color: 'white' }}
+                        />
+                      )
+                    )}
+                  </Box>
+                </div>
+              </>
+            )}
             {timeSlots.length === 0 ? (
               <p className="text-white mb-4">
                 No time slots set for this date.

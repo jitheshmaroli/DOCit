@@ -6,6 +6,17 @@ import {
 } from '../types/authTypes';
 import { DateUtils } from '../utils/DateUtils';
 
+export interface Review {
+  _id?: string;
+  patientId: string | { _id: string; name?: string };
+  doctorId: string | { _id: string; name?: string };
+  appointmentId: string;
+  rating: number;
+  comment: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export const getDoctors = async () => {
   const response = await api.get('/api/patients/doctors/verified');
   return response.data;
@@ -125,5 +136,25 @@ export const cancelAppointment = async (
       data: { cancellationReason },
     }
   );
+  return response.data;
+};
+
+export const createReview = async (
+  appointmentId: string,
+  doctorId: string,
+  rating: number,
+  comment: string
+) => {
+  const response = await api.post('/api/patients/review', {
+    appointmentId,
+    doctorId,
+    rating,
+    comment,
+  });
+  return response.data;
+};
+
+export const getDoctorReviews = async (doctorId: string): Promise<Review[]> => {
+  const response = await api.get(`/api/patients/doctors/${doctorId}/reviews`);
   return response.data;
 };

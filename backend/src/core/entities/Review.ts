@@ -3,8 +3,8 @@ export interface Review {
   appointmentId?: string;
   doctorId?: string;
   patientId?: string;
-  rating?: number;
-  comment?: string;
+  rating: number;
+  comment: string;
   createdAt?: Date;
   updatedAt?: Date;
 }

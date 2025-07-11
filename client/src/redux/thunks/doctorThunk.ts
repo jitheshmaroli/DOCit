@@ -71,11 +71,23 @@ export const getAvailabilityThunk = createAsyncThunk(
 
 export const setAvailabilityThunk = createAsyncThunk(
   'doctors/setAvailability',
-  async (payload: SetAvailabilityPayload, { rejectWithValue }) => {
+  async (
+    payload: SetAvailabilityPayload & {
+      isRecurring?: boolean;
+      recurringEndDate?: Date;
+      recurringDays?: number[];
+    },
+    { rejectWithValue }
+  ) => {
     try {
       return await setAvailability({
         date: DateUtils.parseToUTC(payload.date),
         timeSlots: payload.timeSlots,
+        isRecurring: payload.isRecurring,
+        recurringEndDate: payload.recurringEndDate
+          ? DateUtils.parseToUTC(payload.recurringEndDate)
+          : undefined,
+        recurringDays: payload.recurringDays,
       });
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to set availability');

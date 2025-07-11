@@ -12,4 +12,5 @@ export interface IAvailabilityRepository extends IBaseRepository<Availability> {
     newSlot: { startTime: string; endTime: string }
   ): Promise<Availability | null>;
   updateSlotBookingStatus(doctorId: string, date: Date, startTime: string, isBooked: boolean): Promise<void>;
+  bulkCreate(availabilities: Availability[]): Promise<Availability[]>;
 }

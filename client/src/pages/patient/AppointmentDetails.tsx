@@ -11,6 +11,7 @@ import axios from 'axios';
 import CancelAppointmentModal from '../../components/CancelAppointmentModal';
 import VideoCallModal from '../../components/VideoCallModal';
 import { useSocket } from '../../hooks/useSocket';
+import { createReview } from '../../services/patientService';
 
 interface AppointmentPatient {
   _id: string;
@@ -68,6 +69,7 @@ interface Appointment {
     }>;
     notes?: string;
   };
+  hasReview?: boolean;
 }
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
@@ -86,6 +88,9 @@ const AppointmentDetails: React.FC = () => {
   const [callerInfo, setCallerInfo] = useState<
     { callerId: string; callerRole: string } | undefined
   >(undefined);
+  const [rating, setRating] = useState<number>(0);
+  const [comment, setComment] = useState<string>('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
   useEffect(() => {
     if (!user?._id) {
@@ -251,6 +256,43 @@ const AppointmentDetails: React.FC = () => {
     }
   };
 
+  const handleSubmitReview = async () => {
+    if (
+      !appointment ||
+      typeof appointment.doctorId === 'string' ||
+      !user?._id
+    ) {
+      toast.error('Cannot submit review: Missing required information');
+      return;
+    }
+    if (rating < 1 || rating > 5) {
+      toast.error('Please select a rating between 1 and 5');
+      return;
+    }
+    if (!comment.trim()) {
+      toast.error('Please enter a comment');
+      return;
+    }
+    try {
+      setIsSubmittingReview(true);
+      await createReview(
+        appointment._id,
+        appointment.doctorId._id,
+        rating,
+        comment
+      );
+      toast.success('Review submitted successfully');
+      setAppointment((prev) => (prev ? { ...prev, hasReview: true } : prev));
+      setRating(0);
+      setComment('');
+    } catch (error) {
+      console.error('Failed to submit review:', error);
+      toast.error('Failed to submit review');
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 flex items-center justify-center">
@@ -375,6 +417,53 @@ const AppointmentDetails: React.FC = () => {
             </button>
           )}
         </div>
+
+        {appointment.status === 'completed' && !appointment.hasReview && (
+          <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">
+            <h3 className="text-lg sm:text-xl font-semibold text-white mb-4">
+              Submit a Review
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-gray-200 text-sm mb-2">
+                  Rating
+                </label>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      onClick={() => setRating(star)}
+                      className={`text-2xl ${
+                        rating >= star ? 'text-yellow-400' : 'text-gray-400'
+                      }`}
+                    >
+                      ★
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-gray-200 text-sm mb-2">
+                  Comment
+                </label>
+                <textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  className="w-full p-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
+                  rows={4}
+                  placeholder="Write your review..."
+                />
+              </div>
+              <button
+                onClick={handleSubmitReview}
+                disabled={isSubmittingReview}
+                className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-2 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 disabled:opacity-50"
+              >
+                {isSubmittingReview ? 'Submitting...' : 'Submit Review'}
+              </button>
+            </div>
+          </div>
+        )}
 
         {appointment.doctorId && typeof appointment.doctorId !== 'string' && (
           <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">
