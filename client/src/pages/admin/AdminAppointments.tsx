@@ -8,6 +8,7 @@ import DataTable from '../../components/common/DataTable';
 import SearchBar from '../../components/common/SearchBar';
 import FilterSelect from '../../components/common/FilterSelect';
 import Pagination from '../../components/common/Pagination';
+import Modal from '../../components/common/Modal';
 import { Appointment, PaginationParams } from '../../types/authTypes';
 import { toast } from 'react-toastify';
 
@@ -27,6 +28,8 @@ const AdminAppointments: React.FC = () => {
   const [sortFilter, setSortFilter] = useState('createdAt:desc');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     if (user?.role === 'admin') {
@@ -67,6 +70,16 @@ const AdminAppointments: React.FC = () => {
     },
     [dispatch]
   );
+
+  const handleViewDetails = useCallback((appointment: Appointment) => {
+    setSelectedAppointment(appointment);
+    setIsModalOpen(true);
+  }, []);
+
+  const handleCloseModal = useCallback(() => {
+    setIsModalOpen(false);
+    setSelectedAppointment(null);
+  }, []);
 
   const columns = useMemo(
     () => [
@@ -115,13 +128,18 @@ const AdminAppointments: React.FC = () => {
   const actions = useMemo(
     () => [
       {
+        label: 'View Details',
+        onClick: handleViewDetails,
+        className: 'bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded-lg',
+      },
+      {
         label: 'Cancel',
         onClick: handleCancelAppointment,
         className: 'bg-red-600 hover:bg-red-700 px-3 py-1 rounded-lg',
         condition: (appt: Appointment) => appt.status !== 'cancelled',
       },
     ],
-    [handleCancelAppointment]
+    [handleCancelAppointment, handleViewDetails]
   );
 
   const statusOptions = useMemo(
@@ -208,6 +226,41 @@ const AdminAppointments: React.FC = () => {
         totalPages={totalPages}
         onPageChange={handlePageChange}
       />
+      <Modal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        title="Appointment Details"
+      >
+        {selectedAppointment && (
+          <div className="text-white space-y-4">
+            <div>
+              <strong>Patient Name:</strong> {selectedAppointment.patientId?.name || 'N/A'}
+            </div>
+            <div>
+              <strong>Doctor Name:</strong> {selectedAppointment.doctorId?.name || 'N/A'}
+            </div>
+            <div>
+              <strong>Date:</strong> {selectedAppointment.date ? new Date(selectedAppointment.date).toLocaleDateString() : 'N/A'}
+            </div>
+            <div>
+              <strong>Time:</strong> {selectedAppointment.startTime && selectedAppointment.endTime
+                ? `${selectedAppointment.startTime} - ${selectedAppointment.endTime}`
+                : 'N/A'}
+            </div>
+            <div>
+              <strong>Status:</strong> {selectedAppointment.status || 'Pending'}
+            </div>
+            <div>
+              <strong>Booking Type:</strong> {selectedAppointment.isFreeBooking ? 'Free' : 'Paid'}
+            </div>
+            {selectedAppointment.cancellationReason && (
+              <div>
+                <strong>Cancellation Reason:</strong> {selectedAppointment.cancellationReason}
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

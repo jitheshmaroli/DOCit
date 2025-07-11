@@ -97,8 +97,8 @@ export interface AvailabilityPayload {
 export interface SetAvailabilityPayload {
   date: Date;
   timeSlots: { startTime: string; endTime: string }[];
-  isRecurring?: boolean; 
-  recurringEndDate?: Date; 
+  isRecurring?: boolean;
+  recurringEndDate?: Date;
   recurringDays?: number[];
 }
 
@@ -207,6 +207,8 @@ export interface Appointment {
   updatedAt: string;
   isFreeBooking?: boolean;
   cancellationReason?: string;
+  prescriptionId?: string;
+  hasReview?: boolean;
 }
 
 export interface QueryParams {
