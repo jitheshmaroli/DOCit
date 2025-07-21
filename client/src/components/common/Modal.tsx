@@ -19,10 +19,10 @@ const Modal = React.memo(
     if (!isOpen) return null;
 
     return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
         <div
           ref={modalRef}
-          className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 w-full max-w-md"
+          className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 w-full max-w-md max-h-[calc(100vh-8rem)] overflow-y-auto"
         >
           <h3 className="text-lg font-semibold text-white mb-4">{title}</h3>
           <div className="mb-4">{children}</div>
@@ -33,7 +33,7 @@ const Modal = React.memo(
                   onClick={handleClose}
                   className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
                 >
-                  Cancel
+                  Close
                 </button>
               </>
             )}

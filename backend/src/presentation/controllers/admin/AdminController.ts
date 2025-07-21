@@ -1,23 +1,17 @@
 import { Request, Response, NextFunction } from 'express';
-import { ManageSubscriptionPlanUseCase } from '../../../core/use-cases/admin/ManageSubscriptionPlanUseCase';
+import { ISubscriptionPlanUseCase } from '../../../core/interfaces/use-cases/ISubscriptionPlanUseCase';
 import { Container } from '../../../infrastructure/di/container';
-import { GetAllAppointmentsUseCase } from '../../../core/use-cases/admin/GetAllAppointmentsUseCase';
-import { CreateDoctorUseCase } from '../../../core/use-cases/admin/CreateDoctorUseCase';
-import { AdminCancelAppointmentUseCase } from '../../../core/use-cases/admin/AdminCancelAppointmentUseCase';
-import { ListDoctorsUseCase } from '../../../core/use-cases/admin/ListDoctorsUseCase';
+import { IAppointmentUseCase } from '../../../core/interfaces/use-cases/IAppointmentUseCase';
+import { IDoctorUseCase } from '../../../core/interfaces/use-cases/IDoctorUseCase';
+import { ISpecialityUseCase } from '../../../core/interfaces/use-cases/ISpecialityUseCase';
+import { IReportUseCase } from '../../../core/interfaces/use-cases/IReportUseCase';
+import { IPatientUseCase } from '../../../core/interfaces/use-cases/IPatientUseCase';
 import { ValidationError } from '../../../utils/errors';
-import { AddSpecialityUseCase } from '../../../core/use-cases/admin/AddSpecialityUseCase';
-import { UpdateSpecialityUseCase } from '../../../core/use-cases/admin/UpdateSpecialityUseCase';
-import { DeleteSpecialityUseCase } from '../../../core/use-cases/admin/DeleteSpecialityUseCase';
-import { GetAdminDashboardStatsUseCase } from '../../../core/use-cases/admin/GetAdminDashboardStatsUseCase';
 import { PaginatedResponse, QueryParams } from '../../../types/authTypes';
 import { SubscriptionPlan } from '../../../core/entities/SubscriptionPlan';
 import { Appointment } from '../../../core/entities/Appointment';
 import { Speciality } from '../../../core/entities/Speciality';
 import logger from '../../../utils/logger';
-import { AdminGetReportsUseCase } from '../../../core/use-cases/admin/AdminGetReportsUseCase';
-import { GetSpecialitiesUseCase } from '../../../core/use-cases/admin/GetSpecialityUseCase';
-import { GetPatientSubscriptionsUseCase } from '../../../core/use-cases/admin/GetpatientSubscriptions';
 import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 
@@ -28,37 +22,25 @@ interface ReportFilter {
 }
 
 export class AdminController {
-  private manageSubscriptionPlanUseCase: ManageSubscriptionPlanUseCase;
-  private getAllAppointmentsUseCase: GetAllAppointmentsUseCase;
-  private AdminCancelAppointmentUseCase: AdminCancelAppointmentUseCase;
-  private getPatientSubscriptionsUseCase: GetPatientSubscriptionsUseCase;
-  private getSpecialitiesUseCase: GetSpecialitiesUseCase;
-  private addSpecialityUseCase: AddSpecialityUseCase;
-  private updateSpecialityUseCase: UpdateSpecialityUseCase;
-  private deleteSpecialityUseCase: DeleteSpecialityUseCase;
-  private createDoctorUseCase: CreateDoctorUseCase;
-  private listDoctorsUseCase: ListDoctorsUseCase;
-  private getAdminDashboardStatsUseCase: GetAdminDashboardStatsUseCase;
-  private adminGetReportsUseCase: AdminGetReportsUseCase;
+  private subscriptionPlanUseCase: ISubscriptionPlanUseCase;
+  private appointmentUseCase: IAppointmentUseCase;
+  private doctorUseCase: IDoctorUseCase;
+  private specialityUseCase: ISpecialityUseCase;
+  private reportUseCase: IReportUseCase;
+  private patientUseCase: IPatientUseCase;
 
   constructor(container: Container) {
-    this.createDoctorUseCase = container.get('CreateDoctorUseCase');
-    this.listDoctorsUseCase = container.get('ListDoctorsUseCase');
-    this.manageSubscriptionPlanUseCase = container.get('ManageSubscriptionPlanUseCase');
-    this.getAllAppointmentsUseCase = container.get('GetAllAppointmentsUseCase');
-    this.AdminCancelAppointmentUseCase = container.get('AdminCancelAppointmentUseCase');
-    this.getPatientSubscriptionsUseCase = container.get('GetPatientSubscriptionsUseCase');
-    this.getSpecialitiesUseCase = container.get('GetSpecialitiesUseCase');
-    this.addSpecialityUseCase = container.get('AddSpecialityUseCase');
-    this.updateSpecialityUseCase = container.get('UpdateSpecialityUseCase');
-    this.deleteSpecialityUseCase = container.get('DeleteSpecialityUseCase');
-    this.getAdminDashboardStatsUseCase = container.get('GetAdminDashboardStatsUseCase');
-    this.adminGetReportsUseCase = container.get('AdminGetReportsUseCase');
+    this.subscriptionPlanUseCase = container.get<ISubscriptionPlanUseCase>('ISubscriptionPlanUseCase');
+    this.appointmentUseCase = container.get<IAppointmentUseCase>('IAppointmentUseCase');
+    this.doctorUseCase = container.get<IDoctorUseCase>('IDoctorUseCase');
+    this.specialityUseCase = container.get<ISpecialityUseCase>('ISpecialityUseCase');
+    this.reportUseCase = container.get<IReportUseCase>('IReportUseCase');
+    this.patientUseCase = container.get<IPatientUseCase>('IPatientUseCase');
   }
 
   async getDashboardStats(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const stats = await this.getAdminDashboardStatsUseCase.execute();
+      const stats = await this.reportUseCase.getAdminDashboardStats();
       res.status(HttpStatusCode.OK).json(stats);
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
@@ -75,7 +57,7 @@ export class AdminController {
       if (type === 'daily' && (!startDate || !endDate)) {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
-      const reportData = await this.adminGetReportsUseCase.execute({
+      const reportData = await this.reportUseCase.getAdminReports({
         type,
         startDate: startDate ? new Date(startDate) : undefined,
         endDate: endDate ? new Date(endDate) : undefined,
@@ -90,7 +72,7 @@ export class AdminController {
   async getAllPlans(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const params = req.query as QueryParams;
-      const { data: plans, totalItems } = await this.manageSubscriptionPlanUseCase.getAllPlansWithQuery(params);
+      const { data: plans, totalItems } = await this.subscriptionPlanUseCase.manageSubscriptionPlanGetAll(params);
       const { page = 1, limit = 10 } = params;
       const totalPages = Math.ceil(totalItems / limit);
 
@@ -109,7 +91,7 @@ export class AdminController {
   async approvePlan(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { planId } = req.params;
-      const updatedPlan = await this.manageSubscriptionPlanUseCase.approve(planId);
+      const updatedPlan = await this.subscriptionPlanUseCase.approveSubscriptionPlan(planId);
       res.status(HttpStatusCode.OK).json({ data: updatedPlan, message: ResponseMessages.PLAN_APPROVED });
     } catch (error) {
       console.error('Error approving plan:', error);
@@ -120,7 +102,7 @@ export class AdminController {
   async rejectPlan(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { planId } = req.params;
-      const updatedPlan = await this.manageSubscriptionPlanUseCase.reject(planId);
+      const updatedPlan = await this.subscriptionPlanUseCase.rejectSubscriptionPlan(planId);
       res.status(HttpStatusCode.OK).json({ data: updatedPlan, message: ResponseMessages.PLAN_REJECTED });
     } catch (error) {
       console.error('Error rejecting plan:', error);
@@ -131,7 +113,7 @@ export class AdminController {
   async deletePlan(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { planId } = req.params;
-      await this.manageSubscriptionPlanUseCase.delete(planId);
+      await this.subscriptionPlanUseCase.deleteSubscriptionPlan(planId);
       res.status(HttpStatusCode.OK).json({ message: ResponseMessages.PLAN_DELETED });
     } catch (error) {
       console.error('Error deleting plan:', error);
@@ -142,7 +124,7 @@ export class AdminController {
   async getAllAppointments(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const params = req.query as QueryParams;
-      const { data: appointments, totalItems } = await this.getAllAppointmentsUseCase.executeWithQuery(params);
+      const { data: appointments, totalItems } = await this.appointmentUseCase.getAllAppointments(params);
       const { page = 1, limit = 10 } = params;
       const totalPages = Math.ceil(totalItems / limit);
 
@@ -162,7 +144,7 @@ export class AdminController {
     try {
       logger.debug('params:', req.params);
       const { appointmentId } = req.params;
-      await this.AdminCancelAppointmentUseCase.execute(appointmentId);
+      await this.appointmentUseCase.adminCancelAppointment(appointmentId);
       res.status(HttpStatusCode.OK).json({ message: ResponseMessages.APPOINTMENT_CANCELLED });
     } catch (error) {
       console.error('Error cancelling appointment:', error);
@@ -172,7 +154,7 @@ export class AdminController {
 
   async getPatientSubscriptions(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const subscriptions = await this.getPatientSubscriptionsUseCase.execute();
+      const subscriptions = await this.patientUseCase.getPatientSubscriptions('');
       res.status(HttpStatusCode.OK).json({ data: subscriptions });
     } catch (error) {
       console.error('Error fetching subscriptions:', error);
@@ -183,7 +165,7 @@ export class AdminController {
   async getSpecialities(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const params = req.query as QueryParams;
-      const { data: specialities, totalItems } = await this.getSpecialitiesUseCase.executeWithQuery(params);
+      const { data: specialities, totalItems } = await this.specialityUseCase.getSpecialitiesWithQuery(params);
       const { page = 1, limit = 10 } = params;
       const totalPages = Math.ceil(totalItems / limit);
 
@@ -202,7 +184,7 @@ export class AdminController {
     try {
       const { name } = req.body;
       if (!name) throw new ValidationError(ResponseMessages.BAD_REQUEST);
-      const speciality = await this.addSpecialityUseCase.execute({ name });
+      const speciality = await this.specialityUseCase.addSpeciality({ name });
       res.status(HttpStatusCode.CREATED).json(speciality);
     } catch (error) {
       next(error);
@@ -214,7 +196,7 @@ export class AdminController {
       const { id } = req.params;
       const { name } = req.body;
       if (!name) throw new ValidationError(ResponseMessages.BAD_REQUEST);
-      const speciality = await this.updateSpecialityUseCase.execute(id, { name });
+      const speciality = await this.specialityUseCase.updateSpeciality(id, { name });
       res.status(HttpStatusCode.OK).json(speciality);
     } catch (error) {
       next(error);
@@ -224,7 +206,7 @@ export class AdminController {
   async deleteSpeciality(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      await this.deleteSpecialityUseCase.execute(id);
+      await this.specialityUseCase.deleteSpeciality(id);
       res.status(HttpStatusCode.NO_CONTENT).send();
     } catch (error) {
       next(error);

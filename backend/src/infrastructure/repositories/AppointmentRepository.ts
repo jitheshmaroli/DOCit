@@ -205,6 +205,7 @@ export class AppointmentRepository implements IAppointmentRepository {
       .find(query)
       .populate('patientId', 'name')
       .populate('doctorId', 'name')
+      .populate('prescriptionId')
       .sort({ [sortBy]: sortOrder === 'desc' ? -1 : 1 })
       .skip((page - 1) * limit)
       .limit(limit)

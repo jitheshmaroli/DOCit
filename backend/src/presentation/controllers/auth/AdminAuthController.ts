@@ -1,59 +1,32 @@
 import { Request, Response, NextFunction } from 'express';
 import { Container } from '../../../infrastructure/di/container';
 import { ValidationError } from '../../../utils/errors';
-import { UpdateDoctorUseCase } from '../../../core/use-cases/admin/UpdateDoctorUseCase';
-import { DeleteDoctorUseCase } from '../../../core/use-cases/admin/DeleteDoctorUseCase';
-import { BlockDoctorUseCase } from '../../../core/use-cases/admin/BlockDoctorUseCase';
-import { UpdatePatientUseCase } from '../../../core/use-cases/admin/UpdatePatientUseCase';
-import { DeletePatientUseCase } from '../../../core/use-cases/admin/DeletePatientUseCase';
-import { BlockPatientUseCase } from '../../../core/use-cases/admin/BlockPatientUseCase';
-import { CreateDoctorUseCase } from '../../../core/use-cases/admin/CreateDoctorUseCase';
-import { CreatePatientUseCase } from '../../../core/use-cases/admin/CreatePatientUseCase';
+import { IDoctorUseCase } from '../../../core/interfaces/use-cases/IDoctorUseCase';
+import { IPatientUseCase } from '../../../core/interfaces/use-cases/IPatientUseCase';
 import { setTokensInCookies } from '../../../utils/cookieUtils';
-import { ListPatientsUseCase } from '../../../core/use-cases/admin/ListPatientsUseCase';
-import { ListDoctorsUseCase } from '../../../core/use-cases/admin/ListDoctorsUseCase';
-import { VerifyDoctorUseCase } from '../../../core/use-cases/admin/VerifyDoctorUseCase';
-import { LoginAdminUseCase } from '../../../core/use-cases/auth/admin/LoginAdminUseCase';
 import { PaginatedResponse, QueryParams } from '../../../types/authTypes';
 import { Patient } from '../../../core/entities/Patient';
 import { Doctor } from '../../../core/entities/Doctor';
 import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
+import { IAuthenticationUseCase } from '../../../core/interfaces/use-cases/IAuthenticationUseCase';
 
 export class AdminAuthController {
-  private loginAdminUseCase: LoginAdminUseCase;
-  private createDoctorUseCase: CreateDoctorUseCase;
-  private listPatientsUseCase: ListPatientsUseCase;
-  private listDoctorsUseCase: ListDoctorsUseCase;
-  private verifyDoctorUseCase: VerifyDoctorUseCase;
-  private updateDoctorUseCase: UpdateDoctorUseCase;
-  private deleteDoctorUseCase: DeleteDoctorUseCase;
-  private blockDoctorUseCase: BlockDoctorUseCase;
-  private createPatientUseCase: CreatePatientUseCase;
-  private updatePatientUseCase: UpdatePatientUseCase;
-  private deletePatientUseCase: DeletePatientUseCase;
-  private blockPatientUseCase: BlockPatientUseCase;
+  private authenticationUseCase: IAuthenticationUseCase;
+  private doctorUseCase: IDoctorUseCase;
+  private patientUseCase: IPatientUseCase;
 
   constructor(container: Container) {
-    this.loginAdminUseCase = container.get('LoginAdminUseCase');
-    this.listPatientsUseCase = container.get('ListPatientsUseCase');
-    this.listDoctorsUseCase = container.get('ListDoctorsUseCase');
-    this.verifyDoctorUseCase = container.get('VerifyDoctorUseCase');
-    this.updateDoctorUseCase = container.get('UpdateDoctorUseCase');
-    this.deleteDoctorUseCase = container.get('DeleteDoctorUseCase');
-    this.blockDoctorUseCase = container.get('BlockDoctorUseCase');
-    this.updatePatientUseCase = container.get('UpdatePatientUseCase');
-    this.deletePatientUseCase = container.get('DeletePatientUseCase');
-    this.blockPatientUseCase = container.get('BlockPatientUseCase');
-    this.createDoctorUseCase = container.get('CreateDoctorUseCase');
-    this.createPatientUseCase = container.get('CreatePatientUseCase');
+    this.authenticationUseCase = container.get<IAuthenticationUseCase>('IAuthenticationUseCase');
+    this.doctorUseCase = container.get<IDoctorUseCase>('IDoctorUseCase');
+    this.patientUseCase = container.get<IPatientUseCase>('IPatientUseCase');
   }
 
   async login(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { email, password } = req.body;
       if (!email || !password) throw new ValidationError(ResponseMessages.BAD_REQUEST);
-      const { accessToken, refreshToken } = await this.loginAdminUseCase.execute(email, password);
+      const { accessToken, refreshToken } = await this.authenticationUseCase.loginAdmin(email, password);
       setTokensInCookies(res, accessToken, refreshToken);
       res.status(HttpStatusCode.OK).json({ message: ResponseMessages.LOGGED_IN });
     } catch (error) {
@@ -64,7 +37,7 @@ export class AdminAuthController {
   async listPatients(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const params = req.query as QueryParams;
-      const { data: patients, totalItems } = await this.listPatientsUseCase.executeWithQuery(params);
+      const { data: patients, totalItems } = await this.patientUseCase.listPatients(params);
       const { page = 1, limit = 10 } = params;
       const totalPages = Math.ceil(totalItems / limit);
 
@@ -82,7 +55,7 @@ export class AdminAuthController {
   async createDoctor(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const doctor = req.body;
-      const newDoctor = await this.createDoctorUseCase.execute(doctor);
+      const newDoctor = await this.doctorUseCase.createDoctor(doctor);
       res.status(HttpStatusCode.CREATED).json(newDoctor);
     } catch (error) {
       next(error);
@@ -92,7 +65,7 @@ export class AdminAuthController {
   async listDoctors(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const params = req.query as QueryParams;
-      const { data: doctors, totalItems } = await this.listDoctorsUseCase.executeWithQuery(params);
+      const { data: doctors, totalItems } = await this.doctorUseCase.listDoctors(params);
       const { page = 1, limit = 5 } = params;
       const totalPages = Math.ceil(totalItems / limit);
 
@@ -111,7 +84,7 @@ export class AdminAuthController {
     try {
       const { doctorId } = req.params;
       if (!doctorId) throw new ValidationError(ResponseMessages.BAD_REQUEST);
-      const doctor = await this.verifyDoctorUseCase.execute(doctorId);
+      const doctor = await this.doctorUseCase.verifyDoctor(doctorId);
       res.status(HttpStatusCode.OK).json(doctor);
     } catch (error) {
       next(error);
@@ -123,7 +96,7 @@ export class AdminAuthController {
       const { id } = req.params;
       const updates = req.body;
       if (!id) throw new ValidationError(ResponseMessages.BAD_REQUEST);
-      const doctor = await this.updateDoctorUseCase.execute(id, updates);
+      const doctor = await this.doctorUseCase.updateDoctor(id, updates);
       res.status(HttpStatusCode.OK).json(doctor);
     } catch (error) {
       next(error);
@@ -134,7 +107,7 @@ export class AdminAuthController {
     try {
       const { id } = req.params;
       if (!id) throw new ValidationError(ResponseMessages.BAD_REQUEST);
-      await this.deleteDoctorUseCase.execute(id);
+      await this.doctorUseCase.deleteDoctor(id);
       res.status(HttpStatusCode.NO_CONTENT).send();
     } catch (error) {
       next(error);
@@ -146,7 +119,7 @@ export class AdminAuthController {
       const { id } = req.params;
       const { isBlocked } = req.body;
       if (!id || typeof isBlocked !== 'boolean') throw new ValidationError(ResponseMessages.BAD_REQUEST);
-      const doctor = await this.blockDoctorUseCase.execute(id, isBlocked);
+      const doctor = await this.doctorUseCase.blockDoctor(id, isBlocked);
       res.status(HttpStatusCode.OK).json(doctor);
     } catch (error) {
       next(error);
@@ -156,7 +129,7 @@ export class AdminAuthController {
   async createPatient(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const patient = req.body;
-      const newPatient = await this.createPatientUseCase.execute(patient);
+      const newPatient = await this.patientUseCase.createPatient(patient);
       res.status(HttpStatusCode.CREATED).json(newPatient);
     } catch (error) {
       next(error);
@@ -168,7 +141,7 @@ export class AdminAuthController {
       const { id } = req.params;
       const updates = req.body;
       if (!id) throw new ValidationError(ResponseMessages.BAD_REQUEST);
-      const patient = await this.updatePatientUseCase.execute(id, updates);
+      const patient = await this.patientUseCase.updatePatient(id, updates);
       res.status(HttpStatusCode.OK).json(patient);
     } catch (error) {
       next(error);
@@ -179,7 +152,7 @@ export class AdminAuthController {
     try {
       const { id } = req.params;
       if (!id) throw new ValidationError(ResponseMessages.BAD_REQUEST);
-      await this.deletePatientUseCase.execute(id);
+      await this.patientUseCase.deletePatient(id);
       res.status(HttpStatusCode.NO_CONTENT).send();
     } catch (error) {
       next(error);
@@ -191,7 +164,7 @@ export class AdminAuthController {
       const { id } = req.params;
       const { isBlocked } = req.body;
       if (!id || typeof isBlocked !== 'boolean') throw new ValidationError(ResponseMessages.BAD_REQUEST);
-      const patient = await this.blockPatientUseCase.execute(id, isBlocked);
+      const patient = await this.patientUseCase.blockPatient(id, isBlocked);
       res.status(HttpStatusCode.OK).json(patient);
     } catch (error) {
       next(error);

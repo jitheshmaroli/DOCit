@@ -1,29 +1,29 @@
 import { Request, Response, NextFunction } from 'express';
-import { ViewDoctorProfileUseCase } from '../../../core/use-cases/profile/ViewDoctorProfile';
-import { UpdateDoctorProfileUseCase } from '../../../core/use-cases/profile/UpdateDoctorProfile';
-import { GetAllSpecialitiesUseCase } from '../../../core/use-cases/doctor/GetAllSpecialitiesUseCase';
 import { Container } from '../../../infrastructure/di/container';
 import { ValidationError } from '../../../utils/errors';
+import { IProfileUseCase } from '../../../core/interfaces/use-cases/IProfileUseCase';
+import { ISpecialityUseCase } from '../../../core/interfaces/use-cases/ISpecialityUseCase';
 import fs from 'fs';
 import logger from '../../../utils/logger';
 import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
-import { ResponseMessages } from '../../../core/constants/ResponseMessages';
+import { Experience } from '../../../core/entities/Doctor';
 
 export class DoctorProfileController {
-  private viewDoctorProfileUseCase: ViewDoctorProfileUseCase;
-  private updateDoctorProfileUseCase: UpdateDoctorProfileUseCase;
-  private getAllSpecialitiesUseCase: GetAllSpecialitiesUseCase;
+  private profileUseCase: IProfileUseCase;
+  private specialityUseCase: ISpecialityUseCase;
 
   constructor(container: Container) {
-    this.viewDoctorProfileUseCase = container.get('ViewDoctorProfileUseCase');
-    this.updateDoctorProfileUseCase = container.get('UpdateDoctorProfileUseCase');
-    this.getAllSpecialitiesUseCase = container.get('GetAllSpecialitiesUseCase');
+    this.profileUseCase = container.get<IProfileUseCase>('IProfileUseCase');
+    this.specialityUseCase = container.get<ISpecialityUseCase>('ISpecialityUseCase');
   }
 
   async viewProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      const doctor = await this.viewDoctorProfileUseCase.execute(id);
+      const doctor = await this.profileUseCase.viewDoctorProfile(id);
+      if (!doctor) {
+        throw new ValidationError('Doctor not found');
+      }
       res.status(HttpStatusCode.OK).json(doctor);
     } catch (error) {
       next(error);
@@ -33,32 +33,106 @@ export class DoctorProfileController {
   async updateProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      const updates = req.body;
+      const updates = { ...req.body };
+
+      if (updates.qualifications) {
+        if (typeof updates.qualifications === 'string') {
+          updates.qualifications = updates.qualifications
+            .split(',')
+            .map((q: string) => q.trim())
+            .filter((q: string) => q);
+        } else if (!Array.isArray(updates.qualifications)) {
+          logger.error('Invalid qualifications format: must be a string or array');
+          throw new ValidationError('Qualifications must be a comma-separated string or an array');
+        }
+      }
+
+      if (updates.experiences) {
+        let experiences: Experience[];
+        if (typeof updates.experiences === 'string') {
+          try {
+            experiences = JSON.parse(updates.experiences);
+          } catch (error) {
+            logger.error(`Failed to parse experiences: ${(error as Error).message}`);
+            throw new ValidationError('Invalid experiences format: must be valid JSON');
+          }
+        } else if (Array.isArray(updates.experiences)) {
+          experiences = updates.experiences;
+        } else {
+          logger.error('Invalid experiences format: must be a string or array');
+          throw new ValidationError('Experiences must be a JSON string or an array');
+        }
+
+        for (const [index, exp] of experiences.entries()) {
+          if (
+            !exp ||
+            typeof exp !== 'object' ||
+            typeof exp.hospitalName !== 'string' ||
+            exp.hospitalName.trim() === '' ||
+            typeof exp.department !== 'string' ||
+            exp.department.trim() === '' ||
+            typeof exp.years !== 'number' ||
+            exp.years < 0
+          ) {
+            logger.error(`Invalid experience entry at index ${index}:`, exp);
+            throw new ValidationError(
+              `Invalid experience at index ${index}: must include valid hospitalName, department, and non-negative years`
+            );
+          }
+        }
+        updates.experiences = experiences;
+      }
 
       if (updates.speciality) {
-        const specialities = await this.getAllSpecialitiesUseCase.execute();
+        const specialities = await this.specialityUseCase.getAllSpecialities();
         const validSpeciality = specialities.find((s) => s.name === updates.speciality);
-        logger.debug('speciality:', updates.speciality);
         if (!validSpeciality) {
-          throw new ValidationError(ResponseMessages.BAD_REQUEST);
+          logger.error(`Invalid speciality: ${updates.speciality}`);
+          throw new ValidationError(`Speciality "${updates.speciality}" not found`);
         }
         updates.speciality = validSpeciality._id;
       }
 
-      const doctor = await this.updateDoctorProfileUseCase.execute(id, updates, req.file);
-
-      if (req.file) {
-        fs.unlinkSync(req.file.path);
+      if (updates.phone && typeof updates.phone !== 'string') {
+        logger.error('Invalid phone format:', updates.phone);
+        throw new ValidationError('Phone must be a string');
+      }
+      if (updates.gender && !['Male', 'Female', 'Other'].includes(updates.gender)) {
+        logger.error('Invalid gender:', updates.gender);
+        throw new ValidationError('Gender must be "Male", "Female", or "Other"');
+      }
+      if (updates.location && typeof updates.location !== 'string') {
+        logger.error('Invalid location format:', updates.location);
+        throw new ValidationError('Location must be a string');
+      }
+      if (updates.allowFreeBooking !== undefined && typeof updates.allowFreeBooking !== 'boolean') {
+        logger.error('Invalid allowFreeBooking format:', updates.allowFreeBooking);
+        throw new ValidationError('allowFreeBooking must be a boolean');
       }
 
+      const doctor = await this.profileUseCase.updateDoctorProfile(id, updates, req.file);
+
       if (!doctor) {
-        throw new ValidationError(ResponseMessages.BAD_REQUEST);
+        logger.error(`Doctor not found or update failed for id: ${id}`);
+        throw new ValidationError('Doctor not found or invalid update data');
+      }
+
+      if (req.file) {
+        try {
+          fs.unlinkSync(req.file.path);
+        } catch (error) {
+          logger.error(`Failed to delete uploaded file: ${req.file.path}`, error);
+        }
       }
 
       res.status(HttpStatusCode.OK).json(doctor);
     } catch (error) {
       if (req.file) {
-        fs.unlinkSync(req.file.path);
+        try {
+          fs.unlinkSync(req.file.path);
+        } catch (error) {
+          logger.error(`Failed to delete uploaded file: ${req.file.path}`, error);
+        }
       }
       next(error);
     }

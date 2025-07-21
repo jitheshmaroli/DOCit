@@ -46,7 +46,7 @@ interface Review {
   comment: string;
   createdAt?: string;
   updatedAt?: string;
-  patientName?: string; // Added patientName
+  patientName?: string;
 }
 
 const ITEMS_PER_PAGE = 5;
@@ -93,7 +93,7 @@ const DoctorDetails: React.FC = () => {
 
   const specialityFromState = (location.state as { speciality?: string[] })
     ?.speciality;
-
+  console.log(selectedDoctor);
   useEffect(() => {
     if (doctorId) {
       dispatch(fetchDoctorByIdThunk(doctorId));
@@ -167,6 +167,7 @@ const DoctorDetails: React.FC = () => {
   }, [dispatch, doctorId, currentPage]);
 
   useEffect(() => {
+    console.log('Selected doctor:', selectedDoctor); // Debug log
     if (doctorError) {
       toast.error(doctorError);
       dispatch(clearDoctorError());
@@ -184,7 +185,14 @@ const DoctorDetails: React.FC = () => {
     } else if (subscriptionStatus === 'failed') {
       toast.error('Failed to subscribe to plan');
     }
-  }, [doctorError, patientError, subscriptionStatus, dispatch, doctorId]);
+  }, [
+    doctorError,
+    patientError,
+    subscriptionStatus,
+    dispatch,
+    doctorId,
+    selectedDoctor,
+  ]);
 
   const handleSubscribe = async (planId: string, price: number) => {
     if (!user) {
@@ -446,6 +454,23 @@ const DoctorDetails: React.FC = () => {
                 Qualifications:{' '}
                 {selectedDoctor.qualifications?.join(', ') || 'N/A'}
               </p>
+              <p className="text-sm text-gray-200 mb-2">
+                Total Experience: {selectedDoctor.totalExperience || 0} years
+              </p>
+              {selectedDoctor.experiences &&
+                selectedDoctor.experiences.length > 0 && (
+                  <div className="text-sm text-gray-200 mb-2">
+                    <p className="font-semibold">Experience Details:</p>
+                    <ul className="list-disc pl-5">
+                      {selectedDoctor.experiences.map((exp, index) => (
+                        <li key={index}>
+                          {exp.hospitalName} - {exp.department} ({exp.years}{' '}
+                          years)
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               <div className="flex items-center mb-2">
                 <p className="text-sm text-gray-200 mr-2">Average Rating:</p>
                 <div className="flex">

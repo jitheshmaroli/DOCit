@@ -16,6 +16,7 @@ export interface Patient {
   googleId?: string;
   lastSeen?: Date;
   isOnline?: boolean;
+  isOtpVerified?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }

@@ -28,7 +28,8 @@ const AdminAppointments: React.FC = () => {
   const [sortFilter, setSortFilter] = useState('createdAt:desc');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [selectedAppointment, setSelectedAppointment] =
+    useState<Appointment | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
@@ -232,32 +233,179 @@ const AdminAppointments: React.FC = () => {
         title="Appointment Details"
       >
         {selectedAppointment && (
-          <div className="text-white space-y-4">
-            <div>
-              <strong>Patient Name:</strong> {selectedAppointment.patientId?.name || 'N/A'}
-            </div>
-            <div>
-              <strong>Doctor Name:</strong> {selectedAppointment.doctorId?.name || 'N/A'}
-            </div>
-            <div>
-              <strong>Date:</strong> {selectedAppointment.date ? new Date(selectedAppointment.date).toLocaleDateString() : 'N/A'}
-            </div>
-            <div>
-              <strong>Time:</strong> {selectedAppointment.startTime && selectedAppointment.endTime
-                ? `${selectedAppointment.startTime} - ${selectedAppointment.endTime}`
-                : 'N/A'}
-            </div>
-            <div>
-              <strong>Status:</strong> {selectedAppointment.status || 'Pending'}
-            </div>
-            <div>
-              <strong>Booking Type:</strong> {selectedAppointment.isFreeBooking ? 'Free' : 'Paid'}
-            </div>
-            {selectedAppointment.cancellationReason && (
-              <div>
-                <strong>Cancellation Reason:</strong> {selectedAppointment.cancellationReason}
+          <div className="text-white space-y-6">
+            <div className="grid grid-cols-1 gap-4">
+              <div className="bg-white/5 p-4 rounded-lg">
+                <h4 className="text-sm font-semibold text-purple-300 mb-2">
+                  General Information
+                </h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-300">Patient Name:</span>
+                    <span>{selectedAppointment.patientId?.name || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-300">Doctor Name:</span>
+                    <span>{selectedAppointment.doctorId?.name || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-300">Booking Type:</span>
+                    <span>
+                      {selectedAppointment.isFreeBooking ? 'Free' : 'Paid'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-300">Status:</span>
+                    <span
+                      className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                        selectedAppointment.status === 'completed'
+                          ? 'bg-green-500/20 text-green-300'
+                          : selectedAppointment.status === 'pending'
+                            ? 'bg-yellow-500/20 text-yellow-300'
+                            : 'bg-red-500/20 text-red-300'
+                      }`}
+                    >
+                      {selectedAppointment.status || 'Pending'}
+                    </span>
+                  </div>
+                </div>
               </div>
-            )}
+
+              <div className="bg-white/5 p-4 rounded-lg">
+                <h4 className="text-sm font-semibold text-purple-300 mb-2">
+                  Schedule
+                </h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-300">Date:</span>
+                    <span>
+                      {selectedAppointment.date
+                        ? new Date(
+                            selectedAppointment.date
+                          ).toLocaleDateString()
+                        : 'N/A'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-300">Time:</span>
+                    <span>
+                      {selectedAppointment.startTime &&
+                      selectedAppointment.endTime
+                        ? `${selectedAppointment.startTime} - ${selectedAppointment.endTime}`
+                        : 'N/A'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-300">Booking Time:</span>
+                    <span>
+                      {selectedAppointment.createdAt
+                        ? new Date(
+                            selectedAppointment.createdAt
+                          ).toLocaleString()
+                        : 'N/A'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {selectedAppointment.cancellationReason && (
+                <div className="bg-white/5 p-4 rounded-lg">
+                  <h4 className="text-sm font-semibold text-purple-300 mb-2">
+                    Cancellation Details
+                  </h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-gray-300">Reason:</span>
+                      <span>{selectedAppointment.cancellationReason}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {selectedAppointment.prescriptionId && (
+                <div className="bg-white/5 p-4 rounded-lg">
+                  <h4 className="text-sm font-semibold text-purple-300 mb-2">
+                    Prescription Details
+                  </h4>
+                  <div className="space-y-2">
+                    {typeof selectedAppointment.prescriptionId === 'string' ? (
+                      <div className="flex justify-between">
+                        <span className="text-gray-300">Prescription ID:</span>
+                        <span>{selectedAppointment.prescriptionId}</span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-gray-300">Medications:</span>
+                          <span>
+                            {selectedAppointment.prescriptionId.medications
+                              ?.map(
+                                (med) =>
+                                  `${med.name} (${med.dosage}, ${med.frequency}, ${med.duration})`
+                              )
+                              .join('; ') || 'N/A'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-300">Notes:</span>
+                          <span>
+                            {selectedAppointment.prescriptionId.notes || 'N/A'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-300">Issued:</span>
+                          <span>
+                            {selectedAppointment.prescriptionId.createdAt
+                              ? new Date(
+                                  selectedAppointment.prescriptionId.createdAt
+                                ).toLocaleString()
+                              : 'N/A'}
+                          </span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-white/5 p-4 rounded-lg">
+                <h4 className="text-sm font-semibold text-purple-300 mb-2">
+                  Additional Information
+                </h4>
+                <div className="space-y-2">
+                  {/* <div className="flex justify-between">
+                    <span className="text-gray-300">Reminder Sent:</span>
+                    <span>
+                      {selectedAppointment.reminderSent ? 'Yes' : 'No'}
+                    </span>
+                  </div> */}
+                  <div className="flex justify-between">
+                    <span className="text-gray-300">Has Review:</span>
+                    <span>{selectedAppointment.hasReview ? 'Yes' : 'No'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-300">Created At:</span>
+                    <span>
+                      {selectedAppointment.createdAt
+                        ? new Date(
+                            selectedAppointment.createdAt
+                          ).toLocaleString()
+                        : 'N/A'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-300">Updated At:</span>
+                    <span>
+                      {selectedAppointment.updatedAt
+                        ? new Date(
+                            selectedAppointment.updatedAt
+                          ).toLocaleString()
+                        : 'N/A'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </Modal>

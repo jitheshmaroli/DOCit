@@ -19,6 +19,7 @@ const PatientSchema = new Schema<Patient>(
     googleId: { type: String, unique: true, sparse: true },
     lastSeen: { type: Date },
     isOnline: { type: Boolean, default: false },
+    isOtpVerified: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

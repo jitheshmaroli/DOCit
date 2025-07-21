@@ -529,9 +529,16 @@ const DoctorAppointmentDetails: React.FC = () => {
                       >
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
+                            <label
+                              htmlFor={`medication-name-${index}`}
+                              className="block text-sm font-medium text-white mb-1"
+                            >
+                              Medication Name
+                            </label>
                             <input
+                              id={`medication-name-${index}`}
                               type="text"
-                              placeholder="Medication Name (e.g., Ibuprofen)"
+                              placeholder="Enter medication name (e.g., Ibuprofen)"
                               className={`w-full p-2 bg-white/10 border ${
                                 errors.medications[index]?.name
                                   ? 'border-red-500'
@@ -553,9 +560,16 @@ const DoctorAppointmentDetails: React.FC = () => {
                             )}
                           </div>
                           <div>
+                            <label
+                              htmlFor={`medication-dosage-${index}`}
+                              className="block text-sm font-medium text-white mb-1"
+                            >
+                              Dosage
+                            </label>
                             <input
+                              id={`medication-dosage-${index}`}
                               type="text"
-                              placeholder="Dosage (e.g., 200mg)"
+                              placeholder="Enter dosage (e.g., 200mg)"
                               className={`w-full p-2 bg-white/10 border ${
                                 errors.medications[index]?.dosage
                                   ? 'border-red-500'
@@ -577,9 +591,16 @@ const DoctorAppointmentDetails: React.FC = () => {
                             )}
                           </div>
                           <div>
+                            <label
+                              htmlFor={`medication-frequency-${index}`}
+                              className="block text-sm font-medium text-white mb-1"
+                            >
+                              Frequency
+                            </label>
                             <input
+                              id={`medication-frequency-${index}`}
                               type="text"
-                              placeholder="Frequency (e.g., Twice daily)"
+                              placeholder="Enter frequency (e.g., Twice daily)"
                               className={`w-full p-2 bg-white/10 border ${
                                 errors.medications[index]?.frequency
                                   ? 'border-red-500'
@@ -601,9 +622,16 @@ const DoctorAppointmentDetails: React.FC = () => {
                             )}
                           </div>
                           <div>
+                            <label
+                              htmlFor={`medication-duration-${index}`}
+                              className="block text-sm font-medium text-white mb-1"
+                            >
+                              Duration
+                            </label>
                             <input
+                              id={`medication-duration-${index}`}
                               type="text"
-                              placeholder="Duration (e.g., 7 days)"
+                              placeholder="Enter duration (e.g., 7 days)"
                               className={`w-full p-2 bg-white/10 border ${
                                 errors.medications[index]?.duration
                                   ? 'border-red-500'
@@ -643,10 +671,14 @@ const DoctorAppointmentDetails: React.FC = () => {
                     </button>
                   </div>
                   <div>
-                    <h4 className="text-sm text-gray-300 mb-2">
+                    <label
+                      htmlFor="prescription-notes"
+                      className="block text-sm font-medium text-white mb-1"
+                    >
                       Additional Notes
-                    </h4>
+                    </label>
                     <textarea
+                      id="prescription-notes"
                       placeholder="Enter any additional notes"
                       className="w-full p-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400"
                       value={notes}
@@ -656,7 +688,7 @@ const DoctorAppointmentDetails: React.FC = () => {
                   </div>
                   <button
                     onClick={handleSubmitPrescription}
-                    className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-2 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-300"
+                    className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-2-rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-300"
                     disabled={appointment.status !== 'pending'}
                   >
                     Submit Prescription

@@ -8,7 +8,12 @@ export interface Doctor {
   licenseNumber?: string;
   location?: string;
   speciality?: string;
-  experience?: number;
+  totalExperience?: number;
+  experiences?: Array<{
+    hospitalName: string;
+    department: string;
+    years: number;
+  }>;
   allowFreeBooking: boolean;
   gender?: string;
   isVerified: boolean;
@@ -19,8 +24,15 @@ export interface Doctor {
   googleId?: string;
   lastSeen?: Date;
   isOnline?: boolean;
+  isOtpVerified?: boolean;
   averageRating?: number;
   reviewIds?: string[];
   createdAt?: Date;
   updatedAt?: Date;
+}
+
+export interface Experience {
+  hospitalName: string;
+  department: string;
+  years: number;
 }

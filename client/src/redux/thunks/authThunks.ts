@@ -13,6 +13,7 @@ import {
   googleSignInDoctor,
   getUserProfile,
   refreshToken,
+  resendSignupOTP,
 } from '../../services/authService';
 import {
   clearUser,
@@ -66,7 +67,7 @@ export const signUpPatientThunk = createAsyncThunk(
       if (response.message === 'OTP sent to your email') {
         thunkAPI.dispatch(otpSentSuccess());
         thunkAPI.dispatch(setSignupData(payload));
-        return { email: payload.email };
+        return { email: payload.email, _id: response._id };
       }
 
       throw new Error('Unexpected response from server');
@@ -84,6 +85,27 @@ export const signUpDoctorThunk = createAsyncThunk(
     try {
       thunkAPI.dispatch(setLoading(true));
       const response = await signUpDoctor(payload);
+
+      if (response.message === 'OTP sent to your email') {
+        thunkAPI.dispatch(otpSentSuccess());
+        return { email: payload.email, _id: response._id };
+      }
+
+      throw new Error('Unexpected response from server');
+    } catch (error) {
+      return handleError(error, thunkAPI);
+    } finally {
+      thunkAPI.dispatch(setLoading(false));
+    }
+  }
+);
+
+export const resendSignupOTPThunk = createAsyncThunk(
+  'auth/resendSignupOTP',
+  async (payload: { email: string; role: string }, thunkAPI) => {
+    try {
+      thunkAPI.dispatch(setLoading(true));
+      const response = await resendSignupOTP(payload);
 
       if (response.message === 'OTP sent to your email') {
         thunkAPI.dispatch(otpSentSuccess());

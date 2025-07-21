@@ -16,6 +16,11 @@ export const signUpDoctor = async (payload: SignUpPayload) => {
   return response.data;
 };
 
+export const resendSignupOTP = async (payload: { email: string; role: string }) => {
+  const response = await api.post('/api/auth/resend-signup-otp', payload);
+  return response.data;
+};
+
 export const verifySignUpOtp = async (payload: VerifyOtpPayload) => {
   const response = await api.post('/api/auth/verify-signup-otp', payload);
   return response.data;

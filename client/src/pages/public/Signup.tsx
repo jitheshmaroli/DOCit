@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Logo from '../../components/common/Logo';
@@ -11,7 +12,11 @@ import {
   validatePhone,
 } from '../../utils/validation';
 import { useDispatch } from 'react-redux';
-import { resetAuthState, setError, setSignupData } from '../../redux/slices/authSlice';
+import {
+  resetAuthState,
+  setError,
+  setSignupData,
+} from '../../redux/slices/authSlice';
 import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
 import { useAppSelector } from '../../redux/hooks';
 import { RootState } from '../../redux/store';
@@ -34,13 +39,16 @@ const SignupPage: React.FC = () => {
     licenseNumber: '',
   });
 
-  const signupData = useAppSelector((state: RootState) => state.auth.signupData) || {
+  const signupData = useAppSelector(
+    (state: RootState) => state.auth.signupData
+  ) || {
     name: '',
     email: '',
     phone: '',
     password: '',
     confirmPassword: '',
     licenseNumber: '',
+    _id: '', // Add _id to store user ID
   };
 
   const [fieldErrors, setFieldErrors] = useState({
@@ -50,6 +58,7 @@ const SignupPage: React.FC = () => {
     password: '',
     confirmPassword: '',
     licenseNumber: '',
+    form: '', // Add form-level error for OTP
   });
 
   const [touchedFields, setTouchedFields] = useState({
@@ -65,6 +74,7 @@ const SignupPage: React.FC = () => {
     signUpPatient,
     signUpDoctor,
     verifySignUpOtp,
+    resendSignupOTP,
     otpSent,
     loading,
     error: apiError,
@@ -133,6 +143,7 @@ const SignupPage: React.FC = () => {
         signupType === 'doctor'
           ? validateLicenseNumber(formData.licenseNumber) || ''
           : '',
+      form: '',
     };
     setFieldErrors(newErrors);
     return !Object.values(newErrors).some((error) => error);
@@ -140,12 +151,8 @@ const SignupPage: React.FC = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => {
-      console.log('setFormData called in handleChange:', { [name]: value });
-      return { ...prev, [name]: value };
-    });
-
-    dispatch(setSignupData({ ...signupData,role: signupType, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    dispatch(setSignupData({ ...signupData, role: signupType, [name]: value }));
     if (fieldErrors[name as keyof typeof fieldErrors]) {
       setFieldErrors((prev) => ({ ...prev, [name]: '' }));
     }
@@ -191,18 +198,33 @@ const SignupPage: React.FC = () => {
       ...(signupType === 'doctor' && { licenseNumber: formData.licenseNumber }),
     };
 
-    
     try {
+      let response;
       if (signupType === 'patient') {
-        console.log('signupdata:', data);
-        await signUpPatient(data);
+        response = await signUpPatient(data);
       } else {
-        console.log('signupdata:', data);
-        await signUpDoctor(data);
+        response = await signUpDoctor(data);
+      }
+      if (response.payload?._id) {
+        dispatch(setSignupData({ ...signupData, _id: response.payload._id , role: signupType}));
       }
       setCountdown(60);
     } catch (error) {
       console.error('Signup error:', error);
+    }
+  };
+
+  const handleResendOTP = async () => {
+    try {
+      await resendSignupOTP(formData.email, signupType);
+      setCountdown(60);
+      setFieldErrors((prev) => ({ ...prev, form: '' }));
+    } catch (error: any) {
+      console.error('Resend OTP error:', error);
+      setFieldErrors((prev) => ({
+        ...prev,
+        form: error.payload?.message || 'Failed to resend OTP',
+      }));
     }
   };
 
@@ -219,14 +241,21 @@ const SignupPage: React.FC = () => {
       phone: signupData.phone,
       name: signupData.name,
       role: signupType,
-      ...(signupType === 'doctor' && { licenseNumber: signupData.licenseNumber }),
+      _id: signupData._id,
+      ...(signupType === 'doctor' && {
+        licenseNumber: signupData.licenseNumber,
+      }),
     };
     try {
-      console.log('formdata:', formData);
       console.log('verifyData:', verifyData);
       await verifySignUpOtp(verifyData);
-    } catch (error) {
+    } catch (error: any) {
       console.error('OTP verification error:', error);
+      setFieldErrors((prev) => ({
+        ...prev,
+        form:
+          error.payload?.message || 'Something went wrong. Please try again.',
+      }));
     }
   };
 
@@ -239,7 +268,6 @@ const SignupPage: React.FC = () => {
         } else {
           await googleSignInDoctor(googleToken);
         }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
         console.error('Google signup error:', error);
         dispatch(setError('Google signup failed. Please try again.'));
@@ -256,6 +284,7 @@ const SignupPage: React.FC = () => {
       password: '',
       confirmPassword: '',
       licenseNumber: '',
+      form: '',
     });
     resetOtpState();
     setOtp('');
@@ -264,7 +293,6 @@ const SignupPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 flex items-center justify-center p-4">
       <div className="w-full max-w-4xl flex flex-col lg:flex-row rounded-2xl bg-white/10 backdrop-blur-lg shadow-2xl border border-white/20 overflow-hidden">
-        {/* Left Side - Form */}
         <div className="w-full lg:w-1/2 p-8 flex flex-col justify-center">
           <header className="mb-6">
             <Logo />
@@ -297,6 +325,12 @@ const SignupPage: React.FC = () => {
           {apiError && (
             <div className="mb-4 p-3 bg-red-500/20 text-red-200 rounded-lg text-sm">
               {apiError}
+            </div>
+          )}
+
+          {fieldErrors.form && (
+            <div className="mb-4 p-3 bg-red-500/20 text-red-200 rounded-lg text-sm">
+              {fieldErrors.form}
             </div>
           )}
 
@@ -478,11 +512,9 @@ const SignupPage: React.FC = () => {
                   type="text"
                   placeholder="Enter OTP"
                   value={otp}
-                  onChange={(e) =>{
-                    console.log("otpcahnge",formData)
-                    setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))
-                  }
-                  }
+                  onChange={(e) => {
+                    setOtp(e.target.value.replace(/\D/g, '').slice(0, 6));
+                  }}
                   className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
                   maxLength={6}
                   required
@@ -502,12 +534,7 @@ const SignupPage: React.FC = () => {
               <div className="text-center">
                 <button
                   type="button"
-                  onClick={() => {
-                    setCountdown(0);
-                    handleSubmit({
-                      preventDefault: () => {},
-                    } as React.FormEvent);
-                  }}
+                  onClick={handleResendOTP}
                   className={`text-purple-300 hover:text-purple-200 text-sm transition-colors ${
                     countdown > 0 ? 'text-gray-400 cursor-not-allowed' : ''
                   }`}
@@ -532,7 +559,6 @@ const SignupPage: React.FC = () => {
           )}
         </div>
 
-        {/* Right Side - Image */}
         <div className="hidden lg:flex lg:w-1/2 items-center justify-center p-8 bg-gradient-to-br from-purple-800/50 to-blue-800/50">
           <img
             src="/src/assets/feature-illustration.jpeg"

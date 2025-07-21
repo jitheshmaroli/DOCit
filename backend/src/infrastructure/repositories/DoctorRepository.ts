@@ -10,6 +10,13 @@ import logger from '../../utils/logger';
 import { SpecialityModel } from '../database/models/SpecialityModel';
 import { DateUtils } from '../../utils/DateUtils';
 
+interface ExperienceMatchStage {
+  totalExperience: {
+    $lte?: number;
+    $gt?: number;
+  };
+}
+
 export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorRepository {
   constructor() {
     super(DoctorModel);
@@ -23,15 +30,21 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
   async getDoctorDetails(doctorId: string): Promise<Doctor | null> {
     if (!mongoose.Types.ObjectId.isValid(doctorId)) {
       logger.error(`Invalid doctorId format: ${doctorId}`);
-      return null;
+      throw new ValidationError('Invalid doctor ID');
     }
     const pipeline: PipelineStage[] = [
-      { $match: { _id: new mongoose.Types.ObjectId(doctorId) } },
+      { $match: { _id: new mongoose.Types.ObjectId(doctorId), isBlocked: false, isVerified: true } },
       {
         $lookup: {
           from: 'reviews',
-          localField: '_id',
-          foreignField: 'doctorId',
+          let: { doctorId: { $toString: '$_id' } },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ['$doctorId', '$$doctorId'] },
+              },
+            },
+          ],
           as: 'reviews',
         },
       },
@@ -39,6 +52,27 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
         $addFields: {
           averageRating: {
             $ifNull: [{ $avg: '$reviews.rating' }, 0],
+          },
+          totalExperience: {
+            $cond: {
+              if: { $and: [{ $isArray: '$experiences' }, { $gt: [{ $size: '$experiences' }, 0] }] },
+              then: {
+                $sum: {
+                  $map: {
+                    input: '$experiences',
+                    as: 'exp',
+                    in: {
+                      $cond: {
+                        if: { $and: [{ $isNumber: '$$exp.years' }, { $gte: ['$$exp.years', 0] }] },
+                        then: '$$exp.years',
+                        else: 0,
+                      },
+                    },
+                  },
+                },
+              },
+              else: 0,
+            },
           },
         },
       },
@@ -66,7 +100,8 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
               in: '$$spec.name',
             },
           },
-          experience: 1,
+          experiences: 1,
+          totalExperience: 1,
           allowFreeBooking: 1,
           gender: 1,
           isVerified: 1,
@@ -153,29 +188,43 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
       query.speciality = { $in: specialityIds.map((s) => s._id) };
     }
 
+    const pipeline: PipelineStage[] = [
+      { $match: query },
+      {
+        $addFields: {
+          totalExperience: {
+            $cond: {
+              if: { $isArray: '$experiences' },
+              then: { $sum: '$experiences.years' },
+              else: 0,
+            },
+          },
+        },
+      },
+    ];
+
     // Handle experience
     if (experience) {
-      query.experience = {};
+      const matchStage: ExperienceMatchStage = { totalExperience: {} };
       switch (experience) {
         case '0-5':
-          query.experience.$lte = 5;
+          matchStage.totalExperience.$lte = 5;
           break;
         case '6-10':
-          query.experience.$gt = 5;
-          query.experience.$lte = 10;
+          matchStage.totalExperience.$gt = 5;
+          matchStage.totalExperience.$lte = 10;
           break;
         case '11+':
-          query.experience.$gt = 10;
+          matchStage.totalExperience.$gt = 10;
           break;
       }
+      pipeline.push({ $match: matchStage });
     }
 
     // Handle gender
     if (gender) {
       query.gender = gender;
     }
-
-    const pipeline: PipelineStage[] = [{ $match: query }];
 
     // Handle availability
     if (availabilityStart && availabilityEnd) {
@@ -234,7 +283,7 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
       }
     }
 
-    // reviews lookup and averageRating calculation
+    // Reviews lookup and averageRating calculation
     pipeline.push(
       {
         $lookup: {
@@ -294,7 +343,8 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
               in: '$$spec.name',
             },
           },
-          experience: 1,
+          experiences: 1,
+          totalExperience: 1,
           allowFreeBooking: 1,
           gender: 1,
           isVerified: 1,
@@ -306,13 +356,46 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
           updatedAt: 1,
         },
       },
-      { $sort: { [sortBy]: sortOrder === 'desc' ? -1 : 1 } },
+      { $sort: { [sortBy === 'experience' ? 'totalExperience' : sortBy]: sortOrder === 'desc' ? -1 : 1 } },
       { $skip: (validatedPage - 1) * validatedLimit },
       { $limit: validatedLimit }
     );
 
     const countPipeline: PipelineStage[] = [
       { $match: query },
+      {
+        $addFields: {
+          totalExperience: {
+            $cond: {
+              if: { $isArray: '$experiences' },
+              then: { $sum: '$experiences.years' },
+              else: 0,
+            },
+          },
+        },
+      },
+      ...(experience
+        ? [
+            {
+              $match: (() => {
+                const match: ExperienceMatchStage = { totalExperience: {} };
+                switch (experience) {
+                  case '0-5':
+                    match.totalExperience.$lte = 5;
+                    break;
+                  case '6-10':
+                    match.totalExperience.$gt = 5;
+                    match.totalExperience.$lte = 10;
+                    break;
+                  case '11+':
+                    match.totalExperience.$gt = 10;
+                    break;
+                }
+                return match;
+              })(),
+            },
+          ]
+        : []),
       ...(availabilityStart && availabilityEnd
         ? [
             {
@@ -389,17 +472,22 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
       { $count: 'totalItems' },
     ];
 
-    const doctors = await this.model.aggregate(pipeline).exec();
-    const countResult = await this.model.aggregate(countPipeline).exec();
-    const totalItems = countResult[0]?.totalItems || 0;
-    const totalPages = Math.ceil(totalItems / validatedLimit);
+    try {
+      const doctors = await this.model.aggregate(pipeline).exec();
+      const countResult = await this.model.aggregate(countPipeline).exec();
+      const totalItems = countResult[0]?.totalItems || 0;
+      const totalPages = Math.ceil(totalItems / validatedLimit);
 
-    return {
-      data: doctors as Doctor[],
-      totalPages,
-      currentPage: validatedPage,
-      totalItems,
-    };
+      return {
+        data: doctors as Doctor[],
+        totalPages,
+        currentPage: validatedPage,
+        totalItems,
+      };
+    } catch (error) {
+      logger.error('Error in findVerified:', error);
+      throw error;
+    }
   }
 
   async findAllWithQuery(params: QueryParams): Promise<PaginatedResponse<Doctor>> {
@@ -454,21 +542,37 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
       query.speciality = { $in: specialityIds.map((s) => s._id) };
     }
 
+    const pipeline: PipelineStage[] = [
+      { $match: query },
+      {
+        $addFields: {
+          totalExperience: {
+            $cond: {
+              if: { $isArray: '$experiences' },
+              then: { $sum: '$experiences.years' },
+              else: 0,
+            },
+          },
+        },
+      },
+    ];
+
     // Handle experience
     if (experience) {
-      query.experience = {};
+      const matchStage: ExperienceMatchStage = { totalExperience: {} };
       switch (experience) {
         case '0-5':
-          query.experience.$lte = 5;
+          matchStage.totalExperience.$lte = 5;
           break;
         case '6-10':
-          query.experience.$gt = 5;
-          query.experience.$lte = 10;
+          matchStage.totalExperience.$gt = 5;
+          matchStage.totalExperience.$lte = 10;
           break;
         case '11+':
-          query.experience.$gt = 10;
+          matchStage.totalExperience.$gt = 10;
           break;
       }
+      pipeline.push({ $match: matchStage });
     }
 
     // Handle gender
@@ -476,54 +580,57 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
       query.gender = gender;
     }
 
-    const pipeline: PipelineStage[] = [{ $match: query }];
-
     // Handle availability
     if (availabilityStart && availabilityEnd) {
-      const startDate = DateUtils.startOfDayUTC(new Date(availabilityStart));
-      const endDate = DateUtils.endOfDayUTC(new Date(availabilityEnd));
-      pipeline.push({
-        $lookup: {
-          from: 'availabilities',
-          let: { doctorId: '$_id' },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $and: [
-                    { $eq: ['$doctorId', '$$doctorId'] },
-                    { $gte: ['$date', startDate] },
-                    { $lte: ['$date', endDate] },
-                    {
-                      $gt: [
-                        {
-                          $size: {
-                            $filter: {
-                              input: '$timeSlots',
-                              as: 'slot',
-                              cond: { $eq: ['$$slot.isBooked', false] },
+      try {
+        const startDate = DateUtils.startOfDayUTC(DateUtils.parseToUTC(availabilityStart));
+        const endDate = DateUtils.endOfDayUTC(DateUtils.parseToUTC(availabilityEnd));
+        pipeline.push({
+          $lookup: {
+            from: 'availabilities',
+            let: { doctorId: { $toString: '$_id' } },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ['$doctorId', '$$doctorId'] },
+                      { $gte: ['$date', startDate] },
+                      { $lte: ['$date', endDate] },
+                      {
+                        $gt: [
+                          {
+                            $size: {
+                              $filter: {
+                                input: '$timeSlots',
+                                as: 'slot',
+                                cond: { $eq: ['$$slot.isBooked', false] },
+                              },
                             },
                           },
-                        },
-                        0,
-                      ],
-                    },
-                  ],
+                          0,
+                        ],
+                      },
+                    ],
+                  },
                 },
               },
-            },
-          ],
-          as: 'availabilities',
-        },
-      });
-      pipeline.push({
-        $match: {
-          'availabilities.0': { $exists: true },
-        },
-      });
+            ],
+            as: 'availabilities',
+          },
+        });
+        pipeline.push({
+          $match: {
+            'availabilities.0': { $exists: true },
+          },
+        });
+      } catch (error) {
+        logger.error('Error parsing availability dates:', error);
+        throw new ValidationError('Invalid availability date format');
+      }
     }
 
-    // reviews lookup and averageRating calculation
+    // Reviews lookup and averageRating calculation
     pipeline.push(
       {
         $lookup: {
@@ -549,6 +656,7 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
       });
     }
 
+    // Project fields
     pipeline.push(
       {
         $lookup: {
@@ -574,7 +682,8 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
               in: '$$spec.name',
             },
           },
-          experience: 1,
+          experiences: 1,
+          totalExperience: 1,
           allowFreeBooking: 1,
           gender: 1,
           isVerified: 1,
@@ -586,27 +695,60 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
           updatedAt: 1,
         },
       },
-      { $sort: { [sortBy]: sortOrder === 'desc' ? -1 : 1 } },
+      { $sort: { [sortBy === 'experience' ? 'totalExperience' : sortBy]: sortOrder === 'desc' ? -1 : 1 } },
       { $skip: (validatedPage - 1) * validatedLimit },
       { $limit: validatedLimit }
     );
 
     const countPipeline: PipelineStage[] = [
       { $match: query },
+      {
+        $addFields: {
+          totalExperience: {
+            $cond: {
+              if: { $isArray: '$experiences' },
+              then: { $sum: '$experiences.years' },
+              else: 0,
+            },
+          },
+        },
+      },
+      ...(experience
+        ? [
+            {
+              $match: (() => {
+                const match: ExperienceMatchStage = { totalExperience: {} };
+                switch (experience) {
+                  case '0-5':
+                    match.totalExperience.$lte = 5;
+                    break;
+                  case '6-10':
+                    match.totalExperience.$gt = 5;
+                    match.totalExperience.$lte = 10;
+                    break;
+                  case '11+':
+                    match.totalExperience.$gt = 10;
+                    break;
+                }
+                return match;
+              })(),
+            },
+          ]
+        : []),
       ...(availabilityStart && availabilityEnd
         ? [
             {
               $lookup: {
                 from: 'availabilities',
-                let: { doctorId: '$_id' },
+                let: { doctorId: { $toString: '$_id' } },
                 pipeline: [
                   {
                     $match: {
                       $expr: {
                         $and: [
                           { $eq: ['$doctorId', '$$doctorId'] },
-                          { $gte: ['$date', DateUtils.startOfDayUTC(new Date(availabilityStart))] },
-                          { $lte: ['$date', DateUtils.endOfDayUTC(new Date(availabilityEnd))] },
+                          { $gte: ['$date', DateUtils.startOfDayUTC(DateUtils.parseToUTC(availabilityStart))] },
+                          { $lte: ['$date', DateUtils.endOfDayUTC(DateUtils.parseToUTC(availabilityEnd))] },
                           {
                             $gt: [
                               {
@@ -639,14 +781,22 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
       {
         $lookup: {
           from: 'reviews',
-          localField: '_id',
-          foreignField: 'doctorId',
+          let: { doctorId: { $toString: '$_id' } },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ['$doctorId', '$$doctorId'] },
+              },
+            },
+          ],
           as: 'reviews',
         },
       },
       {
         $addFields: {
-          averageRating: { $ifNull: [{ $avg: '$reviews.rating' }, 0] },
+          averageRating: {
+            $ifNull: [{ $avg: '$reviews.rating' }, 0],
+          },
         },
       },
       ...(minRating !== undefined
@@ -661,17 +811,22 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
       { $count: 'totalItems' },
     ];
 
-    const doctors = await this.model.aggregate(pipeline).exec();
-    const countResult = await this.model.aggregate(countPipeline).exec();
-    const totalItems = countResult[0]?.totalItems || 0;
-    const totalPages = Math.ceil(totalItems / validatedLimit);
+    try {
+      const doctors = await this.model.aggregate(pipeline).exec();
+      const countResult = await this.model.aggregate(countPipeline).exec();
+      const totalItems = countResult[0]?.totalItems || 0;
+      const totalPages = Math.ceil(totalItems / validatedLimit);
 
-    return {
-      data: doctors as Doctor[],
-      totalPages,
-      currentPage: validatedPage,
-      totalItems,
-    };
+      return {
+        data: doctors as Doctor[],
+        totalPages,
+        currentPage: validatedPage,
+        totalItems,
+      };
+    } catch (error) {
+      logger.error('Error in findAllWithQuery:', error);
+      throw error;
+    }
   }
 
   async findDoctorsWithActiveSubscriptions(): Promise<Doctor[]> {

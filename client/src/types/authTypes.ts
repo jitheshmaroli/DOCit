@@ -1,3 +1,25 @@
+export interface Experience {
+  hospitalName: string;
+  department: string;
+  years: number;
+}
+
+export interface Prescription {
+  _id: string;
+  appointmentId: string;
+  patientId: string;
+  doctorId: string;
+  medications?: Array<{
+    name: string;
+    dosage: string;
+    frequency: string;
+    duration: string;
+  }>;
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface Doctor {
   _id: string;
   email: string;
@@ -9,12 +31,14 @@ export interface Doctor {
   isBlocked: boolean;
   profilePicture?: string;
   availability?: string;
-  speciality?: [];
+  speciality?: string[];
   qualifications?: string[];
   age?: string;
   gender?: string;
   averageRating?: number;
   reviewIds?: string[];
+  experiences?: Experience[];
+  totalExperience?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -29,6 +53,7 @@ export interface AuthState {
 }
 
 export interface SignUpPayload {
+  _id?: string;
   email: string;
   password: string;
   name: string;
@@ -207,8 +232,9 @@ export interface Appointment {
   updatedAt: string;
   isFreeBooking?: boolean;
   cancellationReason?: string;
-  prescriptionId?: string;
+  prescriptionId?: string | Prescription;
   hasReview?: boolean;
+  reminderSent?: boolean;
 }
 
 export interface QueryParams {

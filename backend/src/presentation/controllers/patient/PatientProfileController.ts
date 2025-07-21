@@ -1,20 +1,17 @@
 import { Response, NextFunction } from 'express';
-import { ViewPatientProfileUseCase } from '../../../core/use-cases/profile/ViewPatientProfile';
-import { UpdatePatientProfileUseCase } from '../../../core/use-cases/profile/UpdatePatientProfile';
 import { Container } from '../../../infrastructure/di/container';
 import { ValidationError } from '../../../utils/errors';
+import { IProfileUseCase } from '../../../core/interfaces/use-cases/IProfileUseCase';
 import fs from 'fs';
 import { CustomRequest } from '../../../types';
 import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 
 export class PatientProfileController {
-  private viewPatientProfileUseCase: ViewPatientProfileUseCase;
-  private updatePatientProfileUseCase: UpdatePatientProfileUseCase;
+  private profileUseCase: IProfileUseCase;
 
   constructor(container: Container) {
-    this.viewPatientProfileUseCase = container.get('ViewPatientProfileUseCase');
-    this.updatePatientProfileUseCase = container.get('UpdatePatientProfileUseCase');
+    this.profileUseCase = container.get<IProfileUseCase>('IProfileUseCase');
   }
 
   async viewProfile(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
@@ -24,7 +21,7 @@ export class PatientProfileController {
       if (!requesterId) {
         throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
-      const patient = await this.viewPatientProfileUseCase.execute(id, requesterId);
+      const patient = await this.profileUseCase.viewPatientProfile(id, requesterId);
       res.status(HttpStatusCode.OK).json(patient);
     } catch (error) {
       next(error);
@@ -33,14 +30,14 @@ export class PatientProfileController {
 
   async updateProfile(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { id } = req.params;
+      const patientId = req.params.id;
       const requesterId = req.user?.id;
       if (!requesterId) {
         throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const updates = req.body;
 
-      const patient = await this.updatePatientProfileUseCase.execute(id, requesterId, updates, req.file);
+      const patient = await this.profileUseCase.updatePatientProfile(patientId, updates, req.file);
 
       if (req.file) {
         fs.unlinkSync(req.file.path);

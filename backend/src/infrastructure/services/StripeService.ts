@@ -1,8 +1,9 @@
 import Stripe from 'stripe';
 import { env } from '../../config/env';
 import { ValidationError } from '../../utils/errors';
+import { IPaymentService } from '../../core/interfaces/services/IPaymentService';
 
-export class StripeService {
+export class StripeService implements IPaymentService {
   private stripe: Stripe;
 
   constructor() {

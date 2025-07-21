@@ -1,3 +1,13 @@
+import { IChatUseCase } from '../../core/interfaces/use-cases/IChatUseCase';
+import { AppointmentUseCase } from '../../core/use-cases/AppointmentUseCase';
+import { NotificationUseCase } from '../../core/use-cases/NotificationUseCase';
+import { AvailabilityUseCase } from '../../core/use-cases/AvailabilityUseCase';
+import { SubscriptionPlanUseCase } from '../../core/use-cases/SubscriptionPlanUseCase';
+import { DoctorUseCase } from '../../core/use-cases/DoctorUseCase';
+import { PatientUseCase } from '../../core/use-cases/PatientUseCase';
+import { ChatUseCase } from '../../core/use-cases/ChatUseCase';
+import { ReviewUseCase } from '../../core/use-cases/ReviewUseCase';
+import { ProfileUseCase } from '../../core/use-cases/ProfileUseCase';
 import { PatientRepository } from '../repositories/PatientRepository';
 import { DoctorRepository } from '../repositories/DoctorRepository';
 import { AdminRepository } from '../repositories/AdminRepository';
@@ -5,99 +15,25 @@ import { OTPRepository } from '../repositories/OTPRepository';
 import { EmailService } from '../services/EmailService';
 import { OTPService } from '../services/OTPService';
 import { TokenService } from '../services/TokenService';
-import { UpdateDoctorUseCase } from '../../core/use-cases/admin/UpdateDoctorUseCase';
-import { DeleteDoctorUseCase } from '../../core/use-cases/admin/DeleteDoctorUseCase';
-import { BlockDoctorUseCase } from '../../core/use-cases/admin/BlockDoctorUseCase';
-import { UpdatePatientUseCase } from '../../core/use-cases/admin/UpdatePatientUseCase';
-import { DeletePatientUseCase } from '../../core/use-cases/admin/DeletePatientUseCase';
-import { BlockPatientUseCase } from '../../core/use-cases/admin/BlockPatientUseCase';
-import { ViewDoctorProfileUseCase } from '../../core/use-cases/profile/ViewDoctorProfile';
-import { UpdateDoctorProfileUseCase } from '../../core/use-cases/profile/UpdateDoctorProfile';
-import { ViewPatientProfileUseCase } from '../../core/use-cases/profile/ViewPatientProfile';
-import { UpdatePatientProfileUseCase } from '../../core/use-cases/profile/UpdatePatientProfile';
-import { CreateDoctorUseCase } from '../../core/use-cases/admin/CreateDoctorUseCase';
-import { CreatePatientUseCase } from '../../core/use-cases/admin/CreatePatientUseCase';
 import { AvailabilityRepository } from '../repositories/AvailabilityRepository';
-import { SetAvailabilityUseCase } from '../../core/use-cases/doctor/SetAvailability';
-import { GetAvailabilityUseCase } from '../../core/use-cases/doctor/GetAvailability';
-import { AppointmentRepository } from '../repositories/AppointmentRepository';
 import { SubscriptionPlanRepository } from '../repositories/SubscriptionPlanRepository';
-import { SubscribeToPlanUseCase } from '../../core/use-cases/patient/SubscribeToPlanUseCase';
-import { CreateSubscriptionPlanUseCase } from '../../core/use-cases/doctor/CreateSubscriptionPlanUseCase';
-import { ManageSubscriptionPlanUseCase } from '../../core/use-cases/admin/ManageSubscriptionPlanUseCase';
-import { CancelAppointmentUseCase } from '../../core/use-cases/patient/CancelAppointmentUseCase';
-import { BookAppointmentUseCase } from '../../core/use-cases/patient/BookAppointment';
-import { CheckFreeBookingUseCase } from '../../core/use-cases/patient/CheckFreeBookingUseCase';
-import { GetDoctorAvailabilityUseCase } from '../../core/use-cases/patient/GetDoctorAvailability';
-import { GetDoctorAppointmentsUseCase } from '../../core/use-cases/doctor/GetDoctorAppointmentUseCase';
-import { GetAllAppointmentsUseCase } from '../../core/use-cases/admin/GetAllAppointmentsUseCase';
-import { GetDoctorUseCase } from '../../core/use-cases/patient/GetDoctorUseCase';
-import { GetVerifiedDoctorsUseCase } from '../../core/use-cases/patient/GetVerifiedDoctorsUseCase';
-import { SignupPatientUseCase } from '../../core/use-cases/auth/patient/SignupPatientUseCase';
-import { LoginPatientUseCase } from '../../core/use-cases/auth/patient/LoginPatientUseCase';
-import { GoogleSignInPatientUseCase } from '../../core/use-cases/auth/patient/GoogleSignInPatientUseCase';
-import { SignupDoctorUseCase } from '../../core/use-cases/auth/doctor/SignupDoctorUseCase';
-import { LoginDoctorUseCase } from '../../core/use-cases/auth/doctor/LoginDoctorUseCase';
-import { GoogleSignInDoctorUseCase } from '../../core/use-cases/auth/doctor/GoogleSignInDoctorUseCase';
-import { LoginAdminUseCase } from '../../core/use-cases/auth/admin/LoginAdminUseCase';
-import { RefreshTokenUseCase } from '../../core/use-cases/auth/shared/RefreshTokenUseCase';
-import { LogoutUseCase } from '../../core/use-cases/auth/shared/LogoutUseCase';
-import { ForgotPasswordUseCase } from '../../core/use-cases/auth/shared/ForgotPasswordUseCase';
-import { ResetPasswordUseCase } from '../../core/use-cases/auth/shared/ResetPasswordUseCase';
-import { VerifySignUpOTPUseCase } from '../../core/use-cases/auth/shared/VerifySignUpOTPUseCase';
-import { GetCurrentUserUseCase } from '../../core/use-cases/user/GetCurrentUserUseCase';
-import { ListPatientsUseCase } from '../../core/use-cases/admin/ListPatientsUseCase';
-import { ListDoctorsUseCase } from '../../core/use-cases/admin/ListDoctorsUseCase';
-import { VerifyDoctorUseCase } from '../../core/use-cases/admin/VerifyDoctorUseCase';
-import { RemoveSlotUseCase } from '../../core/use-cases/doctor/RemoveSlotUseCase';
-import { UpdateSlotUseCase } from '../../core/use-cases/doctor/UpdateSlotUseCase';
+import { AppointmentRepository } from '../repositories/AppointmentRepository';
 import { SpecialityRepository } from '../repositories/SpecialityRepository';
-import { GetSpecialitiesUseCase } from '../../core/use-cases/admin/GetSpecialityUseCase';
-import { AddSpecialityUseCase } from '../../core/use-cases/admin/AddSpecialityUseCase';
-import { UpdateSpecialityUseCase } from '../../core/use-cases/admin/UpdateSpecialityUseCase';
-import { DeleteSpecialityUseCase } from '../../core/use-cases/admin/DeleteSpecialityUseCase';
 import { StripeService } from '../services/StripeService';
-import { PatientSubscriptionRepository } from '../repositories/PatientSubscriptionRepositroy';
-import { GetPatientSubscriptionsUseCase } from '../../core/use-cases/admin/GetpatientSubscriptions';
-import { ConfirmSubscriptionUseCase } from '../../core/use-cases/patient/ConfirmSubscriptionUseCase';
 import { ImageUploadService } from '../services/ImageUploadService';
 import { ChatRepository } from '../repositories/ChatRepository';
 import { NotificationRepository } from '../repositories/NotificationRepository';
 import { SocketService } from '../services/SocketService';
 import { NotificationService } from '../services/NotificationService';
-import { SendMessageUseCase } from '../../core/use-cases/chat/SendMessageUseCase';
-import { GetMessagesUseCase } from '../../core/use-cases/chat/GetMessagesUseCase';
-import { DeleteMessageUseCase } from '../../core/use-cases/chat/DeleteMessageUseCase';
-import { GetChatHistoryUseCase } from '../../core/use-cases/chat/GetChatHistoryUseCase';
-import { GetInboxUseCase } from '../../core/use-cases/chat/GetInboxUseCase';
-import { SendNotificationUseCase } from '../../core/use-cases/notification/SendNotificationUseCase';
-import { GetNotificationsUseCase } from '../../core/use-cases/notification/GetNotificationsUseCase';
-import { DeleteNotificationUseCase } from '../../core/use-cases/notification/DeleteNotificationUseCase';
-import { ChatMessage } from '../../core/entities/ChatMessage';
-import { IChatService } from '../../core/interfaces/services/IChatService';
-import { QueryParams } from '../../types/authTypes';
-import { DeleteAllNotificationsUseCase } from '../../core/use-cases/notification/DeleteAllNotificationsUseCase';
-import { MarkNotificationAsReadUseCase } from '../../core/use-cases/notification/MarkNotificationAsReadUseCase';
-import { AdminCancelAppointmentUseCase } from '../../core/use-cases/admin/AdminCancelAppointmentUseCase';
-import { GetUserUseCase } from '../../core/use-cases/user/GetUserUseCase';
-import { MarkMessageAsReadUseCase } from '../../core/use-cases/chat/MarkMessageAsReadUseCase';
-import { AddReactionUseCase } from '../../core/use-cases/chat/AddReactionUseCase';
-import { GetDashboardStatsUseCase } from '../../core/use-cases/doctor/GetDashBoardStatsUseCase';
-import { GetAdminDashboardStatsUseCase } from '../../core/use-cases/admin/GetAdminDashboardStatsUseCase';
-import { AdminGetReportsUseCase } from '../../core/use-cases/admin/AdminGetReportsUseCase';
-import { DoctorGetReportsUseCase } from '../../core/use-cases/doctor/DoctorGetReportsUseCase';
-import { GetDoctorSubscriptionPlansUseCase } from '../../core/use-cases/doctor/GetDoctorSubscriptionPlansUseCase';
-import { UpdateDoctorSubscriptionPlanUseCase } from '../../core/use-cases/doctor/UpdateDoctorSubscriptionPlanUseCase';
-import { GetAllSpecialitiesUseCase } from '../../core/use-cases/doctor/GetAllSpecialitiesUseCase';
-import { CompleteAppointmentUseCase } from '../../core/use-cases/doctor/CompleteAppointmentUseCase';
-import { GetPatientActiveSubscriptionUseCase } from '../../core/use-cases/patient/GetPatientActiveSubscriptionUseCase';
-import { GetDoctorApprovedPlansUseCase } from '../../core/use-cases/patient/GetDoctorApprovedPlansUseCase';
-import { GetPatientAppointmentsUseCase } from '../../core/use-cases/patient/GetPatientAppointmentsUseCase';
-import { GetAppointmentByIdUseCase } from '../../core/use-cases/patient/GetAppointmentByIdUseCase';
-import { GetSingleAppointmentUseCase } from '../../core/use-cases/doctor/GetSingleAppointmentUseCase';
-import { CreateReviewUseCase } from '../../core/use-cases/review/CreateReviewUseCase';
 import { ReviewRepository } from '../repositories/ReviewRepository';
-import { GetDoctorReviewsUseCase } from '../../core/use-cases/review/GetDoctorReviewsUseCase';
+import { IChatService } from '../../core/interfaces/services/IChatService';
+import { ChatMessage } from '../../core/entities/ChatMessage';
+import { QueryParams } from '../../types/authTypes';
+import { AuthenticationUseCase } from '../../core/use-cases/AuthenticationUseCase';
+import { PatientSubscriptionRepository } from '../repositories/PatientSubscriptionRepositroy';
+import { ReportUseCase } from '../../core/use-cases/ReportUseCase';
+import { SpecialityUseCase } from '../../core/use-cases/SpecialityUseCase';
+import { UserUseCase } from '../../core/use-cases/UserUseCase';
 
 export class Container {
   private static instance: Container;
@@ -127,16 +63,16 @@ export class Container {
     const chatService = new (class implements IChatService {
       constructor(private container: Container) {}
       async sendMessage(message: ChatMessage, file?: Express.Multer.File): Promise<ChatMessage> {
-        return await this.container.get<SendMessageUseCase>('SendMessageUseCase').execute(message, file);
+        return await this.container.get<IChatUseCase>('IChatUseCase').sendMessage(message, file);
       }
       async getMessages(senderId: string, receiverId: string): Promise<ChatMessage[]> {
-        return this.container.get<GetMessagesUseCase>('GetMessagesUseCase').execute(senderId, receiverId);
+        return this.container.get<IChatUseCase>('IChatUseCase').getMessages(senderId, receiverId);
       }
       async deleteMessage(messageId: string, userId: string): Promise<void> {
-        await this.container.get<DeleteMessageUseCase>('DeleteMessageUseCase').execute(messageId, userId);
+        await this.container.get<IChatUseCase>('IChatUseCase').deleteMessage(messageId, userId);
       }
       async getChatHistory(userId: string, params: QueryParams): Promise<ChatMessage[]> {
-        return this.container.get<GetChatHistoryUseCase>('GetChatHistoryUseCase').execute(userId, params);
+        return this.container.get<IChatUseCase>('IChatUseCase').getChatHistory(userId, params);
       }
     })(this);
     const socketService = new SocketService(chatService, tokenService, patientRepository, doctorRepository);
@@ -147,8 +83,8 @@ export class Container {
     this.dependencies.set('IEmailService', emailService);
     this.dependencies.set('ITokenService', tokenService);
     this.dependencies.set('IOTPService', otpService);
-    this.dependencies.set('StripeService', stripeService);
-    this.dependencies.set('ImageUploadService', imageUploadService);
+    this.dependencies.set('IPaymentService', stripeService);
+    this.dependencies.set('IImageUploadService', imageUploadService);
     this.dependencies.set('SocketService', socketService);
     this.dependencies.set('INotificationService', notificationService);
 
@@ -164,211 +100,66 @@ export class Container {
     this.dependencies.set('ISpecialityRepository', specialityRepository);
     this.dependencies.set('IChatRepository', chatRepository);
     this.dependencies.set('INotificationRepository', notificationRepository);
+    this.dependencies.set('IReviewRepository', reviewRepository);
 
-    // Initialize and register use cases
-    this.dependencies.set('SignupPatientUseCase', new SignupPatientUseCase(patientRepository, otpService));
-    this.dependencies.set('LoginPatientUseCase', new LoginPatientUseCase(patientRepository, tokenService));
+    // Register use cases
     this.dependencies.set(
-      'GoogleSignInPatientUseCase',
-      new GoogleSignInPatientUseCase(patientRepository, tokenService)
-    );
-    this.dependencies.set('SignupDoctorUseCase', new SignupDoctorUseCase(doctorRepository, otpService));
-    this.dependencies.set('LoginDoctorUseCase', new LoginDoctorUseCase(doctorRepository, tokenService));
-    this.dependencies.set('GoogleSignInDoctorUseCase', new GoogleSignInDoctorUseCase(doctorRepository, tokenService));
-    this.dependencies.set('LoginAdminUseCase', new LoginAdminUseCase(adminRepository, tokenService));
-    this.dependencies.set(
-      'RefreshTokenUseCase',
-      new RefreshTokenUseCase(patientRepository, doctorRepository, adminRepository, tokenService)
-    );
-    this.dependencies.set('LogoutUseCase', new LogoutUseCase(patientRepository, doctorRepository, adminRepository));
-    this.dependencies.set(
-      'ForgotPasswordUseCase',
-      new ForgotPasswordUseCase(patientRepository, doctorRepository, adminRepository, otpService)
+      'IAuthenticationUseCase',
+      new AuthenticationUseCase(patientRepository, doctorRepository, adminRepository, otpService, tokenService)
     );
     this.dependencies.set(
-      'ResetPasswordUseCase',
-      new ResetPasswordUseCase(patientRepository, doctorRepository, adminRepository, otpService)
-    );
-    this.dependencies.set(
-      'VerifySignUpOTPUseCase',
-      new VerifySignUpOTPUseCase(patientRepository, doctorRepository, otpService, tokenService)
-    );
-    this.dependencies.set(
-      'GetCurrentUserUseCase',
-      new GetCurrentUserUseCase(patientRepository, doctorRepository, adminRepository)
-    );
-    this.dependencies.set('GetUserUseCase', new GetUserUseCase(patientRepository, doctorRepository, adminRepository));
-    this.dependencies.set('CreateDoctorUseCase', new CreateDoctorUseCase(doctorRepository));
-    this.dependencies.set('ListPatientsUseCase', new ListPatientsUseCase(patientRepository));
-    this.dependencies.set('ListDoctorsUseCase', new ListDoctorsUseCase(doctorRepository));
-    this.dependencies.set('VerifyDoctorUseCase', new VerifyDoctorUseCase(doctorRepository));
-    this.dependencies.set('UpdateDoctorUseCase', new UpdateDoctorUseCase(doctorRepository, specialityRepository));
-    this.dependencies.set('DeleteDoctorUseCase', new DeleteDoctorUseCase(doctorRepository));
-    this.dependencies.set('BlockDoctorUseCase', new BlockDoctorUseCase(doctorRepository));
-    this.dependencies.set('UpdatePatientUseCase', new UpdatePatientUseCase(patientRepository));
-    this.dependencies.set('DeletePatientUseCase', new DeletePatientUseCase(patientRepository));
-    this.dependencies.set('BlockPatientUseCase', new BlockPatientUseCase(patientRepository));
-    this.dependencies.set('CreatePatientUseCase', new CreatePatientUseCase(patientRepository));
-    this.dependencies.set(
-      'ViewDoctorProfileUseCase',
-      new ViewDoctorProfileUseCase(doctorRepository, specialityRepository)
-    );
-    this.dependencies.set(
-      'UpdateDoctorProfileUseCase',
-      new UpdateDoctorProfileUseCase(doctorRepository, imageUploadService)
-    );
-    this.dependencies.set('ViewPatientProfileUseCase', new ViewPatientProfileUseCase(patientRepository));
-    this.dependencies.set(
-      'UpdatePatientProfileUseCase',
-      new UpdatePatientProfileUseCase(patientRepository, imageUploadService)
-    );
-    this.dependencies.set(
-      'SetAvailabilityUseCase',
-      new SetAvailabilityUseCase(doctorRepository, availabilityRepository)
-    );
-    this.dependencies.set('GetAvailabilityUseCase', new GetAvailabilityUseCase(availabilityRepository));
-    this.dependencies.set('RemoveSlotUseCase', new RemoveSlotUseCase(availabilityRepository, appointmentRepository));
-    this.dependencies.set('UpdateSlotUseCase', new UpdateSlotUseCase(availabilityRepository, appointmentRepository));
-    this.dependencies.set(
-      'CheckFreeBookingUseCase',
-      new CheckFreeBookingUseCase(doctorRepository, patientSubscriptionRepository, appointmentRepository)
-    );
-    this.dependencies.set(
-      'BookAppointmentUseCase',
-      new BookAppointmentUseCase(
+      'IAppointmentUseCase',
+      new AppointmentUseCase(
         appointmentRepository,
         availabilityRepository,
-        doctorRepository,
-        patientRepository,
         patientSubscriptionRepository,
-        this.dependencies.get('CheckFreeBookingUseCase') as CheckFreeBookingUseCase,
+        notificationService,
+        emailService,
+        doctorRepository,
+        patientRepository
+      )
+    );
+    this.dependencies.set('INotificationUseCase', new NotificationUseCase(notificationRepository));
+    this.dependencies.set(
+      'IAvailabilityUseCase',
+      new AvailabilityUseCase(doctorRepository, availabilityRepository, appointmentRepository)
+    );
+    this.dependencies.set(
+      'ISubscriptionPlanUseCase',
+      new SubscriptionPlanUseCase(
+        subscriptionPlanRepository,
+        patientSubscriptionRepository,
+        patientRepository,
+        doctorRepository,
+        stripeService,
         notificationService,
         emailService
       )
     );
+    this.dependencies.set('IDoctorUseCase', new DoctorUseCase(doctorRepository, specialityRepository));
+    this.dependencies.set('IPatientUseCase', new PatientUseCase(patientRepository, patientSubscriptionRepository));
     this.dependencies.set(
-      'GetDoctorAvailabilityUseCase',
-      new GetDoctorAvailabilityUseCase(availabilityRepository, doctorRepository)
-    );
-    this.dependencies.set(
-      'CreateSubscriptionPlanUseCase',
-      new CreateSubscriptionPlanUseCase(subscriptionPlanRepository, doctorRepository)
-    );
-    this.dependencies.set(
-      'SubscribeToPlanUseCase',
-      new SubscribeToPlanUseCase(
-        subscriptionPlanRepository,
+      'IChatUseCase',
+      new ChatUseCase(
+        chatRepository,
         patientSubscriptionRepository,
         patientRepository,
-        stripeService
-      )
-    );
-    this.dependencies.set(
-      'GetDoctorSubscriptionPlansUseCase',
-      new GetDoctorSubscriptionPlansUseCase(subscriptionPlanRepository)
-    );
-    this.dependencies.set(
-      'GetDoctorApprovedPlansUseCase',
-      new GetDoctorApprovedPlansUseCase(subscriptionPlanRepository)
-    );
-    this.dependencies.set(
-      'UpdateDoctorSubscriptionPlanUseCase',
-      new UpdateDoctorSubscriptionPlanUseCase(subscriptionPlanRepository)
-    );
-    this.dependencies.set(
-      'ConfirmSubscriptionUseCase',
-      new ConfirmSubscriptionUseCase(
-        subscriptionPlanRepository,
-        patientSubscriptionRepository,
-        patientRepository,
-        stripeService,
-        notificationService,
-        emailService,
-        doctorRepository
-      )
-    );
-    this.dependencies.set(
-      'ManageSubscriptionPlanUseCase',
-      new ManageSubscriptionPlanUseCase(subscriptionPlanRepository, doctorRepository, patientSubscriptionRepository)
-    );
-    this.dependencies.set(
-      'CancelAppointmentUseCase',
-      new CancelAppointmentUseCase(
-        appointmentRepository,
-        availabilityRepository,
-        patientSubscriptionRepository,
-        notificationService,
-        emailService,
         doctorRepository,
-        patientRepository
-      )
-    );
-    this.dependencies.set('GetSingleAppointmentUseCase', new GetSingleAppointmentUseCase(appointmentRepository));
-    this.dependencies.set('GetAppointmentByIdUseCase', new GetAppointmentByIdUseCase(appointmentRepository));
-    this.dependencies.set('GetPatientAppointmentsUseCase', new GetPatientAppointmentsUseCase(appointmentRepository));
-    this.dependencies.set('CompleteAppointmentUseCase', new CompleteAppointmentUseCase(appointmentRepository));
-    this.dependencies.set('GetDoctorAppointmentsUseCase', new GetDoctorAppointmentsUseCase(appointmentRepository));
-    this.dependencies.set('GetAllAppointmentsUseCase', new GetAllAppointmentsUseCase(appointmentRepository));
-    this.dependencies.set('GetDoctorUseCase', new GetDoctorUseCase(doctorRepository));
-    this.dependencies.set('GetVerifiedDoctorsUseCase', new GetVerifiedDoctorsUseCase(doctorRepository));
-    this.dependencies.set('GetSpecialitiesUseCase', new GetSpecialitiesUseCase(specialityRepository));
-    this.dependencies.set('AddSpecialityUseCase', new AddSpecialityUseCase(specialityRepository));
-    this.dependencies.set('UpdateSpecialityUseCase', new UpdateSpecialityUseCase(specialityRepository));
-    this.dependencies.set(
-      'DeleteSpecialityUseCase',
-      new DeleteSpecialityUseCase(specialityRepository, doctorRepository)
-    );
-    this.dependencies.set(
-      'GetPatientSubscriptionsUseCase',
-      new GetPatientSubscriptionsUseCase(patientSubscriptionRepository)
-    );
-    this.dependencies.set(
-      'GetPatientActiveSubscriptionUseCase',
-      new GetPatientActiveSubscriptionUseCase(patientSubscriptionRepository)
-    );
-    this.dependencies.set('GetAllSpecialitiesUseCase', new GetAllSpecialitiesUseCase(specialityRepository));
-    this.dependencies.set(
-      'AdminCancelAppointmentUseCase',
-      new AdminCancelAppointmentUseCase(
-        appointmentRepository,
-        availabilityRepository,
-        patientSubscriptionRepository,
-        notificationService
+        socketService,
+        imageUploadService
       )
     );
     this.dependencies.set(
-      'SendMessageUseCase',
-      new SendMessageUseCase(chatRepository, patientSubscriptionRepository, imageUploadService)
-    );
-    this.dependencies.set('AddReactionUseCase', new AddReactionUseCase(chatRepository));
-    this.dependencies.set('MarkMessageAsReadUseCase', new MarkMessageAsReadUseCase(chatRepository));
-    this.dependencies.set('GetMessagesUseCase', new GetMessagesUseCase(chatRepository));
-    this.dependencies.set('DeleteMessageUseCase', new DeleteMessageUseCase(chatRepository));
-    this.dependencies.set('GetChatHistoryUseCase', new GetChatHistoryUseCase(chatRepository));
-    this.dependencies.set(
-      'GetInboxUseCase',
-      new GetInboxUseCase(chatRepository, patientRepository, doctorRepository, socketService)
-    );
-    this.dependencies.set('SendNotificationUseCase', new SendNotificationUseCase(notificationRepository));
-    this.dependencies.set('GetNotificationsUseCase', new GetNotificationsUseCase(notificationRepository));
-    this.dependencies.set('DeleteNotificationUseCase', new DeleteNotificationUseCase(notificationRepository));
-    this.dependencies.set('DeleteAllNotificationsUseCase', new DeleteAllNotificationsUseCase(notificationRepository));
-    this.dependencies.set('MarkNotificationAsReadUseCase', new MarkNotificationAsReadUseCase(notificationRepository));
-    this.dependencies.set(
-      'GetDashboardStatsUseCase',
-      new GetDashboardStatsUseCase(subscriptionPlanRepository, patientSubscriptionRepository, appointmentRepository)
+      'IReviewUseCase',
+      new ReviewUseCase(reviewRepository, appointmentRepository, doctorRepository)
     );
     this.dependencies.set(
-      'AdminGetReportsUseCase',
-      new AdminGetReportsUseCase(subscriptionPlanRepository, patientSubscriptionRepository, appointmentRepository)
+      'IProfileUseCase',
+      new ProfileUseCase(doctorRepository, patientRepository, specialityRepository, imageUploadService)
     );
     this.dependencies.set(
-      'DoctorGetReportsUseCase',
-      new DoctorGetReportsUseCase(subscriptionPlanRepository, patientSubscriptionRepository, appointmentRepository)
-    );
-    this.dependencies.set(
-      'GetAdminDashboardStatsUseCase',
-      new GetAdminDashboardStatsUseCase(
+      'IReportUseCase',
+      new ReportUseCase(
         subscriptionPlanRepository,
         patientSubscriptionRepository,
         appointmentRepository,
@@ -376,11 +167,8 @@ export class Container {
         patientRepository
       )
     );
-    this.dependencies.set(
-      'CreateReviewUseCase',
-      new CreateReviewUseCase(reviewRepository, appointmentRepository, doctorRepository)
-    );
-    this.dependencies.set('GetDoctorReviewsUseCase', new GetDoctorReviewsUseCase(reviewRepository));
+    this.dependencies.set('ISpecialityUseCase', new SpecialityUseCase(specialityRepository, doctorRepository));
+    this.dependencies.set('IUserUseCase', new UserUseCase(patientRepository, doctorRepository, adminRepository));
   }
 
   static getInstance(): Container {

@@ -3,11 +3,11 @@ import { ITokenService } from '../../core/interfaces/services/ITokenService';
 import { AuthenticationError, ForbiddenError } from '../../utils/errors';
 import { Container } from '../../infrastructure/di/container';
 import { CustomRequest, UserRole } from '../../types';
-import { GetUserUseCase } from '../../core/use-cases/user/GetUserUseCase';
+import { UserUseCase } from '../../core/use-cases/UserUseCase';
 
 export const authMiddleware = (container: Container) => {
   const tokenService: ITokenService = container.get('ITokenService');
-  const getUserUseCase: GetUserUseCase = container.get('GetUserUseCase');
+  const userUseCase: UserUseCase = container.get('IUserUseCase');
 
   return async (req: CustomRequest, res: Response, next: NextFunction): Promise<void> => {
     const accessToken = req.cookies.accessToken;
@@ -25,7 +25,7 @@ export const authMiddleware = (container: Container) => {
         throw new AuthenticationError('Invalid user role');
       }
 
-      const user = await getUserUseCase.execute(decoded.userId);
+      const user = await userUseCase.getUser(decoded.userId);
 
       if (!user) {
         throw new AuthenticationError('User not found');

@@ -1,6 +1,12 @@
 import mongoose, { Schema } from 'mongoose';
 import { Doctor } from '../../../core/entities/Doctor';
 
+const ExperienceSchema = new Schema({
+  hospitalName: { type: String, required: true },
+  department: { type: String, required: true },
+  years: { type: Number, required: true, min: 0 },
+});
+
 const DoctorSchema = new Schema<Doctor>(
   {
     email: { type: String, required: true, unique: true },
@@ -11,7 +17,7 @@ const DoctorSchema = new Schema<Doctor>(
     licenseNumber: { type: String },
     location: { type: String },
     speciality: [{ type: Schema.Types.ObjectId, ref: 'Speciality' }],
-    experience: { type: Number, min: 0 },
+    experiences: [ExperienceSchema],
     allowFreeBooking: { type: Boolean, default: true },
     gender: { type: String },
     isVerified: { type: Boolean, default: false },
@@ -23,6 +29,7 @@ const DoctorSchema = new Schema<Doctor>(
     lastSeen: { type: Date },
     isOnline: { type: Boolean, default: false },
     reviewIds: { type: [String] },
+    isOtpVerified: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

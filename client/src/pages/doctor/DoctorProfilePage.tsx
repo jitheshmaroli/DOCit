@@ -19,6 +19,12 @@ interface Speciality {
   updatedAt?: string;
 }
 
+interface Experience {
+  hospitalName: string;
+  department: string;
+  years: string;
+}
+
 const DoctorProfilePage: React.FC = () => {
   const { user } = useAppSelector((state: RootState) => state.auth);
 
@@ -30,13 +36,16 @@ const DoctorProfilePage: React.FC = () => {
     qualifications: '',
     location: '',
     speciality: '',
-    experience: '',
     gender: '',
+    experiences: [] as Experience[],
   });
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<Record<string, string | null>>({});
+  const [experienceErrors, setExperienceErrors] = useState<
+    Array<Record<string, string | null>>
+  >([]);
   const [specialities, setSpecialities] = useState<Speciality[]>([]);
 
   const doctorId = user?._id;
@@ -58,12 +67,18 @@ const DoctorProfilePage: React.FC = () => {
           qualifications: data.qualifications?.join(', ') || '',
           location: data.location || '',
           speciality: data.speciality || '',
-          experience: data.experience || '',
           gender: data.gender || '',
+          experiences:
+            data.experiences?.map((exp: any) => ({
+              hospitalName: exp.hospitalName || '',
+              department: exp.department || '',
+              years: exp.years?.toString() || '',
+            })) || [],
         });
         const imageUrl = getImageUrl(data.profilePicture);
         setProfilePicture(imageUrl);
         setPreviewImage(imageUrl);
+        setExperienceErrors(data.experiences?.map(() => ({})) || []);
       } catch (error) {
         console.error('Error fetching doctor profile:', error);
         toast.error('Failed to load profile', {
@@ -101,10 +116,44 @@ const DoctorProfilePage: React.FC = () => {
     const { name, value } = e.target;
 
     if (name === 'phone' && value.length > 10) return;
-    if (name === 'experience' && value.length > 2) return;
 
     setFormData((prev) => ({ ...prev, [name]: value }));
     validateField(name, value);
+  };
+
+  const handleExperienceChange = (
+    index: number,
+    field: keyof Experience,
+    value: string
+  ) => {
+    if (field === 'years' && value.length > 2) return;
+
+    setFormData((prev) => ({
+      ...prev,
+      experiences: prev.experiences.map((exp, i) =>
+        i === index ? { ...exp, [field]: value } : exp
+      ),
+    }));
+    validateExperienceField(index, field, value);
+  };
+
+  const addExperience = () => {
+    setFormData((prev) => ({
+      ...prev,
+      experiences: [
+        ...prev.experiences,
+        { hospitalName: '', department: '', years: '' },
+      ],
+    }));
+    setExperienceErrors((prev) => [...prev, {}]);
+  };
+
+  const removeExperience = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      experiences: prev.experiences.filter((_, i) => i !== index),
+    }));
+    setExperienceErrors((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -116,38 +165,6 @@ const DoctorProfilePage: React.FC = () => {
         setPreviewImage(reader.result as string);
       };
       reader.readAsDataURL(selectedFile);
-    }
-  };
-
-  const uploadPhoto = async (file: File) => {
-    const formData = new FormData();
-    formData.append('profilePicture', file);
-    try {
-      const response = await axios.patch(
-        `${API_BASE_URL}/api/doctors/${doctorId}`,
-        formData,
-        {
-          withCredentials: true,
-          headers: { 'Content-Type': 'multipart/form-data' },
-        }
-      );
-      const imageUrl = getImageUrl(response.data.profilePicture);
-      setProfilePicture(imageUrl);
-      setPreviewImage(imageUrl);
-      setFile(null);
-      toast.success('Profile picture updated successfully!', {
-        position: 'bottom-right',
-        autoClose: 3000,
-      });
-    } catch (error: any) {
-      const message = error.message || 'Error uploading profile picture';
-      toast.error(message, {
-        position: 'bottom-right',
-        autoClose: 3000,
-      });
-      console.error('Error uploading photo:', error);
-      setPreviewImage(profilePicture);
-      throw error;
     }
   };
 
@@ -183,16 +200,6 @@ const DoctorProfilePage: React.FC = () => {
           speciality: !value ? 'Speciality is required' : null,
         }));
         break;
-      case 'experience':
-        setErrors((prev) => ({
-          ...prev,
-          experience:
-            validateNumeric(value, 'Experience') ||
-            (value && (parseInt(value) < 0 || parseInt(value) > 120)
-              ? 'Experience must be between 0-99'
-              : null),
-        }));
-        break;
       case 'gender':
         setErrors((prev) => ({
           ...prev,
@@ -204,13 +211,51 @@ const DoctorProfilePage: React.FC = () => {
     }
   };
 
+  const validateExperienceField = (
+    index: number,
+    field: keyof Experience,
+    value: string
+  ) => {
+    setExperienceErrors((prev) => {
+      const newErrors = [...prev];
+      newErrors[index] = { ...newErrors[index] };
+
+      switch (field) {
+        case 'hospitalName':
+          newErrors[index].hospitalName = !value
+            ? 'Hospital Name is required'
+            : value.length > 100
+              ? 'Hospital Name must be 100 characters or less'
+              : null;
+          break;
+        case 'department':
+          newErrors[index].department = !value
+            ? 'Department is required'
+            : value.length > 50
+              ? 'Department must be 50 characters or less'
+              : null;
+          break;
+        case 'years':
+          newErrors[index].years =
+            validateNumeric(value, 'Years') ||
+            (value && (parseInt(value) < 0 || parseInt(value) > 99)
+              ? 'Years must be between 0-99'
+              : null);
+          break;
+        default:
+          break;
+      }
+      return newErrors;
+    });
+  };
+
   const validateForm = () => {
     const newErrors: Record<string, string | null> = {};
     let isValid = true;
 
     Object.entries(formData).forEach(([key, value]) => {
-      if (key !== 'email') {
-        validateField(key, value);
+      if (key !== 'email' && key !== 'experiences') {
+        validateField(key, value as string);
         if (!value) {
           newErrors[key] = `${
             key.charAt(0).toUpperCase() + key.slice(1)
@@ -225,7 +270,31 @@ const DoctorProfilePage: React.FC = () => {
       }
     });
 
+    const newExperienceErrors = formData.experiences.map((exp, index) => {
+      validateExperienceField(index, 'hospitalName', exp.hospitalName);
+      validateExperienceField(index, 'department', exp.department);
+      validateExperienceField(index, 'years', exp.years);
+      if (
+        !exp.hospitalName ||
+        !exp.department ||
+        !exp.years ||
+        (exp.years && (parseInt(exp.years) < 0 || parseInt(exp.years) > 99))
+      ) {
+        isValid = false;
+      }
+      return {
+        hospitalName: !exp.hospitalName ? 'Hospital Name is required' : null,
+        department: !exp.department ? 'Department is required' : null,
+        years:
+          validateNumeric(exp.years, 'Years') ||
+          (exp.years && (parseInt(exp.years) < 0 || parseInt(exp.years) > 99)
+            ? 'Years must be between 0-99'
+            : null),
+      };
+    });
+
     setErrors(newErrors);
+    setExperienceErrors(newExperienceErrors);
     return isValid;
   };
 
@@ -247,20 +316,44 @@ const DoctorProfilePage: React.FC = () => {
           <button
             onClick={async () => {
               try {
+                const formDataToSend = new FormData();
+                formDataToSend.append('name', formData.name);
+                formDataToSend.append('phone', formData.phone);
+                formDataToSend.append('licenseNumber', formData.licenseNumber);
+                formDataToSend.append(
+                  'qualifications',
+                  formData.qualifications
+                );
+                formDataToSend.append('location', formData.location);
+                formDataToSend.append('speciality', formData.speciality);
+                formDataToSend.append('gender', formData.gender);
+                formDataToSend.append(
+                  'experiences',
+                  JSON.stringify(
+                    formData.experiences.map((exp) => ({
+                      ...exp,
+                      years: parseInt(exp.years),
+                    }))
+                  )
+                );
                 if (file) {
-                  await uploadPhoto(file);
+                  formDataToSend.append('profilePicture', file);
                 }
 
                 const response = await axios.patch(
                   `${API_BASE_URL}/api/doctors/${doctorId}`,
+                  formDataToSend,
                   {
-                    ...formData,
-                    qualifications: formData.qualifications
-                      .split(',')
-                      .map((q) => q.trim()),
-                  },
-                  { withCredentials: true }
+                    withCredentials: true,
+                    headers: { 'Content-Type': 'multipart/form-data' },
+                  }
                 );
+
+                const imageUrl = getImageUrl(response.data.profilePicture);
+                setProfilePicture(imageUrl);
+                setPreviewImage(imageUrl);
+                setFile(null);
+
                 toast.success('Profile updated successfully!', {
                   position: 'bottom-right',
                   autoClose: 3000,
@@ -347,9 +440,6 @@ const DoctorProfilePage: React.FC = () => {
               <h2 className="text-[18px] font-bold text-white mb-2">
                 Dr. {formData.name}
               </h2>
-              <p className="text-[14px] text-gray-200 mb-6">
-                {formData.speciality || 'Specialty'}
-              </p>
 
               <h3 className="text-[16px] font-bold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent mb-4">
                 Personal Information
@@ -497,26 +587,6 @@ const DoctorProfilePage: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Experience */}
-                  <div>
-                    <label className="text-[12px] text-gray-200">
-                      Experience <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="experience"
-                      value={formData.experience}
-                      onChange={handleChange}
-                      maxLength={3}
-                      className="w-full h-[60.93px] bg-white/10 border border-white/20 rounded-lg px-4 mt-1 text-[14px] text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
-                    />
-                    {errors.experience && (
-                      <p className="text-red-500 text-[12px]">
-                        {errors.experience}
-                      </p>
-                    )}
-                  </div>
-
                   {/* Gender */}
                   <div>
                     <label className="text-[12px] text-gray-200">
@@ -538,6 +608,105 @@ const DoctorProfilePage: React.FC = () => {
                         {errors.gender}
                       </p>
                     )}
+                  </div>
+
+                  {/* Experiences */}
+                  <div className="col-span-2">
+                    <label className="text-[12px] text-gray-200">
+                      Work Experience
+                    </label>
+                    {formData.experiences.map((exp, index) => (
+                      <div
+                        key={index}
+                        className="border border-white/20 rounded-lg p-4 mb-4 bg-white/10"
+                      >
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div>
+                            <label className="text-[12px] text-gray-200">
+                              Hospital Name
+                            </label>
+                            <input
+                              type="text"
+                              value={exp.hospitalName}
+                              onChange={(e) =>
+                                handleExperienceChange(
+                                  index,
+                                  'hospitalName',
+                                  e.target.value
+                                )
+                              }
+                              maxLength={100}
+                              className="w-full h-[60.93px] bg-white/10 border border-white/20 rounded-lg px-4 mt-1 text-[14px] text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
+                            />
+                            {experienceErrors[index]?.hospitalName && (
+                              <p className="text-red-500 text-[12px]">
+                                {experienceErrors[index].hospitalName}
+                              </p>
+                            )}
+                          </div>
+                          <div>
+                            <label className="text-[12px] text-gray-200">
+                              Department/Position
+                            </label>
+                            <input
+                              type="text"
+                              value={exp.department}
+                              onChange={(e) =>
+                                handleExperienceChange(
+                                  index,
+                                  'department',
+                                  e.target.value
+                                )
+                              }
+                              maxLength={50}
+                              className="w-full h-[60.93px] bg-white/10 border border-white/20 rounded-lg px-4 mt-1 text-[14px] text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
+                            />
+                            {experienceErrors[index]?.department && (
+                              <p className="text-red-500 text-[12px]">
+                                {experienceErrors[index].department}
+                              </p>
+                            )}
+                          </div>
+                          <div>
+                            <label className="text-[12px] text-gray-200">
+                              Years
+                            </label>
+                            <input
+                              type="text"
+                              value={exp.years}
+                              onChange={(e) =>
+                                handleExperienceChange(
+                                  index,
+                                  'years',
+                                  e.target.value
+                                )
+                              }
+                              maxLength={2}
+                              className="w-full h-[60.93px] bg-white/10 border border-white/20 rounded-lg px-4 mt-1 text-[14px] text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
+                            />
+                            {experienceErrors[index]?.years && (
+                              <p className="text-red-500 text-[12px]">
+                                {experienceErrors[index].years}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeExperience(index)}
+                          className="mt-2 bg-red-500 text-white px-2 py-1 rounded text-[12px]"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={addExperience}
+                      className="bg-purple-500 text-white px-2 py-1 rounded text-[12px]"
+                    >
+                      Add Experience
+                    </button>
                   </div>
                 </div>
 

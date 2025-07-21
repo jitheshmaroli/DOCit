@@ -171,7 +171,7 @@ const FindDoctor: React.FC = () => {
             </div>
             <div className="mb-6">
               <label className="block text-gray-200 text-sm mb-2">
-                Experience
+                Total Experience
               </label>
               <select
                 value={filters.experience}
@@ -299,16 +299,16 @@ const FindDoctor: React.FC = () => {
                   Name (Z-A)
                 </option>
                 <option
-                  value="experience:asc"
+                  value="totalExperience:asc"
                   className="bg-gray-800 text-white"
                 >
-                  Experience (Low to High)
+                  Total Experience (Low to High)
                 </option>
                 <option
-                  value="experience:desc"
+                  value="totalExperience:desc"
                   className="bg-gray-800 text-white"
                 >
-                  Experience (High to Low)
+                  Total Experience (High to Low)
                 </option>
                 <option
                   value="averageRating:desc"
@@ -365,6 +365,9 @@ const FindDoctor: React.FC = () => {
                         </h3>
                         <p className="text-sm text-purple-300 mb-2">
                           {doctor.speciality?.join(', ') || 'Speciality N/A'}
+                        </p>
+                        <p className="text-sm text-gray-300 mb-2">
+                          Total Experience: {doctor.totalExperience || 0} years
                         </p>
                         <div className="flex items-center justify-center sm:justify-start mb-2">
                           <p className="text-sm text-gray-300 mr-2">Rating:</p>

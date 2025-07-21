@@ -3,27 +3,23 @@ import { Container } from '../../../infrastructure/di/container';
 import { validateEmail, validatePassword, validatePhone } from '../../../utils/validators';
 import { ValidationError } from '../../../utils/errors';
 import { setTokensInCookies } from '../../../utils/cookieUtils';
-import { SignupDoctorUseCase } from '../../../core/use-cases/auth/doctor/SignupDoctorUseCase';
-import { LoginDoctorUseCase } from '../../../core/use-cases/auth/doctor/LoginDoctorUseCase';
-import { GoogleSignInDoctorUseCase } from '../../../core/use-cases/auth/doctor/GoogleSignInDoctorUseCase';
+import { IDoctorUseCase } from '../../../core/interfaces/use-cases/IDoctorUseCase';
 import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
+import { IAuthenticationUseCase } from '../../../core/interfaces/use-cases/IAuthenticationUseCase';
 
 export class DoctorAuthController {
-  private signupDoctorUseCase: SignupDoctorUseCase;
-  private loginDoctorUseCase: LoginDoctorUseCase;
-  private googleSignInDoctorUseCase: GoogleSignInDoctorUseCase;
+  private authenticationUseCase: IAuthenticationUseCase;
+  private doctorUseCase: IDoctorUseCase;
 
   constructor(container: Container) {
-    this.signupDoctorUseCase = container.get('SignupDoctorUseCase');
-    this.loginDoctorUseCase = container.get('LoginDoctorUseCase');
-    this.googleSignInDoctorUseCase = container.get('GoogleSignInDoctorUseCase');
+    this.authenticationUseCase = container.get<IAuthenticationUseCase>('IAuthenticationUseCase');
+    this.doctorUseCase = container.get<IDoctorUseCase>('IDoctorUseCase');
   }
 
   async signup(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const doctor = req.body;
-      console.log(doctor);
       if (
         !validateEmail(doctor.email) ||
         !validatePassword(doctor.password) ||
@@ -32,8 +28,8 @@ export class DoctorAuthController {
       ) {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
-      await this.signupDoctorUseCase.execute(doctor);
-      res.status(HttpStatusCode.OK).json({ message: ResponseMessages.OTP_SENT });
+      const savedDoctor = await this.authenticationUseCase.signupDoctor(doctor);
+      res.status(HttpStatusCode.OK).json({ message: ResponseMessages.OTP_SENT, _id: savedDoctor._id });
     } catch (error) {
       next(error);
     }
@@ -43,7 +39,7 @@ export class DoctorAuthController {
     try {
       const { email, password } = req.body;
       if (!email || !password) throw new ValidationError(ResponseMessages.BAD_REQUEST);
-      const { accessToken, refreshToken } = await this.loginDoctorUseCase.execute(email, password);
+      const { accessToken, refreshToken } = await this.authenticationUseCase.loginDoctor(email, password);
       setTokensInCookies(res, accessToken, refreshToken);
       res.status(HttpStatusCode.OK).json({ message: ResponseMessages.LOGGED_IN });
     } catch (error) {
@@ -55,7 +51,7 @@ export class DoctorAuthController {
     try {
       const { token } = req.body;
       if (!token) throw new ValidationError(ResponseMessages.BAD_REQUEST);
-      const { accessToken, refreshToken } = await this.googleSignInDoctorUseCase.execute(token);
+      const { accessToken, refreshToken } = await this.authenticationUseCase.googleSignInDoctor(token);
       setTokensInCookies(res, accessToken, refreshToken);
       res.status(HttpStatusCode.OK).json({ message: ResponseMessages.LOGGED_IN });
     } catch (error) {

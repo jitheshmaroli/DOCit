@@ -33,6 +33,16 @@ export class DateUtils {
     return moment.utc(date).endOf('day').toDate();
   }
 
+  // Get start of month in UTC
+  static startOfMonthUTC(date: Date): Date {
+    return moment.utc(date).startOf('month').toDate();
+  }
+
+  // Get start of year in UTC
+  static startOfYearUTC(date: Date): Date {
+    return moment.utc(date).startOf('year').toDate();
+  }
+
   // Validate if date is today or in the future
   static isFutureDate(date: Date): boolean {
     return moment.utc(date).isSame(moment.utc(), 'day') || moment.utc(date).isAfter(moment.utc());
@@ -44,27 +54,22 @@ export class DateUtils {
 
   // Validate time slot (startTime and endTime in HH:mm format)
   static validateTimeSlot(startTime: string, endTime: string, date: Date): void {
-    // Ensure inputs are valid
     if (!startTime || !endTime) {
       throw new ValidationError('Start time and end time are required');
     }
 
-    // Parse times with strict format
     const dateStr = moment.utc(date).format('YYYY-MM-DD');
     const slotStart = moment.utc(`${dateStr} ${startTime}`, 'YYYY-MM-DD HH:mm', true);
     const slotEnd = moment.utc(`${dateStr} ${endTime}`, 'YYYY-MM-DD HH:mm', true);
 
-    // Check if parsing was successful
     if (!slotStart.isValid() || !slotEnd.isValid()) {
       throw new ValidationError('Invalid time format. Use HH:mm (e.g., 09:00)');
     }
 
-    // Check if startTime is before endTime
     if (slotStart.isSameOrAfter(slotEnd)) {
       throw new ValidationError('Start time must be before end time');
     }
 
-    // Prevent slots in the past for today
     if (moment.utc(date).isSame(moment.utc(), 'day') && slotStart.isBefore(moment.utc())) {
       throw new ValidationError('Cannot set slots before current time');
     }
@@ -80,7 +85,6 @@ export class DateUtils {
       .filter((slot) => slot.start.isValid() && slot.end.isValid())
       .sort((a, b) => a.start.diff(b.start));
 
-    // Validate slot parsing
     slotMoments.forEach((slot, index) => {
       if (!slot.start.isValid() || !slot.end.isValid()) {
         throw new ValidationError(`Invalid time format for slot at index ${index}`);
@@ -106,7 +110,7 @@ export class DateUtils {
         start: slot.start.format('HH:mm'),
         end: slot.end.format('HH:mm'),
       }))
-    ); // Debugging log
+    );
   }
 
   // Generate recurring dates based on start date, end date, and selected days of the week

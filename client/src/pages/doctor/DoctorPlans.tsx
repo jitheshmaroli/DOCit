@@ -247,51 +247,81 @@ const DoctorPlans: React.FC = () => {
               {isEditMode ? 'Edit Subscription Plan' : 'Add Subscription Plan'}
             </h2>
             <div className="space-y-4">
-              <input
-                type="text"
-                name="name"
-                placeholder="Plan name"
-                value={planData.name}
-                onChange={handleInputChange}
-                className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-              />
-              <textarea
-                name="description"
-                placeholder="Description"
-                value={planData.description}
-                onChange={handleInputChange}
-                className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-              />
-              <input
-                type="number"
-                name="price"
-                placeholder="Plan price (in paisa)"
-                value={planData.price}
-                onChange={handleInputChange}
-                className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                min="0"
-                step="1"
-              />
-              <input
-                type="number"
-                name="validityDays"
-                placeholder="Validity (days)"
-                value={planData.validityDays}
-                onChange={handleInputChange}
-                className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                min="1"
-                step="1"
-              />
-              <input
-                type="number"
-                name="appointmentCount"
-                placeholder="Number of appointments"
-                value={planData.appointmentCount}
-                onChange={handleInputChange}
-                className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                min="1"
-                step="1"
-              />
+              <div>
+                <label htmlFor="name" className="block text-sm font-medium text-white mb-1">
+                  Plan Name
+                </label>
+                <input
+                  id="name"
+                  type="text"
+                  name="name"
+                  placeholder="Enter plan name"
+                  value={planData.name}
+                  onChange={handleInputChange}
+                  className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                />
+              </div>
+              <div>
+                <label htmlFor="description" className="block text-sm font-medium text-white mb-1">
+                  Description
+                </label>
+                <textarea
+                  id="description"
+                  name="description"
+                  placeholder="Enter plan description"
+                  value={planData.description}
+                  onChange={handleInputChange}
+                  className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                />
+              </div>
+              <div>
+                <label htmlFor="price" className="block text-sm font-medium text-white mb-1">
+                  Price (in Rupees)
+                </label>
+                <input
+                  id="price"
+                  type="number"
+                  name="price"
+                  placeholder="Enter price in rupees"
+                  value={planData.price}
+                  onChange={handleInputChange}
+                  className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                  min="0"
+                  step="1"
+                />
+              </div>
+              <div>
+                <label htmlFor="validityDays" className="block text-sm font-medium text-white mb-1">
+                  Validity (days)
+                </label>
+                <input
+                  id="validityDays"
+                  type="number"
+                  name="validityDays"
+                  placeholder="Enter validity in days"
+                  value={planData.validityDays}
+                  onChange={handleInputChange}
+                  className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                  min="1"
+                  step="1"
+                />
+              </div>
+              <div>
+                <label htmlFor="appointmentCount" className="block text-sm font-medium text-white mb-1">
+                  Number of Appointments
+                </label>
+                <input
+                  id="appointmentCount"
+                  type="number"
+                  name="appointmentCount"
+                  placeholder="Enter number of appointments"
+                  value={planData.appointmentCount}
+                  onChange={handleInputChange}
+                  className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                  min="1"
+                  step="1"
+                />
+              </div>
             </div>
             <div className="flex justify-end space-x-2 mt-6">
               <button

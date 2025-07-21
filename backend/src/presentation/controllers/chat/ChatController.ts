@@ -1,41 +1,23 @@
 import { Response, NextFunction } from 'express';
-import { SendMessageUseCase } from '../../../core/use-cases/chat/SendMessageUseCase';
-import { DeleteMessageUseCase } from '../../../core/use-cases/chat/DeleteMessageUseCase';
-import { GetChatHistoryUseCase } from '../../../core/use-cases/chat/GetChatHistoryUseCase';
-import { GetInboxUseCase } from '../../../core/use-cases/chat/GetInboxUseCase';
 import { Container } from '../../../infrastructure/di/container';
 import { ValidationError } from '../../../utils/errors';
 import { CustomRequest, UserRole } from '../../../types';
-import { GetMessagesUseCase } from '../../../core/use-cases/chat/GetMessagesUseCase';
-import { QueryParams } from '../../../types/authTypes';
+import { IChatUseCase } from '../../../core/interfaces/use-cases/IChatUseCase';
 import { IImageUploadService } from '../../../core/interfaces/services/IImageUploadService';
-import { MarkMessageAsReadUseCase } from '../../../core/use-cases/chat/MarkMessageAsReadUseCase';
-import { AddReactionUseCase } from '../../../core/use-cases/chat/AddReactionUseCase';
 import { SocketService } from '../../../infrastructure/services/SocketService';
+import { QueryParams } from '../../../types/authTypes';
 import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 
 export class ChatController {
-  private sendMessageUseCase: SendMessageUseCase;
-  private getMessagesUseCase: GetMessagesUseCase;
-  private deleteMessageUseCase: DeleteMessageUseCase;
-  private getChatHistoryUseCase: GetChatHistoryUseCase;
-  private getInboxUseCase: GetInboxUseCase;
-  private markMessageAsReadUseCase: MarkMessageAsReadUseCase;
-  private addReactionUseCase: AddReactionUseCase;
+  private chatUseCase: IChatUseCase;
   private imageUploadService: IImageUploadService;
   private socketService: SocketService;
 
   constructor(container: Container) {
-    this.sendMessageUseCase = container.get('SendMessageUseCase');
-    this.getMessagesUseCase = container.get('GetMessagesUseCase');
-    this.deleteMessageUseCase = container.get('DeleteMessageUseCase');
-    this.getChatHistoryUseCase = container.get('GetChatHistoryUseCase');
-    this.getInboxUseCase = container.get('GetInboxUseCase');
-    this.markMessageAsReadUseCase = container.get('MarkMessageAsReadUseCase');
-    this.addReactionUseCase = container.get('AddReactionUseCase');
-    this.imageUploadService = container.get('ImageUploadService');
-    this.socketService = container.get('SocketService');
+    this.chatUseCase = container.get<IChatUseCase>('IChatUseCase');
+    this.imageUploadService = container.get<IImageUploadService>('IImageUploadService');
+    this.socketService = container.get<SocketService>('SocketService');
   }
 
   async sendMessage(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
@@ -46,7 +28,7 @@ export class ChatController {
         throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const { receiverId, message, senderName } = req.body;
-      const chatMessage = await this.sendMessageUseCase.execute({
+      const chatMessage = await this.chatUseCase.sendMessage({
         message,
         senderId: userId,
         receiverId,
@@ -72,7 +54,7 @@ export class ChatController {
       if (!file) {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
-      const chatMessage = await this.sendMessageUseCase.execute(
+      const chatMessage = await this.chatUseCase.sendMessage(
         {
           message: '',
           senderId: userId,
@@ -96,7 +78,7 @@ export class ChatController {
         throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const { receiverId } = req.params;
-      const messages = await this.getMessagesUseCase.execute(userId, receiverId);
+      const messages = await this.chatUseCase.getMessages(userId, receiverId);
       res.status(HttpStatusCode.OK).json(messages);
     } catch (error) {
       next(error);
@@ -110,7 +92,7 @@ export class ChatController {
         throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const { messageId } = req.params;
-      await this.deleteMessageUseCase.execute(messageId, userId);
+      await this.chatUseCase.deleteMessage(messageId, userId);
       res.status(HttpStatusCode.NO_CONTENT).send();
     } catch (error) {
       next(error);
@@ -124,7 +106,7 @@ export class ChatController {
         throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const { messageId } = req.params;
-      await this.markMessageAsReadUseCase.execute(messageId, userId);
+      await this.chatUseCase.markMessageAsRead(messageId, userId);
       res.status(HttpStatusCode.NO_CONTENT).send();
     } catch (error) {
       next(error);
@@ -139,7 +121,7 @@ export class ChatController {
       }
       const { messageId } = req.params;
       const { emoji, replace } = req.body;
-      const updatedMessage = await this.addReactionUseCase.execute(messageId, userId, emoji, replace);
+      const updatedMessage = await this.chatUseCase.addReaction(messageId, userId, emoji, replace);
       const receiverId = updatedMessage.senderId === userId ? updatedMessage.receiverId : updatedMessage.senderId;
       await this.socketService.sendReactionToUsers(messageId, emoji, userId, receiverId);
       res.status(HttpStatusCode.OK).json(updatedMessage);
@@ -155,7 +137,7 @@ export class ChatController {
         throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const params = req.query as QueryParams;
-      const history = await this.getChatHistoryUseCase.execute(userId, params);
+      const history = await this.chatUseCase.getChatHistory(userId, params);
       res.status(HttpStatusCode.OK).json(history);
     } catch (error) {
       next(error);
@@ -170,7 +152,7 @@ export class ChatController {
         throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const params = req.query as QueryParams;
-      const inbox = await this.getInboxUseCase.execute(userId, role as UserRole.Patient | UserRole.Doctor, params);
+      const inbox = await this.chatUseCase.getInbox(userId, role as UserRole.Patient | UserRole.Doctor, params);
       res.status(HttpStatusCode.OK).json(inbox);
     } catch (error) {
       next(error);

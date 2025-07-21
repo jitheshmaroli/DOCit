@@ -9,7 +9,7 @@ export class OTPController {
   private otpService: IOTPService;
 
   constructor(container: Container) {
-    this.otpService = container.get('IOTPService');
+    this.otpService = container.get<IOTPService>('IOTPService');
   }
 
   async sendOTP(req: Request, res: Response, next: NextFunction): Promise<void> {

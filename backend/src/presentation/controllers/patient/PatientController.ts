@@ -1,66 +1,39 @@
 import { Response, NextFunction } from 'express';
-import { SubscribeToPlanUseCase } from '../../../core/use-cases/patient/SubscribeToPlanUseCase';
-import { ConfirmSubscriptionUseCase } from '../../../core/use-cases/patient/ConfirmSubscriptionUseCase';
-import { CancelAppointmentUseCase } from '../../../core/use-cases/patient/CancelAppointmentUseCase';
 import { Container } from '../../../infrastructure/di/container';
 import { ValidationError } from '../../../utils/errors';
-import { BookAppointmentUseCase } from '../../../core/use-cases/patient/BookAppointment';
-import { GetDoctorAvailabilityUseCase } from '../../../core/use-cases/patient/GetDoctorAvailability';
-import { CheckFreeBookingUseCase } from '../../../core/use-cases/patient/CheckFreeBookingUseCase';
-import { GetDoctorUseCase } from '../../../core/use-cases/patient/GetDoctorUseCase';
-import { GetVerifiedDoctorsUseCase } from '../../../core/use-cases/patient/GetVerifiedDoctorsUseCase';
-import { GetAllSpecialitiesUseCase } from '../../../core/use-cases/doctor/GetAllSpecialitiesUseCase';
-import { GetPatientSubscriptionsUseCase } from '../../../core/use-cases/patient/GetPatientSubscriptionsUseCase';
-import { GetDoctorApprovedPlansUseCase } from '../../../core/use-cases/patient/GetDoctorApprovedPlansUseCase';
-import { GetPatientAppointmentsUseCase } from '../../../core/use-cases/patient/GetPatientAppointmentsUseCase';
-import { GetAppointmentByIdUseCase } from '../../../core/use-cases/patient/GetAppointmentByIdUseCase';
-import mongoose from 'mongoose';
 import { CustomRequest } from '../../../types';
 import { QueryParams } from '../../../types/authTypes';
+import { IPatientUseCase } from '../../../core/interfaces/use-cases/IPatientUseCase';
+import { ISubscriptionPlanUseCase } from '../../../core/interfaces/use-cases/ISubscriptionPlanUseCase';
+import { ISpecialityUseCase } from '../../../core/interfaces/use-cases/ISpecialityUseCase';
+import { IAppointmentUseCase } from '../../../core/interfaces/use-cases/IAppointmentUseCase';
+import { IReviewUseCase } from '../../../core/interfaces/use-cases/IReviewUseCase';
+import mongoose from 'mongoose';
 import logger from '../../../utils/logger';
 import { Appointment } from '../../../core/entities/Appointment';
-import { GetPatientActiveSubscriptionUseCase } from '../../../core/use-cases/patient/GetPatientActiveSubscriptionUseCase';
 import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
-import { CreateReviewUseCase } from '../../../core/use-cases/review/CreateReviewUseCase';
 import sanitizeHtml from 'sanitize-html';
-import { GetDoctorReviewsUseCase } from '../../../core/use-cases/review/GetDoctorReviewsUseCase';
+import { IAvailabilityUseCase } from '../../../core/interfaces/use-cases/IAvailabilityUseCase';
+import { IDoctorUseCase } from '../../../core/interfaces/use-cases/IDoctorUseCase';
 
 export class PatientController {
-  private bookAppointmentUseCase: BookAppointmentUseCase;
-  private getDoctorAvailabilityUseCase: GetDoctorAvailabilityUseCase;
-  private subscribeToPlanUseCase: SubscribeToPlanUseCase;
-  private confirmSubscriptionUseCase: ConfirmSubscriptionUseCase;
-  private cancelAppointmentUseCase: CancelAppointmentUseCase;
-  private checkFreeBookingUseCase: CheckFreeBookingUseCase;
-  private getDoctorUseCase: GetDoctorUseCase;
-  private getVerifiedDoctorsUseCase: GetVerifiedDoctorsUseCase;
-  private getAllSpecialitiesUseCase: GetAllSpecialitiesUseCase;
-  private getPatientActiveSubscriptionUseCase: GetPatientActiveSubscriptionUseCase;
-  private getPatientSubscriptionsUseCase: GetPatientSubscriptionsUseCase;
-  private getDoctorApprovedPlansUseCase: GetDoctorApprovedPlansUseCase;
-  private getPatientAppointmentsUseCase: GetPatientAppointmentsUseCase;
-  private getAppointmentByIdUseCase: GetAppointmentByIdUseCase;
-  private createReviewUseCase: CreateReviewUseCase;
-  private getDoctorReviewsUseCase: GetDoctorReviewsUseCase;
+  private patientUseCase: IPatientUseCase;
+  private subscriptionPlanUseCase: ISubscriptionPlanUseCase;
+  private specialityUseCase: ISpecialityUseCase;
+  private appointmentUseCase: IAppointmentUseCase;
+  private reviewUseCase: IReviewUseCase;
+  private availabilityUseCase: IAvailabilityUseCase;
+  private doctorUseCase: IDoctorUseCase;
 
   constructor(container: Container) {
-    this.bookAppointmentUseCase = container.get('BookAppointmentUseCase');
-    this.getDoctorAvailabilityUseCase = container.get('GetDoctorAvailabilityUseCase');
-    this.subscribeToPlanUseCase = container.get('SubscribeToPlanUseCase');
-    this.confirmSubscriptionUseCase = container.get('ConfirmSubscriptionUseCase');
-    this.cancelAppointmentUseCase = container.get('CancelAppointmentUseCase');
-    this.checkFreeBookingUseCase = container.get('CheckFreeBookingUseCase');
-    this.getDoctorUseCase = container.get('GetDoctorUseCase');
-    this.getVerifiedDoctorsUseCase = container.get('GetVerifiedDoctorsUseCase');
-    this.getAllSpecialitiesUseCase = container.get('GetAllSpecialitiesUseCase');
-    this.getPatientActiveSubscriptionUseCase = container.get('GetPatientActiveSubscriptionUseCase');
-    this.getPatientSubscriptionsUseCase = container.get('GetPatientSubscriptionsUseCase');
-    this.getDoctorApprovedPlansUseCase = container.get('GetDoctorApprovedPlansUseCase');
-    this.getPatientAppointmentsUseCase = container.get('GetPatientAppointmentsUseCase');
-    this.getAppointmentByIdUseCase = container.get('GetAppointmentByIdUseCase');
-    this.createReviewUseCase = container.get('CreateReviewUseCase');
-    this.getDoctorReviewsUseCase = container.get('GetDoctorReviewsUseCase');
+    this.patientUseCase = container.get<IPatientUseCase>('IPatientUseCase');
+    this.subscriptionPlanUseCase = container.get<ISubscriptionPlanUseCase>('ISubscriptionPlanUseCase');
+    this.specialityUseCase = container.get<ISpecialityUseCase>('ISpecialityUseCase');
+    this.appointmentUseCase = container.get<IAppointmentUseCase>('IAppointmentUseCase');
+    this.reviewUseCase = container.get<IReviewUseCase>('IReviewUseCase');
+    this.availabilityUseCase = container.get<IAvailabilityUseCase>('IAvailabilityUseCase');
+    this.doctorUseCase = container.get<IDoctorUseCase>('IDoctorUseCase');
   }
 
   async getDoctorAvailability(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
@@ -75,7 +48,7 @@ export class PatientController {
       endDate.setDate(startDate.getDate() + 30);
       logger.debug('paramsavailability:', req.params);
       logger.debug('paramsavailability:', req.query);
-      const availability = await this.getDoctorAvailabilityUseCase.execute(doctorId, startDate, endDate, true);
+      const availability = await this.availabilityUseCase.getDoctorAvailability(doctorId, startDate, endDate, true);
       res.status(HttpStatusCode.OK).json(availability || []);
     } catch (error) {
       next(error);
@@ -93,12 +66,12 @@ export class PatientController {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
       if (isFreeBooking) {
-        const canBookFree = await this.checkFreeBookingUseCase.execute(patientId, doctorId);
+        const canBookFree = await this.appointmentUseCase.checkFreeBooking(patientId, doctorId);
         if (!canBookFree) {
           throw new ValidationError('Not eligible for free booking');
         }
       }
-      const appointment = await this.bookAppointmentUseCase.execute(
+      const appointment = await this.appointmentUseCase.bookAppointment(
         patientId,
         doctorId,
         new Date(date),
@@ -126,7 +99,7 @@ export class PatientController {
       if (!doctorId) {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
-      const subscription = await this.getPatientActiveSubscriptionUseCase.execute(patientId, doctorId);
+      const subscription = await this.patientUseCase.getPatientActiveSubscription(patientId, doctorId);
       res.status(HttpStatusCode.OK).json(subscription || null);
     } catch (error) {
       next(error);
@@ -143,7 +116,7 @@ export class PatientController {
       if (!planId || !price) {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
-      const result = await this.subscribeToPlanUseCase.execute(patientId, planId, price);
+      const result = await this.subscriptionPlanUseCase.subscribeToPlan(patientId, planId, price);
       res.status(HttpStatusCode.CREATED).json(result);
     } catch (error) {
       next(error);
@@ -160,7 +133,7 @@ export class PatientController {
       if (!planId || !paymentIntentId) {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
-      const subscription = await this.confirmSubscriptionUseCase.execute(patientId, planId, paymentIntentId);
+      const subscription = await this.subscriptionPlanUseCase.confirmSubscription(patientId, planId, paymentIntentId);
       res.status(HttpStatusCode.CREATED).json(subscription);
     } catch (error) {
       next(error);
@@ -173,7 +146,7 @@ export class PatientController {
       if (!patientId) {
         throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
-      const subscriptions = await this.getPatientSubscriptionsUseCase.execute(patientId);
+      const subscriptions = await this.patientUseCase.getPatientSubscriptions(patientId);
       res.status(HttpStatusCode.OK).json(subscriptions);
     } catch (error) {
       next(error);
@@ -191,7 +164,7 @@ export class PatientController {
       if (!appointmentId) {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
-      await this.cancelAppointmentUseCase.execute(appointmentId, patientId, cancellationReason);
+      await this.appointmentUseCase.cancelAppointment(appointmentId, patientId, cancellationReason);
       res.status(HttpStatusCode.OK).json({ message: ResponseMessages.APPOINTMENT_CANCELLED });
     } catch (error) {
       next(error);
@@ -204,7 +177,7 @@ export class PatientController {
       if (!doctorId) {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
-      const plans = await this.getDoctorApprovedPlansUseCase.execute(doctorId);
+      const plans = await this.subscriptionPlanUseCase.getDoctorApprovedPlans(doctorId);
       res.status(HttpStatusCode.OK).json(plans);
     } catch (error) {
       next(error);
@@ -220,7 +193,7 @@ export class PatientController {
         return;
       }
 
-      const doctor = await this.getDoctorUseCase.execute(doctorId);
+      const doctor = await this.doctorUseCase.getDoctor(doctorId);
       if (!doctor) {
         res.status(HttpStatusCode.NOT_FOUND).json({ message: ResponseMessages.NOT_FOUND });
         return;
@@ -247,7 +220,7 @@ export class PatientController {
         gender: req.query.gender as string | undefined,
         minRating: req.query.minRating ? parseFloat(String(req.query.minRating)) : undefined,
       };
-      const result = await this.getVerifiedDoctorsUseCase.execute(params);
+      const result = await this.doctorUseCase.getVerifiedDoctors(params);
       res.status(HttpStatusCode.OK).json(result);
     } catch (error) {
       next(error);
@@ -270,15 +243,15 @@ export class PatientController {
 
       let response: { appointments: Appointment[]; totalItems: number; canBookFree?: boolean };
       if (doctorId) {
-        response = await this.getPatientAppointmentsUseCase.executeForDoctor(
+        response = await this.appointmentUseCase.getPatientAppointmentsForDoctor(
           patientId,
           doctorId as string,
           queryParams
         );
-        const canBookFree = await this.checkFreeBookingUseCase.execute(patientId, doctorId as string);
+        const canBookFree = await this.appointmentUseCase.checkFreeBooking(patientId, doctorId as string);
         response.canBookFree = canBookFree;
       } else {
-        response = await this.getPatientAppointmentsUseCase.execute(patientId, queryParams);
+        response = await this.appointmentUseCase.getPatientAppointments(patientId, queryParams);
       }
 
       res.status(HttpStatusCode.OK).json(response);
@@ -295,7 +268,7 @@ export class PatientController {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
 
-      const appointment = await this.getAppointmentByIdUseCase.execute(appointmentId);
+      const appointment = await this.appointmentUseCase.getAppointmentById(appointmentId);
       res.status(HttpStatusCode.OK).json(appointment);
     } catch (error) {
       next(error);
@@ -304,7 +277,7 @@ export class PatientController {
 
   async getAllSpecialities(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const specialities = await this.getAllSpecialitiesUseCase.execute();
+      const specialities = await this.specialityUseCase.getAllSpecialities();
       res.status(HttpStatusCode.OK).json(specialities);
     } catch (error) {
       next(error);
@@ -351,7 +324,7 @@ export class PatientController {
       });
 
       // Execute use case
-      const review = await this.createReviewUseCase.execute(
+      const review = await this.reviewUseCase.createReview(
         patientId,
         doctorId,
         appointmentId,
@@ -376,7 +349,7 @@ export class PatientController {
         throw new ValidationError('Invalid doctor ID');
       }
 
-      const reviews = await this.getDoctorReviewsUseCase.execute(doctorId);
+      const reviews = await this.reviewUseCase.getDoctorReviews(doctorId);
       res.status(HttpStatusCode.OK).json(reviews);
     } catch (error) {
       next(error);

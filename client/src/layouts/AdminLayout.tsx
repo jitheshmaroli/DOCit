@@ -29,7 +29,7 @@ const AdminLayout: React.FC = () => {
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-auto p-4 md:p-6 lg:p-8">
+        <main className="relative flex-1 overflow-auto p-4 md:p-6 lg:p-8">
           <Outlet />
         </main>
 

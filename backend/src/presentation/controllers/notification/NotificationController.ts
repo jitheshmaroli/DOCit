@@ -1,29 +1,17 @@
 import { Response, NextFunction } from 'express';
-import { SendNotificationUseCase } from '../../../core/use-cases/notification/SendNotificationUseCase';
-import { GetNotificationsUseCase } from '../../../core/use-cases/notification/GetNotificationsUseCase';
-import { DeleteNotificationUseCase } from '../../../core/use-cases/notification/DeleteNotificationUseCase';
 import { Container } from '../../../infrastructure/di/container';
 import { ValidationError } from '../../../utils/errors';
 import { CustomRequest } from '../../../types';
 import { QueryParams } from '../../../types/authTypes';
-import { MarkNotificationAsReadUseCase } from '../../../core/use-cases/notification/MarkNotificationAsReadUseCase';
-import { DeleteAllNotificationsUseCase } from '../../../core/use-cases/notification/DeleteAllNotificationsUseCase';
+import { INotificationUseCase } from '../../../core/interfaces/use-cases/INotificationUseCase';
 import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 
 export class NotificationController {
-  private sendNotificationUseCase: SendNotificationUseCase;
-  private getNotificationsUseCase: GetNotificationsUseCase;
-  private deleteNotificationUseCase: DeleteNotificationUseCase;
-  private markNotificationAsReadUseCase: MarkNotificationAsReadUseCase;
-  private deleteAllNotificationsUseCase: DeleteAllNotificationsUseCase;
+  private notificationUseCase: INotificationUseCase;
 
   constructor(container: Container) {
-    this.sendNotificationUseCase = container.get('SendNotificationUseCase');
-    this.getNotificationsUseCase = container.get('GetNotificationsUseCase');
-    this.deleteNotificationUseCase = container.get('DeleteNotificationUseCase');
-    this.markNotificationAsReadUseCase = container.get('MarkNotificationAsReadUseCase');
-    this.deleteAllNotificationsUseCase = container.get('DeleteAllNotificationsUseCase');
+    this.notificationUseCase = container.get<INotificationUseCase>('INotificationUseCase');
   }
 
   async sendNotification(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
@@ -33,7 +21,7 @@ export class NotificationController {
         throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const { userId: targetUserId, type, message } = req.body;
-      const notification = await this.sendNotificationUseCase.execute({
+      const notification = await this.notificationUseCase.sendNotification({
         userId: targetUserId,
         type,
         message,
@@ -51,7 +39,7 @@ export class NotificationController {
         throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const params = req.query as QueryParams;
-      const notifications = await this.getNotificationsUseCase.execute(userId, params);
+      const notifications = await this.notificationUseCase.getNotifications(userId, params);
       res.status(HttpStatusCode.OK).json(notifications);
     } catch (error) {
       next(error);
@@ -65,7 +53,7 @@ export class NotificationController {
         throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const { notificationId } = req.params;
-      await this.deleteNotificationUseCase.execute(notificationId, userId);
+      await this.notificationUseCase.deleteNotification(notificationId, userId);
       res.status(HttpStatusCode.NO_CONTENT).send();
     } catch (error) {
       next(error);
@@ -79,7 +67,7 @@ export class NotificationController {
         throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const { notificationId } = req.params;
-      await this.markNotificationAsReadUseCase.execute(notificationId, userId);
+      await this.notificationUseCase.markNotificationAsRead(notificationId, userId);
       res.status(HttpStatusCode.OK).send();
     } catch (error) {
       next(error);
@@ -92,7 +80,7 @@ export class NotificationController {
       if (!userId) {
         throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
-      await this.deleteAllNotificationsUseCase.execute(userId);
+      await this.notificationUseCase.deleteAllNotifications(userId);
       res.status(HttpStatusCode.NO_CONTENT).send();
     } catch (error) {
       next(error);

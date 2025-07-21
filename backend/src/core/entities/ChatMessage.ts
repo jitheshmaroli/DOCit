@@ -8,6 +8,7 @@ export interface ChatMessage {
   isDeleted?: boolean;
   deletedBy?: [string];
   unreadBy?: [string];
+  isRead?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
   profilePicture?: string;

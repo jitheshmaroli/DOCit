@@ -33,5 +33,6 @@ router.post('/refresh-token', sharedAuthController.refreshToken.bind(sharedAuthC
 router.post('/forgot-password', sharedAuthController.forgotPassword.bind(sharedAuthController));
 router.post('/reset-password', sharedAuthController.resetPassword.bind(sharedAuthController));
 router.post('/verify-signup-otp', sharedAuthController.verifySignUpOTP.bind(sharedAuthController));
+router.post('/resend-signup-otp', sharedAuthController.resendSignupOTP.bind(sharedAuthController));
 
 export default router;

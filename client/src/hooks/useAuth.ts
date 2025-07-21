@@ -12,6 +12,7 @@ import {
   forgotPasswordThunk,
   resetPasswordThunk,
   checkAuthThunk,
+  resendSignupOTPThunk,
 } from '../redux/thunks/authThunks';
 import {
   resetAuthState,
@@ -35,6 +36,7 @@ interface AuthHook {
   signUpPatient: (payload: SignUpPayload) => Promise<any>;
   signUpDoctor: (payload: SignUpPayload) => Promise<any>;
   verifySignUpOtp: (payload: VerifyOtpPayload) => Promise<any>;
+  resendSignupOTP: (email: string, role: string) => Promise<any>;
   login: (
     payload: LoginPayload,
     options?: { onSuccess?: () => void; onError?: (error: string) => void }
@@ -76,6 +78,10 @@ const useAuth = (): AuthHook => {
 
     verifySignUpOtp: async (payload: VerifyOtpPayload) => {
       const result = await dispatch(verifySignUpOtpThunk(payload));
+      return result;
+    },
+    resendSignupOTP: async (email: string, role: string) => {
+      const result = await dispatch(resendSignupOTPThunk({ email, role }));
       return result;
     },
 
