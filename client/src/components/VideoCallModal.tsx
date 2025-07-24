@@ -143,6 +143,7 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
         audioContextRef.current.close();
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, isCaller, appointmentId, receiverId, userId, emit]);
 
   useEffect(() => {
@@ -184,6 +185,7 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
       socket.off('callEnded');
       socket.off('handRaise');
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socket, peer, appointmentId, handleClose, isOpen, userId]);
 
   const handleAcceptCall = () => {

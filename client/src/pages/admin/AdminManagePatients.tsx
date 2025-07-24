@@ -76,9 +76,7 @@ const AdminManagePatients: React.FC = () => {
     onConfirm: () => {},
   });
   const inputRef = useRef<HTMLInputElement>(null);
-  const date = new Date();
   useEffect(() => {
-    console.log('listing patients', date.getSeconds());
     if (user?.role === 'admin') {
       const [sortBy, sortOrder] = sortFilter.split(':') as [
         string,
