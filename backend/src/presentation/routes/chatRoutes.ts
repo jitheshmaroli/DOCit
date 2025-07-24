@@ -4,13 +4,14 @@ import { ChatController } from '../controllers/chat/ChatController';
 import { authMiddleware } from '../middlewares/authMiddleware';
 import { roleMiddleware } from '../middlewares/roleMiddleware';
 import multer from 'multer';
+import { UserRole } from '../../types';
 
 const router = express.Router();
 const container = Container.getInstance();
 const chatController = new ChatController(container);
 const upload = multer({ dest: 'uploads/' });
 
-const chatAuth = [authMiddleware(container), roleMiddleware(['patient', 'doctor'])];
+const chatAuth = [authMiddleware(container), roleMiddleware([UserRole.Patient, UserRole.Doctor])];
 
 router.post('/', chatAuth, chatController.sendMessage.bind(chatController));
 router.post('/attachment', chatAuth, upload.single('file'), chatController.sendAttachment.bind(chatController));

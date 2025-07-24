@@ -3,7 +3,7 @@ import { IEmailService } from '../../core/interfaces/services/IEmailService';
 import * as nodemailer from 'nodemailer';
 
 export class EmailService implements IEmailService {
-  private transporter;
+  private _transporter;
 
   constructor() {
     const emailUser = env.EMAIL_USER?.trim();
@@ -13,7 +13,7 @@ export class EmailService implements IEmailService {
       throw new Error('Missing or invalid EMAIL_USER or EMAIL_PASS environment variables');
     }
 
-    this.transporter = nodemailer.createTransport({
+    this._transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
         user: emailUser,
@@ -21,14 +21,14 @@ export class EmailService implements IEmailService {
       },
     });
 
-    this.transporter.verify((error) => {
+    this._transporter.verify((error) => {
       if (error) console.error('SMTP Config Error:', error);
       else console.log('SMTP Server is ready to send emails');
     });
   }
 
   async sendEmail(to: string, subject: string, text: string): Promise<void> {
-    await this.transporter.sendMail({
+    await this._transporter.sendMail({
       from: env.EMAIL_USER,
       to,
       subject,

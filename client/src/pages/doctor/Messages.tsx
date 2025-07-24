@@ -17,15 +17,15 @@ import {
   Message,
   MessageThread,
   InboxThreadResponse,
+  ChatMessageResponse,
 } from '../../types/messageTypes';
 import { useSocket } from '../../hooks/useSocket';
+import ROUTES from '../../constants/routeConstants';
 
 const Messages = () => {
   const { user } = useAppSelector((state) => state.auth);
   const [threads, setThreads] = useState<MessageThread[]>([]);
-  const [selectedThread, setSelectedThread] = useState<MessageThread | null>(
-    null
-  );
+  const [selectedThread, setSelectedThread] = useState<MessageThread | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [newMessagesCount, setNewMessagesCount] = useState(0);
@@ -35,6 +35,32 @@ const Messages = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { connect, registerHandlers } = useSocket();
+
+  // Move isAtBottom and scrollToBottom before useEffect hooks
+  const isAtBottom = useCallback(() => {
+    if (!chatContainerRef.current) return true;
+    const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
+    return scrollTop + clientHeight >= scrollHeight - 20;
+  }, []);
+
+  const scrollToBottom = () => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTo({
+        top: chatContainerRef.current.scrollHeight,
+        behavior: 'smooth',
+      });
+    }
+    setNewMessagesCount(0);
+    setThreads((prev) =>
+      prev.map((thread) =>
+        thread.receiverId === selectedThread?.receiverId
+          ? { ...thread, unreadCount: 0 }
+          : thread
+      )
+    );
+    setSelectedThread((prev) => (prev ? { ...prev, unreadCount: 0 } : prev));
+    inputRef.current?.focus();
+  };
 
   useEffect(() => {
     if (!user?._id) return;
@@ -53,10 +79,7 @@ const Messages = () => {
           partnerProfilePicture = partner.profilePicture;
           partnerRole = partner.role;
         } catch (error) {
-          console.error(
-            `Failed to fetch details for user ${partnerId}:`,
-            error
-          );
+          console.error(`Failed to fetch details for user ${partnerId}:`, error);
         }
 
         const newMessageObj: Message = {
@@ -85,10 +108,7 @@ const Messages = () => {
               senderName: partnerName,
               partnerProfilePicture,
               role: partnerRole,
-              messages: [
-                ...updatedThreads[threadIndex].messages,
-                newMessageObj,
-              ],
+              messages: [...updatedThreads[threadIndex].messages, newMessageObj],
               createdAt: message.createdAt,
               latestMessage: {
                 _id: message._id,
@@ -102,8 +122,7 @@ const Messages = () => {
             };
             return updatedThreads.sort(
               (a, b) =>
-                new Date(b.createdAt).getTime() -
-                new Date(a.createdAt).getTime()
+                new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
             );
           }
           const newThread: MessageThread = {
@@ -179,7 +198,9 @@ const Messages = () => {
       },
       onUserStatusUpdate: (status) => {
         console.log(
-          `User status updated: ${status.userId} is ${status.isOnline ? 'online' : 'offline'}`
+          `User status updated: ${status.userId} is ${
+            status.isOnline ? 'online' : 'offline'
+          }`
         );
         setThreads((prev) =>
           prev.map((thread) =>
@@ -215,6 +236,8 @@ const Messages = () => {
     registerHandlers,
     navigate,
     selectedThread?.receiverId,
+    selectedThread?.id,
+    isAtBottom,
   ]);
 
   const { sendMessage } = useSendMessage();
@@ -326,11 +349,11 @@ const Messages = () => {
               );
             });
             setSelectedThread(newThread);
-            navigate('/doctor/messages', { replace: true });
+            navigate(ROUTES.DOCTOR.MESSAGES, { replace: true });
           } catch (error) {
             console.error('Failed to create new thread:', error);
             toast.error('Failed to open chat');
-            navigate('/doctor/messages', { replace: true });
+            navigate(ROUTES.DOCTOR.MESSAGES, { replace: true });
           }
         };
         createNewThread();
@@ -343,7 +366,7 @@ const Messages = () => {
       if (!selectedThread?.receiverId || !user?._id) return;
       try {
         const messages = await fetchMessages(selectedThread.receiverId);
-        const formattedMessages = messages.map((msg: Message) => ({
+        const formattedMessages = messages.map((msg: ChatMessageResponse) => ({
           _id: msg._id,
           message: msg.message,
           senderId: msg.senderId,
@@ -386,7 +409,7 @@ const Messages = () => {
       }
     };
     loadMessages();
-  }, [selectedThread?.receiverId, user?._id]);
+  }, [selectedThread?.receiverId, user?._id, isAtBottom]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -516,31 +539,6 @@ const Messages = () => {
       console.error('Failed to delete messages:', error);
       toast.error('Failed to delete messages');
     }
-  };
-
-  const isAtBottom = useCallback(() => {
-    if (!chatContainerRef.current) return true;
-    const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
-    return scrollTop + clientHeight >= scrollHeight - 20;
-  }, []);
-
-  const scrollToBottom = () => {
-    if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTo({
-        top: chatContainerRef.current.scrollHeight,
-        behavior: 'smooth',
-      });
-    }
-    setNewMessagesCount(0);
-    setThreads((prev) =>
-      prev.map((thread) =>
-        thread.receiverId === selectedThread?.receiverId
-          ? { ...thread, unreadCount: 0 }
-          : thread
-      )
-    );
-    setSelectedThread((prev) => (prev ? { ...prev, unreadCount: 0 } : prev));
-    inputRef.current?.focus();
   };
 
   return (

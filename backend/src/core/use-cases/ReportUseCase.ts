@@ -23,11 +23,11 @@ import { Patient } from '../entities/Patient';
 
 export class ReportUseCase implements IReportUseCase {
   constructor(
-    private subscriptionPlanRepository: ISubscriptionPlanRepository,
-    private patientSubscriptionRepository: IPatientSubscriptionRepository,
-    private appointmentRepository: IAppointmentRepository,
-    private doctorRepository: IDoctorRepository,
-    private patientRepository: IPatientRepository
+    private _subscriptionPlanRepository: ISubscriptionPlanRepository,
+    private _patientSubscriptionRepository: IPatientSubscriptionRepository,
+    private _appointmentRepository: IAppointmentRepository,
+    private _doctorRepository: IDoctorRepository,
+    private _patientRepository: IPatientRepository
   ) {}
 
   async getAdminReports(filter: {
@@ -44,13 +44,13 @@ export class ReportUseCase implements IReportUseCase {
     const normalizedStartDate = startDate ? DateUtils.startOfDayUTC(startDate) : undefined;
     const normalizedEndDate = endDate ? DateUtils.endOfDayUTC(endDate) : undefined;
 
-    const subscriptions = await this.patientSubscriptionRepository.findActiveSubscriptions();
-    const appointments = await this.appointmentRepository.findAllWithQuery({});
+    const subscriptions = await this._patientSubscriptionRepository.findActiveSubscriptions();
+    const appointments = await this._appointmentRepository.findAllWithQuery({});
 
     const reportData: ReportData = {};
 
     if (type === 'daily') {
-      const dailyData = this.aggregateDailyData(
+      const dailyData = this._aggregateDailyData(
         subscriptions,
         appointments.data,
         normalizedStartDate,
@@ -58,7 +58,7 @@ export class ReportUseCase implements IReportUseCase {
       );
       reportData.daily = dailyData;
     } else if (type === 'monthly') {
-      const monthlyData = this.aggregateMonthlyData(
+      const monthlyData = this._aggregateMonthlyData(
         subscriptions,
         appointments.data,
         normalizedStartDate,
@@ -66,7 +66,7 @@ export class ReportUseCase implements IReportUseCase {
       );
       reportData.monthly = monthlyData;
     } else if (type === 'yearly') {
-      const yearlyData = this.aggregateYearlyData(
+      const yearlyData = this._aggregateYearlyData(
         subscriptions,
         appointments.data,
         normalizedStartDate,
@@ -92,7 +92,7 @@ export class ReportUseCase implements IReportUseCase {
       throw new ValidationError('Report type is required');
     }
 
-    const doctor = await this.doctorRepository.findById(doctorId);
+    const doctor = await this._doctorRepository.findById(doctorId);
     if (!doctor) {
       logger.error(`Doctor not found: ${doctorId}`);
       throw new ValidationError('Doctor not found');
@@ -102,22 +102,22 @@ export class ReportUseCase implements IReportUseCase {
     const normalizedStartDate = startDate ? DateUtils.startOfDayUTC(startDate) : undefined;
     const normalizedEndDate = endDate ? DateUtils.endOfDayUTC(endDate) : undefined;
 
-    const subscriptions = await this.patientSubscriptionRepository.findActiveSubscriptions();
+    const subscriptions = await this._patientSubscriptionRepository.findActiveSubscriptions();
     const doctorSubscriptions = await Promise.all(
       subscriptions.map(async (sub) => {
         const planId = typeof sub.planId === 'string' ? sub.planId : sub.planId?._id?.toString();
         if (!planId) return false;
-        const plan = await this.subscriptionPlanRepository.findById(planId);
+        const plan = await this._subscriptionPlanRepository.findById(planId);
         return plan?.doctorId === doctorId ? sub : null;
       })
     ).then((results) => results.filter((sub): sub is PatientSubscription => sub !== null));
 
-    const appointments = await this.appointmentRepository.findByDoctor(doctorId);
+    const appointments = await this._appointmentRepository.findByDoctor(doctorId);
 
     const reportData: ReportData = {};
 
     if (type === 'daily') {
-      const dailyData = this.aggregateDailyData(
+      const dailyData = this._aggregateDailyData(
         doctorSubscriptions,
         appointments,
         normalizedStartDate,
@@ -125,7 +125,7 @@ export class ReportUseCase implements IReportUseCase {
       );
       reportData.daily = dailyData;
     } else if (type === 'monthly') {
-      const monthlyData = this.aggregateMonthlyData(
+      const monthlyData = this._aggregateMonthlyData(
         doctorSubscriptions,
         appointments,
         normalizedStartDate,
@@ -133,7 +133,7 @@ export class ReportUseCase implements IReportUseCase {
       );
       reportData.monthly = monthlyData;
     } else if (type === 'yearly') {
-      const yearlyData = this.aggregateYearlyData(
+      const yearlyData = this._aggregateYearlyData(
         doctorSubscriptions,
         appointments,
         normalizedStartDate,
@@ -147,11 +147,11 @@ export class ReportUseCase implements IReportUseCase {
 
   async getAdminDashboardStats(): Promise<AdminDashboardStats> {
     const [plans, subscriptions, appointments, doctors, patients] = await Promise.all([
-      this.subscriptionPlanRepository.findAllWithQuery({}),
-      this.patientSubscriptionRepository.findActiveSubscriptions(),
-      this.appointmentRepository.findAllWithQuery({}),
-      this.doctorRepository.findAllWithQuery({}),
-      this.patientRepository.findAllWithQuery({}),
+      this._subscriptionPlanRepository.findAllWithQuery({}),
+      this._patientSubscriptionRepository.findActiveSubscriptions(),
+      this._appointmentRepository.findAllWithQuery({}),
+      this._doctorRepository.findAllWithQuery({}),
+      this._patientRepository.findAllWithQuery({}),
     ]);
 
     logger.debug('Fetched data counts:', {
@@ -301,16 +301,16 @@ export class ReportUseCase implements IReportUseCase {
       throw new ValidationError('Doctor ID is required');
     }
 
-    const doctor = await this.doctorRepository.findById(doctorId);
+    const doctor = await this._doctorRepository.findById(doctorId);
     if (!doctor) {
       logger.error(`Doctor not found: ${doctorId}`);
       throw new ValidationError('Doctor not found');
     }
 
-    const plans = await this.subscriptionPlanRepository.findApprovedByDoctor(doctorId);
+    const plans = await this._subscriptionPlanRepository.findApprovedByDoctor(doctorId);
     const activePlans = plans.filter((plan) => plan.status === 'approved').length;
 
-    const subscriptions = await this.patientSubscriptionRepository.findActiveSubscriptions();
+    const subscriptions = await this._patientSubscriptionRepository.findActiveSubscriptions();
     const doctorSubscriptions = subscriptions.filter((sub) => {
       const planId = typeof sub.planId === 'string' ? sub.planId : sub.planId?._id?.toString();
       const plan = plans.find((p) => p._id?.toString() === planId);
@@ -347,21 +347,11 @@ export class ReportUseCase implements IReportUseCase {
       })
     );
 
-    const appointments = await this.appointmentRepository.findByDoctor(doctorId);
+    const appointments = await this._appointmentRepository.findByDoctor(doctorId);
     const appointmentsThroughPlans = appointments.filter((appt: Appointment) => appt.isFreeBooking === false).length;
     const freeAppointments = appointments.filter((appt: Appointment) => appt.isFreeBooking === true).length;
 
     const totalRevenue = planWiseRevenue.reduce((sum, plan) => sum + plan.revenue, 0);
-
-    logger.debug('Processed doctor dashboard stats:', {
-      doctorId,
-      activePlans,
-      totalSubscribers,
-      appointmentsThroughPlans,
-      freeAppointments,
-      totalRevenue,
-      planWiseRevenue,
-    });
 
     return {
       activePlans,
@@ -373,7 +363,7 @@ export class ReportUseCase implements IReportUseCase {
     };
   }
 
-  private aggregateDailyData(
+  private _aggregateDailyData(
     subscriptions: PatientSubscription[],
     appointments: Appointment[],
     startDate?: Date,
@@ -410,7 +400,7 @@ export class ReportUseCase implements IReportUseCase {
     return dailyData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }
 
-  private aggregateMonthlyData(
+  private _aggregateMonthlyData(
     subscriptions: PatientSubscription[],
     appointments: Appointment[],
     startDate?: Date,
@@ -451,7 +441,7 @@ export class ReportUseCase implements IReportUseCase {
     return monthlyData.sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime());
   }
 
-  private aggregateYearlyData(
+  private _aggregateYearlyData(
     subscriptions: PatientSubscription[],
     appointments: Appointment[],
     startDate?: Date,

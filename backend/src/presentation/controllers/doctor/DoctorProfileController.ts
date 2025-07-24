@@ -9,18 +9,18 @@ import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { Experience } from '../../../core/entities/Doctor';
 
 export class DoctorProfileController {
-  private profileUseCase: IProfileUseCase;
-  private specialityUseCase: ISpecialityUseCase;
+  private _profileUseCase: IProfileUseCase;
+  private _specialityUseCase: ISpecialityUseCase;
 
   constructor(container: Container) {
-    this.profileUseCase = container.get<IProfileUseCase>('IProfileUseCase');
-    this.specialityUseCase = container.get<ISpecialityUseCase>('ISpecialityUseCase');
+    this._profileUseCase = container.get<IProfileUseCase>('IProfileUseCase');
+    this._specialityUseCase = container.get<ISpecialityUseCase>('ISpecialityUseCase');
   }
 
   async viewProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      const doctor = await this.profileUseCase.viewDoctorProfile(id);
+      const doctor = await this._profileUseCase.viewDoctorProfile(id);
       if (!doctor) {
         throw new ValidationError('Doctor not found');
       }
@@ -32,7 +32,7 @@ export class DoctorProfileController {
 
   async updateProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { id } = req.params;
+      const doctorId = req.params.id;
       const updates = { ...req.body };
 
       if (updates.qualifications) {
@@ -84,36 +84,30 @@ export class DoctorProfileController {
       }
 
       if (updates.speciality) {
-        const specialities = await this.specialityUseCase.getAllSpecialities();
+        const specialities = await this._specialityUseCase.getAllSpecialities();
         const validSpeciality = specialities.find((s) => s.name === updates.speciality);
         if (!validSpeciality) {
-          logger.error(`Invalid speciality: ${updates.speciality}`);
           throw new ValidationError(`Speciality "${updates.speciality}" not found`);
         }
         updates.speciality = validSpeciality._id;
       }
 
       if (updates.phone && typeof updates.phone !== 'string') {
-        logger.error('Invalid phone format:', updates.phone);
         throw new ValidationError('Phone must be a string');
       }
       if (updates.gender && !['Male', 'Female', 'Other'].includes(updates.gender)) {
-        logger.error('Invalid gender:', updates.gender);
         throw new ValidationError('Gender must be "Male", "Female", or "Other"');
       }
       if (updates.location && typeof updates.location !== 'string') {
-        logger.error('Invalid location format:', updates.location);
         throw new ValidationError('Location must be a string');
       }
       if (updates.allowFreeBooking !== undefined && typeof updates.allowFreeBooking !== 'boolean') {
-        logger.error('Invalid allowFreeBooking format:', updates.allowFreeBooking);
         throw new ValidationError('allowFreeBooking must be a boolean');
       }
 
-      const doctor = await this.profileUseCase.updateDoctorProfile(id, updates, req.file);
+      const doctor = await this._profileUseCase.updateDoctorProfile(doctorId, updates, req.file);
 
       if (!doctor) {
-        logger.error(`Doctor not found or update failed for id: ${id}`);
         throw new ValidationError('Doctor not found or invalid update data');
       }
 

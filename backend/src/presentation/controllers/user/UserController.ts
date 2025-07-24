@@ -7,21 +7,21 @@ import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 
 export class UserController {
-  private userUseCase: IUserUseCase;
+  private _userUseCase: IUserUseCase;
 
   constructor(container: Container) {
-    this.userUseCase = container.get<IUserUseCase>('IUserUseCase');
+    this._userUseCase = container.get<IUserUseCase>('IUserUseCase');
   }
 
   async getCurrentUser(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { id, role } = req.user || {};
-      if (!id || !role) throw new AuthenticationError(ResponseMessages.BAD_REQUEST);
-      if (typeof id !== 'string') {
-        console.warn('Invalid id type in req.user:', id);
+      const userId = req.user?.id;
+      const role = req.user?.role;
+      if (!userId || !role) throw new AuthenticationError(ResponseMessages.BAD_REQUEST);
+      if (typeof userId !== 'string') {
         throw new AuthenticationError(ResponseMessages.BAD_REQUEST);
       }
-      const user = await this.userUseCase.getCurrentUser(id, role);
+      const user = await this._userUseCase.getCurrentUser(userId, role);
       if (!user) throw new AuthenticationError(ResponseMessages.USER_NOT_FOUND);
       res.status(HttpStatusCode.OK).json(user);
     } catch (error) {
@@ -35,7 +35,7 @@ export class UserController {
       if (!userId || typeof userId !== 'string') {
         throw new AuthenticationError(ResponseMessages.BAD_REQUEST);
       }
-      const user = await this.userUseCase.getUser(userId);
+      const user = await this._userUseCase.getUser(userId);
       if (!user) throw new AuthenticationError(ResponseMessages.USER_NOT_FOUND);
       res.status(HttpStatusCode.OK).json(user);
     } catch (error) {

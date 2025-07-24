@@ -1,12 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
+import { UserRole } from '../../types';
 
 interface AuthenticatedRequest extends Request {
   user?: {
-    role: 'patient' | 'doctor' | 'admin';
+    role: UserRole;
   };
 }
 
-export const roleMiddleware = (roles: Array<'patient' | 'doctor' | 'admin'>) => {
+export const roleMiddleware = (roles: Array<UserRole>) => {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
     const userRole = req.user?.role;
     if (!userRole || !roles.includes(userRole)) {

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { AxiosError } from 'axios';
 import api from './api';
 import {
@@ -8,6 +7,7 @@ import {
   SubscriptionPlan,
   Speciality,
 } from '../types/authTypes';
+import { ROUTES } from '../constants/routeConstants';
 
 interface ApiError {
   message: string;
@@ -91,7 +91,7 @@ export const listDoctors = async (
 ): Promise<PaginatedResponse<Doctor>> => {
   try {
     const response = await api.get<PaginatedResponse<Doctor>>(
-      '/api/admin/doctors',
+      ROUTES.API.ADMIN.DOCTORS,
       { params }
     );
     return response.data;
@@ -103,9 +103,9 @@ export const listDoctors = async (
   }
 };
 
-export const createDoctor = async (doctor: any): Promise<Doctor> => {
+export const createDoctor = async (doctor: Partial<Doctor>): Promise<Doctor> => {
   try {
-    const response = await api.post<Doctor>('/api/admin/doctors', doctor);
+    const response = await api.post<Doctor>(ROUTES.API.ADMIN.DOCTORS, doctor);
     return response.data;
   } catch (error) {
     const axiosError = error as AxiosError<ApiError>;
@@ -117,11 +117,11 @@ export const createDoctor = async (doctor: any): Promise<Doctor> => {
 
 export const updateDoctor = async (
   id: string,
-  updates: any
+  updates: Partial<Doctor>
 ): Promise<Doctor> => {
   try {
     const response = await api.patch<Doctor>(
-      `/api/admin/doctors/${id}`,
+      ROUTES.API.ADMIN.DOCTOR_BY_ID.replace(':id', id),
       updates
     );
     return response.data;
@@ -135,7 +135,7 @@ export const updateDoctor = async (
 
 export const deleteDoctor = async (id: string): Promise<string> => {
   try {
-    await api.delete(`/api/admin/doctors/${id}`);
+    await api.delete(ROUTES.API.ADMIN.DOCTOR_BY_ID.replace(':id', id));
     return id;
   } catch (error) {
     const axiosError = error as AxiosError<ApiError>;
@@ -150,9 +150,10 @@ export const blockDoctor = async (
   isBlocked: boolean
 ): Promise<Doctor> => {
   try {
-    const response = await api.patch<Doctor>(`/api/admin/doctors/${id}/block`, {
-      isBlocked,
-    });
+    const response = await api.patch<Doctor>(
+      ROUTES.API.ADMIN.BLOCK_DOCTOR.replace(':id', id),
+      { isBlocked }
+    );
     return response.data;
   } catch (error) {
     const axiosError = error as AxiosError<ApiError>;
@@ -164,7 +165,9 @@ export const blockDoctor = async (
 
 export const verifyDoctor = async (id: string): Promise<Doctor> => {
   try {
-    const response = await api.patch<Doctor>(`/api/admin/verify-doctor/${id}`);
+    const response = await api.patch<Doctor>(
+      ROUTES.API.ADMIN.VERIFY_DOCTOR.replace(':id', id)
+    );
     return response.data;
   } catch (error) {
     const axiosError = error as AxiosError<ApiError>;
@@ -180,7 +183,7 @@ export const listPatients = async (
 ): Promise<PaginatedResponse<Patient>> => {
   try {
     const response = await api.get<PaginatedResponse<Patient>>(
-      '/api/admin/patients',
+      ROUTES.API.ADMIN.PATIENTS,
       { params }
     );
     return response.data;
@@ -192,9 +195,9 @@ export const listPatients = async (
   }
 };
 
-export const createPatient = async (patient: any): Promise<Patient> => {
+export const createPatient = async (patient: Partial<Patient>): Promise<Patient> => {
   try {
-    const response = await api.post<Patient>('/api/admin/patients', patient);
+    const response = await api.post<Patient>(ROUTES.API.ADMIN.PATIENTS, patient);
     return response.data;
   } catch (error) {
     const axiosError = error as AxiosError<ApiError>;
@@ -206,11 +209,11 @@ export const createPatient = async (patient: any): Promise<Patient> => {
 
 export const updatePatient = async (
   id: string,
-  updates: any
+  updates: Partial<Patient>
 ): Promise<Patient> => {
   try {
     const response = await api.put<Patient>(
-      `/api/admin/patients/${id}`,
+      ROUTES.API.ADMIN.PATIENT_BY_ID.replace(':id', id),
       updates
     );
     return response.data;
@@ -224,7 +227,7 @@ export const updatePatient = async (
 
 export const deletePatient = async (id: string): Promise<string> => {
   try {
-    await api.delete(`/api/admin/patients/${id}`);
+    await api.delete(ROUTES.API.ADMIN.PATIENT_BY_ID.replace(':id', id));
     return id;
   } catch (error) {
     const axiosError = error as AxiosError<ApiError>;
@@ -240,7 +243,7 @@ export const blockPatient = async (
 ): Promise<Patient> => {
   try {
     const response = await api.patch<Patient>(
-      `/api/admin/patients/${id}/block`,
+      ROUTES.API.ADMIN.BLOCK_PATIENT.replace(':id', id),
       { isBlocked }
     );
     return response.data;
@@ -258,7 +261,7 @@ export const getAllAppointments = async (
 ): Promise<PaginatedResponse<Appointment>> => {
   try {
     const response = await api.get<PaginatedResponse<Appointment>>(
-      '/api/admin/appointments',
+      ROUTES.API.ADMIN.APPOINTMENTS,
       { params }
     );
     return response.data;
@@ -272,7 +275,7 @@ export const getAllAppointments = async (
 
 export const cancelAppointment = async (id: string): Promise<string> => {
   try {
-    await api.patch(`/api/admin/appointments/${id}/cancel`);
+    await api.patch(ROUTES.API.ADMIN.CANCEL_APPOINTMENT.replace(':id', id));
     return id;
   } catch (error) {
     const axiosError = error as AxiosError<ApiError>;
@@ -288,7 +291,7 @@ export const getAllPlans = async (
 ): Promise<{ plans: SubscriptionPlan[]; totalPages: number }> => {
   try {
     const response = await api.get<PaginatedResponse<SubscriptionPlan>>(
-      '/api/admin/subscription-plans',
+      ROUTES.API.ADMIN.SUBSCRIPTION_PLANS,
       { params }
     );
     return {
@@ -305,7 +308,7 @@ export const getAllPlans = async (
 
 export const approvePlan = async (id: string): Promise<void> => {
   try {
-    await api.put(`/api/admin/subscription-plans/${id}/approve`);
+    await api.put(ROUTES.API.ADMIN.APPROVE_PLAN.replace(':id', id));
   } catch (error) {
     const axiosError = error as AxiosError<ApiError>;
     throw new Error(
@@ -316,7 +319,7 @@ export const approvePlan = async (id: string): Promise<void> => {
 
 export const rejectPlan = async (id: string): Promise<void> => {
   try {
-    await api.put(`/api/admin/subscription-plans/${id}/reject`);
+    await api.put(ROUTES.API.ADMIN.REJECT_PLAN.replace(':id', id));
   } catch (error) {
     const axiosError = error as AxiosError<ApiError>;
     throw new Error(
@@ -327,7 +330,7 @@ export const rejectPlan = async (id: string): Promise<void> => {
 
 export const deletePlan = async (id: string): Promise<string> => {
   try {
-    await api.delete(`/api/admin/subscription-plans/${id}`);
+    await api.delete(ROUTES.API.ADMIN.DELETE_PLAN.replace(':id', id));
     return id;
   } catch (error) {
     const axiosError = error as AxiosError<ApiError>;
@@ -343,7 +346,7 @@ export const getAllSpecialities = async (
 ): Promise<{ specialities: Speciality[]; totalPages: number }> => {
   try {
     const response = await api.get<PaginatedResponse<Speciality>>(
-      '/api/admin/specialities',
+      ROUTES.API.ADMIN.SPECIALITIES,
       { params }
     );
     return {
@@ -360,7 +363,7 @@ export const getAllSpecialities = async (
 
 export const createSpeciality = async (name: string): Promise<Speciality> => {
   try {
-    const response = await api.post<Speciality>('/api/admin/specialities', {
+    const response = await api.post<Speciality>(ROUTES.API.ADMIN.SPECIALITIES, {
       name,
     });
     return response.data;
@@ -378,7 +381,7 @@ export const updateSpeciality = async (
 ): Promise<Speciality> => {
   try {
     const response = await api.put<Speciality>(
-      `/api/admin/specialities/${id}`,
+      ROUTES.API.ADMIN.SPECIALITY_BY_ID.replace(':id', id),
       { name }
     );
     return response.data;
@@ -392,7 +395,7 @@ export const updateSpeciality = async (
 
 export const deleteSpeciality = async (id: string): Promise<string> => {
   try {
-    await api.delete(`/api/admin/specialities/${id}`);
+    await api.delete(ROUTES.API.ADMIN.SPECIALITY_BY_ID.replace(':id', id));
     return id;
   } catch (error) {
     const axiosError = error as AxiosError<ApiError>;
@@ -406,7 +409,7 @@ export const deleteSpeciality = async (id: string): Promise<string> => {
 export const getDashboardStats = async (): Promise<DashboardStats> => {
   try {
     const response = await api.get<DashboardStats>(
-      '/api/admin/dashboard-stats'
+      ROUTES.API.ADMIN.DASHBOARD_STATS
     );
     return response.data;
   } catch (error) {
@@ -420,7 +423,7 @@ export const getDashboardStats = async (): Promise<DashboardStats> => {
 // Reports
 export const getReports = async (filter: ReportFilter): Promise<ReportData> => {
   try {
-    const response = await api.post<ReportData>('/api/admin/reports', filter);
+    const response = await api.post<ReportData>(ROUTES.API.ADMIN.REPORTS, filter);
     return response.data;
   } catch (error) {
     const axiosError = error as AxiosError<ApiError>;

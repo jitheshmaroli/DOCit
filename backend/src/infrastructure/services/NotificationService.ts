@@ -6,20 +6,20 @@ import { SocketService } from './SocketService';
 
 export class NotificationService implements INotificationService {
   constructor(
-    private notificationRepository: INotificationRepository,
-    private socketService: SocketService
+    private _notificationRepository: INotificationRepository,
+    private _socketService: SocketService
   ) {}
 
   async sendNotification(notification: Notification): Promise<void> {
-    const savedNotification = await this.notificationRepository.create(notification);
-    await this.socketService.sendNotificationToUser(notification.userId, savedNotification);
+    const savedNotification = await this._notificationRepository.create(notification);
+    await this._socketService.sendNotificationToUser(notification.userId, savedNotification);
   }
 
   async getNotifications(userId: string, params: QueryParams): Promise<Notification[]> {
-    return this.notificationRepository.findByUserId(userId, params);
+    return this._notificationRepository.findByUserId(userId, params);
   }
 
   async deleteNotification(notificationId: string): Promise<void> {
-    await this.notificationRepository.delete(notificationId);
+    await this._notificationRepository.delete(notificationId);
   }
 }

@@ -4,6 +4,7 @@ import { AdminController } from '../controllers/admin/AdminController';
 import { AdminAuthController } from '../controllers/auth/AdminAuthController';
 import { authMiddleware } from '../middlewares/authMiddleware';
 import { roleMiddleware } from '../middlewares/roleMiddleware';
+import { UserRole } from '../../types';
 
 const router = express.Router();
 const container = Container.getInstance();
@@ -13,7 +14,7 @@ const adminController = new AdminController(container);
 const adminAuthController = new AdminAuthController(container);
 
 // Middleware
-const adminAuth = [authMiddleware(container), roleMiddleware(['admin'])];
+const adminAuth = [authMiddleware(container), roleMiddleware([UserRole.Admin])];
 
 // Dashboard routes
 router.get('/dashboard-stats', adminAuth, adminController.getDashboardStats.bind(adminController));

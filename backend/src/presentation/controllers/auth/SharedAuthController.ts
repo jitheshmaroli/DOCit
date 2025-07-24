@@ -10,10 +10,10 @@ import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 import { IAuthenticationUseCase } from '../../../core/interfaces/use-cases/IAuthenticationUseCase';
 
 export class SharedAuthController {
-  private authenticationUseCase: IAuthenticationUseCase;
+  private _authenticationUseCase: IAuthenticationUseCase;
 
   constructor(container: Container) {
-    this.authenticationUseCase = container.get<IAuthenticationUseCase>('IAuthenticationUseCase');
+    this._authenticationUseCase = container.get<IAuthenticationUseCase>('IAuthenticationUseCase');
   }
 
   async refreshToken(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
@@ -21,7 +21,7 @@ export class SharedAuthController {
       const refreshToken = req.cookies.refreshToken;
       if (!refreshToken) throw new AuthenticationError(ResponseMessages.INVALID_TOKEN);
       const { accessToken, refreshToken: newRefreshToken } =
-        await this.authenticationUseCase.refreshToken(refreshToken);
+        await this._authenticationUseCase.refreshToken(refreshToken);
       setTokensInCookies(res, accessToken, newRefreshToken);
       res.status(HttpStatusCode.OK).json({ message: ResponseMessages.SUCCESS });
     } catch (error) {
@@ -31,12 +31,12 @@ export class SharedAuthController {
 
   async logout(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { id, role } = req.user || {};
-      if (id && role) {
-        await this.authenticationUseCase.logout(id, role);
+      const userId = req.user?.id;
+      const userRole = req.user?.role;
+      if (userId && userRole) {
+        await this._authenticationUseCase.logout(userId, userRole);
       }
 
-      // Clear cookies regardless of user info
       res.clearCookie('accessToken', {
         httpOnly: true,
         secure: env.NODE_ENV === 'production',
@@ -58,7 +58,7 @@ export class SharedAuthController {
     try {
       const { email } = req.body;
       if (!email) throw new ValidationError(ResponseMessages.BAD_REQUEST);
-      await this.authenticationUseCase.forgotPassword(email);
+      await this._authenticationUseCase.forgotPassword(email);
       res.status(HttpStatusCode.OK).json({ message: ResponseMessages.OTP_SENT });
     } catch (error) {
       next(error);
@@ -70,7 +70,7 @@ export class SharedAuthController {
       const { email, otp, newPassword } = req.body;
       if (!email || !otp || !newPassword) throw new ValidationError(ResponseMessages.BAD_REQUEST);
       if (!validatePassword(newPassword)) throw new ValidationError(ResponseMessages.BAD_REQUEST);
-      await this.authenticationUseCase.resetPassword(email, otp, newPassword);
+      await this._authenticationUseCase.resetPassword(email, otp, newPassword);
       res.status(HttpStatusCode.OK).json({ message: ResponseMessages.PASSWORD_RESET });
     } catch (error) {
       next(error);
@@ -94,7 +94,7 @@ export class SharedAuthController {
         role,
       };
 
-      const { newEntity, accessToken, refreshToken } = await this.authenticationUseCase.verifySignUpOTP(
+      const { newEntity, accessToken, refreshToken } = await this._authenticationUseCase.verifySignUpOTP(
         email,
         otp,
         entity
@@ -125,7 +125,7 @@ export class SharedAuthController {
       if (!email || !role) {
         throw new ValidationError('Email and role are required');
       }
-      await this.authenticationUseCase.resendSignupOTP(email, role);
+      await this._authenticationUseCase.resendSignupOTP(email, role);
       res.status(HttpStatusCode.OK).json({ message: ResponseMessages.OTP_SENT });
     } catch (error) {
       next(error);

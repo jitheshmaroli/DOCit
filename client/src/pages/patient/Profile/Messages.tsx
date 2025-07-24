@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -16,8 +16,10 @@ import {
   Message,
   MessageThread,
   InboxThreadResponse,
+  ChatMessageResponse,
 } from '../../../types/messageTypes';
 import { useSocket } from '../../../hooks/useSocket';
+import ROUTES from '../../../constants/routeConstants';
 
 interface MessagesProps {
   patientId: string;
@@ -37,6 +39,31 @@ const Messages = ({ patientId }: MessagesProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { connect, registerHandlers } = useSocket();
+
+  const isAtBottom = useCallback(() => {
+    if (!chatContainerRef.current) return true;
+    const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
+    return scrollTop + clientHeight >= scrollHeight - 20;
+  }, []);
+
+  const scrollToBottom = () => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTo({
+        top: chatContainerRef.current.scrollHeight,
+        behavior: 'smooth',
+      });
+    }
+    setNewMessagesCount(0);
+    setThreads((prev) =>
+      prev.map((thread) =>
+        thread.receiverId === selectedThread?.receiverId
+          ? { ...thread, unreadCount: 0 }
+          : thread
+      )
+    );
+    setSelectedThread((prev) => (prev ? { ...prev, unreadCount: 0 } : prev));
+    inputRef.current?.focus();
+  };
 
   useEffect(() => {
     if (!patientId) return;
@@ -80,7 +107,7 @@ const Messages = ({ patientId }: MessagesProps) => {
                 (msg) => msg._id === newMessageObj._id
               )
             ) {
-              return prev; // Skip duplicate
+              return prev;
             }
             updatedThreads[threadIndex] = {
               ...updatedThreads[threadIndex],
@@ -124,7 +151,7 @@ const Messages = ({ patientId }: MessagesProps) => {
             },
             messages: [newMessageObj],
             unreadCount: 1,
-            isOnline: false, // Will be updated by socket
+            isOnline: false,
             lastSeen: null,
             role: partnerRole,
           };
@@ -138,7 +165,7 @@ const Messages = ({ patientId }: MessagesProps) => {
           setSelectedThread((prev) => {
             if (!prev) return prev;
             if (prev.messages.some((msg) => msg._id === newMessageObj._id)) {
-              return prev; // Skip duplicate
+              return prev;
             }
             return {
               ...prev,
@@ -176,7 +203,7 @@ const Messages = ({ patientId }: MessagesProps) => {
           error.message.includes('Authentication') ||
           error.message.includes('Invalid user role')
         ) {
-          navigate('/login');
+          navigate(ROUTES.PUBLIC.LOGIN);
         }
       },
       onUserStatusUpdate: (status) => {
@@ -209,14 +236,14 @@ const Messages = ({ patientId }: MessagesProps) => {
     });
 
     connect(patientId);
-
-    // Cleanup is handled by SocketContext
   }, [
     patientId,
     connect,
     registerHandlers,
     navigate,
     selectedThread?.receiverId,
+    selectedThread?.id,
+    isAtBottom,
   ]);
 
   const { sendMessage } = useSendMessage();
@@ -230,7 +257,7 @@ const Messages = ({ patientId }: MessagesProps) => {
           inboxThreads.map(async (thread: InboxThreadResponse) => {
             let senderName = thread.senderName || 'Unknown';
             let partnerProfilePicture: string | undefined;
-            let role: 'patient' | 'doctor' = 'doctor'; // Default to doctor
+            let role: 'patient' | 'doctor' = 'doctor';
             try {
               const partner = await fetchPartnerDetails(thread.receiverId);
               senderName = partner.name;
@@ -295,7 +322,7 @@ const Messages = ({ patientId }: MessagesProps) => {
             t.receiverId === threadId ? { ...t, unreadCount: 0 } : t
           )
         );
-        navigate('/patient/profile?tab=messages', { replace: true });
+        navigate(ROUTES.PATIENT.MESSAGES, { replace: true });
       } else {
         const createNewThread = async () => {
           try {
@@ -343,7 +370,7 @@ const Messages = ({ patientId }: MessagesProps) => {
       if (!selectedThread?.receiverId) return;
       try {
         const messages = await fetchMessages(selectedThread.receiverId);
-        const formattedMessages = messages.map((msg: Message) => ({
+        const formattedMessages = messages.map((msg: ChatMessageResponse) => ({
           _id: msg._id,
           message: msg.message,
           senderId: msg.senderId,
@@ -386,7 +413,7 @@ const Messages = ({ patientId }: MessagesProps) => {
       }
     };
     loadMessages();
-  }, [selectedThread?.receiverId, patientId]);
+  }, [selectedThread?.receiverId, patientId, isAtBottom]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -516,31 +543,6 @@ const Messages = ({ patientId }: MessagesProps) => {
       console.error('Failed to delete messages:', error);
       toast.error('Failed to delete messages');
     }
-  };
-
-  const isAtBottom = () => {
-    if (!chatContainerRef.current) return true;
-    const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
-    return scrollTop + clientHeight >= scrollHeight - 20;
-  };
-
-  const scrollToBottom = () => {
-    if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTo({
-        top: chatContainerRef.current.scrollHeight,
-        behavior: 'smooth',
-      });
-    }
-    setNewMessagesCount(0);
-    setThreads((prev) =>
-      prev.map((thread) =>
-        thread.receiverId === selectedThread?.receiverId
-          ? { ...thread, unreadCount: 0 }
-          : thread
-      )
-    );
-    setSelectedThread((prev) => (prev ? { ...prev, unreadCount: 0 } : prev));
-    inputRef.current?.focus();
   };
 
   return (

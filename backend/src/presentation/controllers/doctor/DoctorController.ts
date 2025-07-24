@@ -1,7 +1,6 @@
 import { Response, NextFunction } from 'express';
 import { Container } from '../../../infrastructure/di/container';
 import { NotFoundError, ValidationError } from '../../../utils/errors';
-import { IDoctorUseCase } from '../../../core/interfaces/use-cases/IDoctorUseCase';
 import { ISubscriptionPlanUseCase } from '../../../core/interfaces/use-cases/ISubscriptionPlanUseCase';
 import { ISpecialityUseCase } from '../../../core/interfaces/use-cases/ISpecialityUseCase';
 import { IReportUseCase } from '../../../core/interfaces/use-cases/IReportUseCase';
@@ -14,20 +13,18 @@ import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 import { IAvailabilityUseCase } from '../../../core/interfaces/use-cases/IAvailabilityUseCase';
 
 export class DoctorController {
-  private doctorUseCase: IDoctorUseCase;
-  private subscriptionPlanUseCase: ISubscriptionPlanUseCase;
-  private specialityUseCase: ISpecialityUseCase;
-  private reportUseCase: IReportUseCase;
-  private appointmentUseCase: IAppointmentUseCase;
-  private availabilityUseCase: IAvailabilityUseCase;
+  private _subscriptionPlanUseCase: ISubscriptionPlanUseCase;
+  private _specialityUseCase: ISpecialityUseCase;
+  private _reportUseCase: IReportUseCase;
+  private _appointmentUseCase: IAppointmentUseCase;
+  private _availabilityUseCase: IAvailabilityUseCase;
 
   constructor(container: Container) {
-    this.doctorUseCase = container.get<IDoctorUseCase>('IDoctorUseCase');
-    this.subscriptionPlanUseCase = container.get<ISubscriptionPlanUseCase>('ISubscriptionPlanUseCase');
-    this.specialityUseCase = container.get<ISpecialityUseCase>('ISpecialityUseCase');
-    this.reportUseCase = container.get<IReportUseCase>('IReportUseCase');
-    this.appointmentUseCase = container.get<IAppointmentUseCase>('IAppointmentUseCase');
-    this.availabilityUseCase = container.get<IAvailabilityUseCase>('IAvailabilityUseCase');
+    this._subscriptionPlanUseCase = container.get<ISubscriptionPlanUseCase>('ISubscriptionPlanUseCase');
+    this._specialityUseCase = container.get<ISpecialityUseCase>('ISpecialityUseCase');
+    this._reportUseCase = container.get<IReportUseCase>('IReportUseCase');
+    this._appointmentUseCase = container.get<IAppointmentUseCase>('IAppointmentUseCase');
+    this._availabilityUseCase = container.get<IAvailabilityUseCase>('IAvailabilityUseCase');
   }
 
   async setAvailability(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
@@ -45,7 +42,7 @@ export class DoctorController {
       }
       const utcDate = DateUtils.parseToUTC(date);
       const utcRecurringEndDate = recurringEndDate ? DateUtils.parseToUTC(recurringEndDate) : undefined;
-      const result = await this.availabilityUseCase.setAvailability(
+      const result = await this._availabilityUseCase.setAvailability(
         doctorId,
         utcDate,
         timeSlots,
@@ -75,7 +72,7 @@ export class DoctorController {
       }
       const utcStartDate = DateUtils.parseToUTC(startDate as string);
       const utcEndDate = DateUtils.parseToUTC(endDate as string);
-      const availability = await this.availabilityUseCase.getAvailability(doctorId, utcStartDate, utcEndDate);
+      const availability = await this._availabilityUseCase.getAvailability(doctorId, utcStartDate, utcEndDate);
       res.status(HttpStatusCode.OK).json(availability);
     } catch (error) {
       next(error);
@@ -92,7 +89,7 @@ export class DoctorController {
       if (!availabilityId || slotIndex === undefined) {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
-      const availability = await this.availabilityUseCase.removeSlot(availabilityId, slotIndex, doctorId);
+      const availability = await this._availabilityUseCase.removeSlot(availabilityId, slotIndex, doctorId);
       if (!availability) {
         res.status(HttpStatusCode.OK).json({
           message: ResponseMessages.PLAN_DELETED,
@@ -115,7 +112,7 @@ export class DoctorController {
       if (!availabilityId || slotIndex === undefined || !startTime || !endTime) {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
-      const availability = await this.availabilityUseCase.updateSlot(
+      const availability = await this._availabilityUseCase.updateSlot(
         availabilityId,
         slotIndex,
         { startTime, endTime },
@@ -136,7 +133,7 @@ export class DoctorController {
       }
       const { name, description, price, validityDays, appointmentCount } = req.body;
 
-      const plan = await this.subscriptionPlanUseCase.createSubscriptionPlan(doctorId, {
+      const plan = await this._subscriptionPlanUseCase.createSubscriptionPlan(doctorId, {
         name,
         description,
         price,
@@ -162,7 +159,7 @@ export class DoctorController {
         limit: parseInt(String(limit)),
       };
 
-      const result = await this.appointmentUseCase.getDoctorAppointments(doctorId, queryParams);
+      const result = await this._appointmentUseCase.getDoctorAppointments(doctorId, queryParams);
       res.status(HttpStatusCode.OK).json({
         appointments: result.data,
         totalItems: result.totalItems,
@@ -183,7 +180,7 @@ export class DoctorController {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
 
-      const appointment = await this.appointmentUseCase.getSingleAppointment(doctorId, appointmentId);
+      const appointment = await this._appointmentUseCase.getSingleAppointment(doctorId, appointmentId);
       res.status(HttpStatusCode.OK).json(appointment);
     } catch (error) {
       next(error);
@@ -203,7 +200,7 @@ export class DoctorController {
         limit: parseInt(String(limit)),
       };
 
-      const result = await this.appointmentUseCase.getDoctorAndPatientAppointmentsWithQuery(
+      const result = await this._appointmentUseCase.getDoctorAndPatientAppointmentsWithQuery(
         doctorId,
         patientId,
         queryParams
@@ -223,7 +220,7 @@ export class DoctorController {
       if (!doctorId) {
         throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
-      const plans = await this.subscriptionPlanUseCase.getDoctorSubscriptionPlans(doctorId);
+      const plans = await this._subscriptionPlanUseCase.getDoctorSubscriptionPlans(doctorId);
       res.status(HttpStatusCode.OK).json(plans);
     } catch (error) {
       next(error);
@@ -239,7 +236,7 @@ export class DoctorController {
       const { id } = req.params;
       const { name, description, price, validityDays, appointmentCount } = req.body;
 
-      const updatedPlan = await this.subscriptionPlanUseCase.updateDoctorSubscriptionPlan(id, doctorId, {
+      const updatedPlan = await this._subscriptionPlanUseCase.updateDoctorSubscriptionPlan(id, doctorId, {
         name,
         description,
         price,
@@ -262,7 +259,7 @@ export class DoctorController {
       }
       const { id } = req.params;
 
-      await this.subscriptionPlanUseCase.deleteSubscriptionPlan(id);
+      await this._subscriptionPlanUseCase.deleteSubscriptionPlan(id);
       res.status(HttpStatusCode.OK).json({ message: ResponseMessages.PLAN_DELETED });
     } catch (error) {
       next(error);
@@ -271,7 +268,7 @@ export class DoctorController {
 
   async getAllSpecialities(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const specialities = await this.specialityUseCase.getAllSpecialities();
+      const specialities = await this._specialityUseCase.getAllSpecialities();
       res.status(HttpStatusCode.OK).json(specialities);
     } catch (error) {
       next(error);
@@ -284,7 +281,7 @@ export class DoctorController {
       if (!doctorId) {
         throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
-      const stats = await this.reportUseCase.getDoctorDashboardStats(doctorId);
+      const stats = await this._reportUseCase.getDoctorDashboardStats(doctorId);
       res.status(HttpStatusCode.OK).json(stats);
     } catch (error) {
       next(error);
@@ -303,7 +300,7 @@ export class DoctorController {
         startDate: startDate ? new Date(startDate as string) : undefined,
         endDate: endDate ? new Date(endDate as string) : undefined,
       };
-      const reports = await this.reportUseCase.getDoctorReports(doctorId, filter);
+      const reports = await this._reportUseCase.getDoctorReports(doctorId, filter);
       res.status(HttpStatusCode.OK).json(reports);
     } catch (error) {
       next(error);
@@ -320,7 +317,7 @@ export class DoctorController {
       if (!appointmentId || !prescription) {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
-      const appointment = await this.appointmentUseCase.completeAppointment(doctorId, appointmentId, prescription);
+      const appointment = await this._appointmentUseCase.completeAppointment(doctorId, appointmentId, prescription);
       res.status(HttpStatusCode.OK).json(appointment);
     } catch (error) {
       next(error);

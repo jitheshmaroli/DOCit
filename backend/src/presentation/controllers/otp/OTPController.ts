@@ -6,17 +6,17 @@ import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 
 export class OTPController {
-  private otpService: IOTPService;
+  private _otpService: IOTPService;
 
   constructor(container: Container) {
-    this.otpService = container.get<IOTPService>('IOTPService');
+    this._otpService = container.get<IOTPService>('IOTPService');
   }
 
   async sendOTP(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { email } = req.body;
       if (!email) throw new ValidationError(ResponseMessages.BAD_REQUEST);
-      await this.otpService.sendOTP(email);
+      await this._otpService.sendOTP(email);
       res.status(HttpStatusCode.OK).json({ message: ResponseMessages.OTP_SENT });
     } catch (error) {
       next(error);
@@ -27,7 +27,7 @@ export class OTPController {
     try {
       const { email, otp } = req.body;
       if (!email || !otp) throw new ValidationError(ResponseMessages.BAD_REQUEST);
-      const isValid = await this.otpService.verifyOTP(email, otp);
+      const isValid = await this._otpService.verifyOTP(email, otp);
       if (!isValid) throw new ValidationError(ResponseMessages.BAD_REQUEST);
       res.status(HttpStatusCode.OK).json({ message: ResponseMessages.OTP_VERIFIED });
     } catch (error) {

@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosError } from 'axios';
-import { API_BASE_URL } from '../utils/config';
+import { ROUTES } from '../constants/routeConstants';
+import { HttpStatusCode } from '../constants/HttpStatusCode';
 
 let isRefreshing = false;
 type FailedRequest = {
@@ -9,7 +10,7 @@ type FailedRequest = {
 let failedRequestsQueue: FailedRequest[] = [];
 
 const api: AxiosInstance = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: import.meta.env.VITE_API_BASE_URL,
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
@@ -26,14 +27,13 @@ api.interceptors.response.use(
     const data = error.response?.data as { message?: string; error?: string };
 
     if (
-      status === 403 &&
+      status === HttpStatusCode.FORBIDDEN &&
       data?.error === 'ForbiddenError' &&
       data?.message === 'User is blocked'
     ) {
-      console.log('user blockeddddddddddd');
       try {
-        await api.post('/api/auth/logout');
-        window.location.href = '/login';
+        await api.post(ROUTES.API.AUTH.LOGOUT);
+        window.location.href = ROUTES.PUBLIC.LOGIN;
       } catch (logoutError) {
         console.error('Logout failed:', logoutError);
       }
@@ -41,13 +41,17 @@ api.interceptors.response.use(
       return Promise.reject({ message: data?.message, status });
     }
 
-    if (status === 401 && originalRequest && !originalRequest._retry) {
+    if (
+      status === HttpStatusCode.UNAUTHORIZED &&
+      originalRequest &&
+      !originalRequest._retry
+    ) {
       originalRequest._retry = true;
 
       // Prevent refresh for auth-related endpoints
       if (
-        originalRequest.url?.includes('/api/auth/refresh-token') ||
-        originalRequest.url?.includes('/api/auth/logout')
+        originalRequest.url?.includes(ROUTES.API.AUTH.REFRESH_TOKEN) ||
+        originalRequest.url?.includes(ROUTES.API.AUTH.LOGOUT)
       ) {
         console.error('401 error on auth endpoint:', data?.message);
         return Promise.reject({ message: data?.message, status });
@@ -64,15 +68,12 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        console.log('Attempting token refresh');
-        await api.post('/api/auth/refresh-token');
-        console.log('Token refreshed successfully');
+        await api.post(ROUTES.API.AUTH.REFRESH_TOKEN);
         // Process queued requests
         failedRequestsQueue.forEach(({ resolve }) => resolve(undefined));
         failedRequestsQueue = [];
         return api(originalRequest);
       } catch (refreshError) {
-        console.error('Token refresh failed:', refreshError);
         failedRequestsQueue.forEach(({ reject }) => reject(refreshError));
         failedRequestsQueue = [];
 
@@ -81,7 +82,7 @@ api.interceptors.response.use(
           refreshError.response?.status === 401
         ) {
           try {
-            await api.post('/api/auth/logout');
+            await api.post(ROUTES.API.AUTH.LOGOUT);
           } catch (logoutError) {
             console.error('Logout failed:', logoutError);
           }

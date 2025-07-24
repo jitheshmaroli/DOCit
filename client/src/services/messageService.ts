@@ -1,62 +1,77 @@
-import { ChatMessageResponse } from '../types/messageTypes';
+import { AxiosError } from 'axios';
+import { ChatMessageResponse, InboxThreadResponse } from '../types/messageTypes';
 import api from './api';
+import { ROUTES } from '../constants/routeConstants';
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+interface MessageApiError {
+  message: string;
+  status?: number;
+}
 
 export const fetchInbox = async () => {
   try {
-    const response = await api.get(`${API_BASE_URL}/api/chat/inbox`, {
-      withCredentials: true,
-    });
+    const response = await api.get<InboxThreadResponse[]>(
+      ROUTES.API.MESSAGE.INBOX
+    );
     return response.data;
   } catch (error) {
-    console.error('Fetch inbox error:', error);
-    throw error;
+    const axiosError = error as AxiosError<MessageApiError>;
+    throw new Error(
+      axiosError.response?.data.message || 'Failed to fetch inbox'
+    );
   }
 };
 
 export const fetchMessages = async (receiverId: string) => {
   try {
-    const response = await api.get(`${API_BASE_URL}/api/chat/${receiverId}`, {
-      withCredentials: true,
-    });
+    const response = await api.get<ChatMessageResponse[]>(
+      ROUTES.API.MESSAGE.MESSAGES.replace(':receiverId', receiverId)
+    );
     return response.data;
   } catch (error) {
-    console.error('Fetch messages error:', error);
-    throw error;
+    const axiosError = error as AxiosError<MessageApiError>;
+    throw new Error(
+      axiosError.response?.data.message || 'Failed to fetch messages'
+    );
   }
 };
 
 export const fetchPartnerDetails = async (userId: string) => {
   try {
-    const response = await api.get(`${API_BASE_URL}/api/user/${userId}`);
+    const response = await api.get(
+      ROUTES.API.MESSAGE.PARTNER_DETAILS.replace(':userId', userId)
+    );
     return response.data;
   } catch (error) {
-    console.error('Fetch partner details error:', error);
-    throw error;
+    const axiosError = error as AxiosError<MessageApiError>;
+    console.error('Fetch partner details error:', axiosError);
+    throw new Error(
+      axiosError.response?.data.message || 'Failed to fetch partner details'
+    );
   }
 };
 
 export const fetchUserStatus = async (userId: string, role: string) => {
   try {
     const response = await api.get(
-      `${API_BASE_URL}/api/chat/status/${userId}/${role}`,
-      {
-        withCredentials: true,
-      }
+      ROUTES.API.MESSAGE.USER_STATUS.replace(':userId', userId).replace(
+        ':role',
+        role
+      )
     );
     return response.data;
   } catch (error) {
-    console.error('Fetch user status error:', error);
-    throw error;
+    const axiosError = error as AxiosError<MessageApiError>;
+    throw new Error(
+      axiosError.response?.data.message || 'Failed to fetch user status'
+    );
   }
 };
 
 export const sendMessage = async (receiverId: string, message: string) => {
   try {
     const response = await api.post<ChatMessageResponse>(
-      `${API_BASE_URL}/api/chat`,
+      ROUTES.API.MESSAGE.SEND_MESSAGE,
       {
         receiverId,
         message,
@@ -64,8 +79,10 @@ export const sendMessage = async (receiverId: string, message: string) => {
     );
     return response.data;
   } catch (error) {
-    console.error('Send message error:', error);
-    throw error;
+    const axiosError = error as AxiosError<MessageApiError>;
+    throw new Error(
+      axiosError.response?.data.message || 'Failed to send message'
+    );
   }
 };
 
@@ -75,35 +92,45 @@ export const sendAttachment = async (receiverId: string, file: File) => {
     formData.append('file', file);
     formData.append('receiverId', receiverId);
     const response = await api.post<ChatMessageResponse>(
-      `${API_BASE_URL}/api/chat/attachment`,
+      ROUTES.API.MESSAGE.SEND_ATTACHMENT,
       formData,
       {
-        withCredentials: true,
         headers: { 'Content-Type': 'multipart/form-data' },
       }
     );
     return response.data;
   } catch (error) {
-    console.error('Send attachment error:', error);
-    throw error;
+    const axiosError = error as AxiosError<MessageApiError>;
+    throw new Error(
+      axiosError.response?.data.message || 'Failed to send attachment'
+    );
   }
 };
 
 export const deleteMessage = async (messageId: string) => {
   try {
-    await api.delete(`${API_BASE_URL}/api/chat/${messageId}`);
+    await api.delete(
+      ROUTES.API.MESSAGE.DELETE_MESSAGE.replace(':messageId', messageId)
+    );
   } catch (error) {
-    console.error('Delete message error:', error);
-    throw error;
+    const axiosError = error as AxiosError<MessageApiError>;
+    throw new Error(
+      axiosError.response?.data.message || 'Failed to delete message'
+    );
   }
 };
 
 export const markAsRead = async (messageId: string) => {
   try {
-    await api.patch(`${API_BASE_URL}/api/chat/${messageId}/read`, {});
+    await api.patch(
+      ROUTES.API.MESSAGE.MARK_AS_READ.replace(':messageId', messageId),
+      {}
+    );
   } catch (error) {
-    console.error('Mark as read error:', error);
-    throw error;
+    const axiosError = error as AxiosError<MessageApiError>;
+    throw new Error(
+      axiosError.response?.data.message || 'Failed to mark message as read'
+    );
   }
 };
 
@@ -114,7 +141,7 @@ export const addReaction = async (
 ) => {
   try {
     const response = await api.patch<ChatMessageResponse>(
-      `${API_BASE_URL}/api/chat/${messageId}/reaction`,
+      ROUTES.API.MESSAGE.ADD_REACTION.replace(':messageId', messageId),
       {
         emoji,
         replace,
@@ -122,7 +149,9 @@ export const addReaction = async (
     );
     return response.data;
   } catch (error) {
-    console.error('Add reaction error:', error);
-    throw error;
+    const axiosError = error as AxiosError<MessageApiError>;
+    throw new Error(
+      axiosError.response?.data.message || 'Failed to add reaction'
+    );
   }
 };

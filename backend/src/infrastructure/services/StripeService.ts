@@ -4,17 +4,17 @@ import { ValidationError } from '../../utils/errors';
 import { IPaymentService } from '../../core/interfaces/services/IPaymentService';
 
 export class StripeService implements IPaymentService {
-  private stripe: Stripe;
+  private _stripe: Stripe;
 
   constructor() {
-    this.stripe = new Stripe(env.STRIPE_SECRET_KEY, {
+    this._stripe = new Stripe(env.STRIPE_SECRET_KEY, {
       apiVersion: '2025-05-28.basil',
     });
   }
 
   async createPaymentIntent(amount: number): Promise<string> {
     try {
-      const paymentIntent = await this.stripe.paymentIntents.create({
+      const paymentIntent = await this._stripe.paymentIntents.create({
         amount,
         currency: 'INR',
         automatic_payment_methods: {
@@ -40,7 +40,7 @@ export class StripeService implements IPaymentService {
 
   async confirmPaymentIntent(paymentIntentId: string): Promise<void> {
     try {
-      const paymentIntent = await this.stripe.paymentIntents.retrieve(paymentIntentId);
+      const paymentIntent = await this._stripe.paymentIntents.retrieve(paymentIntentId);
 
       if (paymentIntent.status !== 'succeeded') {
         throw new ValidationError('Payment not completed');

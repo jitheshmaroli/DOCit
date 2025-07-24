@@ -7,6 +7,7 @@ import {
   QueryParams,
 } from '../types/authTypes';
 import { DateUtils } from '../utils/DateUtils';
+import { ROUTES } from '../constants/routeConstants';
 
 // Types
 interface DashboardStats {
@@ -89,14 +90,16 @@ interface Prescription {
 }
 
 export const fetchVerifiedDoctors = async (params: QueryParams = {}) => {
-  const response = await api.get('/api/patients/doctors/verified', { params });
-  console.log('verified doctors:', response.data);
+  const response = await api.get(ROUTES.API.PATIENT.VERIFIED_DOCTORS, {
+    params,
+  });
   return response.data;
 };
 
 export const getDoctorById = async (doctorId: string) => {
-  const response = await api.get(`/api/patients/doctors/${doctorId}`);
-  console.log('doctordetails:', response.data);
+  const response = await api.get(
+    ROUTES.API.PATIENT.DOCTOR_BY_ID.replace(':doctorId', doctorId)
+  );
   return response.data;
 };
 
@@ -104,7 +107,7 @@ export const getAvailability = async ({
   startDate,
   endDate,
 }: AvailabilityPayload) => {
-  const response = await api.get('/api/doctors/availability', {
+  const response = await api.get(ROUTES.API.DOCTOR.AVAILABILITY, {
     params: {
       startDate: DateUtils.formatToISO(startDate),
       endDate: endDate ? DateUtils.formatToISO(endDate) : undefined,
@@ -133,7 +136,7 @@ export const setAvailability = async ({
       : undefined,
     recurringDays,
   };
-  const response = await api.post('/api/doctors/availability', payload);
+  const response = await api.post(ROUTES.API.DOCTOR.AVAILABILITY, payload);
   return response.data;
 };
 
@@ -144,7 +147,7 @@ export const removeSlot = async ({
   availabilityId: string;
   slotIndex: number;
 }) => {
-  const response = await api.post('/api/doctors/availability/slots/remove', {
+  const response = await api.post(ROUTES.API.DOCTOR.REMOVE_SLOT, {
     availabilityId,
     slotIndex,
   });
@@ -162,7 +165,7 @@ export const updateSlot = async ({
   startTime: string;
   endTime: string;
 }) => {
-  const response = await api.patch('/api/doctors/availability/slots', {
+  const response = await api.patch(ROUTES.API.DOCTOR.UPDATE_SLOT, {
     availabilityId,
     slotIndex,
     startTime,
@@ -172,14 +175,16 @@ export const updateSlot = async ({
 };
 
 export const getAppointments = async (page: number = 1, limit: number = 5) => {
-  const response = await api.get('/api/doctors/appointments', {
+  const response = await api.get(ROUTES.API.DOCTOR.APPOINTMENTS, {
     params: { page, limit },
   });
   return response.data;
 };
 
 export const getAppointmentById = async (appointmentId: string) => {
-  const response = await api.get(`/api/doctors/appointments/${appointmentId}`);
+  const response = await api.get(
+    ROUTES.API.DOCTOR.APPOINTMENT_BY_ID.replace(':appointmentId', appointmentId)
+  );
   return response.data;
 };
 
@@ -190,7 +195,7 @@ export const getPatientAppointments = async (
   limit: number = 5
 ) => {
   const response = await api.get(
-    `/api/doctors/patient/${patientId}/appointments`,
+    ROUTES.API.DOCTOR.PATIENT_APPOINTMENTS.replace(':patientId', patientId),
     {
       params: { doctorId, page, limit },
     }
@@ -202,7 +207,7 @@ export const completeAppointment = async (
   appointmentId: string,
   prescription: Prescription
 ) => {
-  const response = await api.post('/api/doctors/appointments/complete', {
+  const response = await api.post(ROUTES.API.DOCTOR.COMPLETE_APPOINTMENT, {
     appointmentId,
     prescription,
   });
@@ -210,14 +215,12 @@ export const completeAppointment = async (
 };
 
 export const getSubscriptionPlans = async () => {
-  const response = await api.get('/api/doctors/subscription-plans');
+  const response = await api.get(ROUTES.API.DOCTOR.SUBSCRIPTION_PLANS);
   return response.data;
 };
 
 export const createSubscriptionPlan = async (plan: SubscriptionPlanPayload) => {
-  const response = await api.post('/api/doctors/subscription-plans', plan);
-  console.log('the response:', response.data);
-  console.log('the response:', response.data.message);
+  const response = await api.post(ROUTES.API.DOCTOR.SUBSCRIPTION_PLANS, plan);
   return response.data;
 };
 
@@ -225,27 +228,35 @@ export const updateSubscriptionPlan = async ({
   id,
   ...plan
 }: UpdateSubscriptionPlanPayload) => {
-  const response = await api.put(`/api/doctors/subscription-plans/${id}`, plan);
+  const response = await api.put(
+    ROUTES.API.DOCTOR.SUBSCRIPTION_PLAN_BY_ID.replace(':id', id),
+    plan
+  );
   return response.data;
 };
 
 export const deleteSubscriptionPlan = async (id: string) => {
-  await api.delete(`/api/doctors/subscription-plans/${id}`);
+  await api.delete(
+    ROUTES.API.DOCTOR.SUBSCRIPTION_PLAN_BY_ID.replace(':id', id)
+  );
   return { id };
 };
 
 export const withdrawSubscriptionPlan = async (id: string) => {
-  await api.patch(`/api/doctors/subscription-plans/${id}/withdraw`, {});
+  await api.patch(
+    ROUTES.API.DOCTOR.WITHDRAW_SUBSCRIPTION_PLAN.replace(':id', id),
+    {}
+  );
   return { id };
 };
 
 export const fetchSpecialities = async () => {
-  const response = await api.get('/api/doctors/specialities');
+  const response = await api.get(ROUTES.API.DOCTOR.SPECIALITIES);
   return response.data;
 };
 
 export const getDashboardStats = async () => {
-  const response = await api.get('/api/doctors/dashboard/stats');
+  const response = await api.get(ROUTES.API.DOCTOR.DASHBOARD_STATS);
   return response.data;
 };
 
@@ -254,7 +265,7 @@ export const getReports = async (filter: {
   startDate?: string;
   endDate?: string;
 }) => {
-  const response = await api.get('/api/doctors/dashboard/reports', {
+  const response = await api.get(ROUTES.API.DOCTOR.REPORTS, {
     params: filter,
   });
   return response.data;

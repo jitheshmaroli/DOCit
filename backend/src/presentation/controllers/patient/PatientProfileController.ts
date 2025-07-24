@@ -8,20 +8,20 @@ import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 
 export class PatientProfileController {
-  private profileUseCase: IProfileUseCase;
+  private _profileUseCase: IProfileUseCase;
 
   constructor(container: Container) {
-    this.profileUseCase = container.get<IProfileUseCase>('IProfileUseCase');
+    this._profileUseCase = container.get<IProfileUseCase>('IProfileUseCase');
   }
 
   async viewProfile(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { id } = req.params;
+      const patientId = req.params.id;
       const requesterId = req.user?.id;
       if (!requesterId) {
         throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
-      const patient = await this.profileUseCase.viewPatientProfile(id, requesterId);
+      const patient = await this._profileUseCase.viewPatientProfile(patientId, requesterId);
       res.status(HttpStatusCode.OK).json(patient);
     } catch (error) {
       next(error);
@@ -37,7 +37,7 @@ export class PatientProfileController {
       }
       const updates = req.body;
 
-      const patient = await this.profileUseCase.updatePatientProfile(patientId, updates, req.file);
+      const patient = await this._profileUseCase.updatePatientProfile(patientId, updates, req.file);
 
       if (req.file) {
         fs.unlinkSync(req.file.path);

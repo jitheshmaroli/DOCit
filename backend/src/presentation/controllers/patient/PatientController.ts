@@ -13,27 +13,26 @@ import logger from '../../../utils/logger';
 import { Appointment } from '../../../core/entities/Appointment';
 import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
-import sanitizeHtml from 'sanitize-html';
 import { IAvailabilityUseCase } from '../../../core/interfaces/use-cases/IAvailabilityUseCase';
 import { IDoctorUseCase } from '../../../core/interfaces/use-cases/IDoctorUseCase';
 
 export class PatientController {
-  private patientUseCase: IPatientUseCase;
-  private subscriptionPlanUseCase: ISubscriptionPlanUseCase;
-  private specialityUseCase: ISpecialityUseCase;
-  private appointmentUseCase: IAppointmentUseCase;
-  private reviewUseCase: IReviewUseCase;
-  private availabilityUseCase: IAvailabilityUseCase;
-  private doctorUseCase: IDoctorUseCase;
+  private _patientUseCase: IPatientUseCase;
+  private _subscriptionPlanUseCase: ISubscriptionPlanUseCase;
+  private _specialityUseCase: ISpecialityUseCase;
+  private _appointmentUseCase: IAppointmentUseCase;
+  private _reviewUseCase: IReviewUseCase;
+  private _availabilityUseCase: IAvailabilityUseCase;
+  private _doctorUseCase: IDoctorUseCase;
 
   constructor(container: Container) {
-    this.patientUseCase = container.get<IPatientUseCase>('IPatientUseCase');
-    this.subscriptionPlanUseCase = container.get<ISubscriptionPlanUseCase>('ISubscriptionPlanUseCase');
-    this.specialityUseCase = container.get<ISpecialityUseCase>('ISpecialityUseCase');
-    this.appointmentUseCase = container.get<IAppointmentUseCase>('IAppointmentUseCase');
-    this.reviewUseCase = container.get<IReviewUseCase>('IReviewUseCase');
-    this.availabilityUseCase = container.get<IAvailabilityUseCase>('IAvailabilityUseCase');
-    this.doctorUseCase = container.get<IDoctorUseCase>('IDoctorUseCase');
+    this._patientUseCase = container.get<IPatientUseCase>('IPatientUseCase');
+    this._subscriptionPlanUseCase = container.get<ISubscriptionPlanUseCase>('ISubscriptionPlanUseCase');
+    this._specialityUseCase = container.get<ISpecialityUseCase>('ISpecialityUseCase');
+    this._appointmentUseCase = container.get<IAppointmentUseCase>('IAppointmentUseCase');
+    this._reviewUseCase = container.get<IReviewUseCase>('IReviewUseCase');
+    this._availabilityUseCase = container.get<IAvailabilityUseCase>('IAvailabilityUseCase');
+    this._doctorUseCase = container.get<IDoctorUseCase>('IDoctorUseCase');
   }
 
   async getDoctorAvailability(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
@@ -48,7 +47,7 @@ export class PatientController {
       endDate.setDate(startDate.getDate() + 30);
       logger.debug('paramsavailability:', req.params);
       logger.debug('paramsavailability:', req.query);
-      const availability = await this.availabilityUseCase.getDoctorAvailability(doctorId, startDate, endDate, true);
+      const availability = await this._availabilityUseCase.getDoctorAvailability(doctorId, startDate, endDate, true);
       res.status(HttpStatusCode.OK).json(availability || []);
     } catch (error) {
       next(error);
@@ -66,12 +65,12 @@ export class PatientController {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
       if (isFreeBooking) {
-        const canBookFree = await this.appointmentUseCase.checkFreeBooking(patientId, doctorId);
+        const canBookFree = await this._appointmentUseCase.checkFreeBooking(patientId, doctorId);
         if (!canBookFree) {
           throw new ValidationError('Not eligible for free booking');
         }
       }
-      const appointment = await this.appointmentUseCase.bookAppointment(
+      const appointment = await this._appointmentUseCase.bookAppointment(
         patientId,
         doctorId,
         new Date(date),
@@ -99,7 +98,7 @@ export class PatientController {
       if (!doctorId) {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
-      const subscription = await this.patientUseCase.getPatientActiveSubscription(patientId, doctorId);
+      const subscription = await this._patientUseCase.getPatientActiveSubscription(patientId, doctorId);
       res.status(HttpStatusCode.OK).json(subscription || null);
     } catch (error) {
       next(error);
@@ -116,7 +115,7 @@ export class PatientController {
       if (!planId || !price) {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
-      const result = await this.subscriptionPlanUseCase.subscribeToPlan(patientId, planId, price);
+      const result = await this._subscriptionPlanUseCase.subscribeToPlan(patientId, planId, price);
       res.status(HttpStatusCode.CREATED).json(result);
     } catch (error) {
       next(error);
@@ -133,7 +132,7 @@ export class PatientController {
       if (!planId || !paymentIntentId) {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
-      const subscription = await this.subscriptionPlanUseCase.confirmSubscription(patientId, planId, paymentIntentId);
+      const subscription = await this._subscriptionPlanUseCase.confirmSubscription(patientId, planId, paymentIntentId);
       res.status(HttpStatusCode.CREATED).json(subscription);
     } catch (error) {
       next(error);
@@ -146,7 +145,7 @@ export class PatientController {
       if (!patientId) {
         throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
-      const subscriptions = await this.patientUseCase.getPatientSubscriptions(patientId);
+      const subscriptions = await this._patientUseCase.getPatientSubscriptions(patientId);
       res.status(HttpStatusCode.OK).json(subscriptions);
     } catch (error) {
       next(error);
@@ -164,7 +163,7 @@ export class PatientController {
       if (!appointmentId) {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
-      await this.appointmentUseCase.cancelAppointment(appointmentId, patientId, cancellationReason);
+      await this._appointmentUseCase.cancelAppointment(appointmentId, patientId, cancellationReason);
       res.status(HttpStatusCode.OK).json({ message: ResponseMessages.APPOINTMENT_CANCELLED });
     } catch (error) {
       next(error);
@@ -177,7 +176,7 @@ export class PatientController {
       if (!doctorId) {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
-      const plans = await this.subscriptionPlanUseCase.getDoctorApprovedPlans(doctorId);
+      const plans = await this._subscriptionPlanUseCase.getDoctorApprovedPlans(doctorId);
       res.status(HttpStatusCode.OK).json(plans);
     } catch (error) {
       next(error);
@@ -193,7 +192,7 @@ export class PatientController {
         return;
       }
 
-      const doctor = await this.doctorUseCase.getDoctor(doctorId);
+      const doctor = await this._doctorUseCase.getDoctor(doctorId);
       if (!doctor) {
         res.status(HttpStatusCode.NOT_FOUND).json({ message: ResponseMessages.NOT_FOUND });
         return;
@@ -220,7 +219,7 @@ export class PatientController {
         gender: req.query.gender as string | undefined,
         minRating: req.query.minRating ? parseFloat(String(req.query.minRating)) : undefined,
       };
-      const result = await this.doctorUseCase.getVerifiedDoctors(params);
+      const result = await this._doctorUseCase.getVerifiedDoctors(params);
       res.status(HttpStatusCode.OK).json(result);
     } catch (error) {
       next(error);
@@ -243,15 +242,15 @@ export class PatientController {
 
       let response: { appointments: Appointment[]; totalItems: number; canBookFree?: boolean };
       if (doctorId) {
-        response = await this.appointmentUseCase.getPatientAppointmentsForDoctor(
+        response = await this._appointmentUseCase.getPatientAppointmentsForDoctor(
           patientId,
           doctorId as string,
           queryParams
         );
-        const canBookFree = await this.appointmentUseCase.checkFreeBooking(patientId, doctorId as string);
+        const canBookFree = await this._appointmentUseCase.checkFreeBooking(patientId, doctorId as string);
         response.canBookFree = canBookFree;
       } else {
-        response = await this.appointmentUseCase.getPatientAppointments(patientId, queryParams);
+        response = await this._appointmentUseCase.getPatientAppointments(patientId, queryParams);
       }
 
       res.status(HttpStatusCode.OK).json(response);
@@ -268,7 +267,7 @@ export class PatientController {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
 
-      const appointment = await this.appointmentUseCase.getAppointmentById(appointmentId);
+      const appointment = await this._appointmentUseCase.getAppointmentById(appointmentId);
       res.status(HttpStatusCode.OK).json(appointment);
     } catch (error) {
       next(error);
@@ -277,7 +276,7 @@ export class PatientController {
 
   async getAllSpecialities(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const specialities = await this.specialityUseCase.getAllSpecialities();
+      const specialities = await this._specialityUseCase.getAllSpecialities();
       res.status(HttpStatusCode.OK).json(specialities);
     } catch (error) {
       next(error);
@@ -296,7 +295,6 @@ export class PatientController {
 
       const { appointmentId, doctorId, rating, comment } = req.body;
 
-      // Syntactic validation
       if (!appointmentId || !doctorId || rating === undefined || !comment) {
         throw new ValidationError(ResponseMessages.MISSING_REQUIRED_FIELDS);
       }
@@ -317,20 +315,7 @@ export class PatientController {
         throw new ValidationError('Invalid comment');
       }
 
-      // Sanitize comment to prevent XSS
-      const sanitizedComment = sanitizeHtml(comment, {
-        allowedTags: [],
-        allowedAttributes: {},
-      });
-
-      // Execute use case
-      const review = await this.reviewUseCase.createReview(
-        patientId,
-        doctorId,
-        appointmentId,
-        rating,
-        sanitizedComment
-      );
+      const review = await this._reviewUseCase.createReview(patientId, doctorId, appointmentId, rating, comment);
 
       res.status(HttpStatusCode.CREATED).json({
         success: true,
@@ -349,7 +334,7 @@ export class PatientController {
         throw new ValidationError('Invalid doctor ID');
       }
 
-      const reviews = await this.reviewUseCase.getDoctorReviews(doctorId);
+      const reviews = await this._reviewUseCase.getDoctorReviews(doctorId);
       res.status(HttpStatusCode.OK).json(reviews);
     } catch (error) {
       next(error);

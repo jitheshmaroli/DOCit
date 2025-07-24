@@ -8,10 +8,10 @@ import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 
 export class NotificationController {
-  private notificationUseCase: INotificationUseCase;
+  private _notificationUseCase: INotificationUseCase;
 
   constructor(container: Container) {
-    this.notificationUseCase = container.get<INotificationUseCase>('INotificationUseCase');
+    this._notificationUseCase = container.get<INotificationUseCase>('INotificationUseCase');
   }
 
   async sendNotification(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
@@ -21,7 +21,7 @@ export class NotificationController {
         throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const { userId: targetUserId, type, message } = req.body;
-      const notification = await this.notificationUseCase.sendNotification({
+      const notification = await this._notificationUseCase.sendNotification({
         userId: targetUserId,
         type,
         message,
@@ -39,7 +39,7 @@ export class NotificationController {
         throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const params = req.query as QueryParams;
-      const notifications = await this.notificationUseCase.getNotifications(userId, params);
+      const notifications = await this._notificationUseCase.getNotifications(userId, params);
       res.status(HttpStatusCode.OK).json(notifications);
     } catch (error) {
       next(error);
@@ -53,7 +53,7 @@ export class NotificationController {
         throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const { notificationId } = req.params;
-      await this.notificationUseCase.deleteNotification(notificationId, userId);
+      await this._notificationUseCase.deleteNotification(notificationId, userId);
       res.status(HttpStatusCode.NO_CONTENT).send();
     } catch (error) {
       next(error);
@@ -67,7 +67,7 @@ export class NotificationController {
         throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const { notificationId } = req.params;
-      await this.notificationUseCase.markNotificationAsRead(notificationId, userId);
+      await this._notificationUseCase.markNotificationAsRead(notificationId, userId);
       res.status(HttpStatusCode.OK).send();
     } catch (error) {
       next(error);
@@ -80,7 +80,7 @@ export class NotificationController {
       if (!userId) {
         throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
-      await this.notificationUseCase.deleteAllNotifications(userId);
+      await this._notificationUseCase.deleteAllNotifications(userId);
       res.status(HttpStatusCode.NO_CONTENT).send();
     } catch (error) {
       next(error);

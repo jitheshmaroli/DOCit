@@ -8,9 +8,9 @@ import logger from '../../utils/logger';
 
 export class ReviewUseCase implements IReviewUseCase {
   constructor(
-    private reviewRepository: IReviewRepository,
-    private appointmentRepository: IAppointmentRepository,
-    private doctorRepository: IDoctorRepository
+    private _reviewRepository: IReviewRepository,
+    private _appointmentRepository: IAppointmentRepository,
+    private _doctorRepository: IDoctorRepository
   ) {}
 
   async createReview(
@@ -30,7 +30,7 @@ export class ReviewUseCase implements IReviewUseCase {
       throw new ValidationError('Rating must be between 1 and 5');
     }
 
-    const appointment = await this.appointmentRepository.findById(appointmentId);
+    const appointment = await this._appointmentRepository.findById(appointmentId);
     if (!appointment) {
       logger.error(`Appointment not found: ${appointmentId}`);
       throw new NotFoundError('Appointment not found');
@@ -41,13 +41,13 @@ export class ReviewUseCase implements IReviewUseCase {
       throw new ValidationError('Reviews can only be created for completed appointments');
     }
 
-    const doctor = await this.doctorRepository.findById(doctorId);
+    const doctor = await this._doctorRepository.findById(doctorId);
     if (!doctor) {
       logger.error(`Doctor not found: ${doctorId}`);
       throw new NotFoundError('Doctor not found');
     }
 
-    const existingReview = await this.reviewRepository.findByAppointmentId(appointmentId);
+    const existingReview = await this._reviewRepository.findByAppointmentId(appointmentId);
     if (existingReview) {
       logger.error(`Review already exists for appointment ${appointmentId}`);
       throw new ValidationError('A review already exists for this appointment');
@@ -64,7 +64,7 @@ export class ReviewUseCase implements IReviewUseCase {
     };
 
     try {
-      const savedReview = await this.reviewRepository.create(review);
+      const savedReview = await this._reviewRepository.create(review);
       await this.updateDoctorAverageRating(doctorId);
       return savedReview;
     } catch (error) {
@@ -79,19 +79,19 @@ export class ReviewUseCase implements IReviewUseCase {
       throw new ValidationError('Doctor ID is required');
     }
 
-    const doctor = await this.doctorRepository.findById(doctorId);
+    const doctor = await this._doctorRepository.findById(doctorId);
     if (!doctor) {
       logger.error(`Doctor not found: ${doctorId}`);
       throw new NotFoundError('Doctor not found');
     }
 
-    return await this.reviewRepository.findByDoctorId(doctorId);
+    return await this._reviewRepository.findByDoctorId(doctorId);
   }
 
   private async updateDoctorAverageRating(doctorId: string): Promise<void> {
-    const reviews = await this.reviewRepository.findByDoctorId(doctorId);
+    const reviews = await this._reviewRepository.findByDoctorId(doctorId);
     if (reviews.length === 0) {
-      await this.doctorRepository.update(doctorId, { averageRating: 0 });
+      await this._doctorRepository.update(doctorId, { averageRating: 0 });
       return;
     }
 
@@ -99,7 +99,7 @@ export class ReviewUseCase implements IReviewUseCase {
     const averageRating = totalRating / reviews.length;
 
     try {
-      await this.doctorRepository.update(doctorId, { averageRating, updatedAt: new Date() });
+      await this._doctorRepository.update(doctorId, { averageRating, updatedAt: new Date() });
     } catch (error) {
       logger.error(`Error updating doctor average rating for doctor ${doctorId}: ${(error as Error).message}`);
       throw new Error('Failed to update doctor average rating');

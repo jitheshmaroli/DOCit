@@ -17,13 +17,13 @@ import { MongoServerError } from 'mongodb';
 
 export class AppointmentUseCase implements IAppointmentUseCase {
   constructor(
-    private appointmentRepository: IAppointmentRepository,
-    private availabilityRepository: IAvailabilityRepository,
-    private patientSubscriptionRepository: IPatientSubscriptionRepository,
-    private notificationService: INotificationService,
-    private emailService: IEmailService,
-    private doctorRepository: IDoctorRepository,
-    private patientRepository: IPatientRepository
+    private _appointmentRepository: IAppointmentRepository,
+    private _availabilityRepository: IAvailabilityRepository,
+    private _patientSubscriptionRepository: IPatientSubscriptionRepository,
+    private _notificationService: INotificationService,
+    private _emailService: IEmailService,
+    private _doctorRepository: IDoctorRepository,
+    private _patientRepository: IPatientRepository
   ) {}
 
   async bookAppointment(
@@ -34,14 +34,14 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     endTime: string,
     isFreeBooking: boolean = false
   ): Promise<Appointment> {
-    const doctor = await this.doctorRepository.findById(doctorId);
+    const doctor = await this._doctorRepository.findById(doctorId);
     if (!doctor) throw new NotFoundError('Doctor not found');
 
-    const patient = await this.patientRepository.findById(patientId);
+    const patient = await this._patientRepository.findById(patientId);
     if (!patient) throw new NotFoundError('Patient not found');
 
     const startOfDay = DateUtils.startOfDayUTC(date);
-    const availability = await this.availabilityRepository.findByDoctorAndDate(doctorId, startOfDay);
+    const availability = await this._availabilityRepository.findByDoctorAndDate(doctorId, startOfDay);
     if (!availability) throw new NotFoundError('No availability found for this date');
 
     const slotAvailable = availability.timeSlots.find(
@@ -51,7 +51,7 @@ export class AppointmentUseCase implements IAppointmentUseCase {
 
     if (slotAvailable.isBooked) throw new ValidationError('This time slot is already booked');
 
-    const existingAppointment = await this.appointmentRepository.findByDoctorAndSlot(
+    const existingAppointment = await this._appointmentRepository.findByDoctorAndSlot(
       doctorId,
       startOfDay,
       startTime,
@@ -67,7 +67,7 @@ export class AppointmentUseCase implements IAppointmentUseCase {
         throw new ValidationError('Not eligible for free booking');
       }
     } else {
-      const activeSubscription = await this.patientSubscriptionRepository.findActiveByPatientAndDoctor(
+      const activeSubscription = await this._patientSubscriptionRepository.findActiveByPatientAndDoctor(
         patientId,
         doctorId
       );
@@ -92,7 +92,7 @@ export class AppointmentUseCase implements IAppointmentUseCase {
 
     let savedAppointment: Appointment;
     try {
-      savedAppointment = await this.appointmentRepository.create(appointment);
+      savedAppointment = await this._appointmentRepository.create(appointment);
     } catch (error) {
       if (error instanceof MongoServerError && error.code === 11000) {
         throw new ValidationError('This time slot is already booked');
@@ -101,16 +101,16 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     }
 
     if (!isFreeBooking) {
-      const activeSubscription = await this.patientSubscriptionRepository.findActiveByPatientAndDoctor(
+      const activeSubscription = await this._patientSubscriptionRepository.findActiveByPatientAndDoctor(
         patientId,
         doctorId
       );
       if (activeSubscription) {
-        await this.patientSubscriptionRepository.incrementAppointmentCount(activeSubscription._id!);
+        await this._patientSubscriptionRepository.incrementAppointmentCount(activeSubscription._id!);
       }
     }
 
-    await this.availabilityRepository.updateSlotBookingStatus(doctorId, startOfDay, startTime, true);
+    await this._availabilityRepository.updateSlotBookingStatus(doctorId, startOfDay, startTime, true);
 
     const patientNotification: Notification = {
       userId: patientId,
@@ -134,10 +134,10 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     const doctorEmailText = `Dear Dr. ${doctor.name},\n\nA new appointment with ${patient.name} has been scheduled for ${appointment.startTime} on ${appointment.date.toLocaleDateString()}.\n\nBest regards,\nDOCit Team`;
 
     await Promise.all([
-      this.notificationService.sendNotification(patientNotification),
-      this.notificationService.sendNotification(doctorNotification),
-      this.emailService.sendEmail(patient.email, patientEmailSubject, patientEmailText),
-      this.emailService.sendEmail(doctor.email, doctorEmailSubject, doctorEmailText),
+      this._notificationService.sendNotification(patientNotification),
+      this._notificationService.sendNotification(doctorNotification),
+      this._emailService.sendEmail(patient.email, patientEmailSubject, patientEmailText),
+      this._emailService.sendEmail(doctor.email, doctorEmailSubject, doctorEmailText),
     ]);
 
     return savedAppointment;
@@ -149,7 +149,7 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       throw new ValidationError('Patient ID is required');
     }
 
-    const appointment: Appointment | null = await this.appointmentRepository.findById(appointmentId);
+    const appointment: Appointment | null = await this._appointmentRepository.findById(appointmentId);
     if (!appointment) {
       logger.error(`Appointment not found: ${appointmentId}`);
       throw new NotFoundError('Appointment not found');
@@ -182,29 +182,29 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       throw new ValidationError('Invalid doctor ID');
     }
 
-    const doctor = await this.doctorRepository.findById(doctorId);
+    const doctor = await this._doctorRepository.findById(doctorId);
     if (!doctor) throw new NotFoundError('Doctor not found');
 
-    const patient = await this.patientRepository.findById(patientId);
+    const patient = await this._patientRepository.findById(patientId);
     if (!patient) throw new NotFoundError('Patient not found');
 
-    await this.appointmentRepository.update(appointmentId, {
+    await this._appointmentRepository.update(appointmentId, {
       status: 'cancelled',
       cancellationReason,
     });
 
     const startOfDay = DateUtils.startOfDayUTC(appointment.date);
     try {
-      await this.availabilityRepository.updateSlotBookingStatus(doctorId, startOfDay, appointment.startTime, false);
+      await this._availabilityRepository.updateSlotBookingStatus(doctorId, startOfDay, appointment.startTime, false);
     } catch (error) {
       logger.error(`Failed to update availability slot for doctor ${doctorId}: ${(error as Error).message}`);
       throw new Error(`Failed to update availability: ${(error as Error).message}`);
     }
 
     if (!appointment.isFreeBooking) {
-      const subscription = await this.patientSubscriptionRepository.findActiveByPatientAndDoctor(patientId, doctorId);
+      const subscription = await this._patientSubscriptionRepository.findActiveByPatientAndDoctor(patientId, doctorId);
       if (subscription) {
-        await this.patientSubscriptionRepository.decrementAppointmentCount(subscription._id!);
+        await this._patientSubscriptionRepository.decrementAppointmentCount(subscription._id!);
       }
     }
 
@@ -230,15 +230,15 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     const doctorEmailText = `Dear Dr. ${doctor.name},\n\nAn appointment with ${patient.name} for ${appointment.startTime} on ${appointment.date.toLocaleDateString()} has been cancelled.${cancellationReason ? ` Reason: ${cancellationReason}` : ''}\n\nBest regards,\nDOCit Team`;
 
     await Promise.all([
-      this.notificationService.sendNotification(patientNotification),
-      this.notificationService.sendNotification(doctorNotification),
-      this.emailService.sendEmail(patient.email, patientEmailSubject, patientEmailText),
-      this.emailService.sendEmail(doctor.email, doctorEmailSubject, doctorEmailText),
+      this._notificationService.sendNotification(patientNotification),
+      this._notificationService.sendNotification(doctorNotification),
+      this._emailService.sendEmail(patient.email, patientEmailSubject, patientEmailText),
+      this._emailService.sendEmail(doctor.email, doctorEmailSubject, doctorEmailText),
     ]);
   }
 
   async adminCancelAppointment(appointmentId: string): Promise<void> {
-    const appointment = await this.appointmentRepository.findById(appointmentId);
+    const appointment = await this._appointmentRepository.findById(appointmentId);
     if (!appointment) {
       logger.error(`Appointment not found: ${appointmentId}`);
       throw new NotFoundError('Appointment not found');
@@ -263,20 +263,20 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       throw new ValidationError('Invalid doctor ID');
     }
 
-    await this.appointmentRepository.update(appointmentId, { status: 'cancelled' });
+    await this._appointmentRepository.update(appointmentId, { status: 'cancelled' });
 
     const startOfDay = DateUtils.startOfDayUTC(appointment.date);
     try {
-      await this.availabilityRepository.updateSlotBookingStatus(doctorId, startOfDay, appointment.startTime, false);
+      await this._availabilityRepository.updateSlotBookingStatus(doctorId, startOfDay, appointment.startTime, false);
     } catch (error) {
       logger.error(`Failed to update availability slot for doctor ${doctorId}: ${(error as Error).message}`);
       throw new Error(`Failed to update availability: ${(error as Error).message}`);
     }
 
     if (!appointment.isFreeBooking && patientId) {
-      const subscription = await this.patientSubscriptionRepository.findActiveByPatientAndDoctor(patientId, doctorId);
+      const subscription = await this._patientSubscriptionRepository.findActiveByPatientAndDoctor(patientId, doctorId);
       if (subscription) {
-        await this.patientSubscriptionRepository.decrementAppointmentCount(subscription._id!);
+        await this._patientSubscriptionRepository.decrementAppointmentCount(subscription._id!);
       }
     }
 
@@ -302,8 +302,8 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     };
 
     await Promise.all([
-      this.notificationService.sendNotification(patientNotification),
-      this.notificationService.sendNotification(doctorNotification),
+      this._notificationService.sendNotification(patientNotification),
+      this._notificationService.sendNotification(doctorNotification),
     ]);
   }
 
@@ -312,7 +312,7 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     appointmentId: string,
     prescription: Omit<Prescription, '_id' | 'appointmentId' | 'patientId' | 'doctorId' | 'createdAt' | 'updatedAt'>
   ): Promise<Appointment> {
-    const appointment = await this.appointmentRepository.findById(appointmentId);
+    const appointment = await this._appointmentRepository.findById(appointmentId);
     if (!appointment) {
       logger.error(`Appointment not found: ${appointmentId}`);
       throw new NotFoundError('Appointment not found');
@@ -345,19 +345,19 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       throw new ValidationError('Invalid patient ID');
     }
 
-    const doctor = await this.doctorRepository.findById(doctorId);
+    const doctor = await this._doctorRepository.findById(doctorId);
     if (!doctor) {
       logger.error(`Doctor not found: ${doctorId}`);
       throw new NotFoundError('Doctor not found');
     }
 
-    const patient = await this.patientRepository.findById(patientId);
+    const patient = await this._patientRepository.findById(patientId);
     if (!patient) {
       logger.error(`Patient not found: ${patientId}`);
       throw new NotFoundError('Patient not found');
     }
 
-    const updatedAppointment = await this.appointmentRepository.completeAppointmentAndCreatePrescription(
+    const updatedAppointment = await this._appointmentRepository.completeAppointmentAndCreatePrescription(
       appointmentId,
       prescription
     );
@@ -386,10 +386,10 @@ export class AppointmentUseCase implements IAppointmentUseCase {
 
     try {
       await Promise.all([
-        this.notificationService.sendNotification(patientNotification),
-        this.notificationService.sendNotification(doctorNotification),
-        this.emailService.sendEmail(patient.email, patientEmailSubject, patientEmailText),
-        this.emailService.sendEmail(doctor.email, doctorEmailSubject, doctorEmailText),
+        this._notificationService.sendNotification(patientNotification),
+        this._notificationService.sendNotification(doctorNotification),
+        this._emailService.sendEmail(patient.email, patientEmailSubject, patientEmailText),
+        this._emailService.sendEmail(doctor.email, doctorEmailSubject, doctorEmailText),
       ]);
       logger.info(`Notifications and emails sent for prescription of appointment ${appointmentId}`);
     } catch (error) {
@@ -402,14 +402,14 @@ export class AppointmentUseCase implements IAppointmentUseCase {
   }
 
   async getAllAppointments(params: QueryParams): Promise<{ data: Appointment[]; totalItems: number }> {
-    return this.appointmentRepository.findAllWithQuery(params);
+    return this._appointmentRepository.findAllWithQuery(params);
   }
 
   async getDoctorAppointments(
     doctorId: string,
     params: QueryParams
   ): Promise<{ data: Appointment[]; totalItems: number }> {
-    return this.appointmentRepository.findByDoctorWithQuery(doctorId, params);
+    return this._appointmentRepository.findByDoctorWithQuery(doctorId, params);
   }
 
   async getDoctorAndPatientAppointmentsWithQuery(
@@ -417,14 +417,14 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     patientId: string,
     params: QueryParams
   ): Promise<{ data: Appointment[]; totalItems: number }> {
-    return this.appointmentRepository.findByPatientAndDoctorWithQuery(patientId, doctorId, params);
+    return this._appointmentRepository.findByPatientAndDoctorWithQuery(patientId, doctorId, params);
   }
 
   async getPatientAppointments(
     patientId: string,
     queryParams: QueryParams
   ): Promise<{ appointments: Appointment[]; totalItems: number }> {
-    const result = await this.appointmentRepository.findAllWithQuery({ ...queryParams, patientId });
+    const result = await this._appointmentRepository.findAllWithQuery({ ...queryParams, patientId });
     return {
       appointments: result.data,
       totalItems: result.totalItems,
@@ -436,7 +436,7 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     doctorId: string,
     queryParams: QueryParams
   ): Promise<{ appointments: Appointment[]; totalItems: number }> {
-    const result = await this.appointmentRepository.findByPatientAndDoctorWithQuery(patientId, doctorId, queryParams);
+    const result = await this._appointmentRepository.findByPatientAndDoctorWithQuery(patientId, doctorId, queryParams);
     return {
       appointments: result.data,
       totalItems: result.totalItems,
@@ -448,7 +448,7 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       throw new ValidationError('Appointment ID is required');
     }
 
-    const appointment = await this.appointmentRepository.findById(appointmentId);
+    const appointment = await this._appointmentRepository.findById(appointmentId);
     if (!appointment) {
       throw new NotFoundError('Appointment not found');
     }
@@ -457,7 +457,7 @@ export class AppointmentUseCase implements IAppointmentUseCase {
   }
 
   async getAppointmentById(appointmentId: string): Promise<Appointment> {
-    const appointment = await this.appointmentRepository.findById(appointmentId);
+    const appointment = await this._appointmentRepository.findById(appointmentId);
     if (!appointment) {
       throw new ValidationError('No appointment found');
     }
@@ -465,17 +465,17 @@ export class AppointmentUseCase implements IAppointmentUseCase {
   }
 
   async checkFreeBooking(patientId: string, doctorId: string): Promise<boolean> {
-    const doctor = await this.doctorRepository.findById(doctorId);
+    const doctor = await this._doctorRepository.findById(doctorId);
     if (!doctor || !doctor.allowFreeBooking) {
       return false;
     }
 
-    const subscription = await this.patientSubscriptionRepository.findActiveByPatientAndDoctor(patientId, doctorId);
+    const subscription = await this._patientSubscriptionRepository.findActiveByPatientAndDoctor(patientId, doctorId);
     if (subscription) {
       return false;
     }
 
-    const freeAppointmentCount = await this.appointmentRepository.countByPatientAndDoctorWithFreeBooking(
+    const freeAppointmentCount = await this._appointmentRepository.countByPatientAndDoctorWithFreeBooking(
       patientId,
       doctorId
     );

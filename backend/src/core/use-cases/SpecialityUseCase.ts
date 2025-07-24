@@ -8,7 +8,7 @@ import logger from '../../utils/logger';
 
 export class SpecialityUseCase implements ISpecialityUseCase {
   constructor(
-    private specialityRepository: ISpecialityRepository,
+    private _specialityRepository: ISpecialityRepository,
     private doctorRepository: IDoctorRepository
   ) {}
 
@@ -18,7 +18,7 @@ export class SpecialityUseCase implements ISpecialityUseCase {
       throw new ValidationError('Speciality name is required');
     }
 
-    const existingSpeciality = await this.specialityRepository.findByName(speciality.name);
+    const existingSpeciality = await this._specialityRepository.findByName(speciality.name);
     if (existingSpeciality) {
       logger.error(`Speciality with name ${speciality.name} already exists`);
       throw new ValidationError('Speciality with this name already exists');
@@ -31,7 +31,7 @@ export class SpecialityUseCase implements ISpecialityUseCase {
     };
 
     try {
-      return await this.specialityRepository.create(newSpeciality);
+      return await this._specialityRepository.create(newSpeciality);
     } catch (error) {
       logger.error(`Error creating speciality: ${(error as Error).message}`);
       throw new Error('Failed to create speciality');
@@ -44,14 +44,14 @@ export class SpecialityUseCase implements ISpecialityUseCase {
       throw new ValidationError('Speciality ID is required');
     }
 
-    const speciality = await this.specialityRepository.findById(specialityId);
+    const speciality = await this._specialityRepository.findById(specialityId);
     if (!speciality) {
       logger.error(`Speciality not found: ${specialityId}`);
       throw new NotFoundError('Speciality not found');
     }
 
     if (updates.name && updates.name !== speciality.name) {
-      const existingSpeciality = await this.specialityRepository.findByName(updates.name);
+      const existingSpeciality = await this._specialityRepository.findByName(updates.name);
       if (existingSpeciality) {
         logger.error(`Speciality with name ${updates.name} already exists`);
         throw new ValidationError('Speciality with this name already exists');
@@ -59,7 +59,7 @@ export class SpecialityUseCase implements ISpecialityUseCase {
     }
 
     try {
-      const updatedSpeciality = await this.specialityRepository.update(specialityId, {
+      const updatedSpeciality = await this._specialityRepository.update(specialityId, {
         ...updates,
         updatedAt: new Date(),
       });
@@ -80,7 +80,7 @@ export class SpecialityUseCase implements ISpecialityUseCase {
       throw new ValidationError('Speciality ID is required');
     }
 
-    const speciality = await this.specialityRepository.findById(specialityId);
+    const speciality = await this._specialityRepository.findById(specialityId);
     if (!speciality) {
       logger.error(`Speciality not found: ${specialityId}`);
       throw new NotFoundError('Speciality not found');
@@ -93,7 +93,7 @@ export class SpecialityUseCase implements ISpecialityUseCase {
     }
 
     try {
-      await this.specialityRepository.delete(specialityId);
+      await this._specialityRepository.delete(specialityId);
     } catch (error) {
       logger.error(`Error deleting speciality ${specialityId}: ${(error as Error).message}`);
       throw new Error('Failed to delete speciality');
@@ -101,14 +101,14 @@ export class SpecialityUseCase implements ISpecialityUseCase {
   }
 
   async getSpecialities(): Promise<Speciality[]> {
-    return await this.specialityRepository.findAll();
+    return await this._specialityRepository.findAll();
   }
 
   async getSpecialitiesWithQuery(params: QueryParams): Promise<{ data: Speciality[]; totalItems: number }> {
-    return await this.specialityRepository.findAllWithQuery(params);
+    return await this._specialityRepository.findAllWithQuery(params);
   }
 
   async getAllSpecialities(): Promise<Speciality[]> {
-    return await this.specialityRepository.findAll();
+    return await this._specialityRepository.findAll();
   }
 }

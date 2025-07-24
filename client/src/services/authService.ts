@@ -5,24 +5,28 @@ import {
   SignUpPayload,
   VerifyOtpPayload,
 } from '../types/authTypes';
+import { ROUTES } from '../constants/routeConstants';
 
 export const signUpPatient = async (payload: SignUpPayload) => {
-  const response = await api.post('/api/auth/patient/signup', payload);
+  const response = await api.post(ROUTES.API.AUTH.PATIENT_SIGNUP, payload);
   return response.data;
 };
 
 export const signUpDoctor = async (payload: SignUpPayload) => {
-  const response = await api.post('/api/auth/doctor/signup', payload);
+  const response = await api.post(ROUTES.API.AUTH.DOCTOR_SIGNUP, payload);
   return response.data;
 };
 
-export const resendSignupOTP = async (payload: { email: string; role: string }) => {
-  const response = await api.post('/api/auth/resend-signup-otp', payload);
+export const resendSignupOTP = async (payload: {
+  email: string;
+  role: string;
+}) => {
+  const response = await api.post(ROUTES.API.AUTH.RESEND_SIGNUP_OTP, payload);
   return response.data;
 };
 
 export const verifySignUpOtp = async (payload: VerifyOtpPayload) => {
-  const response = await api.post('/api/auth/verify-signup-otp', payload);
+  const response = await api.post(ROUTES.API.AUTH.VERIFY_SIGNUP_OTP, payload);
   return response.data;
 };
 
@@ -31,20 +35,17 @@ export const login = async (payload: {
   password: string;
   role: string;
 }) => {
-  let endpoint = '';
-  switch (payload.role) {
-    case 'patient':
-      endpoint = '/api/auth/patient/login';
-      break;
-    case 'doctor':
-      endpoint = '/api/auth/doctor/login';
-      break;
-    case 'admin':
-      endpoint = '/api/auth/admin/login';
-      break;
-    default:
-      throw new Error('Invalid role');
+  const roleEndpoints: Record<string, string> = {
+    patient: ROUTES.API.AUTH.PATIENT_LOGIN,
+    doctor: ROUTES.API.AUTH.DOCTOR_LOGIN,
+    admin: ROUTES.API.AUTH.ADMIN_LOGIN,
+  };
+
+  const endpoint = roleEndpoints[payload.role];
+  if (!endpoint) {
+    throw new Error('Invalid role');
   }
+
   const response = await api.post(endpoint, {
     email: payload.email,
     password: payload.password,
@@ -53,41 +54,45 @@ export const login = async (payload: {
 };
 
 export const logout = async () => {
-  const response = await api.post('/api/auth/logout');
+  const response = await api.post(ROUTES.API.AUTH.LOGOUT);
   return response.data;
 };
 
 export const checkAuth = async () => {
-  const response = await api.get('/api/user/me');
+  const response = await api.get(ROUTES.API.AUTH.USER_PROFILE);
   return response.data;
 };
 
 export const resetPassword = async (payload: ResetPasswordPayload) => {
-  const response = await api.post('/api/auth/reset-password', payload);
+  const response = await api.post(ROUTES.API.AUTH.RESET_PASSWORD, payload);
   return response.data;
 };
 
 export const forgotPassword = async (payload: ForgotPasswordPayload) => {
-  const response = await api.post('/api/auth/forgot-password', payload);
+  const response = await api.post(ROUTES.API.AUTH.FORGOT_PASSWORD, payload);
   return response.data;
 };
 
 export const googleSignInPatient = async (token: string) => {
-  const response = await api.post('/api/auth/patient/google-signin', { token });
+  const response = await api.post(ROUTES.API.AUTH.GOOGLE_SIGNIN_PATIENT, {
+    token,
+  });
   return response.data;
 };
 
 export const googleSignInDoctor = async (token: string) => {
-  const response = await api.post('/api/auth/doctor/google-signin', { token });
+  const response = await api.post(ROUTES.API.AUTH.GOOGLE_SIGNIN_DOCTOR, {
+    token,
+  });
   return response.data;
 };
 
 export const getUserProfile = async () => {
-  const response = await api.get('/api/user/me');
+  const response = await api.get(ROUTES.API.AUTH.USER_PROFILE);
   return response.data;
 };
 
 export const refreshToken = async () => {
-  const response = await api.post('/api/auth/refresh-token');
+  const response = await api.post(ROUTES.API.AUTH.REFRESH_TOKEN);
   return response.data;
 };

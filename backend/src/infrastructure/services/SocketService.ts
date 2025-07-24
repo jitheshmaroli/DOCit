@@ -12,26 +12,27 @@ import logger from '../../utils/logger';
 import * as cookie from 'cookie';
 import { IPatientRepository } from '../../core/interfaces/repositories/IPatientRepository';
 import { IDoctorRepository } from '../../core/interfaces/repositories/IDoctorRepository';
+import { UserRole } from '../../types';
 
 export class SocketService {
-  private io: SocketIOServer | null = null;
-  private connectedUsers: Map<string, Set<string>> = new Map();
-  private messageQueue: Map<string, ChatMessage[]> = new Map();
-  private notificationService: INotificationService | null = null;
+  private _io: SocketIOServer | null = null;
+  private _connectedUsers: Map<string, Set<string>> = new Map();
+  private _messageQueue: Map<string, ChatMessage[]> = new Map();
+  private _notificationService: INotificationService | null = null;
 
   constructor(
-    private chatService: IChatService,
-    private tokenService: ITokenService,
-    private patientRepository: IPatientRepository,
-    private doctorRepository: IDoctorRepository
+    private _chatService: IChatService,
+    private _tokenService: ITokenService,
+    private _patientRepository: IPatientRepository,
+    private _doctorRepository: IDoctorRepository
   ) {}
 
   setNotificationService(notificationService: INotificationService): void {
-    this.notificationService = notificationService;
+    this._notificationService = notificationService;
   }
 
   initialize(server: HttpServer): void {
-    this.io = new SocketIOServer(server, {
+    this._io = new SocketIOServer(server, {
       cors: {
         origin: env.SOCKET_CORS_ORIGIN || 'http://localhost:5173',
         credentials: true,
@@ -40,21 +41,21 @@ export class SocketService {
       pingTimeout: 20000,
       pingInterval: 25000,
     });
-    this.setupSocketEvents();
+    this._setupSocketEvents();
   }
 
-  private async updateUserLastSeen(userId: string, role: string): Promise<void> {
+  private async _updateUserLastSeen(userId: string, role: string): Promise<void> {
     const lastSeen = new Date();
-    if (role === 'patient') {
-      await this.patientRepository.update(userId, { lastSeen });
-    } else if (role === 'doctor') {
-      await this.doctorRepository.update(userId, { lastSeen });
+    if (role === UserRole.Patient) {
+      await this._patientRepository.update(userId, { lastSeen });
+    } else if (role === UserRole.Doctor) {
+      await this._doctorRepository.update(userId, { lastSeen });
     }
   }
 
-  private broadcastUserStatus(userId: string, isOnline: boolean, lastSeen?: Date): void {
-    if (!this.io) return;
-    this.io.emit('userStatusUpdate', {
+  private _broadcastUserStatus(userId: string, isOnline: boolean, lastSeen?: Date): void {
+    if (!this._io) return;
+    this._io.emit('userStatusUpdate', {
       userId,
       isOnline,
       lastSeen: lastSeen ? lastSeen.toISOString() : null,
@@ -62,12 +63,12 @@ export class SocketService {
     logger.info(`Broadcasted user status: userId=${userId}, isOnline=${isOnline}`);
   }
 
-  private setupSocketEvents(): void {
-    if (!this.io) {
+  private _setupSocketEvents(): void {
+    if (!this._io) {
       throw new Error('Socket.IO server not initialized');
     }
 
-    this.io.use(async (socket: Socket, next) => {
+    this._io.use(async (socket: Socket, next) => {
       try {
         const cookieHeader = socket.handshake.headers.cookie;
 
@@ -93,7 +94,7 @@ export class SocketService {
         }
 
         try {
-          const decoded = this.tokenService.verifyAccessToken(accessToken);
+          const decoded = this._tokenService.verifyAccessToken(accessToken);
           socket.data.userId = decoded.userId;
           socket.data.role = decoded.role;
           logger.info(`Socket authenticated: userId=${decoded.userId}, role=${decoded.role}`);
@@ -106,7 +107,7 @@ export class SocketService {
           }
 
           try {
-            const { userId, role } = await this.tokenService.verifyRefreshToken(refreshToken);
+            const { userId, role } = await this._tokenService.verifyRefreshToken(refreshToken);
             socket.data.userId = userId;
             socket.data.role = role;
             logger.info(`Socket authenticated with refreshed token: userId=${userId}, role=${role}`);
@@ -124,7 +125,7 @@ export class SocketService {
       }
     });
 
-    this.io.on('connection', async (socket: Socket) => {
+    this._io.on('connection', async (socket: Socket) => {
       const userId = socket.data.userId;
       const role = socket.data.role;
       if (!userId || !role) {
@@ -133,17 +134,17 @@ export class SocketService {
         return;
       }
 
-      if (!this.connectedUsers.has(userId)) {
-        this.connectedUsers.set(userId, new Set());
+      if (!this._connectedUsers.has(userId)) {
+        this._connectedUsers.set(userId, new Set());
       }
-      this.connectedUsers.get(userId)!.add(socket.id);
+      this._connectedUsers.get(userId)!.add(socket.id);
       logger.info(
-        `User connected: ${userId}, socketId=${socket.id}, totalSockets=${this.connectedUsers.get(userId)!.size}`
+        `User connected: ${userId}, socketId=${socket.id}, totalSockets=${this._connectedUsers.get(userId)!.size}`
       );
 
       // Update last seen and broadcast online status
-      await this.updateUserLastSeen(userId, role);
-      this.broadcastUserStatus(userId, true);
+      await this._updateUserLastSeen(userId, role);
+      this._broadcastUserStatus(userId, true);
 
       this.deliverQueuedMessages(userId, socket);
 
@@ -163,13 +164,13 @@ export class SocketService {
             unreadBy: message.unreadBy || [message.receiverId],
           };
 
-          const receiverSocketIds = this.connectedUsers.get(message.receiverId);
+          const receiverSocketIds = this._connectedUsers.get(message.receiverId);
           if (receiverSocketIds && receiverSocketIds.size > 0) {
             receiverSocketIds.forEach((socketId) => {
               logger.info(`Emitting receiveMessage to: ${message.receiverId}, socketId: ${socketId}`, {
                 messagePayload,
               });
-              this.io!.to(socketId).emit('receiveMessage', messagePayload);
+              this._io!.to(socketId).emit('receiveMessage', messagePayload);
             });
             logger.info(`Message sent to receiver: ${message.receiverId}`);
           } else {
@@ -177,14 +178,14 @@ export class SocketService {
             this.queueMessage(message.receiverId, messagePayload);
           }
 
-          const senderSocketIds = this.connectedUsers.get(message.senderId);
+          const senderSocketIds = this._connectedUsers.get(message.senderId);
           if (senderSocketIds && senderSocketIds.size > 0) {
             const senderPayload = { ...messagePayload, isSender: true };
             senderSocketIds.forEach((socketId) => {
               logger.info(`Emitting receiveMessage to: ${message.senderId}, socketId: ${socketId}`, {
                 senderPayload,
               });
-              this.io!.to(socketId).emit('receiveMessage', senderPayload);
+              this._io!.to(socketId).emit('receiveMessage', senderPayload);
             });
             logger.info(`Message sent to sender: ${message.senderId}`);
           }
@@ -203,7 +204,7 @@ export class SocketService {
             userId: data.userId,
           };
 
-          const message = await this.chatService
+          const message = await this._chatService
             .getMessages(data.userId, '', {})
             .then((messages) => messages.find((m) => m._id === data.messageId));
           if (!message) {
@@ -211,24 +212,24 @@ export class SocketService {
           }
 
           const receiverId = message.senderId === data.userId ? message.receiverId : message.senderId;
-          const receiverSocketIds = this.connectedUsers.get(receiverId);
+          const receiverSocketIds = this._connectedUsers.get(receiverId);
           if (receiverSocketIds && receiverSocketIds.size > 0) {
             receiverSocketIds.forEach((socketId) => {
               logger.info(`Emitting receiveReaction to: ${receiverId}, socketId: ${socketId}`, {
                 reactionPayload,
               });
-              this.io!.to(socketId).emit('receiveReaction', reactionPayload);
+              this._io!.to(socketId).emit('receiveReaction', reactionPayload);
             });
             logger.info(`Reaction sent to receiver: ${receiverId}`);
           }
 
-          const senderSocketIds = this.connectedUsers.get(data.userId);
+          const senderSocketIds = this._connectedUsers.get(data.userId);
           if (senderSocketIds && senderSocketIds.size > 0) {
             senderSocketIds.forEach((socketId) => {
               logger.info(`Emitting receiveReaction to: ${data.userId}, socketId: ${socketId}`, {
                 reactionPayload,
               });
-              this.io!.to(socketId).emit('receiveReaction', reactionPayload);
+              this._io!.to(socketId).emit('receiveReaction', reactionPayload);
             });
             logger.info(`Reaction sent to sender: ${data.userId}`);
           }
@@ -239,17 +240,17 @@ export class SocketService {
       });
 
       socket.on('sendNotification', async (notification: Notification) => {
-        if (!this.notificationService) {
+        if (!this._notificationService) {
           logger.error('Notification service not available');
           socket.emit('error', { message: 'Notification service not available' });
           return;
         }
         try {
-          await this.notificationService.sendNotification(notification);
-          const receiverSocketIds = this.connectedUsers.get(notification.userId);
+          await this._notificationService.sendNotification(notification);
+          const receiverSocketIds = this._connectedUsers.get(notification.userId);
           if (receiverSocketIds && receiverSocketIds.size > 0) {
             receiverSocketIds.forEach((socketId) => {
-              this.io!.to(socketId).emit('receiveNotification', notification);
+              this._io!.to(socketId).emit('receiveNotification', notification);
             });
             logger.info(`Notification sent to: ${notification.userId}`);
           }
@@ -262,10 +263,10 @@ export class SocketService {
       socket.on('initiateVideoCall', async (data: { appointmentId: string; receiverId: string }) => {
         try {
           logger.info('Received initiateVideoCall:', { data });
-          const receiverSocketIds = this.connectedUsers.get(data.receiverId);
+          const receiverSocketIds = this._connectedUsers.get(data.receiverId);
           if (receiverSocketIds && receiverSocketIds.size > 0) {
             receiverSocketIds.forEach((socketId) => {
-              this.io!.to(socketId).emit('incomingCall', {
+              this._io!.to(socketId).emit('incomingCall', {
                 appointmentId: data.appointmentId,
                 callerId: userId,
                 callerRole: role,
@@ -285,10 +286,10 @@ export class SocketService {
       socket.on('acceptCall', async (data: { appointmentId: string; callerId: string }) => {
         try {
           logger.info('Received acceptCall:', { data });
-          const callerSocketIds = this.connectedUsers.get(data.callerId);
+          const callerSocketIds = this._connectedUsers.get(data.callerId);
           if (callerSocketIds && callerSocketIds.size > 0) {
             callerSocketIds.forEach((socketId) => {
-              this.io!.to(socketId).emit('callAccepted', {
+              this._io!.to(socketId).emit('callAccepted', {
                 appointmentId: data.appointmentId,
                 acceptorId: userId,
               });
@@ -304,10 +305,10 @@ export class SocketService {
       socket.on('rejectCall', async (data: { appointmentId: string; callerId: string }) => {
         try {
           logger.info('Received rejectCall:', { data });
-          const callerSocketIds = this.connectedUsers.get(data.callerId);
+          const callerSocketIds = this._connectedUsers.get(data.callerId);
           if (callerSocketIds && callerSocketIds.size > 0) {
             callerSocketIds.forEach((socketId) => {
-              this.io!.to(socketId).emit('callRejected', {
+              this._io!.to(socketId).emit('callRejected', {
                 appointmentId: data.appointmentId,
                 rejectorId: userId,
               });
@@ -323,10 +324,10 @@ export class SocketService {
       socket.on('signal', async (data: { appointmentId: string; receiverId: string; signal: any }) => {
         try {
           logger.info('Received signal:', { appointmentId: data.appointmentId });
-          const receiverSocketIds = this.connectedUsers.get(data.receiverId);
+          const receiverSocketIds = this._connectedUsers.get(data.receiverId);
           if (receiverSocketIds && receiverSocketIds.size > 0) {
             receiverSocketIds.forEach((socketId) => {
-              this.io!.to(socketId).emit('signal', {
+              this._io!.to(socketId).emit('signal', {
                 appointmentId: data.appointmentId,
                 senderId: userId,
                 signal: data.signal,
@@ -343,10 +344,10 @@ export class SocketService {
       socket.on('endCall', async (data: { appointmentId: string; receiverId: string }) => {
         try {
           logger.info('Received endCall:', { data });
-          const receiverSocketIds = this.connectedUsers.get(data.receiverId);
+          const receiverSocketIds = this._connectedUsers.get(data.receiverId);
           if (receiverSocketIds && receiverSocketIds.size > 0) {
             receiverSocketIds.forEach((socketId) => {
-              this.io!.to(socketId).emit('callEnded', {
+              this._io!.to(socketId).emit('callEnded', {
                 appointmentId: data.appointmentId,
                 enderId: userId,
               });
@@ -362,10 +363,10 @@ export class SocketService {
       socket.on('handRaise', async (data: { appointmentId: string; receiverId: string; isRaised: boolean }) => {
         try {
           logger.info('Received handRaise:', { data });
-          const receiverSocketIds = this.connectedUsers.get(data.receiverId);
+          const receiverSocketIds = this._connectedUsers.get(data.receiverId);
           if (receiverSocketIds && receiverSocketIds.size > 0) {
             receiverSocketIds.forEach((socketId) => {
-              this.io!.to(socketId).emit('handRaise', {
+              this._io!.to(socketId).emit('handRaise', {
                 appointmentId: data.appointmentId,
                 userId,
                 isRaised: data.isRaised,
@@ -382,10 +383,10 @@ export class SocketService {
       socket.on('muteStatus', async (data: { appointmentId: string; receiverId: string; isMuted: boolean }) => {
         try {
           logger.info('Received muteStatus:', { data });
-          const receiverSocketIds = this.connectedUsers.get(data.receiverId);
+          const receiverSocketIds = this._connectedUsers.get(data.receiverId);
           if (receiverSocketIds && receiverSocketIds.size > 0) {
             receiverSocketIds.forEach((socketId) => {
-              this.io!.to(socketId).emit('muteStatus', {
+              this._io!.to(socketId).emit('muteStatus', {
                 appointmentId: data.appointmentId,
                 userId,
                 isMuted: data.isMuted,
@@ -400,13 +401,13 @@ export class SocketService {
       });
 
       socket.on('disconnect', async () => {
-        const userSockets = this.connectedUsers.get(userId);
+        const userSockets = this._connectedUsers.get(userId);
         if (userSockets) {
           userSockets.delete(socket.id);
           if (userSockets.size === 0) {
-            this.connectedUsers.delete(userId);
-            await this.updateUserLastSeen(userId, role);
-            this.broadcastUserStatus(userId, false, new Date());
+            this._connectedUsers.delete(userId);
+            await this._updateUserLastSeen(userId, role);
+            this._broadcastUserStatus(userId, false, new Date());
           }
           logger.info(
             `User socket disconnected: ${userId}, socketId=${socket.id}, remainingSockets=${userSockets?.size || 0}`
@@ -417,37 +418,37 @@ export class SocketService {
   }
 
   private queueMessage(userId: string, message: ChatMessage): void {
-    if (!this.messageQueue.has(userId)) {
-      this.messageQueue.set(userId, []);
+    if (!this._messageQueue.has(userId)) {
+      this._messageQueue.set(userId, []);
     }
-    this.messageQueue.get(userId)!.push(message);
-    logger.info(`Message queued for user: ${userId}, queueSize=${this.messageQueue.get(userId)!.length}`);
+    this._messageQueue.get(userId)!.push(message);
+    logger.info(`Message queued for user: ${userId}, queueSize=${this._messageQueue.get(userId)!.length}`);
   }
 
   private deliverQueuedMessages(userId: string, socket: Socket): void {
-    const queuedMessages = this.messageQueue.get(userId);
+    const queuedMessages = this._messageQueue.get(userId);
     if (queuedMessages && queuedMessages.length > 0) {
       queuedMessages.forEach((message) => {
         socket.emit('receiveMessage', message);
         logger.info(`Delivered queued message to: ${userId}`, { message });
       });
-      this.messageQueue.delete(userId);
+      this._messageQueue.delete(userId);
       logger.info(`Cleared message queue for user: ${userId}`);
     }
   }
 
   async sendNotificationToUser(userId: string, notification: Notification): Promise<void> {
-    const socketIds = this.connectedUsers.get(userId);
-    if (socketIds && socketIds.size > 0 && this.io) {
+    const socketIds = this._connectedUsers.get(userId);
+    if (socketIds && socketIds.size > 0 && this._io) {
       socketIds.forEach((socketId) => {
-        this.io!.to(socketId).emit('receiveNotification', notification);
+        this._io!.to(socketId).emit('receiveNotification', notification);
       });
       logger.info(`Notification sent to user: ${userId}, socketCount=${socketIds.size}`);
     }
   }
 
   async sendMessageToUsers(message: ChatMessage): Promise<void> {
-    if (!this.io) {
+    if (!this._io) {
       throw new Error('Socket.IO server not initialized');
     }
 
@@ -464,13 +465,13 @@ export class SocketService {
       unreadBy: message.unreadBy || [message.receiverId],
     };
 
-    const receiverSocketIds = this.connectedUsers.get(message.receiverId);
+    const receiverSocketIds = this._connectedUsers.get(message.receiverId);
     if (receiverSocketIds && receiverSocketIds.size > 0) {
       receiverSocketIds.forEach((socketId) => {
         logger.info(`Emitting receiveMessage to: ${message.receiverId}, socketId: ${socketId}`, {
           messagePayload,
         });
-        this.io!.to(socketId).emit('receiveMessage', messagePayload);
+        this._io!.to(socketId).emit('receiveMessage', messagePayload);
       });
       logger.info(`Message sent to receiver: ${message.receiverId}`);
     } else {
@@ -478,21 +479,21 @@ export class SocketService {
       this.queueMessage(message.receiverId, messagePayload);
     }
 
-    const senderSocketIds = this.connectedUsers.get(message.senderId);
+    const senderSocketIds = this._connectedUsers.get(message.senderId);
     if (senderSocketIds && senderSocketIds.size > 0) {
       const senderPayload = { ...messagePayload, isSender: true };
       senderSocketIds.forEach((socketId) => {
         logger.info(`Emitting receiveMessage to: ${message.senderId}, socketId: ${socketId}`, {
           senderPayload,
         });
-        this.io!.to(socketId).emit('receiveMessage', senderPayload);
+        this._io!.to(socketId).emit('receiveMessage', senderPayload);
       });
       logger.info(`Message sent to sender: ${message.senderId}`);
     }
   }
 
   async sendReactionToUsers(messageId: string, emoji: string, userId: string, receiverId: string): Promise<void> {
-    if (!this.io) {
+    if (!this._io) {
       throw new Error('Socket.IO server not initialized');
     }
 
@@ -502,39 +503,39 @@ export class SocketService {
       userId,
     };
 
-    const receiverSocketIds = this.connectedUsers.get(receiverId);
+    const receiverSocketIds = this._connectedUsers.get(receiverId);
     if (receiverSocketIds && receiverSocketIds.size > 0) {
       receiverSocketIds.forEach((socketId) => {
         logger.info(`Emitting receiveReaction to: ${receiverId}, socketId: ${socketId}`, {
           reactionPayload,
         });
-        this.io!.to(socketId).emit('receiveReaction', reactionPayload);
+        this._io!.to(socketId).emit('receiveReaction', reactionPayload);
       });
       logger.info(`Reaction sent to receiver: ${receiverId}`);
     }
 
-    const senderSocketIds = this.connectedUsers.get(userId);
+    const senderSocketIds = this._connectedUsers.get(userId);
     if (senderSocketIds && senderSocketIds.size > 0) {
       senderSocketIds.forEach((socketId) => {
         logger.info(`Emitting receiveReaction to: ${userId}, socketId: ${socketId}`, {
           reactionPayload,
         });
-        this.io!.to(socketId).emit('receiveReaction', reactionPayload);
+        this._io!.to(socketId).emit('receiveReaction', reactionPayload);
       });
       logger.info(`Reaction sent to sender: ${userId}`);
     }
   }
 
   isUserOnline(userId: string): boolean {
-    return this.connectedUsers.has(userId) && this.connectedUsers.get(userId)!.size > 0;
+    return this._connectedUsers.has(userId) && this._connectedUsers.get(userId)!.size > 0;
   }
 
   async getUserLastSeen(userId: string, role: string): Promise<Date | null> {
-    if (role === 'patient') {
-      const patient = await this.patientRepository.findById(userId);
+    if (role === UserRole.Patient) {
+      const patient = await this._patientRepository.findById(userId);
       return patient?.lastSeen || null;
-    } else if (role === 'doctor') {
-      const doctor = await this.doctorRepository.findById(userId);
+    } else if (role === UserRole.Doctor) {
+      const doctor = await this._doctorRepository.findById(userId);
       return doctor?.lastSeen || null;
     }
     return null;

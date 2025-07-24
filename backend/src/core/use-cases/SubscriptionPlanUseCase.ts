@@ -15,20 +15,20 @@ import { Notification, NotificationType } from '../entities/Notification';
 
 export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
   constructor(
-    private subscriptionPlanRepository: ISubscriptionPlanRepository,
-    private patientSubscriptionRepository: IPatientSubscriptionRepository,
-    private patientRepository: IPatientRepository,
-    private doctorRepository: IDoctorRepository,
-    private stripeService: StripeService,
-    private notificationService: INotificationService,
-    private emailService: IEmailService
+    private _subscriptionPlanRepository: ISubscriptionPlanRepository,
+    private _patientSubscriptionRepository: IPatientSubscriptionRepository,
+    private _patientRepository: IPatientRepository,
+    private _doctorRepository: IDoctorRepository,
+    private _stripeService: StripeService,
+    private _notificationService: INotificationService,
+    private _emailService: IEmailService
   ) {}
 
   async createSubscriptionPlan(
     doctorId: string,
     plan: Omit<SubscriptionPlan, '_id' | 'doctorId' | 'status' | 'createdAt' | 'updatedAt'>
   ): Promise<SubscriptionPlan> {
-    const doctor = await this.doctorRepository.findById(doctorId);
+    const doctor = await this._doctorRepository.findById(doctorId);
     if (!doctor) {
       throw new NotFoundError('Doctor not found');
     }
@@ -43,7 +43,7 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
       throw new ValidationError('Appointment count must be at least 1');
     }
 
-    const existingPlans: SubscriptionPlan[] = await this.subscriptionPlanRepository.findByDoctor(doctorId);
+    const existingPlans: SubscriptionPlan[] = await this._subscriptionPlanRepository.findByDoctor(doctorId);
     existingPlans.forEach((existingPlan) => {
       if (existingPlan.appointmentCount === plan.appointmentCount && existingPlan.name === plan.name) {
         throw new ValidationError('Plan already exists');
@@ -56,7 +56,7 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
       status: 'pending',
     };
 
-    return this.subscriptionPlanRepository.create(subscriptionPlan);
+    return this._subscriptionPlanRepository.create(subscriptionPlan);
   }
 
   async updateDoctorSubscriptionPlan(
@@ -64,7 +64,7 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
     doctorId: string,
     planData: Partial<SubscriptionPlan>
   ): Promise<SubscriptionPlan> {
-    const plan = await this.subscriptionPlanRepository.findById(subscriptionPlanId);
+    const plan = await this._subscriptionPlanRepository.findById(subscriptionPlanId);
     if (!plan) {
       throw new NotFoundError('Plan not found');
     }
@@ -72,7 +72,7 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
       throw new ValidationError('Unauthorized to update this plan');
     }
 
-    const updatedPlan = await this.subscriptionPlanRepository.update(subscriptionPlanId, planData);
+    const updatedPlan = await this._subscriptionPlanRepository.update(subscriptionPlanId, planData);
     if (!updatedPlan) {
       throw new NotFoundError('Failed to update plan');
     }
@@ -80,23 +80,23 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
   }
 
   async getDoctorSubscriptionPlans(doctorId: string): Promise<SubscriptionPlan[]> {
-    return await this.subscriptionPlanRepository.findByDoctor(doctorId);
+    return await this._subscriptionPlanRepository.findByDoctor(doctorId);
   }
 
   async getDoctorApprovedPlans(doctorId: string): Promise<SubscriptionPlan[]> {
-    return await this.subscriptionPlanRepository.findApprovedByDoctor(doctorId);
+    return await this._subscriptionPlanRepository.findApprovedByDoctor(doctorId);
   }
 
   async manageSubscriptionPlanGetAll(params: QueryParams): Promise<{ data: SubscriptionPlan[]; totalItems: number }> {
-    return this.subscriptionPlanRepository.findAllWithQuery(params);
+    return this._subscriptionPlanRepository.findAllWithQuery(params);
   }
 
   async approveSubscriptionPlan(planId: string): Promise<SubscriptionPlan> {
-    const plan = await this.subscriptionPlanRepository.update(planId, { status: 'approved' });
+    const plan = await this._subscriptionPlanRepository.update(planId, { status: 'approved' });
     if (!plan) {
       throw new NotFoundError('Plan not found');
     }
-    const doctor = await this.doctorRepository.findById(plan.doctorId);
+    const doctor = await this._doctorRepository.findById(plan.doctorId);
     return {
       ...plan,
       doctorName: doctor?.name || 'N/A',
@@ -104,11 +104,11 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
   }
 
   async rejectSubscriptionPlan(planId: string): Promise<SubscriptionPlan> {
-    const plan = await this.subscriptionPlanRepository.update(planId, { status: 'rejected' });
+    const plan = await this._subscriptionPlanRepository.update(planId, { status: 'rejected' });
     if (!plan) {
       throw new NotFoundError('Plan not found');
     }
-    const doctor = await this.doctorRepository.findById(plan.doctorId);
+    const doctor = await this._doctorRepository.findById(plan.doctorId);
     return {
       ...plan,
       doctorName: doctor?.name || 'N/A',
@@ -116,12 +116,12 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
   }
 
   async deleteSubscriptionPlan(planId: string): Promise<void> {
-    const plan = await this.subscriptionPlanRepository.findById(planId);
+    const plan = await this._subscriptionPlanRepository.findById(planId);
     if (!plan) {
       throw new NotFoundError('Plan not found');
     }
 
-    const activeSubscriptions = await this.patientSubscriptionRepository.findActiveSubscriptions();
+    const activeSubscriptions = await this._patientSubscriptionRepository.findActiveSubscriptions();
     const isPlanInUse = activeSubscriptions.some((sub) => {
       if (!sub.planId) return false;
       return typeof sub.planId === 'string' ? sub.planId === planId : sub.planId._id?.toString() === planId;
@@ -130,7 +130,7 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
     if (isPlanInUse) {
       throw new ValidationError('Plan is in use by one or more patients and cannot be deleted');
     }
-    await this.subscriptionPlanRepository.delete(planId);
+    await this._subscriptionPlanRepository.delete(planId);
   }
 
   async subscribeToPlan(
@@ -138,7 +138,7 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
     planId: string,
     price: number
   ): Promise<{ clientSecret: string; paymentIntentId: string }> {
-    const plan = await this.subscriptionPlanRepository.findById(planId);
+    const plan = await this._subscriptionPlanRepository.findById(planId);
     if (!plan) {
       throw new NotFoundError('Plan not found');
     }
@@ -146,19 +146,19 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
       throw new ValidationError('Plan is not approved');
     }
 
-    const existing = await this.patientSubscriptionRepository.findActiveByPatientAndDoctor(patientId, plan.doctorId);
+    const existing = await this._patientSubscriptionRepository.findActiveByPatientAndDoctor(patientId, plan.doctorId);
     if (existing) {
       throw new ValidationError('You are already subscribed to a plan for this doctor');
     }
 
-    const clientSecret = await this.stripeService.createPaymentIntent(price * 100);
+    const clientSecret = await this._stripeService.createPaymentIntent(price * 100);
     const paymentIntentId = clientSecret.split('_secret_')[0];
 
     return { clientSecret, paymentIntentId };
   }
 
   async confirmSubscription(patientId: string, planId: string, paymentIntentId: string): Promise<PatientSubscription> {
-    const plan = await this.subscriptionPlanRepository.findById(planId);
+    const plan = await this._subscriptionPlanRepository.findById(planId);
     if (!plan) {
       throw new NotFoundError('Plan not found');
     }
@@ -166,12 +166,12 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
       throw new ValidationError('Plan is not approved');
     }
 
-    const existing = await this.patientSubscriptionRepository.findActiveByPatientAndDoctor(patientId, plan.doctorId);
+    const existing = await this._patientSubscriptionRepository.findActiveByPatientAndDoctor(patientId, plan.doctorId);
     if (existing) {
       throw new ValidationError('You are already subscribed to a plan for this doctor');
     }
 
-    await this.stripeService.confirmPaymentIntent(paymentIntentId);
+    await this._stripeService.confirmPaymentIntent(paymentIntentId);
 
     const startDate = new Date();
     const endDate = moment(startDate).add(plan.validityDays, 'days').toDate();
@@ -188,12 +188,12 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
       stripePaymentId: paymentIntentId,
     };
 
-    const savedSubscription = await this.patientSubscriptionRepository.create(subscription);
+    const savedSubscription = await this._patientSubscriptionRepository.create(subscription);
 
-    const patient = await this.patientRepository.findById(patientId);
+    const patient = await this._patientRepository.findById(patientId);
     if (!patient) throw new NotFoundError('Patient not found');
 
-    const doctor = await this.doctorRepository.findById(plan.doctorId);
+    const doctor = await this._doctorRepository.findById(plan.doctorId);
     if (!doctor) throw new NotFoundError('Doctor not found');
 
     const patientNotification: Notification = {
@@ -218,15 +218,15 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
     const doctorEmailText = `Dear Dr. ${doctor.name},\n\n${patient.name} has subscribed to your plan "${plan.name}". The subscription is valid until ${endDate.toLocaleDateString()}.\n\nBest regards,\nDOCit Team`;
 
     await Promise.all([
-      this.notificationService.sendNotification(patientNotification),
-      this.notificationService.sendNotification(doctorNotification),
-      this.emailService.sendEmail(patient.email, patientEmailSubject, patientEmailText),
-      this.emailService.sendEmail(doctor.email, doctorEmailSubject, doctorEmailText),
+      this._notificationService.sendNotification(patientNotification),
+      this._notificationService.sendNotification(doctorNotification),
+      this._emailService.sendEmail(patient.email, patientEmailSubject, patientEmailText),
+      this._emailService.sendEmail(doctor.email, doctorEmailSubject, doctorEmailText),
     ]);
 
-    const activeSubscriptions = await this.patientSubscriptionRepository.findActiveSubscriptions();
+    const activeSubscriptions = await this._patientSubscriptionRepository.findActiveSubscriptions();
     const hasActiveSubscriptions = activeSubscriptions.some((sub) => sub.patientId === patientId);
-    await this.patientRepository.updateSubscriptionStatus(patientId, hasActiveSubscriptions);
+    await this._patientRepository.updateSubscriptionStatus(patientId, hasActiveSubscriptions);
 
     return savedSubscription;
   }

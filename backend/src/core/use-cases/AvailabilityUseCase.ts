@@ -2,20 +2,18 @@ import { IAvailabilityUseCase } from '../interfaces/use-cases/IAvailabilityUseCa
 import { Availability, TimeSlot } from '../entities/Availability';
 import { IAvailabilityRepository } from '../interfaces/repositories/IAvailabilityRepository';
 import { IDoctorRepository } from '../interfaces/repositories/IDoctorRepository';
-import { IAppointmentRepository } from '../interfaces/repositories/IAppointmentRepository';
 import { ValidationError, NotFoundError } from '../../utils/errors';
 import logger from '../../utils/logger';
 import moment from 'moment';
 
 export class AvailabilityUseCase implements IAvailabilityUseCase {
   constructor(
-    private doctorRepository: IDoctorRepository,
-    private availabilityRepository: IAvailabilityRepository,
-    private appointmentRepository: IAppointmentRepository
+    private _doctorRepository: IDoctorRepository,
+    private _availabilityRepository: IAvailabilityRepository
   ) {}
 
   // Validate time slot (startTime and endTime in HH:mm format)
-  private validateTimeSlot(startTime: string, endTime: string, date: Date): void {
+  private _validateTimeSlot(startTime: string, endTime: string, date: Date): void {
     if (!startTime || !endTime) {
       throw new ValidationError('Start time and end time are required');
     }
@@ -38,7 +36,7 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
   }
 
   // Check for overlapping slots
-  private checkOverlappingSlots(slots: { startTime: string; endTime: string }[], date: Date): void {
+  private _checkOverlappingSlots(slots: { startTime: string; endTime: string }[], date: Date): void {
     const slotMoments = slots
       .map((slot) => ({
         start: moment.utc(`${moment.utc(date).format('YYYY-MM-DD')} ${slot.startTime}`, 'YYYY-MM-DD HH:mm', true),
@@ -117,7 +115,7 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
       throw new ValidationError('Doctor ID, date, and time slots are required');
     }
 
-    const doctor = await this.doctorRepository.findById(doctorId);
+    const doctor = await this._doctorRepository.findById(doctorId);
     if (!doctor) {
       logger.error(`Doctor not found: ${doctorId}`);
       throw new NotFoundError('Doctor not found');
@@ -129,10 +127,10 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
     }
 
     for (const slot of timeSlots) {
-      this.validateTimeSlot(slot.startTime, slot.endTime, date);
+      this._validateTimeSlot(slot.startTime, slot.endTime, date);
     }
 
-    this.checkOverlappingSlots(timeSlots, date);
+    this._checkOverlappingSlots(timeSlots, date);
 
     const conflicts: { date: string; error: string }[] = [];
     const availabilities: Availability[] = [];
@@ -141,7 +139,7 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
       const dates = this.generateRecurringDates(date, recurringEndDate!, recurringDays!);
       for (const currentDate of dates) {
         const startOfDay = this.startOfDayUTC(currentDate);
-        const existingAvailability = await this.availabilityRepository.findByDoctorAndDate(doctorId, startOfDay);
+        const existingAvailability = await this._availabilityRepository.findByDoctorAndDate(doctorId, startOfDay);
         if (existingAvailability && !forceCreate) {
           conflicts.push({
             date: startOfDay.toISOString(),
@@ -158,8 +156,8 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
 
         try {
           const savedAvailability = existingAvailability
-            ? await this.availabilityRepository.update(existingAvailability._id!, newAvailability)
-            : await this.availabilityRepository.create(newAvailability);
+            ? await this._availabilityRepository.update(existingAvailability._id!, newAvailability)
+            : await this._availabilityRepository.create(newAvailability);
           if (savedAvailability) {
             availabilities.push(savedAvailability);
           } else {
@@ -173,7 +171,7 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
       return { availabilities, conflicts };
     } else {
       const startOfDay = this.startOfDayUTC(date);
-      const existingAvailability = await this.availabilityRepository.findByDoctorAndDate(doctorId, startOfDay);
+      const existingAvailability = await this._availabilityRepository.findByDoctorAndDate(doctorId, startOfDay);
       if (existingAvailability && !forceCreate) {
         conflicts.push({ date: startOfDay.toISOString(), error: 'Availability already exists for this date' });
         return { availabilities: [], conflicts };
@@ -187,8 +185,8 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
 
       try {
         const savedAvailability = existingAvailability
-          ? await this.availabilityRepository.update(existingAvailability._id!, newAvailability)
-          : await this.availabilityRepository.create(newAvailability);
+          ? await this._availabilityRepository.update(existingAvailability._id!, newAvailability)
+          : await this._availabilityRepository.create(newAvailability);
         if (savedAvailability) {
           return { availabilities: savedAvailability, conflicts };
         } else {
@@ -205,17 +203,15 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
 
   async getAvailability(doctorId: string, startDate: Date, endDate: Date): Promise<Availability[]> {
     if (!doctorId || !startDate || !endDate) {
-      logger.error('Missing required fields for fetching availability');
       throw new ValidationError('Doctor ID, start date, and end date are required');
     }
 
-    const doctor = await this.doctorRepository.findById(doctorId);
+    const doctor = await this._doctorRepository.findById(doctorId);
     if (!doctor) {
-      logger.error(`Doctor not found: ${doctorId}`);
       throw new NotFoundError('Doctor not found');
     }
 
-    return this.availabilityRepository.findByDoctorAndDateRange(doctorId, startDate, endDate);
+    return this._availabilityRepository.findByDoctorAndDateRange(doctorId, startDate, endDate);
   }
 
   async getDoctorAvailability(
@@ -225,17 +221,15 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
     filterBooked: boolean
   ): Promise<Availability[]> {
     if (!doctorId || !startDate || !endDate) {
-      logger.error('Missing required fields for fetching doctor availability');
       throw new ValidationError('Doctor ID, start date, and end date are required');
     }
 
-    const doctor = await this.doctorRepository.findById(doctorId);
+    const doctor = await this._doctorRepository.findById(doctorId);
     if (!doctor) {
-      logger.error(`Doctor not found: ${doctorId}`);
       throw new NotFoundError('Doctor not found');
     }
 
-    const availabilities = await this.availabilityRepository.findByDoctorAndDateRange(doctorId, startDate, endDate);
+    const availabilities = await this._availabilityRepository.findByDoctorAndDateRange(doctorId, startDate, endDate);
     if (filterBooked) {
       return availabilities.map((availability) => ({
         ...availability,
@@ -247,38 +241,33 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
 
   async removeSlot(availabilityId: string, slotIndex: number, doctorId: string): Promise<Availability | null> {
     if (!availabilityId || slotIndex < 0 || !doctorId) {
-      logger.error('Missing or invalid fields for removing slot');
       throw new ValidationError('Availability ID, slot index, and doctor ID are required');
     }
 
-    const availability = await this.availabilityRepository.findById(availabilityId);
+    const availability = await this._availabilityRepository.findById(availabilityId);
     if (!availability) {
-      logger.error(`Availability not found: ${availabilityId}`);
       throw new NotFoundError('Availability not found');
     }
 
     if (availability.doctorId !== doctorId) {
-      logger.error(`Unauthorized attempt to remove slot from availability ${availabilityId} by doctor ${doctorId}`);
       throw new ValidationError('Unauthorized to modify this availability');
     }
 
     if (slotIndex >= availability.timeSlots.length) {
-      logger.error(`Invalid slot index ${slotIndex} for availability ${availabilityId}`);
       throw new ValidationError('Invalid slot index');
     }
 
     if (availability.timeSlots[slotIndex].isBooked) {
-      logger.error(`Slot at index ${slotIndex} in availability ${availabilityId} is booked and cannot be removed`);
       throw new ValidationError('Cannot remove a booked slot');
     }
 
     availability.timeSlots.splice(slotIndex, 1);
     if (availability.timeSlots.length === 0) {
-      await this.availabilityRepository.delete(availabilityId);
+      await this._availabilityRepository.delete(availabilityId);
       return null;
     }
 
-    const updatedAvailability = await this.availabilityRepository.update(availabilityId, {
+    const updatedAvailability = await this._availabilityRepository.update(availabilityId, {
       timeSlots: availability.timeSlots,
     });
     return updatedAvailability;
@@ -291,38 +280,33 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
     doctorId: string
   ): Promise<Availability | null> {
     if (!availabilityId || slotIndex < 0 || !newSlot.startTime || !newSlot.endTime || !doctorId) {
-      logger.error('Missing or invalid fields for updating slot');
       throw new ValidationError('Availability ID, slot index, new slot details, and doctor ID are required');
     }
 
-    const availability = await this.availabilityRepository.findById(availabilityId);
+    const availability = await this._availabilityRepository.findById(availabilityId);
     if (!availability) {
-      logger.error(`Availability not found: ${availabilityId}`);
       throw new NotFoundError('Availability not found');
     }
 
     if (availability.doctorId !== doctorId) {
-      logger.error(`Unauthorized attempt to update slot in availability ${availabilityId} by doctor ${doctorId}`);
       throw new ValidationError('Unauthorized to modify this availability');
     }
 
     if (slotIndex >= availability.timeSlots.length) {
-      logger.error(`Invalid slot index ${slotIndex} for availability ${availabilityId}`);
       throw new ValidationError('Invalid slot index');
     }
 
     if (availability.timeSlots[slotIndex].isBooked) {
-      logger.error(`Slot at index ${slotIndex} in availability ${availabilityId} is booked and cannot be updated`);
       throw new ValidationError('Cannot update a booked slot');
     }
 
-    this.validateTimeSlot(newSlot.startTime, newSlot.endTime, availability.date);
+    this._validateTimeSlot(newSlot.startTime, newSlot.endTime, availability.date);
     const tempSlots = [...availability.timeSlots];
     tempSlots[slotIndex] = { ...newSlot, isBooked: false };
-    this.checkOverlappingSlots(tempSlots, availability.date);
+    this._checkOverlappingSlots(tempSlots, availability.date);
 
     availability.timeSlots[slotIndex] = { ...newSlot, isBooked: false };
-    const updatedAvailability = await this.availabilityRepository.update(availabilityId, {
+    const updatedAvailability = await this._availabilityRepository.update(availabilityId, {
       timeSlots: availability.timeSlots,
     });
     return updatedAvailability;
