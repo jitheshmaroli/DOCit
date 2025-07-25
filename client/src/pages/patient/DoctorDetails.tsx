@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -14,9 +14,13 @@ import {
   getPatientAppointmentsForDoctorThunk,
   getDoctorAvailabilityThunk,
   cancelAppointmentThunk,
+  cancelSubscriptionThunk,
 } from '../../redux/thunks/patientThunk';
 import { clearError as clearDoctorError } from '../../redux/slices/doctorSlice';
-import { clearError as clearPatientError } from '../../redux/slices/patientSlice';
+import {
+  clearError as clearPatientError,
+  clearRefundDetails,
+} from '../../redux/slices/patientSlice';
 import defaultAvatar from '/images/avatar.png';
 import { getImageUrl } from '../../utils/config';
 import useAuth from '../../hooks/useAuth';
@@ -28,7 +32,9 @@ import { Elements } from '@stripe/react-stripe-js';
 import { TimeSlot } from '../../types/authTypes';
 import Pagination from '../../components/common/Pagination';
 import CancelAppointmentModal from '../../components/CancelAppointmentModal';
+import Modal from '../../components/common/Modal';
 import { getDoctorReviews } from '../../services/patientService';
+import { debounce } from 'lodash';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);
 
@@ -71,6 +77,7 @@ const DoctorDetails: React.FC = () => {
     canBookFree,
     loading: patientLoading,
     error: patientError,
+    lastRefundDetails,
   } = useAppSelector((state) => state.patient);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
@@ -89,11 +96,19 @@ const DoctorDetails: React.FC = () => {
   const [appointmentToCancel, setAppointmentToCancel] = useState<string | null>(
     null
   );
+  const [isCancelSubscriptionModalOpen, setIsCancelSubscriptionModalOpen] =
+    useState(false);
+  const [cancellationReason, setCancellationReason] = useState<string>('');
+  const [modalMode, setModalMode] = useState<'cancel' | 'refund'>('cancel');
   const [reviews, setReviews] = useState<Review[]>([]);
 
   const specialityFromState = (location.state as { speciality?: string[] })
     ?.speciality;
-  console.log(selectedDoctor);
+
+  const activeSubscription = doctorId ? activeSubscriptions[doctorId] : null;
+  const plans = doctorId ? doctorPlans[doctorId] || [] : [];
+  const canBookFreeAppointment = doctorId ? canBookFree : false;
+
   useEffect(() => {
     if (doctorId) {
       dispatch(fetchDoctorByIdThunk(doctorId));
@@ -156,7 +171,6 @@ const DoctorDetails: React.FC = () => {
       });
       getDoctorReviews(doctorId)
         .then((reviews) => {
-          console.log('Fetched reviews:', reviews);
           setReviews(reviews);
         })
         .catch(() => {
@@ -164,10 +178,12 @@ const DoctorDetails: React.FC = () => {
           setReviews([]);
         });
     }
+    return () => {
+      dispatch(clearRefundDetails());
+    };
   }, [dispatch, doctorId, currentPage]);
 
   useEffect(() => {
-    console.log('Selected doctor:', selectedDoctor); // Debug log
     if (doctorError) {
       toast.error(doctorError);
       dispatch(clearDoctorError());
@@ -185,14 +201,7 @@ const DoctorDetails: React.FC = () => {
     } else if (subscriptionStatus === 'failed') {
       toast.error('Failed to subscribe to plan');
     }
-  }, [
-    doctorError,
-    patientError,
-    subscriptionStatus,
-    dispatch,
-    doctorId,
-    selectedDoctor,
-  ]);
+  }, [doctorError, patientError, subscriptionStatus, dispatch, doctorId]);
 
   const handleSubscribe = async (planId: string, price: number) => {
     if (!user) {
@@ -215,6 +224,48 @@ const DoctorDetails: React.FC = () => {
         error instanceof Error ? error.message : 'Failed to initiate payment';
       toast.error(errorMessage);
     }
+  };
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const handleCancelSubscription = useCallback(
+    debounce(async () => {
+      if (!doctorId || !activeSubscription?._id) {
+        toast.error('No active subscription to cancel');
+        setIsCancelSubscriptionModalOpen(false);
+        return;
+      }
+      if (!cancellationReason.trim()) {
+        toast.error('Please provide a cancellation reason');
+        return;
+      }
+      try {
+        await dispatch(
+          cancelSubscriptionThunk({
+            subscriptionId: activeSubscription._id,
+            cancellationReason,
+          })
+        );
+        dispatch(getPatientSubscriptionThunk(doctorId));
+        setModalMode('refund');
+        setCancellationReason('');
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : 'Failed to cancel subscription';
+        toast.error(errorMessage);
+        setIsCancelSubscriptionModalOpen(false);
+        setCancellationReason('');
+      }
+    }, 1000),
+    [dispatch, doctorId, activeSubscription, cancellationReason]
+  );
+
+  const handleCloseCancelSubscriptionModal = () => {
+    setIsCancelSubscriptionModalOpen(false);
+    setCancellationReason('');
+    setModalMode('cancel');
+    dispatch(clearRefundDetails());
   };
 
   const handleDateChange = (date: string) => {
@@ -401,10 +452,6 @@ const DoctorDetails: React.FC = () => {
     return <div className="text-white text-center py-8">Doctor not found</div>;
   }
 
-  const activeSubscription = doctorId ? activeSubscriptions[doctorId] : null;
-  const plans = doctorId ? doctorPlans[doctorId] || [] : [];
-  const canBookFreeAppointment = doctorId ? canBookFree : false;
-
   const upcomingAppointments = appointments.filter((appt) => {
     return appt.status !== 'cancelled';
   });
@@ -412,6 +459,17 @@ const DoctorDetails: React.FC = () => {
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
   const displaySpeciality = specialityFromState || selectedDoctor.speciality;
+
+  const canCancelSubscription =
+    activeSubscription &&
+    !activeSubscription.isExpired &&
+    activeSubscription.plan.appointmentCount -
+      activeSubscription.appointmentsLeft ===
+      0 &&
+    activeSubscription.createdAt &&
+    (new Date().getTime() - new Date(activeSubscription.createdAt).getTime()) /
+      (1000 * 60) <=
+      30;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 py-8">
@@ -429,6 +487,74 @@ const DoctorDetails: React.FC = () => {
         }
         appointmentId={appointmentToCancel || ''}
       />
+      <Modal
+        isOpen={isCancelSubscriptionModalOpen}
+        onClose={handleCloseCancelSubscriptionModal}
+        title={
+          modalMode === 'cancel' ? 'Cancel Subscription' : 'Refund Details'
+        }
+        footer={
+          <div className="flex gap-4">
+            {modalMode === 'cancel' ? (
+              <>
+                <button
+                  onClick={handleCancelSubscription}
+                  className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300"
+                >
+                  Confirm Cancellation
+                </button>
+                <button
+                  onClick={handleCloseCancelSubscriptionModal}
+                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
+                >
+                  Close
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={handleCloseCancelSubscriptionModal}
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
+              >
+                Close
+              </button>
+            )}
+          </div>
+        }
+      >
+        <div className="text-gray-200 mb-4">
+          {modalMode === 'cancel' ? (
+            <>
+              <p>
+                Are you sure you want to cancel your subscription to{' '}
+                {activeSubscription?.plan.name}? A full refund will be issued.
+              </p>
+              <div className="mt-4">
+                <label
+                  htmlFor="cancellationReason"
+                  className="block text-sm font-medium text-gray-200"
+                >
+                  Cancellation Reason
+                </label>
+                <textarea
+                  id="cancellationReason"
+                  value={cancellationReason}
+                  onChange={(e) => setCancellationReason(e.target.value)}
+                  className="mt-1 block w-full rounded-md bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 p-2"
+                  rows={4}
+                  placeholder="Please provide a reason for cancellation"
+                />
+              </div>
+            </>
+          ) : (
+            <p>
+              Your subscription is cancelled on your request and the refund is
+              initiated to the card no XXXX-XXXX-XXXX-
+              {lastRefundDetails?.cardLast4 || 'N/A'} of amount ₹
+              {lastRefundDetails?.amount.toFixed(2) || '0.00'}
+            </p>
+          )}
+        </div>
+      </Modal>
       <div className="container mx-auto px-4">
         <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">
           <h2 className="text-2xl font-bold text-white mb-6">Doctor Details</h2>
@@ -525,7 +651,6 @@ const DoctorDetails: React.FC = () => {
                         ? review.patientId.name
                         : 'Anonymous'}
                     </p>
-
                     {review.createdAt && (
                       <p className="text-sm text-gray-400">
                         {DateUtils.formatToLocal(review.createdAt)}
@@ -571,6 +696,14 @@ const DoctorDetails: React.FC = () => {
               <p className="text-sm text-gray-200 mt-2">
                 Status: {activeSubscription.status}
               </p>
+              {canCancelSubscription && (
+                <button
+                  onClick={() => setIsCancelSubscriptionModalOpen(true)}
+                  className="mt-4 w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-2 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300"
+                >
+                  Cancel Subscription
+                </button>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

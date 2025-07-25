@@ -8,6 +8,7 @@ export enum NotificationType {
   PLAN_SUBSCRIBED = 'plan_subscribed',
   DOCTOR_VERIFIED = 'doctor_verified',
   SUBSCRIPTION_CONFIRMED = 'subscription_confirmed',
+  SUBSCRIPTION_CANCELLED = 'SUBSCRIPTION_CANCELLED',
 }
 
 export interface Notification {

@@ -7,6 +7,7 @@ import {
   bookAppointment,
   getPatientAppointments,
   cancelAppointment,
+  cancelSubscription,
 } from '../../services/patientService';
 import {
   GetDoctorAvailabilityPayload,
@@ -14,6 +15,12 @@ import {
   Appointment,
 } from '../../types/authTypes';
 import { DateUtils } from '../../utils/DateUtils';
+
+interface CancelSubscriptionResponse {
+  refundId: string;
+  cardLast4?: string;
+  amount: number;
+}
 
 export const getDoctorAvailabilityThunk = createAsyncThunk(
   'patient/getDoctorAvailability',
@@ -102,6 +109,7 @@ export const getPatientSubscriptionThunk = createAsyncThunk(
           DateUtils.parseToUTC(subscription.endDate) < new Date(),
         appointmentsLeft: subscription.appointmentsLeft,
         status: subscription.status,
+        createdAt: subscription.createdAt,
       };
     } catch (error: unknown) {
       const errorMessage =
@@ -127,11 +135,10 @@ export const getPatientAppointmentsForDoctorThunk = createAsyncThunk<
         limit
       );
       return response;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
-      return rejectWithValue(
-        error.response?.data?.message || 'Failed to fetch appointments'
-      );
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to fetch appointments';
+      return rejectWithValue(errorMessage);
     }
   }
 );
@@ -153,16 +160,40 @@ export const getPatientAppointmentsThunk = createAsyncThunk(
 
 export const cancelAppointmentThunk = createAsyncThunk<
   void,
-  { appointmentId: string; cancellationReason?: string }, // Updated to include cancellationReason
+  { appointmentId: string; cancellationReason?: string },
   { rejectValue: string }
 >(
   'patient/cancelAppointment',
   async ({ appointmentId, cancellationReason }, { rejectWithValue }) => {
     try {
       await cancelAppointment(appointmentId, cancellationReason);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
-      return rejectWithValue(error.message || 'Failed to cancel appointment');
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to cancel appointment';
+      return rejectWithValue(errorMessage);
+    }
+  }
+);
+
+export const cancelSubscriptionThunk = createAsyncThunk<
+  CancelSubscriptionResponse,
+  { subscriptionId: string; cancellationReason?: string },
+  { rejectValue: string }
+>(
+  'patient/cancelSubscription',
+  async ({ subscriptionId, cancellationReason }, { rejectWithValue }) => {
+    try {
+      const response = await cancelSubscription(
+        subscriptionId,
+        cancellationReason
+      );
+      return response;
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Failed to cancel subscription';
+      return rejectWithValue(errorMessage);
     }
   }
 );

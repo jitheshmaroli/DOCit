@@ -116,6 +116,7 @@ export const ROUTES = {
       DOCTOR_PLANS: apiPath('/patients/doctors/:doctorId/plans'),
       SUBSCRIBE_TO_PLAN: apiPath('/patients/subscriptions'),
       CONFIRM_SUBSCRIPTION: apiPath('/patients/subscriptions/confirm'),
+      CANCEL_SUBSCRIPTION: apiPath('/patients/subscriptions/:subscriptionId'),
       CREATE_REVIEW: apiPath('/patients/review'),
       DOCTOR_REVIEWS: apiPath('/patients/doctors/:doctorId/reviews'),
     },

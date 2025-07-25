@@ -24,4 +24,9 @@ export interface ISubscriptionPlanUseCase {
     price: number
   ): Promise<{ clientSecret: string; paymentIntentId: string }>;
   confirmSubscription(patientId: string, planId: string, paymentIntentId: string): Promise<PatientSubscription>;
+  cancelSubscription(
+    patientId: string,
+    subscriptionId: string,
+    cancellationReason?: string
+  ): Promise<{ refundId: string; cardLast4?: string; amount: number }>;
 }

@@ -14,4 +14,5 @@ export interface PatientSubscription {
   remainingDays?: number;
   createdAt?: Date;
   updatedAt?: Date;
+  cancellationReason?: string;
 }

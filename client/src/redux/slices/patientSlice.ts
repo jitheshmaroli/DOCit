@@ -7,6 +7,7 @@ import {
   getPatientAppointmentsForDoctorThunk,
   getPatientAppointmentsThunk,
   cancelAppointmentThunk,
+  cancelSubscriptionThunk,
 } from '../../redux/thunks/patientThunk';
 import {
   AvailabilityPayload,
@@ -28,6 +29,13 @@ interface PatientSubscription {
   isExpired: boolean;
   appointmentsLeft: number;
   status: string;
+  createdAt?: string;
+}
+
+interface CancelSubscriptionResponse {
+  refundId: string;
+  cardLast4?: string;
+  amount: number;
 }
 
 interface PatientState {
@@ -39,6 +47,7 @@ interface PatientState {
   canBookFree: boolean;
   loading: boolean;
   error: string | null;
+  lastRefundDetails: CancelSubscriptionResponse | null;
 }
 
 const initialState: PatientState = {
@@ -50,6 +59,7 @@ const initialState: PatientState = {
   canBookFree: true,
   loading: false,
   error: null,
+  lastRefundDetails: null,
 };
 
 const patientSlice = createSlice({
@@ -58,6 +68,9 @@ const patientSlice = createSlice({
   reducers: {
     clearError: (state) => {
       state.error = null;
+    },
+    clearRefundDetails: (state) => {
+      state.lastRefundDetails = null;
     },
   },
   extraReducers: (builder) => {
@@ -178,16 +191,45 @@ const patientSlice = createSlice({
       })
       .addCase(cancelAppointmentThunk.fulfilled, (state, action) => {
         state.appointments = state.appointments.filter(
-          (appt) => appt._id !== action.meta.arg.appointmentId // Fix: Use appointmentId
+          (appt) => appt._id !== action.meta.arg.appointmentId
         );
         state.loading = false;
       })
       .addCase(cancelAppointmentThunk.rejected, (state, action) => {
         state.error = action.payload as string;
         state.loading = false;
+      })
+      .addCase(cancelSubscriptionThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+        state.lastRefundDetails = null;
+      })
+      .addCase(
+        cancelSubscriptionThunk.fulfilled,
+        (
+          state,
+          action: PayloadAction<
+            CancelSubscriptionResponse,
+            string,
+            { arg: { subscriptionId: string; cancellationReason?: string } }
+          >
+        ) => {
+          const subscriptionId = action.meta.arg.subscriptionId;
+          Object.keys(state.activeSubscriptions).forEach((doctorId) => {
+            if (state.activeSubscriptions[doctorId]?._id === subscriptionId) {
+              state.activeSubscriptions[doctorId] = null;
+            }
+          });
+          state.lastRefundDetails = action.payload;
+          state.loading = false;
+        }
+      )
+      .addCase(cancelSubscriptionThunk.rejected, (state, action) => {
+        state.error = action.payload as string;
+        state.loading = false;
       });
   },
 });
 
-export const { clearError } = patientSlice.actions;
+export const { clearError, clearRefundDetails } = patientSlice.actions;
 export default patientSlice.reducer;

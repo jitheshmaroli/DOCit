@@ -12,6 +12,7 @@ import { NotFoundError, ValidationError } from '../../utils/errors';
 import { QueryParams } from '../../types/authTypes';
 import moment from 'moment';
 import { Notification, NotificationType } from '../entities/Notification';
+import logger from '../../utils/logger';
 
 export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
   constructor(
@@ -229,5 +230,72 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
     await this._patientRepository.updateSubscriptionStatus(patientId, hasActiveSubscriptions);
 
     return savedSubscription;
+  }
+
+  async cancelSubscription(
+    patientId: string,
+    subscriptionId: string,
+    cancellationReason?: string
+  ): Promise<{ refundId: string; cardLast4?: string; amount: number }> {
+    const subscription = await this._patientSubscriptionRepository.findById(subscriptionId);
+    if (!subscription) {
+      throw new NotFoundError('Subscription not found');
+    }
+    if (subscription.patientId !== patientId) {
+      throw new ValidationError('Unauthorized to cancel this subscription');
+    }
+    if (subscription.status !== 'active') {
+      throw new ValidationError('Subscription is not active');
+    }
+    if (subscription.appointmentsUsed > 0) {
+      throw new ValidationError('Cannot cancel subscription with used appointments');
+    }
+    if (!subscription.createdAt) {
+      throw new ValidationError('Subscription creation date not found');
+    }
+    const createdAt = moment(subscription.createdAt);
+    const now = moment();
+    const minutesSinceCreation = now.diff(createdAt, 'minutes');
+    if (minutesSinceCreation > 30) {
+      throw new ValidationError('Cancellation only allowed within 30 minutes of subscription creation');
+    }
+    let refundDetails: { refundId: string; cardLast4?: string; amount: number } | null = null;
+    if (subscription.stripePaymentId) {
+      try {
+        refundDetails = await this._stripeService.createRefund(subscription.stripePaymentId);
+      } catch (error) {
+        throw new Error(`Failed to process refund: ${(error as Error).message}`);
+      }
+    }
+    await this._patientSubscriptionRepository.update(subscriptionId, {
+      status: 'cancelled',
+      cancellationReason: cancellationReason || 'Patient requested cancellation',
+      updatedAt: new Date(),
+    });
+    const planId = typeof subscription.planId === 'string' ? subscription.planId : subscription.planId._id;
+    if (!planId) {
+      throw new NotFoundError('Plan ID not found');
+    }
+    const plan = await this._subscriptionPlanRepository.findById(planId);
+    const patient = await this._patientRepository.findById(patientId);
+    if (patient && plan) {
+      await this._notificationService.sendNotification({
+        userId: patientId,
+        type: NotificationType.SUBSCRIPTION_CANCELLED,
+        message: `Subscription to ${plan.name} has been cancelled`,
+        createdAt: new Date(),
+      });
+      await this._emailService.sendEmail(
+        patient.email,
+        'Subscription Cancelled',
+        `Your subscription to ${plan.name} has been cancelled. A refund has been issued.`
+      );
+    }
+    logger.info('refund details:', refundDetails);
+    return refundDetails || { refundId: 'N/A', cardLast4: 'N/A', amount: 0 };
+  }
+
+  async getPatientSubscriptions(patientId: string): Promise<PatientSubscription[]> {
+    return this._patientSubscriptionRepository.findByPatient(patientId);
   }
 }

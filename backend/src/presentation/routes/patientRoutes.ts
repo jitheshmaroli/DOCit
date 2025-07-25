@@ -49,6 +49,11 @@ router.delete('/appointments/:appointmentId', patientAuth, patientController.can
 router.post('/subscriptions', patientAuth, patientController.subscribeToPlan.bind(patientController));
 router.post('/subscriptions/confirm', patientAuth, patientController.confirmSubscription.bind(patientController));
 router.get('/subscriptions', patientAuth, patientController.getSubscriptions.bind(patientController));
+router.delete(
+  '/subscriptions/:subscriptionId',
+  patientAuth,
+  patientController.cancelSubscription.bind(patientController)
+); // New route
 
 // Profile routes
 router.get('/:id', patientAuth, patientProfileController.viewProfile.bind(patientProfileController));

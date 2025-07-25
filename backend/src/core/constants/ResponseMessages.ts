@@ -24,4 +24,5 @@ export const ResponseMessages = {
   PLAN_APPROVED: 'Plan approved',
   PLAN_REJECTED: 'Plan rejected',
   PLAN_DELETED: 'Plan deleted successfully',
+  SUBSCRIPTION_CANCELLED: 'Subscription cancelled successfully.',
 };

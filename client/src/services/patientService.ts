@@ -234,6 +234,29 @@ export const cancelAppointment = async (
   }
 };
 
+export const cancelSubscription = async (
+  subscriptionId: string,
+  cancellationReason?: string
+) => {
+  try {
+    const response = await api.delete(
+      ROUTES.API.PATIENT.CANCEL_SUBSCRIPTION.replace(
+        ':subscriptionId',
+        subscriptionId
+      ),
+      {
+        data: { cancellationReason },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    const axiosError = error as AxiosError<PatientApiError>;
+    throw new Error(
+      axiosError.response?.data.message || 'Failed to cancel subscription'
+    );
+  }
+};
+
 export const createReview = async (
   appointmentId: string,
   doctorId: string,

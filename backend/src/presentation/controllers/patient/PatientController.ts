@@ -139,6 +139,33 @@ export class PatientController {
     }
   }
 
+  async cancelSubscription(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const patientId = req.user?.id;
+      if (!patientId) {
+        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
+      }
+      const { subscriptionId } = req.params;
+      const { cancellationReason } = req.body;
+      if (!subscriptionId) {
+        throw new ValidationError(ResponseMessages.BAD_REQUEST);
+      }
+      const refundDetails = await this._subscriptionPlanUseCase.cancelSubscription(
+        patientId,
+        subscriptionId,
+        cancellationReason
+      );
+      res.status(HttpStatusCode.OK).json({
+        message: ResponseMessages.SUBSCRIPTION_CANCELLED,
+        refundId: refundDetails.refundId,
+        cardLast4: refundDetails.cardLast4 || 'N/A',
+        amount: refundDetails.amount,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getSubscriptions(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const patientId = req.user?.id;
