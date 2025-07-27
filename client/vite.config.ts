@@ -12,6 +12,10 @@ export default defineConfig({
     }),
     NodeModulesPolyfillPlugin(),
   ],
+  base: '/client',
+  build: {
+    outDir: 'dist',
+  },
   resolve: {
     alias: {
       stream: 'stream-browserify',

@@ -89,6 +89,7 @@ export const googleSignInDoctor = async (token: string) => {
 
 export const getUserProfile = async () => {
   const response = await api.get(ROUTES.API.AUTH.USER_PROFILE);
+  console.log(response)
   return response.data;
 };
 
