@@ -12,7 +12,7 @@ export default defineConfig({
     }),
     NodeModulesPolyfillPlugin(),
   ],
-  base: '/client',
+  base: '/',
   build: {
     outDir: 'dist',
   },
