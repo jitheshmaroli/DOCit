@@ -1,1 +1,0 @@
-uri = mongodb+srv://jitheshmaroli555:gwCpgJkncol96n0K@datastore.uemtddq.mongodb.net/docit?retryWrites=true&w=majority
