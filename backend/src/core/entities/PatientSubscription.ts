@@ -3,7 +3,8 @@ import { SubscriptionPlan } from './SubscriptionPlan';
 export interface PatientSubscription {
   _id?: string;
   patientId: string;
-  planId: string | SubscriptionPlan;
+  planId: string;
+  planDetails?: SubscriptionPlan;
   startDate: Date;
   endDate: Date;
   status: 'active' | 'expired' | 'cancelled';

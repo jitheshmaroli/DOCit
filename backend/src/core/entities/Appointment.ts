@@ -1,7 +1,8 @@
 export interface Appointment {
   _id?: string;
-  patientId: string | { _id: string; name?: string };
-  doctorId: string | { _id: string; name?: string };
+  patientId: string;
+  doctorId: string;
+  planId?: string;
   date: Date;
   startTime: string;
   endTime: string;

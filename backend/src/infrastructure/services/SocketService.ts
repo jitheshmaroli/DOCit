@@ -34,7 +34,7 @@ export class SocketService {
   initialize(server: HttpServer): void {
     this._io = new SocketIOServer(server, {
       cors: {
-        origin: env.SOCKET_CORS_ORIGIN || 'http://localhost:5173',
+        origin: env.SOCKET_CORS_ORIGIN,
         credentials: true,
         methods: ['GET', 'POST'],
       },

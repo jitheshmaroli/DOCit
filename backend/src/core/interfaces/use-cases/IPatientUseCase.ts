@@ -10,4 +10,5 @@ export interface IPatientUseCase {
   listPatients(params: QueryParams): Promise<{ data: Patient[]; totalItems: number }>;
   getPatientSubscriptions(patientId: string): Promise<PatientSubscription[]>;
   getPatientActiveSubscription(patientId: string, doctorId: string): Promise<PatientSubscription | null>;
+  getSubscribedPatients(doctorId: string): Promise<Patient[] | null>;
 }

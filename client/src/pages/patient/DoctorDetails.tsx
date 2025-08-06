@@ -105,6 +105,8 @@ const DoctorDetails: React.FC = () => {
   const specialityFromState = (location.state as { speciality?: string[] })
     ?.speciality;
 
+  console.log('activeSubscriptions:', activeSubscriptions);
+
   const activeSubscription = doctorId ? activeSubscriptions[doctorId] : null;
   const plans = doctorId ? doctorPlans[doctorId] || [] : [];
   const canBookFreeAppointment = doctorId ? canBookFree : false;

@@ -105,7 +105,7 @@ export class ReportUseCase implements IReportUseCase {
     const subscriptions = await this._patientSubscriptionRepository.findActiveSubscriptions();
     const doctorSubscriptions = await Promise.all(
       subscriptions.map(async (sub) => {
-        const planId = typeof sub.planId === 'string' ? sub.planId : sub.planId?._id?.toString();
+        const planId = typeof sub.planId === 'string' ? sub.planId : sub.planId;
         if (!planId) return false;
         const plan = await this._subscriptionPlanRepository.findById(planId);
         return plan?.doctorId === doctorId ? sub : null;
@@ -205,7 +205,8 @@ export class ReportUseCase implements IReportUseCase {
     // Calculate top patients by appointment count
     const appointmentCounts = appointments.data.reduce(
       (acc: Record<string, { count: number; patientName: string }>, appt: Appointment) => {
-        const patientId = typeof appt.patientId === 'string' ? appt.patientId : appt.patientId?._id;
+        // const patientId = typeof appt.patientId === 'string' ? appt.patientId : appt.patientId?._id;
+        const patientId = appt.patientId;
         if (!patientId) {
           logger.warn(`Invalid patientId in appointment: ${appt._id || 'unknown'}`);
           return acc;
@@ -214,7 +215,7 @@ export class ReportUseCase implements IReportUseCase {
         const patientName =
           typeof appt.patientId === 'string'
             ? patients.data.find((p: Patient) => p._id && p._id.toString() === patientIdStr)?.name || 'Unknown'
-            : appt.patientId?.name || 'Unknown';
+            : appt.patientName || 'Unknown';
         if (!acc[patientIdStr]) {
           acc[patientIdStr] = { count: 0, patientName };
         }
@@ -236,7 +237,7 @@ export class ReportUseCase implements IReportUseCase {
     // Calculate top doctors by subscriber count
     const doctorSubscriberCounts = subscriptions.reduce(
       (acc: Record<string, { count: number; doctorName: string }>, sub: PatientSubscription) => {
-        const planId = typeof sub.planId === 'string' ? sub.planId : sub.planId?._id?.toString();
+        const planId = typeof sub.planId === 'string' ? sub.planId : sub.planId;
         if (!planId) {
           logger.warn(`Invalid planId in subscription: ${sub._id || 'unknown'}`);
           return acc;
@@ -312,7 +313,7 @@ export class ReportUseCase implements IReportUseCase {
 
     const subscriptions = await this._patientSubscriptionRepository.findActiveSubscriptions();
     const doctorSubscriptions = subscriptions.filter((sub) => {
-      const planId = typeof sub.planId === 'string' ? sub.planId : sub.planId?._id?.toString();
+      const planId = typeof sub.planId === 'string' ? sub.planId : sub.planId;
       const plan = plans.find((p) => p._id?.toString() === planId);
       return plan?.doctorId === doctorId && sub.status === 'active';
     });
@@ -322,7 +323,7 @@ export class ReportUseCase implements IReportUseCase {
     const planWiseRevenue = await Promise.all(
       plans.map(async (plan) => {
         const planSubscriptions = doctorSubscriptions.filter((sub) => {
-          const planId = typeof sub.planId === 'string' ? sub.planId : sub.planId?._id?.toString();
+          const planId = typeof sub.planId === 'string' ? sub.planId : sub.planId;
           return planId === plan._id?.toString();
         });
         const subscribers = planSubscriptions.length;

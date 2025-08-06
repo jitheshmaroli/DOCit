@@ -8,11 +8,13 @@ import {
   getPatientAppointments,
   cancelAppointment,
   cancelSubscription,
+  getPatientSubscriptions,
 } from '../../services/patientService';
 import {
   GetDoctorAvailabilityPayload,
   BookAppointmentPayload,
   Appointment,
+  PatientSubscription,
 } from '../../types/authTypes';
 import { DateUtils } from '../../utils/DateUtils';
 
@@ -102,20 +104,60 @@ export const getPatientSubscriptionThunk = createAsyncThunk(
           price: subscription.planId.price,
           validityDays: subscription.planId.validityDays,
           appointmentCount: subscription.planId.appointmentCount,
+          doctorId: subscription.planId.doctorId,
         },
         daysUntilExpiration: subscription.remainingDays,
         isExpired:
           subscription.status !== 'active' ||
-          DateUtils.parseToUTC(subscription.endDate) < new Date(),
+          DateUtils.parseToUTC(subscription.expiryDate) < new Date(),
         appointmentsLeft: subscription.appointmentsLeft,
         status: subscription.status,
         createdAt: subscription.createdAt,
+        expiryDate: subscription.expiryDate,
       };
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error
           ? error.message
           : 'Failed to fetch patient subscription';
+      return rejectWithValue(errorMessage);
+    }
+  }
+);
+
+export const getPatientSubscriptionsThunk = createAsyncThunk(
+  'patient/getPatientSubscriptions',
+  async (_, { rejectWithValue }) => {
+    try {
+      const subscriptions = await getPatientSubscriptions();
+      const formattedSubscriptions = subscriptions.map(
+        (subscription: PatientSubscription) => ({
+          _id: subscription._id,
+          plan: {
+            _id: subscription.planId._id,
+            name: subscription.planId.name,
+            description: subscription.planId.description,
+            price: subscription.planId.price,
+            validityDays: subscription.planId.validityDays,
+            appointmentCount: subscription.planId.appointmentCount,
+            doctorId: subscription.planId.doctorId,
+          },
+          daysUntilExpiration: subscription.remainingDays,
+          isExpired:
+            subscription.status !== 'active' ||
+            DateUtils.parseToUTC(subscription.expiryDate) < new Date(),
+          appointmentsLeft: subscription.appointmentsLeft,
+          status: subscription.status,
+          createdAt: subscription.createdAt,
+          expiryDate: subscription.expiryDate,
+        })
+      );
+      return formattedSubscriptions;
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Failed to fetch patient subscriptions';
       return rejectWithValue(errorMessage);
     }
   }

@@ -87,11 +87,6 @@ const FindDoctor: React.FC = () => {
     }
   }, [doctorError, dispatch]);
 
-  // Debug log to inspect doctors data
-  useEffect(() => {
-    console.log('Doctors data:', doctors);
-  }, [doctors]);
-
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
   const handleFilterChange = (name: keyof Filters, value: string | number) => {

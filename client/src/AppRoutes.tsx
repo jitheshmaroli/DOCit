@@ -30,6 +30,8 @@ import { useAppDispatch } from './redux/hooks';
 import { useEffect } from 'react';
 import { clearUser } from './redux/slices/authSlice';
 import DoctorAppointmentDetails from './pages/doctor/DoctorAppointmentDetails';
+import PlanDetails from './pages/doctor/PlanDetails';
+import PatientAppointments from './pages/doctor/PatientAppointments';
 
 const AppRoutes = () => {
   const navigate = useNavigate();
@@ -80,7 +82,12 @@ const AppRoutes = () => {
           <Route path="appointments" element={<DoctorAppointments />} />
           <Route path="messages" element={<Messages />} />
           <Route path="plans" element={<DoctorPlans />} />
+          <Route path="plan-details/:planId" element={<PlanDetails />} />
           <Route path="patient/:patientId" element={<PatientDetails />} />
+          <Route
+            path="patient/:patientId/appointments"
+            element={<PatientAppointments />}
+          />
           <Route
             path="appointment/:appointmentId"
             element={<DoctorAppointmentDetails />}

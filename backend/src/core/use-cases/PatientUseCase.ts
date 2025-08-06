@@ -5,6 +5,20 @@ import { IPatientRepository } from '../interfaces/repositories/IPatientRepositor
 import { IPatientSubscriptionRepository } from '../interfaces/repositories/IPatientSubscriptionRepository';
 import { QueryParams } from '../../types/authTypes';
 import { NotFoundError, ValidationError } from '../../utils/errors';
+import logger from '../../utils/logger';
+
+interface PopulatedPlan {
+  _id: string;
+  name: string;
+  description: string;
+  doctorId: string;
+  price: number;
+  validityDays: number;
+  appointmentCount: number;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 export class PatientUseCase implements IPatientUseCase {
   constructor(
@@ -121,10 +135,63 @@ export class PatientUseCase implements IPatientUseCase {
   }
 
   async getPatientActiveSubscription(patientId: string, doctorId: string): Promise<PatientSubscription | null> {
-    if (!patientId || !doctorId) {
-      throw new ValidationError('Patient ID and doctor ID are required');
+    const subscription = await this._patientSubscriptionRepository.findActiveByPatientAndDoctor(patientId, doctorId);
+    if (!subscription || !subscription.planId) {
+      return null;
+    }
+    logger.info('subscription:', subscription);
+    return subscription;
+  }
+
+  async getSubscribedPatients(doctorId: string): Promise<Patient[] | null> {
+    if (!doctorId) {
+      throw new ValidationError('Doctor ID is required');
     }
 
-    return await this._patientSubscriptionRepository.findActiveByPatientAndDoctor(patientId, doctorId);
+    // Fetch active subscriptions with populated planId
+    const activeSubscriptions = await this._patientSubscriptionRepository.findActiveSubscriptions();
+    const patientIds: string[] = [];
+    const patientSubscriptions: { [patientId: string]: PatientSubscription[] } = {};
+
+    // Filter subscriptions by doctorId and collect patient IDs
+    for (const sub of activeSubscriptions) {
+      const plan = sub.planId as unknown as PopulatedPlan; // Type assertion to minimal interface
+      if (plan && plan.doctorId === doctorId) {
+        if (!patientSubscriptions[sub.patientId]) {
+          patientIds.push(sub.patientId);
+          patientSubscriptions[sub.patientId] = [];
+        }
+        patientSubscriptions[sub.patientId].push({
+          ...sub,
+          planId: sub.planId as string, // Preserve original planId string
+          planDetails: {
+            _id: plan._id,
+            name: plan.name || 'Unknown Plan',
+            description: plan.description || '',
+            doctorId: plan.doctorId,
+            price: plan.price || 0,
+            validityDays: plan.validityDays || 0,
+            appointmentCount: plan.appointmentCount || 0,
+            status: plan.status || 'pending',
+            createdAt: plan.createdAt || new Date().toISOString(),
+            updatedAt: plan.updatedAt || new Date().toISOString(),
+          },
+        });
+      }
+    }
+
+    // Fetch patient details
+    const subscribedPatients: Patient[] = [];
+    for (const patientId of patientIds) {
+      const patient = await this._patientRepository.findById(patientId);
+      if (patient) {
+        subscribedPatients.push({
+          ...patient,
+          subscribedPlans: patientSubscriptions[patientId],
+        });
+      }
+    }
+
+    return subscribedPatients.length > 0 ? subscribedPatients : null;
   }
 }

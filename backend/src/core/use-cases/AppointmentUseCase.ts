@@ -61,16 +61,14 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       throw new ValidationError('This time slot is already booked with a non-cancelled appointment');
     }
 
+    let activeSubscription;
     if (isFreeBooking) {
       const canBookFree = await this.checkFreeBooking(patientId, doctorId);
       if (!canBookFree) {
         throw new ValidationError('Not eligible for free booking');
       }
     } else {
-      const activeSubscription = await this._patientSubscriptionRepository.findActiveByPatientAndDoctor(
-        patientId,
-        doctorId
-      );
+      activeSubscription = await this._patientSubscriptionRepository.findActiveByPatientAndDoctor(patientId, doctorId);
       if (!activeSubscription) {
         throw new ValidationError('A subscription is required for non-free bookings');
       }
@@ -88,6 +86,7 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       status: 'pending',
       isFreeBooking,
       bookingTime: new Date(),
+      planId: isFreeBooking ? undefined : activeSubscription?.planId,
     };
 
     let savedAppointment: Appointment;
@@ -100,14 +99,8 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       throw error;
     }
 
-    if (!isFreeBooking) {
-      const activeSubscription = await this._patientSubscriptionRepository.findActiveByPatientAndDoctor(
-        patientId,
-        doctorId
-      );
-      if (activeSubscription) {
-        await this._patientSubscriptionRepository.incrementAppointmentCount(activeSubscription._id!);
-      }
+    if (!isFreeBooking && activeSubscription) {
+      await this._patientSubscriptionRepository.incrementAppointmentCount(activeSubscription._id!);
     }
 
     await this._availabilityRepository.updateSlotBookingStatus(doctorId, startOfDay, startTime, true);
@@ -155,10 +148,7 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       throw new NotFoundError('Appointment not found');
     }
 
-    const appointmentPatientId =
-      typeof appointment.patientId === 'object' && appointment.patientId !== null
-        ? appointment.patientId._id?.toString()
-        : appointment.patientId?.toString();
+    const appointmentPatientId = appointment.patientId;
 
     if (appointmentPatientId !== patientId) {
       logger.error(
@@ -172,10 +162,7 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       throw new ValidationError('Appointment is already cancelled');
     }
 
-    const doctorId =
-      typeof appointment.doctorId === 'object' && appointment.doctorId !== null
-        ? appointment.doctorId._id?.toString()
-        : appointment.doctorId?.toString();
+    const doctorId = appointment.doctorId;
 
     if (!doctorId) {
       logger.error(`Invalid doctorId for appointment ${appointmentId}`);
@@ -201,9 +188,9 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       throw new Error(`Failed to update availability: ${(error as Error).message}`);
     }
 
-    if (!appointment.isFreeBooking) {
+    if (!appointment.isFreeBooking && appointment.planId) {
       const subscription = await this._patientSubscriptionRepository.findActiveByPatientAndDoctor(patientId, doctorId);
-      if (subscription) {
+      if (subscription && subscription.planId === appointment.planId) {
         await this._patientSubscriptionRepository.decrementAppointmentCount(subscription._id!);
       }
     }
@@ -249,15 +236,8 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       throw new Error('Appointment is already cancelled');
     }
 
-    const patientId =
-      typeof appointment.patientId === 'object' && appointment.patientId !== null
-        ? appointment.patientId._id?.toString()
-        : appointment.patientId?.toString();
-
-    const doctorId =
-      typeof appointment.doctorId === 'object' && appointment.doctorId !== null
-        ? appointment.doctorId._id?.toString()
-        : appointment.doctorId?.toString();
+    const patientId = appointment.patientId;
+    const doctorId = appointment.doctorId;
 
     if (!doctorId) {
       throw new ValidationError('Invalid doctor ID');
@@ -273,17 +253,15 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       throw new Error(`Failed to update availability: ${(error as Error).message}`);
     }
 
-    if (!appointment.isFreeBooking && patientId) {
+    if (!appointment.isFreeBooking && patientId && appointment.planId) {
       const subscription = await this._patientSubscriptionRepository.findActiveByPatientAndDoctor(patientId, doctorId);
-      if (subscription) {
+      if (subscription && subscription.planId === appointment.planId) {
         await this._patientSubscriptionRepository.decrementAppointmentCount(subscription._id!);
       }
     }
 
-    const doctorName =
-      typeof appointment.doctorId === 'object' && appointment.doctorId !== null ? appointment.doctorId.name : null;
-    const patientName =
-      typeof appointment.patientId === 'object' && appointment.patientId !== null ? appointment.patientId.name : null;
+    const doctorName = appointment.doctorName;
+    const patientName = appointment.patientName;
 
     const patientNotification: Notification = {
       userId: patientId,
@@ -323,22 +301,17 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       throw new ValidationError('Only pending appointments can be marked as completed');
     }
 
-    const appointmentDoctorId =
-      typeof appointment.doctorId === 'object' && appointment.doctorId !== null
-        ? appointment.doctorId._id?.toString()
-        : appointment.doctorId?.toString();
+    const appointmentDoctorId = appointment.doctorId;
 
     if (appointmentDoctorId !== doctorId) {
+      console.log(appointmentDoctorId);
       logger.error(
         `Authorization failed: Provided doctorId ${doctorId} does not match appointment doctorId ${appointmentDoctorId}`
       );
       throw new ValidationError('You are not authorized to complete this appointment');
     }
 
-    const patientId =
-      typeof appointment.patientId === 'object' && appointment.patientId !== null
-        ? appointment.patientId._id?.toString()
-        : appointment.patientId?.toString();
+    const patientId = appointment.patientId;
 
     if (!patientId) {
       logger.error(`Invalid patientId for appointment ${appointmentId}`);
@@ -362,7 +335,6 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       prescription
     );
 
-    // Send notifications for prescription
     const patientNotification: Notification = {
       userId: patientId,
       type: NotificationType.PRESCRIPTION_ISSUED,

@@ -19,7 +19,6 @@ interface AppointmentDoctor {
   profilePicture?: string;
   speciality?: string[];
   qualifications?: string[];
-  age?: number;
   gender?: string;
 }
 

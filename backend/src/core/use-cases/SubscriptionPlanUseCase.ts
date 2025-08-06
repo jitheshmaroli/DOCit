@@ -44,7 +44,7 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
       throw new ValidationError('Appointment count must be at least 1');
     }
 
-    const existingPlans: SubscriptionPlan[] = await this._subscriptionPlanRepository.findByDoctor(doctorId);
+    const { data: existingPlans } = await this._subscriptionPlanRepository.findByDoctor(doctorId);
     existingPlans.forEach((existingPlan) => {
       if (existingPlan.appointmentCount === plan.appointmentCount && existingPlan.name === plan.name) {
         throw new ValidationError('Plan already exists');
@@ -80,8 +80,11 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
     return updatedPlan;
   }
 
-  async getDoctorSubscriptionPlans(doctorId: string): Promise<SubscriptionPlan[]> {
-    return await this._subscriptionPlanRepository.findByDoctor(doctorId);
+  async getDoctorSubscriptionPlans(
+    doctorId: string,
+    params?: QueryParams
+  ): Promise<{ data: SubscriptionPlan[]; totalItems: number }> {
+    return await this._subscriptionPlanRepository.findByDoctor(doctorId, params);
   }
 
   async getDoctorApprovedPlans(doctorId: string): Promise<SubscriptionPlan[]> {
@@ -125,7 +128,7 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
     const activeSubscriptions = await this._patientSubscriptionRepository.findActiveSubscriptions();
     const isPlanInUse = activeSubscriptions.some((sub) => {
       if (!sub.planId) return false;
-      return typeof sub.planId === 'string' ? sub.planId === planId : sub.planId._id?.toString() === planId;
+      return typeof sub.planId === 'string' ? sub.planId === planId : sub.planId === planId;
     });
 
     if (isPlanInUse) {
@@ -272,7 +275,7 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
       cancellationReason: cancellationReason || 'Patient requested cancellation',
       updatedAt: new Date(),
     });
-    const planId = typeof subscription.planId === 'string' ? subscription.planId : subscription.planId._id;
+    const planId = typeof subscription.planId === 'string' ? subscription.planId : subscription.planId;
     if (!planId) {
       throw new NotFoundError('Plan ID not found');
     }
@@ -297,5 +300,22 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
 
   async getPatientSubscriptions(patientId: string): Promise<PatientSubscription[]> {
     return this._patientSubscriptionRepository.findByPatient(patientId);
+  }
+
+  async getPlanSubscriptionCounts(planId: string): Promise<{ active: number; expired: number; cancelled: number }> {
+    const subscriptions = await this._patientSubscriptionRepository.findByPlan(planId);
+    const counts = {
+      active: 0,
+      expired: 0,
+      cancelled: 0,
+    };
+
+    subscriptions.forEach((sub: PatientSubscription) => {
+      if (sub.status === 'active') counts.active++;
+      else if (sub.status === 'expired') counts.expired++;
+      else if (sub.status === 'cancelled') counts.cancelled++;
+    });
+
+    return counts;
   }
 }

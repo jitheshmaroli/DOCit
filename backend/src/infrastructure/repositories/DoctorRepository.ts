@@ -115,9 +115,7 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
       },
     ];
     try {
-      logger.debug(`Executing getDoctorDetails pipeline for doctorId: ${doctorId}`, { pipeline });
       const [doctor] = await this.model.aggregate(pipeline).exec();
-      logger.debug(`getDoctorDetails result for doctorId: ${doctorId}`, { doctor });
       return doctor ? (doctor as Doctor) : null;
     } catch (error) {
       logger.error(`Error in getDoctorDetails for doctorId: ${doctorId}`, { error });
@@ -231,12 +229,6 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
       try {
         const startDate = DateUtils.startOfDayUTC(DateUtils.parseToUTC(availabilityStart));
         const endDate = DateUtils.endOfDayUTC(DateUtils.parseToUTC(availabilityEnd));
-        logger.debug('Availability filter dates:', {
-          availabilityStart,
-          availabilityEnd,
-          startDate: DateUtils.formatToISO(startDate),
-          endDate: DateUtils.formatToISO(endDate),
-        });
 
         pipeline.push({
           $lookup: {

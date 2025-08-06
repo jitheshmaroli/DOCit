@@ -24,6 +24,23 @@ export interface Review {
   updatedAt?: string;
 }
 
+export interface PatientSubscription {
+  _id: string;
+  patientId: string;
+  planId: SubscriptionPlan;
+  startDate: string;
+  expiryDate: string;
+  status: 'active' | 'expired' | 'cancelled';
+  price: number;
+  appointmentsUsed: number;
+  appointmentsLeft: number;
+  stripePaymentId?: string;
+  remainingDays?: number;
+  createdAt?: string;
+  updatedAt?: string;
+  cancellationReason?: string;
+}
+
 export const getDoctors = async () => {
   try {
     const response = await api.get(ROUTES.API.PATIENT.VERIFIED_DOCTORS);
@@ -98,6 +115,20 @@ export const getPatientSubscription = async (doctorId: string) => {
     throw new Error(
       axiosError.response?.data.message ||
         'Failed to fetch patient subscription'
+    );
+  }
+};
+
+export const getPatientSubscriptions = async () => {
+  try {
+    const response = await api.get(ROUTES.API.PATIENT.SUBSCRIPTION_LIST);
+    console.log('thunk susbscriptions', response.data);
+    return response.data || [];
+  } catch (error) {
+    const axiosError = error as AxiosError<PatientApiError>;
+    throw new Error(
+      axiosError.response?.data.message ||
+        'Failed to fetch patient subscriptions'
     );
   }
 };

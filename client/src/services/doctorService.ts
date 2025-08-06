@@ -214,8 +214,10 @@ export const completeAppointment = async (
   return response.data;
 };
 
-export const getSubscriptionPlans = async () => {
-  const response = await api.get(ROUTES.API.DOCTOR.SUBSCRIPTION_PLANS);
+export const getSubscriptionPlans = async (params: QueryParams = {}) => {
+  const response = await api.get(ROUTES.API.DOCTOR.SUBSCRIPTION_PLANS, {
+    params,
+  });
   return response.data;
 };
 
@@ -271,6 +273,18 @@ export const getReports = async (filter: {
   return response.data;
 };
 
+export const getSubscribedPatients = async () => {
+  const response = await api.get(ROUTES.API.DOCTOR.SUBSCRIBED_PATIENTS);
+  return response.data;
+};
+
+export const getPlanSubscriptionCounts = async (planId: string) => {
+  const response = await api.get(
+    ROUTES.API.DOCTOR.SUBSCRIPTION_PLAN_COUNTS.replace(':planId', planId)
+  );
+  return response.data;
+};
+
 export const fetchDashboardData = async ({
   reportFilter,
   page = 1,
@@ -289,7 +303,7 @@ export const fetchDashboardData = async ({
     ] = await Promise.all([
       getDashboardStats(),
       getAppointments(page, limit),
-      getSubscriptionPlans(),
+      getSubscriptionPlans({ page, limit }),
       getReports({
         type: reportFilter.type,
         startDate: reportFilter.startDate
@@ -301,7 +315,7 @@ export const fetchDashboardData = async ({
       }),
     ]);
 
-    const plans: Plan[] = plansResponse.map((plan: SubscriptionPlan) => ({
+    const plans: Plan[] = plansResponse.data.map((plan: SubscriptionPlan) => ({
       id: plan._id,
       name: plan.name,
       subscribers:

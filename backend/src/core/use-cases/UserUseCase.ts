@@ -31,7 +31,7 @@ export class UserUseCase implements IUserUseCase {
     const patient = await this._patientRepository.findById(userId);
     if (patient) return patient;
 
-    const doctor = await this._doctorRepository.getDoctorDetails(userId);
+    const doctor = await this._doctorRepository.findById(userId);
     if (doctor) return doctor;
 
     const admin = await this._adminRepository.getAdminDetails(userId);
