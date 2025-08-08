@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from 'react';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -11,8 +10,18 @@ import api from '../../../services/api';
 import ROUTES from '../../../constants/routeConstants';
 import { getImageUrl } from '../../../utils/config';
 
+interface FormData {
+  name: string;
+  email: string;
+  phone: string;
+  age: string;
+  gender: string;
+  address: string;
+  pincode: string;
+}
+
 const PersonalInformation = ({ patientId }: { patientId: string }) => {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     name: '',
     email: '',
     phone: '',
@@ -21,10 +30,12 @@ const PersonalInformation = ({ patientId }: { patientId: string }) => {
     address: '',
     pincode: '',
   });
+  const [initialFormData, setInitialFormData] = useState<FormData | null>(null);
   const [errors, setErrors] = useState<Record<string, string | null>>({});
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [hasChanges, setHasChanges] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -34,15 +45,17 @@ const PersonalInformation = ({ patientId }: { patientId: string }) => {
           { withCredentials: true }
         );
         const data = response.data;
-        setFormData({
+        const newFormData: FormData = {
           name: data.name || '',
           email: data.email || '',
           phone: data.phone || '',
-          age: data.age || '',
+          age: data.age?.toString() || '',
           gender: data.gender || '',
           address: data.address || '',
           pincode: data.pincode || '',
-        });
+        };
+        setFormData(newFormData);
+        setInitialFormData(newFormData);
         const imageUrl = getImageUrl(data.profilePicture);
         setProfilePicture(imageUrl);
         setPreviewImage(imageUrl);
@@ -56,6 +69,32 @@ const PersonalInformation = ({ patientId }: { patientId: string }) => {
     };
     fetchProfile();
   }, [patientId]);
+
+  // Detect changes in formData or file
+  useEffect(() => {
+    if (!initialFormData) return;
+
+    const isFormDataChanged = () => {
+      const fields: (keyof FormData)[] = [
+        'name',
+        'email',
+        'phone',
+        'age',
+        'gender',
+        'address',
+        'pincode',
+      ];
+      for (const field of fields) {
+        if (formData[field] !== initialFormData[field]) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    const hasFileChanged = file !== null;
+    setHasChanges(isFormDataChanged() || hasFileChanged);
+  }, [formData, file, initialFormData]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -191,6 +230,12 @@ const PersonalInformation = ({ patientId }: { patientId: string }) => {
                   }
                 );
 
+                const updatedFormData: FormData = {
+                  ...formData,
+                  age: response.data.age?.toString() || formData.age,
+                };
+                setFormData(updatedFormData);
+                setInitialFormData(updatedFormData);
                 const imageUrl = getImageUrl(response.data.profilePicture);
                 setProfilePicture(imageUrl);
                 setPreviewImage(imageUrl);
@@ -201,14 +246,11 @@ const PersonalInformation = ({ patientId }: { patientId: string }) => {
                   autoClose: 3000,
                 });
                 console.log('Profile updated:', response.data);
-              } catch (error: any) {
-                toast.error(
-                  error.response?.data?.message || 'Error updating profile',
-                  {
-                    position: 'bottom-right',
-                    autoClose: 3000,
-                  }
-                );
+              } catch (error) {
+                toast.error('Error updating profile', {
+                  position: 'bottom-right',
+                  autoClose: 3000,
+                });
                 console.error('Error updating profile:', error);
                 setPreviewImage(profilePicture);
                 setFile(null);
@@ -422,7 +464,12 @@ const PersonalInformation = ({ patientId }: { patientId: string }) => {
                 <div className="mt-6">
                   <button
                     type="submit"
-                    className="w-[190px] h-[60.93px] bg-gradient-to-r from-purple-600 to-blue-600 text-white text-[14px] font-bold rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300 shadow-lg hover:shadow-xl"
+                    disabled={!hasChanges}
+                    className={`w-[190px] h-[60.93px] text-white text-[14px] font-bold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl ${
+                      hasChanges
+                        ? 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700'
+                        : 'bg-gray-500 cursor-not-allowed'
+                    }`}
                   >
                     Update Profile
                   </button>
