@@ -35,6 +35,18 @@ export class DoctorProfileController {
       const doctorId = req.params.id;
       const updates = { ...req.body };
 
+      // Convert allowFreeBooking string to boolean
+      if (updates.allowFreeBooking !== undefined) {
+        if (updates.allowFreeBooking === 'true') {
+          updates.allowFreeBooking = true;
+        } else if (updates.allowFreeBooking === 'false') {
+          updates.allowFreeBooking = false;
+        } else {
+          logger.error(`Invalid allowFreeBooking value: ${updates.allowFreeBooking}`);
+          throw new ValidationError('allowFreeBooking must be "true" or "false"');
+        }
+      }
+
       if (updates.qualifications) {
         if (typeof updates.qualifications === 'string') {
           updates.qualifications = updates.qualifications
@@ -74,7 +86,7 @@ export class DoctorProfileController {
             typeof exp.years !== 'number' ||
             exp.years < 0
           ) {
-            logger.error(`Invalid experience entry at index ${index}:`, exp);
+            logger.error(`Invalid doświadczenie entry at index ${index}:`, exp);
             throw new ValidationError(
               `Invalid experience at index ${index}: must include valid hospitalName, department, and non-negative years`
             );
@@ -100,9 +112,6 @@ export class DoctorProfileController {
       }
       if (updates.location && typeof updates.location !== 'string') {
         throw new ValidationError('Location must be a string');
-      }
-      if (updates.allowFreeBooking !== undefined && typeof updates.allowFreeBooking !== 'boolean') {
-        throw new ValidationError('allowFreeBooking must be a boolean');
       }
 
       const doctor = await this._profileUseCase.updateDoctorProfile(doctorId, updates, req.file);

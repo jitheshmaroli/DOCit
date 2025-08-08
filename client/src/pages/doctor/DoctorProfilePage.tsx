@@ -25,10 +25,23 @@ interface Experience {
   years: string;
 }
 
+interface FormData {
+  name: string;
+  email: string;
+  phone: string;
+  licenseNumber: string;
+  qualifications: string;
+  location: string;
+  speciality: string;
+  gender: string;
+  allowFreeBooking: boolean;
+  experiences: Experience[];
+}
+
 const DoctorProfilePage: React.FC = () => {
   const { user } = useAppSelector((state: RootState) => state.auth);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     name: '',
     email: '',
     phone: '',
@@ -37,8 +50,10 @@ const DoctorProfilePage: React.FC = () => {
     location: '',
     speciality: '',
     gender: '',
-    experiences: [] as Experience[],
+    allowFreeBooking: true,
+    experiences: [],
   });
+  const [initialFormData, setInitialFormData] = useState<FormData | null>(null);
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -47,31 +62,54 @@ const DoctorProfilePage: React.FC = () => {
     Array<Record<string, string | null>>
   >([]);
   const [specialities, setSpecialities] = useState<Speciality[]>([]);
+  const [hasChanges, setHasChanges] = useState(false);
 
   const doctorId = user?._id;
 
   useEffect(() => {
     const fetchProfile = async () => {
       try {
+        // Fetch specialities first to map _id to name
+        const specialitiesResponse = await api.get(`/api/doctors/specialities`);
+        const specialitiesData = specialitiesResponse.data;
+        setSpecialities(specialitiesData);
+
         const response = await api.get(`/api/doctors/${doctorId}`);
         const data = response.data;
         console.log('datadoctor:', data);
-        setFormData({
+
+        // Map speciality _id to name
+        let specialityName = '';
+        if (data.speciality) {
+          const specialityId = Array.isArray(data.speciality)
+            ? data.speciality[0]
+            : data.speciality;
+          const speciality = specialitiesData.find(
+            (s: Speciality) => s._id === specialityId
+          );
+          specialityName = speciality ? speciality.name : '';
+        }
+
+        const newFormData: FormData = {
           name: data.name || '',
           email: data.email || '',
           phone: data.phone || '',
           licenseNumber: data.licenseNumber || '',
           qualifications: data.qualifications?.join(', ') || '',
           location: data.location || '',
-          speciality: data.speciality || '',
+          speciality: specialityName,
           gender: data.gender || '',
+          allowFreeBooking: data.allowFreeBooking ?? true,
           experiences:
             data.experiences?.map((exp: any) => ({
               hospitalName: exp.hospitalName || '',
               department: exp.department || '',
               years: exp.years?.toString() || '',
             })) || [],
-        });
+        };
+
+        setFormData(newFormData);
+        setInitialFormData(newFormData);
         const imageUrl = getImageUrl(data.profilePicture);
         setProfilePicture(imageUrl);
         setPreviewImage(imageUrl);
@@ -85,34 +123,75 @@ const DoctorProfilePage: React.FC = () => {
       }
     };
 
-    const fetchSpecialities = async () => {
-      try {
-        const response = await api.get(`/api/doctors/specialities`);
-        setSpecialities(response.data);
-      } catch (error) {
-        console.error('Error fetching specialities:', error);
-        toast.error('Failed to load specialities', {
-          position: 'bottom-right',
-          autoClose: 3000,
-        });
+    fetchProfile();
+  }, [doctorId]);
+
+  // Detect changes in formData or file
+  useEffect(() => {
+    if (!initialFormData) return;
+
+    const isFormDataChanged = () => {
+      // Compare simple fields
+      const simpleFields: (keyof FormData)[] = [
+        'name',
+        'email',
+        'phone',
+        'licenseNumber',
+        'qualifications',
+        'location',
+        'speciality',
+        'gender',
+        'allowFreeBooking',
+      ];
+      for (const field of simpleFields) {
+        if (formData[field] !== initialFormData[field]) {
+          return true;
+        }
       }
+
+      // Compare experiences array
+      if (formData.experiences.length !== initialFormData.experiences.length) {
+        return true;
+      }
+      for (let i = 0; i < formData.experiences.length; i++) {
+        const currentExp = formData.experiences[i];
+        const initialExp = initialFormData.experiences[i];
+        if (
+          currentExp.hospitalName !== initialExp.hospitalName ||
+          currentExp.department !== initialExp.department ||
+          currentExp.years !== initialExp.years
+        ) {
+          return true;
+        }
+      }
+
+      return false;
     };
 
-    fetchProfile();
-    fetchSpecialities();
-  }, [doctorId]);
+    const hasFileChanged = file !== null;
+    setHasChanges(isFormDataChanged() || hasFileChanged);
+  }, [formData, file, initialFormData]);
 
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
     >
   ) => {
-    const { name, value } = e.target;
+    const { name, value, type } = e.target;
+    const newValue =
+      type === 'checkbox' ? (e.target as HTMLInputElement).checked : value;
 
-    if (name === 'phone' && value.length > 10) return;
+    if (
+      name === 'phone' &&
+      typeof newValue === 'string' &&
+      newValue.length > 10
+    )
+      return;
 
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    validateField(name, value);
+    setFormData((prev) => ({ ...prev, [name]: newValue }));
+    if (typeof newValue === 'string') {
+      validateField(name, newValue);
+    }
   };
 
   const handleExperienceChange = (
@@ -248,7 +327,11 @@ const DoctorProfilePage: React.FC = () => {
     let isValid = true;
 
     Object.entries(formData).forEach(([key, value]) => {
-      if (key !== 'email' && key !== 'experiences') {
+      if (
+        key !== 'email' &&
+        key !== 'experiences' &&
+        key !== 'allowFreeBooking'
+      ) {
         validateField(key, value as string);
         if (!value) {
           newErrors[key] = `${
@@ -322,6 +405,10 @@ const DoctorProfilePage: React.FC = () => {
                 formDataToSend.append('speciality', formData.speciality);
                 formDataToSend.append('gender', formData.gender);
                 formDataToSend.append(
+                  'allowFreeBooking',
+                  String(formData.allowFreeBooking)
+                );
+                formDataToSend.append(
                   'experiences',
                   JSON.stringify(
                     formData.experiences.map((exp) => ({
@@ -334,13 +421,26 @@ const DoctorProfilePage: React.FC = () => {
                   formDataToSend.append('profilePicture', file);
                 }
 
-                const response = await api.patch(`/api/doctors/${doctorId}`,
+                const response = await api.patch(
+                  `/api/doctors/${doctorId}`,
                   formDataToSend,
                   {
                     headers: { 'Content-Type': 'multipart/form-data' },
                   }
                 );
 
+                // Update speciality name after successful update
+                const speciality = specialities.find(
+                  (s) => s._id === response.data.speciality
+                );
+                const updatedFormData: FormData = {
+                  ...formData,
+                  speciality: speciality
+                    ? speciality.name
+                    : formData.speciality,
+                };
+                setFormData(updatedFormData);
+                setInitialFormData(updatedFormData);
                 const imageUrl = getImageUrl(response.data.profilePicture);
                 setProfilePicture(imageUrl);
                 setPreviewImage(imageUrl);
@@ -400,7 +500,7 @@ const DoctorProfilePage: React.FC = () => {
           </h1>
         </div>
 
-        <div className="bg-white/20 backdrop-blur-lg border border-white/20 p-6 rounded-lg shadow-xl">
+        <div className="bg-white/10 backdrop-blur-lg border border-white/20 p-6 rounded-lg shadow-xl">
           <div className="flex flex-col md:flex-row gap-6">
             <div className="flex flex-col items-center gap-4">
               <div className="w-[126.67px] h-[121.87px] bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center rounded-lg shadow-md overflow-hidden">
@@ -602,6 +702,23 @@ const DoctorProfilePage: React.FC = () => {
                     )}
                   </div>
 
+                  {/* Allow Free Booking Toggle */}
+                  <div className="col-span-2">
+                    <label className="text-[12px] text-gray-200 flex items-center gap-2">
+                      Allow Free Booking
+                      <input
+                        type="checkbox"
+                        name="allowFreeBooking"
+                        checked={formData.allowFreeBooking}
+                        onChange={handleChange}
+                        className="w-5 h-5 rounded accent-purple-500"
+                      />
+                      <span className="text-[12px] text-gray-200">
+                        {formData.allowFreeBooking ? 'Enabled' : 'Disabled'}
+                      </span>
+                    </label>
+                  </div>
+
                   {/* Experiences */}
                   <div className="col-span-2">
                     <label className="text-[12px] text-gray-200">
@@ -705,7 +822,12 @@ const DoctorProfilePage: React.FC = () => {
                 <div className="mt-6">
                   <button
                     type="submit"
-                    className="w-[190px] h-[60.93px] bg-gradient-to-r from-purple-600 to-blue-600 text-white text-[14px] font-bold rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300 shadow-lg hover:shadow-xl"
+                    disabled={!hasChanges}
+                    className={`w-[190px] h-[60.93px] text-white text-[14px] font-bold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl ${
+                      hasChanges
+                        ? 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700'
+                        : 'bg-gray-500 cursor-not-allowed'
+                    }`}
                   >
                     Save Changes
                   </button>
