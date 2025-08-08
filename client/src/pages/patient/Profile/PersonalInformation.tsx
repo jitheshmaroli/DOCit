@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
 import ProfileCard from './ProfileCard';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -8,6 +7,8 @@ import {
   validateNumeric,
   validatePhone,
 } from '../../../utils/validation';
+import api from '../../../services/api';
+import ROUTES from '../../../constants/routeConstants';
 
 const PersonalInformation = ({ patientId }: { patientId: string }) => {
   const [formData, setFormData] = useState({
@@ -24,8 +25,8 @@ const PersonalInformation = ({ patientId }: { patientId: string }) => {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const response = await axios.get(
-          `http://localhost:5000/api/patients/${patientId}`,
+        const response = await api.get(
+          ROUTES.API.PATIENT.PATIENT_BY_ID.replace(':patientId', patientId),
           { withCredentials: true }
         );
         const data = response.data;
@@ -144,9 +145,11 @@ const PersonalInformation = ({ patientId }: { patientId: string }) => {
           <button
             onClick={async () => {
               try {
-                const response = await axios.patch(
-                  `http://localhost:5000/api/patients/${patientId}`,
-                  formData,
+                const response = await api.patch(
+                  ROUTES.API.PATIENT.PATIENT_BY_ID.replace(
+                    ':patientId',
+                    patientId
+                  ),
                   { withCredentials: true }
                 );
                 toast.success('Profile updated successfully!', {
