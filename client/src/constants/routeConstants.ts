@@ -121,7 +121,7 @@ export const ROUTES = {
       CANCEL_SUBSCRIPTION: apiPath('/patients/subscriptions/:subscriptionId'),
       CREATE_REVIEW: apiPath('/patients/review'),
       DOCTOR_REVIEWS: apiPath('/patients/doctors/:doctorId/reviews'),
-      SUBSCRIPTION_LIST: '/api/patient/subscriptions',
+      SUBSCRIPTION_LIST: apiPath('/patients/subscriptions'),
     },
 
     MESSAGE: {

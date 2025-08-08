@@ -1,1 +1,0 @@
-{"indexes":[{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},{"v":{"$numberInt":"2"},"key":{"doctorId":{"$numberInt":"1"}},"name":"doctorId_1","background":true},{"v":{"$numberInt":"2"},"key":{"status":{"$numberInt":"1"}},"name":"status_1","background":true}],"uuid":"d014481548854e8ba7e866b74d7cb619","collectionName":"subscriptionplans","type":"collection"}

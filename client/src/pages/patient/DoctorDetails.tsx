@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -9,7 +9,7 @@ import {
   subscribeToPlanThunk,
 } from '../../redux/thunks/doctorThunk';
 import {
-  getPatientSubscriptionThunk,
+  getPatientSubscriptionsThunk,
   bookAppointmentThunk,
   getPatientAppointmentsForDoctorThunk,
   getDoctorAvailabilityThunk,
@@ -66,7 +66,7 @@ const DoctorDetails: React.FC = () => {
   const {
     selectedDoctor,
     doctorPlans,
-    loading,
+    loading: doctorLoading,
     error: doctorError,
     subscriptionStatus,
   } = useAppSelector((state) => state.doctors);
@@ -101,21 +101,42 @@ const DoctorDetails: React.FC = () => {
   const [cancellationReason, setCancellationReason] = useState<string>('');
   const [modalMode, setModalMode] = useState<'cancel' | 'refund'>('cancel');
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [subscriptionsLoaded, setSubscriptionsLoaded] = useState(false);
 
   const specialityFromState = (location.state as { speciality?: string[] })
     ?.speciality;
 
-  console.log('activeSubscriptions:', activeSubscriptions);
-
-  const activeSubscription = doctorId ? activeSubscriptions[doctorId] : null;
-  const plans = doctorId ? doctorPlans[doctorId] || [] : [];
+  const activeSubscription = useMemo(
+    () => (doctorId ? activeSubscriptions[doctorId] : null),
+    [doctorId, activeSubscriptions]
+  );
+  const plans = useMemo(
+    () => (doctorId ? doctorPlans[doctorId] || [] : []),
+    [doctorId, doctorPlans]
+  );
   const canBookFreeAppointment = doctorId ? canBookFree : false;
 
   useEffect(() => {
     if (doctorId) {
+      setSubscriptionsLoaded(false); // Reset loading state for new doctor
+      console.log('Fetching data for doctorId:', doctorId);
+
+      // Fetch all subscriptions first
+      dispatch(getPatientSubscriptionsThunk())
+        .unwrap()
+        .then((subscriptions) => {
+          console.log('Subscriptions fetched:', subscriptions);
+          setSubscriptionsLoaded(true);
+        })
+        .catch((error) => {
+          console.error('Failed to fetch subscriptions:', error);
+          toast.error('Failed to load subscription data');
+          setSubscriptionsLoaded(true); // Allow rendering even on error
+        });
+
+      // Fetch other doctor-related data
       dispatch(fetchDoctorByIdThunk(doctorId));
       dispatch(fetchDoctorPlansThunk(doctorId));
-      dispatch(getPatientSubscriptionThunk(doctorId));
       dispatch(
         getPatientAppointmentsForDoctorThunk({
           doctorId,
@@ -196,14 +217,14 @@ const DoctorDetails: React.FC = () => {
     }
     if (subscriptionStatus === 'success') {
       toast.success('Successfully subscribed to plan');
-      dispatch(getPatientSubscriptionThunk(doctorId!));
+      dispatch(getPatientSubscriptionsThunk());
       setIsPaymentModalOpen(false);
       setSelectedPlan(null);
       setClientSecret(null);
     } else if (subscriptionStatus === 'failed') {
       toast.error('Failed to subscribe to plan');
     }
-  }, [doctorError, patientError, subscriptionStatus, dispatch, doctorId]);
+  }, [doctorError, patientError, subscriptionStatus, dispatch]);
 
   const handleSubscribe = async (planId: string, price: number) => {
     if (!user) {
@@ -228,40 +249,40 @@ const DoctorDetails: React.FC = () => {
     }
   };
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const handleCancelSubscription = useCallback(
-    debounce(async () => {
-      if (!doctorId || !activeSubscription?._id) {
-        toast.error('No active subscription to cancel');
-        setIsCancelSubscriptionModalOpen(false);
-        return;
-      }
-      if (!cancellationReason.trim()) {
-        toast.error('Please provide a cancellation reason');
-        return;
-      }
-      try {
-        await dispatch(
-          cancelSubscriptionThunk({
-            subscriptionId: activeSubscription._id,
-            cancellationReason,
-          })
-        );
-        dispatch(getPatientSubscriptionThunk(doctorId));
-        setModalMode('refund');
-        setCancellationReason('');
-      } catch (error: unknown) {
-        const errorMessage =
-          error instanceof Error
-            ? error.message
-            : 'Failed to cancel subscription';
-        toast.error(errorMessage);
-        setIsCancelSubscriptionModalOpen(false);
-        setCancellationReason('');
-      }
-    }, 1000),
-    [dispatch, doctorId, activeSubscription, cancellationReason]
-  );
+  const debouncedCancelSubscription = debounce(async () => {
+    if (!doctorId || !activeSubscription?._id) {
+      toast.error('No active subscription to cancel');
+      setIsCancelSubscriptionModalOpen(false);
+      return;
+    }
+    if (!cancellationReason.trim()) {
+      toast.error('Please provide a cancellation reason');
+      return;
+    }
+    try {
+      await dispatch(
+        cancelSubscriptionThunk({
+          subscriptionId: activeSubscription._id,
+          cancellationReason,
+        })
+      );
+      dispatch(getPatientSubscriptionsThunk());
+      setModalMode('refund');
+      setCancellationReason('');
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Failed to cancel subscription';
+      toast.error(errorMessage);
+      setIsCancelSubscriptionModalOpen(false);
+      setCancellationReason('');
+    }
+  }, 1000);
+
+  const handleCancelSubscription = useCallback(() => {
+    debouncedCancelSubscription();
+  }, [debouncedCancelSubscription]);
 
   const handleCloseCancelSubscriptionModal = () => {
     setIsCancelSubscriptionModalOpen(false);
@@ -299,7 +320,6 @@ const DoctorDetails: React.FC = () => {
       toast.error('Please select a date and time slot');
       return;
     }
-    const activeSubscription = activeSubscriptions[doctorId];
     if (
       !isFreeBooking &&
       (!activeSubscription ||
@@ -337,7 +357,7 @@ const DoctorDetails: React.FC = () => {
           limit: ITEMS_PER_PAGE,
         })
       );
-      dispatch(getPatientSubscriptionThunk(doctorId));
+      dispatch(getPatientSubscriptionsThunk());
       setSelectedDate('');
       setSelectedSlot(null);
       setCurrentTimeSlots([]);
@@ -425,7 +445,7 @@ const DoctorDetails: React.FC = () => {
           limit: ITEMS_PER_PAGE,
         })
       );
-      dispatch(getPatientSubscriptionThunk(doctorId));
+      dispatch(getPatientSubscriptionsThunk());
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
@@ -442,7 +462,7 @@ const DoctorDetails: React.FC = () => {
     setCurrentPage(page);
   };
 
-  if (loading) {
+  if (doctorLoading || !subscriptionsLoaded) {
     return (
       <div className="text-white text-center py-8">
         Loading doctor details...
@@ -474,7 +494,10 @@ const DoctorDetails: React.FC = () => {
       30;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 py-8">
+    <div
+      className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 py-8"
+      key={doctorId} // Force re-mount when doctorId changes
+    >
       <ToastContainer
         position="top-right"
         autoClose={3000}
@@ -874,7 +897,7 @@ const DoctorDetails: React.FC = () => {
                     setIsPaymentModalOpen(false);
                     setSelectedPlan(null);
                     setClientSecret(null);
-                    dispatch(getPatientSubscriptionThunk(doctorId!));
+                    dispatch(getPatientSubscriptionsThunk());
                   }}
                   onError={(error) => {
                     toast.error(error);

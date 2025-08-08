@@ -1,1 +1,0 @@
-{"indexes":[{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},{"v":{"$numberInt":"2"},"key":{"doctorId":{"$numberInt":"1"},"date":{"$numberInt":"1"}},"name":"doctorId_1_date_1","background":true,"unique":true}],"uuid":"44e7dbc20eb2453c9bef16e2627c3c3e","collectionName":"availabilities","type":"collection"}
