@@ -122,7 +122,7 @@ export const ROUTES = {
       CREATE_REVIEW: apiPath('/patients/review'),
       DOCTOR_REVIEWS: apiPath('/patients/doctors/:doctorId/reviews'),
       SUBSCRIPTION_LIST: apiPath('/patients/subscriptions'),
-      PATIENT_BY_ID: apiPath('/patients/${patientId}'),
+      PATIENT_BY_ID: apiPath('/patients/:patientId'),
     },
 
     MESSAGE: {
