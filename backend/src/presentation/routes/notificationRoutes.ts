@@ -11,8 +11,8 @@ const notificationController = new NotificationController(container);
 
 const notificationAuth = [authMiddleware(container), roleMiddleware([UserRole.Doctor, UserRole.Patient])];
 
-router.post('/', notificationAuth, notificationController.sendNotification.bind(notificationController));
 router.get('/', notificationAuth, notificationController.getNotifications.bind(notificationController));
+router.post('/', notificationAuth, notificationController.sendNotification.bind(notificationController));
 router.delete(
   '/:notificationId',
   notificationAuth,

@@ -150,6 +150,7 @@ const PersonalInformation = ({ patientId }: { patientId: string }) => {
                     ':patientId',
                     patientId
                   ),
+                  formData,
                   { withCredentials: true }
                 );
                 toast.success('Profile updated successfully!', {
