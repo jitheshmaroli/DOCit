@@ -129,7 +129,6 @@ export class AuthenticationUseCase implements IAuthenticationUseCase {
         name,
         isVerified: false,
         isBlocked: false,
-        speciality: '',
         allowFreeBooking: true,
       });
     } else if (!doctor.googleId) {
@@ -137,6 +136,11 @@ export class AuthenticationUseCase implements IAuthenticationUseCase {
     }
 
     if (!doctor) throw new NotFoundError('Unexpected error: Doctor is null after creation/update');
+
+    if (doctor.isBlocked) {
+      logger.error(`Doctor is blocked: ${email}`);
+      throw new AuthenticationError('Account is blocked');
+    }
 
     const accessToken = this._tokenService.generateAccessToken(doctor._id!, 'doctor');
     const refreshToken = this._tokenService.generateRefreshToken(doctor._id!, 'doctor');
