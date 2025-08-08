@@ -25,7 +25,7 @@ const ProfileCard = () => {
     const fetchProfile = async () => {
       if (!user?._id) return;
       try {
-        const response = await api.get<Patient>(`/api/patients/${user._id}`);
+        const response = await api.get(`/api/patients/${user._id}`);
         setPatientData(response.data);
         setProfileImage(getImageUrl(response.data.profilePicture));
       } catch (error) {
@@ -56,23 +56,18 @@ const ProfileCard = () => {
     formData.append('profilePicture', selectedFile);
 
     try {
-      const response = await api.patch<Patient>(
-        `/api/patients/${user._id}`,
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        }
-      );
+      const response = await api.patch(`/api/patients/${user._id}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
       setProfileImage(getImageUrl(response.data.profilePicture));
       setPatientData(response.data);
       setPreviewImage(null);
       setSelectedFile(null);
       toast.success('Profile picture updated successfully');
     } catch (error: any) {
-      const message =
-        error.message || 'Error uploading profile picture';
+      const message = error.message || 'Error uploading profile picture';
       toast.error(message, {
         position: 'bottom-right',
         autoClose: 3000,

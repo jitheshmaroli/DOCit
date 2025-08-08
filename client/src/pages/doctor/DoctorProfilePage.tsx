@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import {
@@ -10,7 +9,8 @@ import {
 } from '../../utils/validation';
 import { RootState } from '../../redux/store';
 import { useAppSelector } from '../../redux/hooks';
-import { API_BASE_URL, getImageUrl } from '../../utils/config';
+import { getImageUrl } from '../../utils/config';
+import api from '../../services/api';
 
 interface Speciality {
   _id: string;
@@ -53,10 +53,7 @@ const DoctorProfilePage: React.FC = () => {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const response = await axios.get(
-          `${API_BASE_URL}/api/doctors/${doctorId}`,
-          { withCredentials: true }
-        );
+        const response = await api.get(`/api/doctors/${doctorId}`);
         const data = response.data;
         console.log('datadoctor:', data);
         setFormData({
@@ -90,10 +87,7 @@ const DoctorProfilePage: React.FC = () => {
 
     const fetchSpecialities = async () => {
       try {
-        const response = await axios.get(
-          `${API_BASE_URL}/api/doctors/specialities`,
-          { withCredentials: true }
-        );
+        const response = await api.get(`/api/doctors/specialities`);
         setSpecialities(response.data);
       } catch (error) {
         console.error('Error fetching specialities:', error);
@@ -340,11 +334,9 @@ const DoctorProfilePage: React.FC = () => {
                   formDataToSend.append('profilePicture', file);
                 }
 
-                const response = await axios.patch(
-                  `${API_BASE_URL}/api/doctors/${doctorId}`,
+                const response = await api.patch(`/api/doctors/${doctorId}`,
                   formDataToSend,
                   {
-                    withCredentials: true,
                     headers: { 'Content-Type': 'multipart/form-data' },
                   }
                 );
