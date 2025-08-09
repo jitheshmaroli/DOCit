@@ -36,7 +36,6 @@ const Messages = () => {
   const navigate = useNavigate();
   const { connect, registerHandlers } = useSocket();
 
-  // Move isAtBottom and scrollToBottom before useEffect hooks
   const isAtBottom = useCallback(() => {
     if (!chatContainerRef.current) return true;
     const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
@@ -141,7 +140,7 @@ const Messages = () => {
             },
             messages: [newMessageObj],
             unreadCount: 1,
-            isOnline: false, // Will be updated by socket
+            isOnline: false,
             lastSeen: null,
             role: partnerRole,
           };
@@ -332,7 +331,7 @@ const Messages = () => {
               latestMessage: null,
               messages: [],
               unreadCount: 0,
-              isOnline: false, // Will be updated by socket or API
+              isOnline: false,
               lastSeen: null,
               role: partner.role || 'patient',
             };

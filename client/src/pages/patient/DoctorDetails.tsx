@@ -118,23 +118,19 @@ const DoctorDetails: React.FC = () => {
 
   useEffect(() => {
     if (doctorId) {
-      setSubscriptionsLoaded(false); // Reset loading state for new doctor
-      console.log('Fetching data for doctorId:', doctorId);
+      setSubscriptionsLoaded(false);
 
-      // Fetch all subscriptions first
       dispatch(getPatientSubscriptionsThunk())
         .unwrap()
-        .then((subscriptions) => {
-          console.log('Subscriptions fetched:', subscriptions);
+        .then(() => {
           setSubscriptionsLoaded(true);
         })
         .catch((error) => {
           console.error('Failed to fetch subscriptions:', error);
           toast.error('Failed to load subscription data');
-          setSubscriptionsLoaded(true); // Allow rendering even on error
+          setSubscriptionsLoaded(true);
         });
 
-      // Fetch other doctor-related data
       dispatch(fetchDoctorByIdThunk(doctorId));
       dispatch(fetchDoctorPlansThunk(doctorId));
       dispatch(

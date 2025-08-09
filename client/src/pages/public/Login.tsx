@@ -7,6 +7,7 @@ import { RootState } from '../../redux/store';
 import useAuth from '../../hooks/useAuth';
 import { validateEmail, validateLoginPassword } from '../../utils/validation';
 import { CredentialResponse, GoogleLogin } from '@react-oauth/google';
+import bannerImg from '../../assets/feature-illustration.jpeg';
 
 type LoginType = 'patient' | 'doctor' | 'admin';
 
@@ -257,7 +258,7 @@ const LoginPage: React.FC = () => {
         {/* Right Side - Image */}
         <div className="hidden lg:flex lg:w-1/2 items-center justify-center p-8 bg-gradient-to-br from-purple-800/50 to-blue-800/50">
           <img
-            src="/src/assets/feature-illustration.jpeg"
+            src={bannerImg}
             alt="Login Illustration"
             className="max-w-full max-h-[80vh] object-contain rounded-xl shadow-lg transform hover:scale-105 transition-transform duration-300"
           />

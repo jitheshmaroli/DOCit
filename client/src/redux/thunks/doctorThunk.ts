@@ -38,7 +38,6 @@ export const fetchVerifiedDoctorsThunk = createAsyncThunk(
   'doctors/fetchVerifiedDoctors',
   async (params: QueryParams = {}, { rejectWithValue }) => {
     try {
-      console.log('params', params);
       return await fetchVerifiedDoctors(params);
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to fetch doctors');

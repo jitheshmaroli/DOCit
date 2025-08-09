@@ -122,7 +122,6 @@ export const getPatientSubscription = async (doctorId: string) => {
 export const getPatientSubscriptions = async () => {
   try {
     const response = await api.get(ROUTES.API.PATIENT.SUBSCRIPTION_LIST);
-    console.log('thunk susbscriptions', response.data);
     return response.data || [];
   } catch (error) {
     const axiosError = error as AxiosError<PatientApiError>;

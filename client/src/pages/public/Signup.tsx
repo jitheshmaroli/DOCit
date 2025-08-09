@@ -20,6 +20,7 @@ import {
 import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
 import { useAppSelector } from '../../redux/hooks';
 import { RootState } from '../../redux/store';
+import bannerImg from '../../assets/feature-illustration.jpeg';
 
 type SignupType = 'patient' | 'doctor';
 
@@ -561,7 +562,7 @@ const SignupPage: React.FC = () => {
 
         <div className="hidden lg:flex lg:w-1/2 items-center justify-center p-8 bg-gradient-to-br from-purple-800/50 to-blue-800/50">
           <img
-            src="/src/assets/feature-illustration.jpeg"
+            src={bannerImg}
             alt="Signup Illustration"
             className="max-w-full max-h-[80vh] object-contain rounded-xl shadow-lg transform hover:scale-105 transition-transform duration-300"
           />

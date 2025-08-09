@@ -154,10 +154,8 @@ export const loginThunk = createAsyncThunk(
     try {
       thunkAPI.dispatch(setLoading(true));
       const response = await login(payload);
-      console.log('response:', response);
       if (response.message === 'Logged in successfully') {
         try {
-          console.log('logged in');
           const userResponse = await getUserProfile();
           const user: User = {
             _id: userResponse._id,
@@ -165,7 +163,6 @@ export const loginThunk = createAsyncThunk(
             name: userResponse.name,
             role: userResponse.role || payload.role,
           };
-          console.log('response:', userResponse);
 
           thunkAPI.dispatch(setUser(user));
           return user;
@@ -227,7 +224,6 @@ export const checkAuthThunk = createAsyncThunk(
       thunkAPI.dispatch(setUser(user));
       return user;
     } catch (error: any) {
-      console.error('Check auth failed:', error);
       if (error.status === 401) {
         try {
           await thunkAPI.dispatch(refreshTokenThunk()).unwrap();

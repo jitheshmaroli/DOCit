@@ -148,31 +148,35 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       throw new NotFoundError('Appointment not found');
     }
 
-    const appointmentPatientId = appointment.patientId;
-
-    if (appointmentPatientId !== patientId) {
-      logger.error(
-        `Authorization failed: Provided patientId ${patientId} does not match appointment patientId ${appointmentPatientId}`
-      );
-      throw new ValidationError('You are not authorized to cancel this appointment');
-    }
-
     if (appointment.status === 'cancelled') {
       logger.warn(`Appointment already cancelled: ${appointmentId}`);
       throw new ValidationError('Appointment is already cancelled');
     }
 
-    const doctorId = appointment.doctorId;
-
-    if (!doctorId) {
+    let doctorId: string;
+    if (typeof appointment.doctorId === 'string') {
+      doctorId = appointment.doctorId;
+    } else if (appointment.doctorId && 'name' in appointment.doctorId && appointment.doctorId._id) {
+      doctorId = appointment.doctorId._id.toString();
+    } else {
       logger.error(`Invalid doctorId for appointment ${appointmentId}`);
       throw new ValidationError('Invalid doctor ID');
+    }
+
+    let resolvedPatientId: string;
+    if (typeof appointment.patientId === 'string') {
+      resolvedPatientId = appointment.patientId;
+    } else if (appointment.patientId && 'name' in appointment.patientId && appointment.patientId._id) {
+      resolvedPatientId = appointment.patientId._id.toString();
+    } else {
+      logger.error(`Invalid patientId for appointment ${appointmentId}`);
+      throw new ValidationError('Invalid patient ID');
     }
 
     const doctor = await this._doctorRepository.findById(doctorId);
     if (!doctor) throw new NotFoundError('Doctor not found');
 
-    const patient = await this._patientRepository.findById(patientId);
+    const patient = await this._patientRepository.findById(resolvedPatientId);
     if (!patient) throw new NotFoundError('Patient not found');
 
     await this._appointmentRepository.update(appointmentId, {
@@ -189,14 +193,17 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     }
 
     if (!appointment.isFreeBooking && appointment.planId) {
-      const subscription = await this._patientSubscriptionRepository.findActiveByPatientAndDoctor(patientId, doctorId);
+      const subscription = await this._patientSubscriptionRepository.findActiveByPatientAndDoctor(
+        resolvedPatientId,
+        doctorId
+      );
       if (subscription && subscription.planId === appointment.planId) {
         await this._patientSubscriptionRepository.decrementAppointmentCount(subscription._id!);
       }
     }
 
     const patientNotification: Notification = {
-      userId: patientId,
+      userId: resolvedPatientId,
       type: NotificationType.APPOINTMENT_CANCELLED,
       message: `Your appointment with Dr. ${doctor.name} for ${appointment.startTime} on ${appointment.date.toLocaleDateString()} has been cancelled.${cancellationReason ? ` Reason: ${cancellationReason}` : ''}`,
       isRead: false,
@@ -236,10 +243,23 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       throw new Error('Appointment is already cancelled');
     }
 
-    const patientId = appointment.patientId;
-    const doctorId = appointment.doctorId;
+    let patientId: string;
+    if (typeof appointment.patientId === 'string') {
+      patientId = appointment.patientId;
+    } else if (appointment.patientId && 'name' in appointment.patientId && appointment.patientId._id) {
+      patientId = appointment.patientId._id.toString();
+    } else {
+      logger.error(`Invalid patientId for appointment ${appointmentId}`);
+      throw new ValidationError('Invalid patient ID');
+    }
 
-    if (!doctorId) {
+    let doctorId: string;
+    if (typeof appointment.doctorId === 'string') {
+      doctorId = appointment.doctorId;
+    } else if (appointment.doctorId && 'name' in appointment.doctorId && appointment.doctorId._id) {
+      doctorId = appointment.doctorId._id.toString();
+    } else {
+      logger.error(`Invalid doctorId for appointment ${appointmentId}`);
       throw new ValidationError('Invalid doctor ID');
     }
 
@@ -260,8 +280,8 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       }
     }
 
-    const doctorName = appointment.doctorName;
-    const patientName = appointment.patientName;
+    const doctorName = typeof appointment.doctorId === 'string' ? 'Unknown Doctor' : appointment.doctorId.name;
+    const patientName = typeof appointment.patientId === 'string' ? 'Unknown Patient' : appointment.patientId.name;
 
     const patientNotification: Notification = {
       userId: patientId,
@@ -301,9 +321,12 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       throw new ValidationError('Only pending appointments can be marked as completed');
     }
 
-    const patientId = appointment.patientId;
-
-    if (!patientId) {
+    let patientId: string;
+    if (typeof appointment.patientId === 'string') {
+      patientId = appointment.patientId;
+    } else if (appointment.patientId && 'name' in appointment.patientId && appointment.patientId._id) {
+      patientId = appointment.patientId._id.toString();
+    } else {
       logger.error(`Invalid patientId for appointment ${appointmentId}`);
       throw new ValidationError('Invalid patient ID');
     }
@@ -326,7 +349,7 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     );
 
     const patientNotification: Notification = {
-      userId: patient._id!,
+      userId: patientId,
       type: NotificationType.PRESCRIPTION_ISSUED,
       message: `A new prescription has been issued by Dr. ${doctor.name} for your appointment on ${appointment.date.toLocaleDateString()} at ${appointment.startTime}.`,
       isRead: false,
