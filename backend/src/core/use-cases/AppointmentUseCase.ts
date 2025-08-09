@@ -301,16 +301,6 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       throw new ValidationError('Only pending appointments can be marked as completed');
     }
 
-    const appointmentDoctorId = appointment.doctorId;
-
-    if (appointmentDoctorId !== doctorId) {
-      console.log(appointmentDoctorId);
-      logger.error(
-        `Authorization failed: Provided doctorId ${doctorId} does not match appointment doctorId ${appointmentDoctorId}`
-      );
-      throw new ValidationError('You are not authorized to complete this appointment');
-    }
-
     const patientId = appointment.patientId;
 
     if (!patientId) {
@@ -336,7 +326,7 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     );
 
     const patientNotification: Notification = {
-      userId: patientId,
+      userId: patient._id!,
       type: NotificationType.PRESCRIPTION_ISSUED,
       message: `A new prescription has been issued by Dr. ${doctor.name} for your appointment on ${appointment.date.toLocaleDateString()} at ${appointment.startTime}.`,
       isRead: false,
