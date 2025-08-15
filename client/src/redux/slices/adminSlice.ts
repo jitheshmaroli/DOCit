@@ -80,7 +80,6 @@ const adminSlice = createSlice({
         state.error = null;
       })
       .addCase(listDoctorsThunk.fulfilled, (state, action) => {
-        console.log("slice dodtors:", action.payload)
         state.doctors = action.payload.data;
         state.totalPages.doctors = action.payload.totalPages;
         state.loading = false;

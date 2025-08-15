@@ -16,7 +16,7 @@ const DoctorSchema = new Schema<Doctor>(
     qualifications: { type: [String] },
     licenseNumber: { type: String },
     location: { type: String },
-    speciality: [{ type: Schema.Types.ObjectId, ref: 'Speciality' }],
+    speciality: { type: Schema.Types.ObjectId, ref: 'Speciality' },
     experiences: [ExperienceSchema],
     allowFreeBooking: { type: Boolean, default: true },
     gender: { type: String },

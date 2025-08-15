@@ -14,12 +14,13 @@ export class UserUseCase implements IUserUseCase {
     private _doctorRepository: IDoctorRepository,
     private _adminRepository: IAdminRepository
   ) {}
+
   async getCurrentUser(userId: string, role: UserRole): Promise<Patient | Doctor | Admin | null> {
     switch (role) {
       case UserRole.Patient:
         return this._patientRepository.findById(userId);
       case UserRole.Doctor:
-        return this._doctorRepository.getDoctorDetails(userId);
+        return this._doctorRepository.findById(userId); // Changed from getDoctorDetails to findById
       case UserRole.Admin:
         return this._adminRepository.getAdminDetails(userId);
       default:
@@ -31,7 +32,7 @@ export class UserUseCase implements IUserUseCase {
     const patient = await this._patientRepository.findById(userId);
     if (patient) return patient;
 
-    const doctor = await this._doctorRepository.getDoctorDetails(userId);
+    const doctor = await this._doctorRepository.findById(userId); // Use findById for consistency
     if (doctor) return doctor;
 
     const admin = await this._adminRepository.getAdminDetails(userId);

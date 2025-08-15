@@ -37,9 +37,26 @@ export class SubscriptionPlanRepository
     return { data: populatedPlans, totalItems };
   }
 
-  async findByDoctor(doctorId: string): Promise<SubscriptionPlan[]> {
-    const plans = await this.model.find({ doctorId }).lean().exec();
-    return Promise.all(plans.map((plan) => this.populateDoctorName(plan)));
+  async findByDoctor(
+    doctorId: string,
+    params?: QueryParams
+  ): Promise<{ data: SubscriptionPlan[]; totalItems: number }> {
+    const { page = 1, limit = 5, sortBy = 'createdAt', sortOrder = 'desc' } = params || {};
+    const query: FilterQuery<SubscriptionPlan> = { doctorId };
+
+    const plans = await this.model
+      .find(query)
+      .sort({ [sortBy]: sortOrder === 'desc' ? -1 : 1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean()
+      .exec();
+
+    const totalItems = await this.model.countDocuments(query).exec();
+
+    const populatedPlans = await Promise.all(plans.map((plan) => this.populateDoctorName(plan)));
+
+    return { data: populatedPlans, totalItems };
   }
 
   async findApprovedByDoctor(doctorId: string): Promise<SubscriptionPlan[]> {

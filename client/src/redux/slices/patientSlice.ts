@@ -8,6 +8,7 @@ import {
   getPatientAppointmentsThunk,
   cancelAppointmentThunk,
   cancelSubscriptionThunk,
+  getPatientSubscriptionsThunk,
 } from '../../redux/thunks/patientThunk';
 import {
   AvailabilityPayload,
@@ -24,6 +25,7 @@ interface PatientSubscription {
     price: number;
     validityDays: number;
     appointmentCount: number;
+    doctorId: string;
   };
   daysUntilExpiration: number;
   isExpired: boolean;
@@ -114,6 +116,30 @@ const patientSlice = createSlice({
         state.loading = false;
       })
       .addCase(bookAppointmentThunk.rejected, (state, action) => {
+        state.error = action.payload as string;
+        state.loading = false;
+      })
+      .addCase(getPatientSubscriptionsThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(
+        getPatientSubscriptionsThunk.fulfilled,
+        (state, action: PayloadAction<PatientSubscription[]>) => {
+          state.loading = false;
+          // Transform the array of subscriptions into a map
+          const subscriptionsMap: {
+            [doctorId: string]: PatientSubscription | null;
+          } = {};
+          action.payload.forEach((subscription) => {
+            if (subscription.plan?.doctorId) {
+              subscriptionsMap[subscription.plan.doctorId] = subscription;
+            }
+          });
+          state.activeSubscriptions = subscriptionsMap;
+        }
+      )
+      .addCase(getPatientSubscriptionsThunk.rejected, (state, action) => {
         state.error = action.payload as string;
         state.loading = false;
       })

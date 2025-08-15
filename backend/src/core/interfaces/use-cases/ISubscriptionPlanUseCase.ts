@@ -12,7 +12,10 @@ export interface ISubscriptionPlanUseCase {
     doctorId: string,
     planData: Partial<SubscriptionPlan>
   ): Promise<SubscriptionPlan>;
-  getDoctorSubscriptionPlans(doctorId: string): Promise<SubscriptionPlan[]>;
+  getDoctorSubscriptionPlans(
+    doctorId: string,
+    params?: QueryParams
+  ): Promise<{ data: SubscriptionPlan[]; totalItems: number }>;
   getDoctorApprovedPlans(doctorId: string): Promise<SubscriptionPlan[]>;
   manageSubscriptionPlanGetAll(params: QueryParams): Promise<{ data: SubscriptionPlan[]; totalItems: number }>;
   approveSubscriptionPlan(planId: string): Promise<SubscriptionPlan>;
@@ -29,4 +32,6 @@ export interface ISubscriptionPlanUseCase {
     subscriptionId: string,
     cancellationReason?: string
   ): Promise<{ refundId: string; cardLast4?: string; amount: number }>;
+  getPatientSubscriptions(patientId: string): Promise<PatientSubscription[]>;
+  getPlanSubscriptionCounts(planId: string): Promise<{ active: number; expired: number; cancelled: number }>;
 }

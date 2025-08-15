@@ -12,6 +12,19 @@ export default defineConfig({
     }),
     NodeModulesPolyfillPlugin(),
   ],
+  server: {
+    proxy: {
+      '/api': {
+        target: 'https://api.docit.site',
+        changeOrigin: true,
+        secure: false, // Ignore SSL issues in development
+      },
+    },
+  },
+  base: '/',
+  build: {
+    outDir: 'dist',
+  },
   resolve: {
     alias: {
       stream: 'stream-browserify',

@@ -168,4 +168,10 @@ export class DateUtils {
 
     return dates;
   }
+
+  static calculateDaysLeft = (expiryDate: string): number => {
+    const now = dayjs();
+    const expiry = dayjs(expiryDate);
+    return expiry.diff(now, 'day');
+  };
 }

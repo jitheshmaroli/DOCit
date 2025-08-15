@@ -25,8 +25,8 @@ export class AppointmentRepository implements IAppointmentRepository {
     if (!mongoose.Types.ObjectId.isValid(appointmentId)) return null;
     const appointment = await this._model
       .findById(appointmentId)
-      .populate('patientId', 'name')
-      .populate('doctorId', 'name')
+      .populate('patientId')
+      .populate('doctorId')
       .populate('prescriptionId')
       .exec();
     return appointment ? (appointment.toObject() as Appointment) : null;

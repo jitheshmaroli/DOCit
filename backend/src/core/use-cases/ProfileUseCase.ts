@@ -132,11 +132,13 @@ export class ProfileUseCase implements IProfileUseCase {
       }
     }
 
-    let profilePicture: unknown;
+    let profilePicture: string | undefined;
     if (file) {
       try {
-        profilePicture = await this._imageUploadService.uploadFile(file, 'patient-profiles');
-      } catch {
+        const uploadResult = await this._imageUploadService.uploadFile(file, 'patient-profiles');
+        profilePicture = uploadResult.url; // Extract the URL string
+      } catch (error) {
+        logger.error(`Error uploading profile picture: ${(error as Error).message}`);
         throw new Error('Failed to upload profile picture');
       }
     }
@@ -148,10 +150,12 @@ export class ProfileUseCase implements IProfileUseCase {
         updatedAt: new Date(),
       });
       if (!updatedPatient) {
+        logger.error(`Failed to update patient profile ${patientId}`);
         throw new NotFoundError('Failed to update patient profile');
       }
       return updatedPatient;
-    } catch {
+    } catch (error) {
+      logger.error(`Error updating patient profile ${patientId}: ${(error as Error).message}`);
       throw new Error('Failed to update patient profile');
     }
   }

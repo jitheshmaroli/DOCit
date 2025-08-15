@@ -6,6 +6,7 @@ import { setTokensInCookies } from '../../../utils/cookieUtils';
 import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 import { IAuthenticationUseCase } from '../../../core/interfaces/use-cases/IAuthenticationUseCase';
+import logger from '../../../utils/logger';
 
 export class PatientAuthController {
   private _authenticationUseCase: IAuthenticationUseCase;
@@ -17,6 +18,7 @@ export class PatientAuthController {
   async signup(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const patient = req.body;
+      logger.info('body:', patient);
       if (!validateEmail(patient.email) || !validatePassword(patient.password) || !validatePhone(patient.phone)) {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }

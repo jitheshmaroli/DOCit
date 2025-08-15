@@ -1,3 +1,5 @@
+import { PatientSubscription } from './PatientSubscription';
+
 export interface Patient {
   _id?: string;
   email: string;
@@ -17,6 +19,7 @@ export interface Patient {
   lastSeen?: Date;
   isOnline?: boolean;
   isOtpVerified?: boolean;
+  subscribedPlans?: PatientSubscription[];
   createdAt?: Date;
   updatedAt?: Date;
 }

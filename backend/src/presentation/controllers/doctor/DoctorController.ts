@@ -11,6 +11,9 @@ import { QueryParams } from '../../../types/authTypes';
 import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 import { IAvailabilityUseCase } from '../../../core/interfaces/use-cases/IAvailabilityUseCase';
+import { Patient } from '../../../core/entities/Patient';
+import { IPatientUseCase } from '../../../core/interfaces/use-cases/IPatientUseCase';
+import logger from '../../../utils/logger';
 
 export class DoctorController {
   private _subscriptionPlanUseCase: ISubscriptionPlanUseCase;
@@ -18,6 +21,7 @@ export class DoctorController {
   private _reportUseCase: IReportUseCase;
   private _appointmentUseCase: IAppointmentUseCase;
   private _availabilityUseCase: IAvailabilityUseCase;
+  private _patientUseCase: IPatientUseCase;
 
   constructor(container: Container) {
     this._subscriptionPlanUseCase = container.get<ISubscriptionPlanUseCase>('ISubscriptionPlanUseCase');
@@ -25,6 +29,7 @@ export class DoctorController {
     this._reportUseCase = container.get<IReportUseCase>('IReportUseCase');
     this._appointmentUseCase = container.get<IAppointmentUseCase>('IAppointmentUseCase');
     this._availabilityUseCase = container.get<IAvailabilityUseCase>('IAvailabilityUseCase');
+    this._patientUseCase = container.get<IPatientUseCase>('IPatientUseCase');
   }
 
   async setAvailability(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
@@ -220,8 +225,16 @@ export class DoctorController {
       if (!doctorId) {
         throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
-      const plans = await this._subscriptionPlanUseCase.getDoctorSubscriptionPlans(doctorId);
-      res.status(HttpStatusCode.OK).json(plans);
+      const { page = 1, limit = 5 } = req.query;
+      const queryParams: QueryParams = {
+        page: parseInt(String(page)),
+        limit: parseInt(String(limit)),
+      };
+      const plans = await this._subscriptionPlanUseCase.getDoctorSubscriptionPlans(doctorId, queryParams);
+      res.status(HttpStatusCode.OK).json({
+        data: plans.data,
+        totalItems: plans.totalItems,
+      });
     } catch (error) {
       next(error);
     }
@@ -319,6 +332,38 @@ export class DoctorController {
       }
       const appointment = await this._appointmentUseCase.completeAppointment(doctorId, appointmentId, prescription);
       res.status(HttpStatusCode.OK).json(appointment);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getSubscribedPatients(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
+    const doctorId = req.user?.id;
+    try {
+      if (!doctorId) {
+        throw new ValidationError('doctor not found');
+      }
+      const subscribedPatients: Patient[] | null = await this._patientUseCase.getSubscribedPatients(doctorId);
+      res.status(HttpStatusCode.OK).json(subscribedPatients);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getPlanSubscriptionCounts(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const doctorId = req.user?.id;
+      logger.info('user', doctorId);
+      if (!doctorId) {
+        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
+      }
+      const { planId } = req.params;
+      if (!planId) {
+        throw new ValidationError(ResponseMessages.BAD_REQUEST);
+      }
+
+      const counts = await this._subscriptionPlanUseCase.getPlanSubscriptionCounts(planId);
+      res.status(HttpStatusCode.OK).json(counts);
     } catch (error) {
       next(error);
     }

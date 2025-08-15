@@ -65,6 +65,12 @@ export class ReviewUseCase implements IReviewUseCase {
 
     try {
       const savedReview = await this._reviewRepository.create(review);
+
+      await this._appointmentRepository.update(appointmentId, {
+        hasReview: true,
+        updatedAt: new Date(),
+      });
+
       await this.updateDoctorAverageRating(doctorId);
       return savedReview;
     } catch (error) {

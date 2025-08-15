@@ -14,6 +14,9 @@ import {
   deleteSubscriptionPlan,
   withdrawSubscriptionPlan,
   completeAppointment,
+  getSubscribedPatients,
+  getPlanSubscriptionCounts,
+  getPatientAppointments,
 } from '../../services/doctorService';
 import {
   confirmSubscription,
@@ -27,6 +30,7 @@ import {
   UpdateSubscriptionPlanPayload,
   QueryParams,
   Appointment,
+  SubscriptionPlan,
 } from '../../types/authTypes';
 import { DateUtils } from '../../utils/DateUtils';
 
@@ -34,7 +38,6 @@ export const fetchVerifiedDoctorsThunk = createAsyncThunk(
   'doctors/fetchVerifiedDoctors',
   async (params: QueryParams = {}, { rejectWithValue }) => {
     try {
-      console.log('params', params);
       return await fetchVerifiedDoctors(params);
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to fetch doctors');
@@ -205,18 +208,20 @@ export const confirmSubscriptionThunk = createAsyncThunk(
   }
 );
 
-export const getSubscriptionPlansThunk = createAsyncThunk(
-  'doctors/getSubscriptionPlans',
-  async (_, { rejectWithValue }) => {
-    try {
-      return await getSubscriptionPlans();
-    } catch (error: any) {
-      return rejectWithValue(
-        error.message || 'Failed to fetch subscription plans'
-      );
-    }
+export const getSubscriptionPlansThunk = createAsyncThunk<
+  { data: SubscriptionPlan[]; totalItems: number },
+  QueryParams,
+  { rejectValue: string }
+>('doctors/getSubscriptionPlans', async (params, { rejectWithValue }) => {
+  try {
+    const response = await getSubscriptionPlans(params);
+    return response;
+  } catch (error: any) {
+    return rejectWithValue(
+      error.message || 'Failed to fetch subscription plans'
+    );
   }
-);
+});
 
 export const fetchDoctorPlansThunk = createAsyncThunk(
   'doctors/fetchDoctorPlans',
@@ -275,6 +280,55 @@ export const withdrawSubscriptionPlanThunk = createAsyncThunk(
     } catch (error: any) {
       return rejectWithValue(
         error.message || 'Failed to withdraw subscription plan'
+      );
+    }
+  }
+);
+
+export const getSubscribedPatientsThunk = createAsyncThunk(
+  'doctors/getSubscribedPatients',
+  async (_, { rejectWithValue }) => {
+    try {
+      return await getSubscribedPatients();
+    } catch (error: any) {
+      return rejectWithValue(
+        error.message || 'Failed to fetch subscribed patients'
+      );
+    }
+  }
+);
+
+export const getPlanSubscriptionCountsThunk = createAsyncThunk(
+  'doctors/getPlanSubscriptionCounts',
+  async (planId: string, { rejectWithValue }) => {
+    try {
+      return await getPlanSubscriptionCounts(planId);
+    } catch (error: any) {
+      return rejectWithValue(
+        error.message || 'Failed to fetch subscription counts'
+      );
+    }
+  }
+);
+
+export const getPatientAppointmentsThunk = createAsyncThunk<
+  { appointments: Appointment[]; totalItems: number },
+  { patientId: string; doctorId: string; page?: number; limit?: number },
+  { rejectValue: string }
+>(
+  'doctors/getPatientAppointments',
+  async ({ patientId, doctorId, page = 1, limit = 5 }, { rejectWithValue }) => {
+    try {
+      const response = await getPatientAppointments(
+        patientId,
+        doctorId,
+        page,
+        limit
+      );
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.message || 'Failed to fetch patient appointments'
       );
     }
   }

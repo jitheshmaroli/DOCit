@@ -1,7 +1,12 @@
+import { Doctor } from './Doctor';
+import { Patient } from './Patient';
+import { Prescription } from './Prescription';
+
 export interface Appointment {
   _id?: string;
-  patientId: string | { _id: string; name?: string };
-  doctorId: string | { _id: string; name?: string };
+  patientId: string | Patient;
+  doctorId: string | Doctor;
+  planId?: string;
   date: Date;
   startTime: string;
   endTime: string;
@@ -14,6 +19,6 @@ export interface Appointment {
   updatedAt?: Date;
   reminderSent?: boolean;
   cancellationReason?: string;
-  prescriptionId?: string;
+  prescriptionId?: string | Prescription;
   hasReview?: boolean;
 }

@@ -11,15 +11,28 @@ import {
   withdrawSubscriptionPlanThunk,
 } from '../../redux/thunks/doctorThunk';
 import { SubscriptionPlan } from '../../types/authTypes';
+import DataTable, { Column } from '../../components/common/DataTable';
+import { useNavigate } from 'react-router-dom';
+import Pagination from '../../components/common/Pagination';
+
+const ITEMS_PER_PAGE = 5;
 
 const DoctorPlans: React.FC = () => {
   const dispatch = useAppDispatch();
-  const { plans = [], loading } = useAppSelector((state) => state.doctors);
+  const navigate = useNavigate();
+  const {
+    plans = [],
+    loading,
+    totalItems,
+  } = useAppSelector((state) => state.doctors);
   const { user } = useAppSelector((state) => state.auth);
-  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-  const [isEditMode, setIsEditMode] = useState<boolean>(false);
-  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
-  const [planData, setPlanData] = useState({
+  const [isModalOpen, setIsModalOpen] = React.useState<boolean>(false);
+  const [isEditMode, setIsEditMode] = React.useState<boolean>(false);
+  const [selectedPlanId, setSelectedPlanId] = React.useState<string | null>(
+    null
+  );
+  const [currentPage, setCurrentPage] = useState(1);
+  const [planData, setPlanData] = React.useState({
     name: '',
     description: '',
     price: '',
@@ -29,9 +42,11 @@ const DoctorPlans: React.FC = () => {
 
   useEffect(() => {
     if (user?.role === 'doctor') {
-      dispatch(getSubscriptionPlansThunk());
+      dispatch(
+        getSubscriptionPlansThunk({ page: currentPage, limit: ITEMS_PER_PAGE })
+      );
     }
-  }, [dispatch, user?.role]);
+  }, [dispatch, user?.role, currentPage]);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -91,11 +106,12 @@ const DoctorPlans: React.FC = () => {
         validityDays: '',
         appointmentCount: '',
       });
-      dispatch(getSubscriptionPlansThunk());
+      dispatch(
+        getSubscriptionPlansThunk({ page: currentPage, limit: ITEMS_PER_PAGE })
+      );
     } catch (error: any) {
       const errorMessage =
         error?.message || (error as Error)?.message || error || 'Unknown error';
-      console.log(error);
       toast.error(
         `Failed to ${isEditMode ? 'update' : 'create'} plan: ${errorMessage}`
       );
@@ -115,12 +131,17 @@ const DoctorPlans: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleDeletePlan = async (planId: string) => {
+  const handleDeletePlan = async (plan: SubscriptionPlan) => {
     if (window.confirm('Are you sure you want to delete this plan?')) {
       try {
-        await dispatch(deleteSubscriptionPlanThunk(planId)).unwrap();
+        await dispatch(deleteSubscriptionPlanThunk(plan._id)).unwrap();
         toast.success('Plan deleted successfully');
-        dispatch(getSubscriptionPlansThunk());
+        dispatch(
+          getSubscriptionPlansThunk({
+            page: currentPage,
+            limit: ITEMS_PER_PAGE,
+          })
+        );
       } catch (error: any) {
         const errorMessage =
           error?.message ||
@@ -132,12 +153,17 @@ const DoctorPlans: React.FC = () => {
     }
   };
 
-  const handleWithdrawPlan = async (planId: string) => {
+  const handleWithdrawPlan = async (plan: SubscriptionPlan) => {
     if (window.confirm('Are you sure you want to withdraw this plan?')) {
       try {
-        await dispatch(withdrawSubscriptionPlanThunk(planId)).unwrap();
+        await dispatch(withdrawSubscriptionPlanThunk(plan._id)).unwrap();
         toast.success('Plan withdrawn successfully');
-        dispatch(getSubscriptionPlansThunk());
+        dispatch(
+          getSubscriptionPlansThunk({
+            page: currentPage,
+            limit: ITEMS_PER_PAGE,
+          })
+        );
       } catch (error: unknown) {
         const errorMessage =
           error instanceof Error ? error.message : 'Unknown error';
@@ -145,6 +171,63 @@ const DoctorPlans: React.FC = () => {
       }
     }
   };
+
+  const handleViewDetails = (plan: SubscriptionPlan) => {
+    navigate(`/doctor/plan-details/${plan._id}`);
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const columns: Column<SubscriptionPlan>[] = [
+    { header: 'Name', accessor: 'name' },
+    { header: 'Price', accessor: (plan) => `₹${plan.price.toFixed(2)}` },
+    { header: 'Validity', accessor: (plan) => `${plan.validityDays} days` },
+    { header: 'Appointments', accessor: 'appointmentCount' },
+    {
+      header: 'Status',
+      accessor: (plan) => (
+        <span
+          className={`inline-flex px-2 py-1 rounded-full text-xs ${
+            plan.status === 'approved'
+              ? 'bg-green-500/20 text-green-300'
+              : plan.status === 'pending'
+                ? 'bg-yellow-500/20 text-yellow-300'
+                : 'bg-red-500/20 text-red-300'
+          }`}
+        >
+          {plan.status}
+        </span>
+      ),
+    },
+  ];
+
+  const actions = [
+    {
+      label: 'Edit',
+      onClick: handleEditPlan,
+      className: 'bg-blue-600 hover:bg-blue-700',
+    },
+    {
+      label: 'Delete',
+      onClick: handleDeletePlan,
+      className: 'bg-red-600 hover:bg-red-700',
+    },
+    {
+      label: 'Withdraw',
+      onClick: handleWithdrawPlan,
+      className: 'bg-yellow-600 hover:bg-yellow-700',
+      condition: (plan: SubscriptionPlan) => plan.status === 'pending',
+    },
+    {
+      label: 'View Details',
+      onClick: handleViewDetails,
+      className: 'bg-purple-600 hover:bg-purple-700',
+    },
+  ];
+
+  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
   return (
     <>
@@ -171,72 +254,20 @@ const DoctorPlans: React.FC = () => {
             + Add Plan
           </button>
         </div>
-        {loading ? (
-          <div className="text-center text-gray-200">Loading plans...</div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {plans.length > 0 ? (
-              plans.map((plan) => (
-                <div
-                  key={plan._id}
-                  className="bg-white/20 backdrop-blur-lg p-4 rounded-lg border border-white/20 shadow-lg hover:shadow-xl transition-all duration-300"
-                >
-                  <h3 className="text-lg font-semibold text-white">
-                    {plan.name || 'Unnamed Plan'}
-                  </h3>
-                  <p className="text-sm text-gray-200 mt-2">
-                    {plan.description || 'No description'}
-                  </p>
-                  <p className="text-sm text-gray-200 mt-2">
-                    Price: ₹{plan.price.toFixed(2)}
-                  </p>
-                  <p className="text-sm text-gray-200 mt-2">
-                    Validity: {plan.validityDays} days
-                  </p>
-                  <p className="text-sm text-gray-200 mt-2">
-                    Appointments: {plan.appointmentCount}
-                  </p>
-                  <p
-                    className={`text-xs mt-2 inline-flex px-2 py-1 rounded-full ${
-                      plan.status === 'approved'
-                        ? 'bg-green-500/20 text-green-300'
-                        : plan.status === 'pending'
-                          ? 'bg-yellow-500/20 text-yellow-300'
-                          : 'bg-red-500/20 text-red-300'
-                    }`}
-                  >
-                    {plan.status}
-                  </p>
-                  <div className="mt-4 flex space-x-2">
-                    <button
-                      onClick={() => handleEditPlan(plan)}
-                      className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-3 py-1 rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-300"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDeletePlan(plan._id)}
-                      className="bg-gradient-to-r from-red-600 to-red-700 text-white px-3 py-1 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300"
-                    >
-                      Delete
-                    </button>
-                    {plan.status === 'pending' && (
-                      <button
-                        onClick={() => handleWithdrawPlan(plan._id)}
-                        className="bg-gradient-to-r from-yellow-600 to-yellow-700 text-white px-3 py-1 rounded-lg hover:from-yellow-700 hover:to-yellow-800 transition-all duration-300"
-                      >
-                        Withdraw
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="col-span-full text-center text-gray-200">
-                No plans found. Add a new plan to get started.
-              </div>
-            )}
-          </div>
+        <DataTable
+          data={plans}
+          columns={columns}
+          actions={actions}
+          isLoading={loading}
+          emptyMessage="No plans found. Add a new plan to get started."
+        />
+        {totalPages > 1 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+            className="mt-6"
+          />
         )}
       </div>
 
@@ -248,7 +279,10 @@ const DoctorPlans: React.FC = () => {
             </h2>
             <div className="space-y-4">
               <div>
-                <label htmlFor="name" className="block text-sm font-medium text-white mb-1">
+                <label
+                  htmlFor="name"
+                  className="block text-sm font-medium text-white mb-1"
+                >
                   Plan Name
                 </label>
                 <input
@@ -262,7 +296,10 @@ const DoctorPlans: React.FC = () => {
                 />
               </div>
               <div>
-                <label htmlFor="description" className="block text-sm font-medium text-white mb-1">
+                <label
+                  htmlFor="description"
+                  className="block text-sm font-medium text-white mb-1"
+                >
                   Description
                 </label>
                 <textarea
@@ -275,7 +312,10 @@ const DoctorPlans: React.FC = () => {
                 />
               </div>
               <div>
-                <label htmlFor="price" className="block text-sm font-medium text-white mb-1">
+                <label
+                  htmlFor="price"
+                  className="block text-sm font-medium text-white mb-1"
+                >
                   Price (in Rupees)
                 </label>
                 <input
@@ -291,7 +331,10 @@ const DoctorPlans: React.FC = () => {
                 />
               </div>
               <div>
-                <label htmlFor="validityDays" className="block text-sm font-medium text-white mb-1">
+                <label
+                  htmlFor="validityDays"
+                  className="block text-sm font-medium text-white mb-1"
+                >
                   Validity (days)
                 </label>
                 <input
@@ -307,7 +350,10 @@ const DoctorPlans: React.FC = () => {
                 />
               </div>
               <div>
-                <label htmlFor="appointmentCount" className="block text-sm font-medium text-white mb-1">
+                <label
+                  htmlFor="appointmentCount"
+                  className="block text-sm font-medium text-white mb-1"
+                >
                   Number of Appointments
                 </label>
                 <input

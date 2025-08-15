@@ -103,6 +103,8 @@ export const ROUTES = {
       SPECIALITIES: apiPath('/doctors/specialities'),
       DASHBOARD_STATS: apiPath('/doctors/dashboard/stats'),
       REPORTS: apiPath('/doctors/dashboard/reports'),
+      SUBSCRIBED_PATIENTS: apiPath('/doctors/patients/subscribed'),
+      SUBSCRIPTION_PLAN_COUNTS: apiPath('/doctors/subscription-plans/:planId/counts'),
     },
 
     PATIENT: {
@@ -119,6 +121,8 @@ export const ROUTES = {
       CANCEL_SUBSCRIPTION: apiPath('/patients/subscriptions/:subscriptionId'),
       CREATE_REVIEW: apiPath('/patients/review'),
       DOCTOR_REVIEWS: apiPath('/patients/doctors/:doctorId/reviews'),
+      SUBSCRIPTION_LIST: apiPath('/patients/subscriptions'),
+      PATIENT_BY_ID: apiPath('/patients/:patientId'),
     },
 
     MESSAGE: {

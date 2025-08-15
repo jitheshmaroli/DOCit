@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 import { Message } from '../types/messageTypes';
 import { AppNotification } from '../types/authTypes';
 
-const SOCKET_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+const SOCKET_URL = import.meta.env.VITE_API_BASE_URL;
 
 type SignalData = RTCSessionDescriptionInit | RTCIceCandidateInit | unknown;
 

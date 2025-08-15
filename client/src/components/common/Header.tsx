@@ -76,17 +76,17 @@ const Header: React.FC = () => {
 
   if (loading) {
     return (
-      <header className="bg-white/10 backdrop-blur-lg py-4 px-6 sticky top-0 z-50">
+      <header className="bg-[#320A6B]/70 backdrop-blur-lg py-4 px-6 sticky top-0 z-50">
         <div className="flex justify-between items-center max-w-7xl mx-auto">
           <Logo />
-          <div className="animate-pulse h-6 w-24 bg-gray-200/20 rounded"></div>
+          <div className="animate-pulse h-6 w-24 bg-[#78B9B5]/20 rounded"></div>
         </div>
       </header>
     );
   }
 
   return (
-    <header className="bg-white/10 backdrop-blur-lg py-4 px-6 sticky top-0 z-50 border-b border-white/20">
+    <header className="bg-gradient-to-r from-[#320A6B] to-[#065084] py-4 px-6 sticky top-0 z-50 border-b border-[#78B9B5]/20">
       <div className="flex justify-between items-center max-w-7xl mx-auto">
         <Logo />
 
@@ -97,9 +97,9 @@ const Header: React.FC = () => {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`text-gray-200 hover:text-purple-300 transition-colors ${
+                className={`text-[#B7DEE6] hover:text-[#78B9B5] transition-colors ${
                   location.pathname === item.path
-                    ? 'text-purple-300 font-medium'
+                    ? 'text-[#78B9B5] font-medium'
                     : ''
                 }`}
               >
@@ -110,9 +110,9 @@ const Header: React.FC = () => {
               (isAuthenticated ? (
                 <Link
                   to={dashboardPath}
-                  className={`text-gray-200 hover:text-purple-300 transition-colors ${
+                  className={`text-[#B7DEE6] hover:text-[#78B9B5] transition-colors ${
                     location.pathname === dashboardPath
-                      ? 'text-purple-300 font-medium'
+                      ? 'text-[#78B9B5] font-medium'
                       : ''
                   }`}
                 >
@@ -123,7 +123,7 @@ const Header: React.FC = () => {
                   {location.pathname !== '/login' && (
                     <Link
                       to="/login"
-                      className="text-gray-200 hover:text-purple-300 transition-colors"
+                      className="text-[#B7DEE6] hover:text-[#78B9B5] transition-colors"
                     >
                       Login
                     </Link>
@@ -131,7 +131,7 @@ const Header: React.FC = () => {
                   {location.pathname !== '/signup' && (
                     <Link
                       to="/signup"
-                      className="text-gray-200 hover:text-purple-300 transition-colors"
+                      className="text-[#B7DEE6] hover:text-[#78B9B5] transition-colors"
                       state={{ role: 'patient' }}
                     >
                       Sign Up
@@ -146,12 +146,12 @@ const Header: React.FC = () => {
                 <NotificationDropdown userId={user?._id} />
                 {isPatientRoute && (
                   <div className="flex items-center">
-                    <div className="w-8 h-8 rounded-full bg-purple-500/50 flex items-center justify-center text-white font-medium">
+                    <div className="w-8 h-8 rounded-full bg-[#78B9B5]/50 flex items-center justify-center text-white font-medium">
                       {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
                     </div>
                     <button
                       onClick={handleLogout}
-                      className="ml-2 text-gray-200 hover:text-purple-300 transition-colors"
+                      className="ml-2 text-[#B7DEE6] hover:text-[#78B9B5] transition-colors"
                     >
                       Logout
                     </button>
@@ -164,7 +164,7 @@ const Header: React.FC = () => {
         {/* Mobile Menu Button */}
         <button
           onClick={toggleMenu}
-          className="md:hidden text-gray-200 hover:text-purple-300 focus:outline-none"
+          className="md:hidden text-[#B7DEE6] hover:text-[#78B9B5] focus:outline-none"
           aria-label="Toggle menu"
         >
           <svg
@@ -195,15 +195,15 @@ const Header: React.FC = () => {
 
       {/* Mobile Navigation */}
       {isMenuOpen && (
-        <div className="md:hidden bg-white/10 backdrop-blur-lg py-2 border-t border-white/20">
+        <div className="md:hidden bg-gradient-to-r from-[#320A6B]/80 to-[#065084]/80 py-2 border-t border-[#78B9B5]/20">
           <nav className="flex flex-col space-y-2 px-6">
             {navItems.map((item) => (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`py-2 px-4 text-gray-200 hover:text-purple-300 rounded transition-colors ${
+                className={`py-2 px-4 text-[#B7DEE6] hover:text-[#78B9B5] rounded transition-colors ${
                   location.pathname === item.path
-                    ? 'text-purple-300 font-medium bg-white/20'
+                    ? 'text-[#78B9B5] font-medium bg-[#78B9B5]/10'
                     : ''
                 }`}
               >
@@ -214,9 +214,9 @@ const Header: React.FC = () => {
               (isAuthenticated ? (
                 <Link
                   to={dashboardPath}
-                  className={`py-2 px-4 text-gray-200 hover:text-purple-300 rounded transition-colors ${
+                  className={`py-2 px-4 text-[#B7DEE6] hover:text-[#78B9B5] rounded transition-colors ${
                     location.pathname === dashboardPath
-                      ? 'text-purple-300 font-medium bg-white/20'
+                      ? 'text-[#78B9B5] font-medium bg-[#78B9B5]/10'
                       : ''
                   }`}
                 >
@@ -227,7 +227,7 @@ const Header: React.FC = () => {
                   {location.pathname !== '/login' && (
                     <Link
                       to="/login"
-                      className="py-2 px-4 text-gray-200 hover:text-purple-300 rounded transition-colors"
+                      className="py-2 px-4 text-[#B7DEE6] hover:text-[#78B9B5] rounded transition-colors"
                     >
                       Login
                     </Link>
@@ -235,7 +235,7 @@ const Header: React.FC = () => {
                   {location.pathname !== '/signup' && (
                     <Link
                       to="/signup"
-                      className="py-2 px-4 text-gray-200 hover:text-purple-300 rounded transition-colors"
+                      className="py-2 px-4 text-[#B7DEE6] hover:text-[#78B9B5] rounded transition-colors"
                       state={{ role: 'patient' }}
                     >
                       Sign Up
@@ -245,20 +245,20 @@ const Header: React.FC = () => {
               ))}
             {isAuthenticated &&
               (user?.role === 'patient' || user?.role === 'doctor') && (
-                <>
-                  <div className="py-2 px-4">
-                    <NotificationDropdown userId={user?._id} />
-                  </div>
-                  {isPatientRoute && (
-                    <button
-                      onClick={handleLogout}
-                      className="py-2 px-4 text-left text-gray-200 hover:text-purple-300 rounded transition-colors"
-                    >
-                      Logout
-                    </button>
-                  )}
-                </>
-              )}
+                  <>
+                    <div className="py-2 px-4">
+                      <NotificationDropdown userId={user?._id} />
+                    </div>
+                    {isPatientRoute && (
+                      <button
+                        onClick={handleLogout}
+                        className="py-2 px-4 text-left text-[#B7DEE6] hover:text-[#78B9B5] rounded transition-colors"
+                      >
+                        Logout
+                      </button>
+                    )}
+                  </>
+                )}
           </nav>
         </div>
       )}

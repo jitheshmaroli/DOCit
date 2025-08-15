@@ -58,4 +58,10 @@ router.patch(
 router.get('/dashboard/stats', doctorAuth, doctorController.getDashboardStats.bind(doctorController));
 router.get('/dashboard/reports', doctorAuth, doctorController.getReports.bind(doctorController));
 
+router.get('/patients/subscribed', doctorAuth, doctorController.getSubscribedPatients.bind(doctorController));
+router.get(
+  '/subscription-plans/:planId/counts',
+  doctorAuth,
+  doctorController.getPlanSubscriptionCounts.bind(doctorController)
+);
 export default router;

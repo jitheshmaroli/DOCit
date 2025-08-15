@@ -31,7 +31,7 @@ export interface Doctor {
   isBlocked: boolean;
   profilePicture?: string;
   availability?: string;
-  speciality?: string[];
+  speciality?: string;
   qualifications?: string[];
   age?: string;
   gender?: string;
@@ -199,30 +199,16 @@ export interface Patient {
   pincode?: string;
   profilePicture?: string;
   profilePicturePublicId?: string;
+  subscribedPlans?: PatientSubscription[];
   createdAt?: string;
   updatedAt?: string;
 }
 
-interface AppointmentPatient {
-  _id: string;
-  name: string;
-}
-
-interface AppointmentDoctor {
-  _id: string;
-  name: string;
-  profilePicture?: string;
-  speciality?: string[];
-  qualifications?: string[];
-  age?: number;
-  gender?: string;
-}
-
 export interface Appointment {
   _id: string;
-  patientId: Patient | AppointmentPatient;
+  patientId: Patient;
   patientName?: string;
-  doctorId: { _id: string; name: string } | AppointmentDoctor;
+  doctorId: Doctor;
   doctorName: string;
   date: string;
   startTime: string;
@@ -293,4 +279,33 @@ export interface AppNotification {
   message: string;
   isRead: boolean;
   createdAt: string;
+}
+
+export interface PatientSubscription {
+  _id: string;
+  patientId: string;
+  planId: SubscriptionPlan;
+  planDetails?: {
+    _id: string;
+    name: string;
+    description: string;
+    doctorId: string;
+    price: number;
+    validityDays: number;
+    appointmentCount: number;
+    status: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+  startDate: string;
+  expiryDate: string;
+  status: 'active' | 'expired' | 'cancelled';
+  price: number;
+  appointmentsUsed: number;
+  appointmentsLeft: number;
+  stripePaymentId?: string;
+  remainingDays?: number;
+  createdAt?: string;
+  updatedAt?: string;
+  cancellationReason?: string;
 }

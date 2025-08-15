@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Messages from './Profile/Messages';
 import PersonalInformation from './Profile/PersonalInformation';
+import Subscriptions from './Profile/Subscriptions';
 import { useAppSelector } from '../../redux/hooks';
 import { RootState } from '../../redux/store';
 
@@ -13,6 +14,7 @@ const ProfilePage = () => {
   const tabs = useMemo(
     () => [
       { id: 'personal', label: 'Personal Information' },
+      { id: 'subscriptions', label: 'Subscriptions' },
       { id: 'messages', label: 'Messages' },
     ],
     []
@@ -58,6 +60,9 @@ const ProfilePage = () => {
           <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-b-2xl shadow-xl p-6">
             {activeTab === 'personal' && (
               <PersonalInformation patientId={user?._id} />
+            )}
+            {activeTab === 'subscriptions' && (
+              <Subscriptions patientId={user?._id} />
             )}
             {activeTab === 'messages' && <Messages patientId={user?._id} />}
           </div>

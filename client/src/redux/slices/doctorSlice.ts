@@ -15,6 +15,7 @@ import {
   fetchDoctorPlansThunk,
   removeSlotThunk,
   updateSlotThunk,
+  getPlanSubscriptionCountsThunk,
 } from '../thunks/doctorThunk';
 
 interface DoctorState {
@@ -29,6 +30,9 @@ interface DoctorState {
   plans: SubscriptionPlan[];
   subscriptionStatus: 'idle' | 'pending' | 'success' | 'failed';
   totalItems: number;
+  planSubscriptionCounts: {
+    [planId: string]: { active: number; expired: number; cancelled: number };
+  };
 }
 
 const initialState: DoctorState = {
@@ -42,6 +46,7 @@ const initialState: DoctorState = {
   error: null,
   subscriptionStatus: 'idle',
   totalItems: 0,
+  planSubscriptionCounts: {},
 };
 
 const doctorSlice = createSlice({
@@ -194,10 +199,20 @@ const doctorSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      .addCase(getSubscriptionPlansThunk.fulfilled, (state, action) => {
-        state.loading = false;
-        state.plans = action.payload;
-      })
+      .addCase(
+        getSubscriptionPlansThunk.fulfilled,
+        (
+          state,
+          action: PayloadAction<{
+            data: SubscriptionPlan[];
+            totalItems: number;
+          }>
+        ) => {
+          state.loading = false;
+          state.plans = action.payload.data;
+          state.totalItems = action.payload.totalItems;
+        }
+      )
       .addCase(getSubscriptionPlansThunk.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
@@ -256,6 +271,29 @@ const doctorSlice = createSlice({
         );
       })
       .addCase(withdrawSubscriptionPlanThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(getPlanSubscriptionCountsThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(
+        getPlanSubscriptionCountsThunk.fulfilled,
+        (
+          state,
+          action: PayloadAction<
+            { active: number; expired: number; cancelled: number },
+            string,
+            { arg: string }
+          >
+        ) => {
+          state.loading = false;
+          const planId = action.meta.arg;
+          state.planSubscriptionCounts[planId] = action.payload;
+        }
+      )
+      .addCase(getPlanSubscriptionCountsThunk.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       });
