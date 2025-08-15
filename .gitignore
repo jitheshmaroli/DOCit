@@ -5,6 +5,8 @@ backend/build/
 .vscode/
 backend/.env
 backend/uploads/
+backend/.env.development
+backend/.env.production
 client/.env
 client/.env.local
 client/.env.development
