@@ -31,7 +31,7 @@ export interface Doctor {
   isBlocked: boolean;
   profilePicture?: string;
   availability?: string;
-  speciality?: string[];
+  speciality?: string;
   qualifications?: string[];
   age?: string;
   gender?: string;

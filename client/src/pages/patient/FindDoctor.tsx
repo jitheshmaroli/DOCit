@@ -359,7 +359,7 @@ const FindDoctor: React.FC = () => {
                           Dr. {doctor.name}
                         </h3>
                         <p className="text-sm text-purple-300 mb-2">
-                          {doctor.speciality?.join(', ') || 'Speciality N/A'}
+                          {doctor.speciality || 'Speciality N/A'}
                         </p>
                         <p className="text-sm text-gray-300 mb-2">
                           Total Experience: {doctor.totalExperience || 0} years

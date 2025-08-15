@@ -594,7 +594,7 @@ const DoctorDetails: React.FC = () => {
               </h3>
               <p className="text-sm text-purple-300 mb-2">
                 {displaySpeciality?.length
-                  ? displaySpeciality.join(', ')
+                  ? displaySpeciality
                   : 'Speciality N/A'}
               </p>
               <p className="text-sm text-gray-200 mb-2">
