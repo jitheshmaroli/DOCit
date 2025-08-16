@@ -20,6 +20,8 @@ export interface Doctor {
   isBlocked?: boolean;
   profilePicture?: string;
   profilePicturePublicId?: string;
+  licenseProof?: string;
+  licenseProofPublicId?: string;
   refreshToken?: string;
   googleId?: string;
   lastSeen?: Date;

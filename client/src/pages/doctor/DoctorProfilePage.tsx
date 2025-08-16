@@ -36,6 +36,7 @@ interface FormData {
   gender: string;
   allowFreeBooking: boolean;
   experiences: Experience[];
+  licenseProof?: string;
 }
 
 const DoctorProfilePage: React.FC = () => {
@@ -52,11 +53,13 @@ const DoctorProfilePage: React.FC = () => {
     gender: '',
     allowFreeBooking: true,
     experiences: [],
+    licenseProof: '',
   });
   const [initialFormData, setInitialFormData] = useState<FormData | null>(null);
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [licenseProofFile, setLicenseProofFile] = useState<File | null>(null); // New state for license proof file
   const [errors, setErrors] = useState<Record<string, string | null>>({});
   const [experienceErrors, setExperienceErrors] = useState<
     Array<Record<string, string | null>>
@@ -106,6 +109,7 @@ const DoctorProfilePage: React.FC = () => {
               department: exp.department || '',
               years: exp.years?.toString() || '',
             })) || [],
+          licenseProof: data.licenseProof || '', // New field
         };
 
         setFormData(newFormData);
@@ -126,7 +130,7 @@ const DoctorProfilePage: React.FC = () => {
     fetchProfile();
   }, [doctorId]);
 
-  // Detect changes in formData or file
+  // Detect changes in formData or files
   useEffect(() => {
     if (!initialFormData) return;
 
@@ -142,6 +146,7 @@ const DoctorProfilePage: React.FC = () => {
         'speciality',
         'gender',
         'allowFreeBooking',
+        'licenseProof',
       ];
       for (const field of simpleFields) {
         if (formData[field] !== initialFormData[field]) {
@@ -168,9 +173,9 @@ const DoctorProfilePage: React.FC = () => {
       return false;
     };
 
-    const hasFileChanged = file !== null;
+    const hasFileChanged = file !== null || licenseProofFile !== null;
     setHasChanges(isFormDataChanged() || hasFileChanged);
-  }, [formData, file, initialFormData]);
+  }, [formData, file, licenseProofFile, initialFormData]);
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -238,6 +243,20 @@ const DoctorProfilePage: React.FC = () => {
         setPreviewImage(reader.result as string);
       };
       reader.readAsDataURL(selectedFile);
+    }
+  };
+
+  const handleLicenseProofChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const selectedFile = e.target.files[0];
+      if (selectedFile.type !== 'application/pdf') {
+        toast.error('License proof must be a PDF file', {
+          position: 'bottom-right',
+          autoClose: 3000,
+        });
+        return;
+      }
+      setLicenseProofFile(selectedFile);
     }
   };
 
@@ -330,7 +349,8 @@ const DoctorProfilePage: React.FC = () => {
       if (
         key !== 'email' &&
         key !== 'experiences' &&
-        key !== 'allowFreeBooking'
+        key !== 'allowFreeBooking' &&
+        key !== 'licenseProof'
       ) {
         validateField(key, value as string);
         if (!value) {
@@ -420,6 +440,9 @@ const DoctorProfilePage: React.FC = () => {
                 if (file) {
                   formDataToSend.append('profilePicture', file);
                 }
+                if (licenseProofFile) {
+                  formDataToSend.append('licenseProof', licenseProofFile);
+                }
 
                 const response = await api.patch(
                   `/api/doctors/${doctorId}`,
@@ -438,6 +461,8 @@ const DoctorProfilePage: React.FC = () => {
                   speciality: speciality
                     ? speciality.name
                     : formData.speciality,
+                  licenseProof:
+                    response.data.licenseProof || formData.licenseProof, // Update licenseProof
                 };
                 setFormData(updatedFormData);
                 setInitialFormData(updatedFormData);
@@ -445,6 +470,7 @@ const DoctorProfilePage: React.FC = () => {
                 setProfilePicture(imageUrl);
                 setPreviewImage(imageUrl);
                 setFile(null);
+                setLicenseProofFile(null); // Reset license proof file
 
                 toast.success('Profile updated successfully!', {
                   position: 'bottom-right',
@@ -462,6 +488,7 @@ const DoctorProfilePage: React.FC = () => {
                 console.error('Error updating profile:', error);
                 setPreviewImage(profilePicture);
                 setFile(null);
+                setLicenseProofFile(null);
               }
               closeToast();
             }}
@@ -473,6 +500,7 @@ const DoctorProfilePage: React.FC = () => {
             onClick={() => {
               setPreviewImage(profilePicture);
               setFile(null);
+              setLicenseProofFile(null);
               closeToast();
             }}
             className="bg-red-500 text-white px-2 py-1 rounded"
@@ -526,6 +554,33 @@ const DoctorProfilePage: React.FC = () => {
                   onChange={handlePhotoChange}
                 />
               </label>
+              {/* License Proof */}
+              <div className="mt-4">
+                <label className="text-[12px] text-gray-200">
+                  License Proof (PDF)
+                </label>
+                <label className="w-[190px] h-[45.7px] bg-purple-500/20 text-purple-300 text-[12px] rounded-lg hover:bg-purple-500/30 transition-colors flex items-center justify-center cursor-pointer mt-1">
+                  Upload PDF
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="application/pdf"
+                    onChange={handleLicenseProofChange}
+                  />
+                </label>
+                {formData.licenseProof && (
+                  <div className="mt-2 flex flex-col">
+                    <a
+                      href={formData.licenseProof}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-purple-300 text-[12px] hover:underline"
+                    >
+                      View Document
+                    </a>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="flex-1">

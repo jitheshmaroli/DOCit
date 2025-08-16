@@ -17,11 +17,7 @@ export class PatientProfileController {
   async viewProfile(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const patientId = req.params.id;
-      const requesterId = req.user?.id;
-      if (!requesterId) {
-        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
-      }
-      const patient = await this._profileUseCase.viewPatientProfile(patientId, requesterId);
+      const patient = await this._profileUseCase.viewPatientProfile(patientId);
       res.status(HttpStatusCode.OK).json(patient);
     } catch (error) {
       next(error);

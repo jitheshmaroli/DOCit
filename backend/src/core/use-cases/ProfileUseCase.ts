@@ -32,7 +32,8 @@ export class ProfileUseCase implements IProfileUseCase {
   async updateDoctorProfile(
     doctorId: string,
     updates: Partial<Doctor>,
-    file?: Express.Multer.File
+    profilePictureFile?: Express.Multer.File,
+    licenseProofFile?: Express.Multer.File
   ): Promise<Doctor | null> {
     if (!doctorId) {
       logger.error('Doctor ID is required for updating profile');
@@ -69,13 +70,24 @@ export class ProfileUseCase implements IProfileUseCase {
     }
 
     let profilePicture: string | undefined;
-    if (file) {
+    if (profilePictureFile) {
       try {
-        const uploadResult = await this._imageUploadService.uploadFile(file, 'doctor-profiles');
-        profilePicture = uploadResult.url; // Extract the URL string
+        const uploadResult = await this._imageUploadService.uploadFile(profilePictureFile, 'doctor-profiles');
+        profilePicture = uploadResult.url;
       } catch (error) {
         logger.error(`Error uploading profile picture: ${(error as Error).message}`);
         throw new Error('Failed to upload profile picture');
+      }
+    }
+
+    let licenseProof: string | undefined;
+    if (licenseProofFile) {
+      try {
+        const uploadResult = await this._imageUploadService.uploadFile(licenseProofFile, 'doctor-proofs');
+        licenseProof = uploadResult.url;
+      } catch (error) {
+        logger.error(`Error uploading license proof: ${(error as Error).message}`);
+        throw new Error('Failed to upload license proof');
       }
     }
 
@@ -83,6 +95,7 @@ export class ProfileUseCase implements IProfileUseCase {
       const updatedDoctor = await this._doctorRepository.update(doctorId, {
         ...updates,
         profilePicture: profilePicture || updates.profilePicture || doctor.profilePicture,
+        licenseProof: licenseProof || updates.licenseProof || doctor.licenseProof,
         updatedAt: new Date(),
       });
       if (!updatedDoctor) {
