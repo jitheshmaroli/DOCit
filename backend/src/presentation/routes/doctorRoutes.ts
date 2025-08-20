@@ -14,8 +14,12 @@ const container = Container.getInstance();
 const doctorController = new DoctorController(container);
 const doctorProfileController = new DoctorProfileController(container);
 
-// Multer setup
-const upload = getMulterUploader('doctor-profiles');
+// Multer setup for multiple file types
+const upload = getMulterUploader('doctor-files', 'image-and-pdf'); // Use a single uploader for both images and PDFs
+const profileUpload = upload.fields([
+  { name: 'profilePicture', maxCount: 1 },
+  { name: 'licenseProof', maxCount: 1 },
+]);
 
 // Middleware
 const doctorAuth = [authMiddleware(container), roleMiddleware([UserRole.Doctor])];
@@ -47,12 +51,7 @@ router.get('/specialities', doctorAuth, doctorController.getAllSpecialities.bind
 
 // Profile routes
 router.get('/:id', doctorAuth, doctorProfileController.viewProfile.bind(doctorProfileController));
-router.patch(
-  '/:id',
-  doctorAuth,
-  upload.single('profilePicture'),
-  doctorProfileController.updateProfile.bind(doctorProfileController)
-);
+router.patch('/:id', doctorAuth, profileUpload, doctorProfileController.updateProfile.bind(doctorProfileController));
 
 // Dashboard Statistics routes
 router.get('/dashboard/stats', doctorAuth, doctorController.getDashboardStats.bind(doctorController));
@@ -64,4 +63,5 @@ router.get(
   doctorAuth,
   doctorController.getPlanSubscriptionCounts.bind(doctorController)
 );
+
 export default router;

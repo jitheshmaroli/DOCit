@@ -2,7 +2,6 @@ import { Request, Response, NextFunction } from 'express';
 import { ISubscriptionPlanUseCase } from '../../../core/interfaces/use-cases/ISubscriptionPlanUseCase';
 import { Container } from '../../../infrastructure/di/container';
 import { IAppointmentUseCase } from '../../../core/interfaces/use-cases/IAppointmentUseCase';
-import { IDoctorUseCase } from '../../../core/interfaces/use-cases/IDoctorUseCase';
 import { ISpecialityUseCase } from '../../../core/interfaces/use-cases/ISpecialityUseCase';
 import { IReportUseCase } from '../../../core/interfaces/use-cases/IReportUseCase';
 import { IPatientUseCase } from '../../../core/interfaces/use-cases/IPatientUseCase';
@@ -23,7 +22,6 @@ interface ReportFilter {
 export class AdminController {
   private _subscriptionPlanUseCase: ISubscriptionPlanUseCase;
   private _appointmentUseCase: IAppointmentUseCase;
-  private _doctorUseCase: IDoctorUseCase;
   private _specialityUseCase: ISpecialityUseCase;
   private _reportUseCase: IReportUseCase;
   private _patientUseCase: IPatientUseCase;
@@ -31,7 +29,6 @@ export class AdminController {
   constructor(container: Container) {
     this._subscriptionPlanUseCase = container.get<ISubscriptionPlanUseCase>('ISubscriptionPlanUseCase');
     this._appointmentUseCase = container.get<IAppointmentUseCase>('IAppointmentUseCase');
-    this._doctorUseCase = container.get<IDoctorUseCase>('IDoctorUseCase');
     this._specialityUseCase = container.get<ISpecialityUseCase>('ISpecialityUseCase');
     this._reportUseCase = container.get<IReportUseCase>('IReportUseCase');
     this._patientUseCase = container.get<IPatientUseCase>('IPatientUseCase');

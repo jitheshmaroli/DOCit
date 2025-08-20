@@ -86,7 +86,7 @@ export class DoctorProfileController {
             typeof exp.years !== 'number' ||
             exp.years < 0
           ) {
-            logger.error(`Invalid doświadczenie entry at index ${index}:`, exp);
+            logger.error(`Invalid experience entry at index ${index}:`, exp);
             throw new ValidationError(
               `Invalid experience at index ${index}: must include valid hospitalName, department, and non-negative years`
             );
@@ -114,27 +114,60 @@ export class DoctorProfileController {
         throw new ValidationError('Location must be a string');
       }
 
-      const doctor = await this._profileUseCase.updateDoctorProfile(doctorId, updates, req.file);
+      // Handle files from req.files
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+      const profilePictureFile: Express.Multer.File | undefined = files?.['profilePicture']?.[0];
+      const licenseProofFile: Express.Multer.File | undefined = files?.['licenseProof']?.[0];
+
+      const doctor = await this._profileUseCase.updateDoctorProfile(
+        doctorId,
+        updates,
+        profilePictureFile,
+        licenseProofFile
+      );
 
       if (!doctor) {
         throw new ValidationError('Doctor not found or invalid update data');
       }
 
-      if (req.file) {
+      // Clean up uploaded files from temp storage
+      if (profilePictureFile) {
         try {
-          fs.unlinkSync(req.file.path);
+          fs.unlinkSync(profilePictureFile.path);
         } catch (error) {
-          logger.error(`Failed to delete uploaded file: ${req.file.path}`, error);
+          logger.error(`Failed to delete uploaded profile picture file: ${profilePictureFile.path}`, error);
+        }
+      }
+      if (licenseProofFile) {
+        try {
+          fs.unlinkSync(licenseProofFile.path);
+        } catch (error) {
+          logger.error(`Failed to delete uploaded license proof file: ${licenseProofFile.path}`, error);
         }
       }
 
       res.status(HttpStatusCode.OK).json(doctor);
     } catch (error) {
-      if (req.file) {
+      // Clean up on error
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+      if (files?.['profilePicture']?.[0]) {
         try {
-          fs.unlinkSync(req.file.path);
-        } catch (error) {
-          logger.error(`Failed to delete uploaded file: ${req.file.path}`, error);
+          fs.unlinkSync(files['profilePicture'][0].path);
+        } catch (unlinkError) {
+          logger.error(
+            `Failed to delete uploaded profile picture on error: ${files['profilePicture'][0].path}`,
+            unlinkError
+          );
+        }
+      }
+      if (files?.['licenseProof']?.[0]) {
+        try {
+          fs.unlinkSync(files['licenseProof'][0].path);
+        } catch (unlinkError) {
+          logger.error(
+            `Failed to delete uploaded license proof on error: ${files['licenseProof'][0].path}`,
+            unlinkError
+          );
         }
       }
       next(error);
