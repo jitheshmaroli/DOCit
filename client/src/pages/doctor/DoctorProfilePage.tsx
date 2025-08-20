@@ -130,6 +130,7 @@ const DoctorProfilePage: React.FC = () => {
     fetchProfile();
   }, [doctorId]);
 
+  console.log(formData);
   // Detect changes in formData or files
   useEffect(() => {
     if (!initialFormData) return;

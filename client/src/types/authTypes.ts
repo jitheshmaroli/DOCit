@@ -41,8 +41,8 @@ export interface Doctor {
   totalExperience?: number;
   location?: string;
   allowFreeBooking?: boolean;
-  licenseDocument?: string;
-  licenseDocumentPublicId?: string;
+  licenseProof?: string;
+  licenseProofPublicId?: string;
   createdAt: string;
   updatedAt: string;
 }

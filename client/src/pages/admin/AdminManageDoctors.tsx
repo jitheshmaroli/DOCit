@@ -199,6 +199,25 @@ const AdminManageDoctors: React.FC = () => {
         accessor: 'licenseNumber' as keyof Doctor,
       },
       {
+        header: 'License Proof',
+        accessor: (doctor: Doctor): React.ReactNode => (
+          <div>
+            {doctor.licenseProof ? (
+              <a
+                href={doctor.licenseProof}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-400 hover:text-blue-500 underline"
+              >
+                View License
+              </a>
+            ) : (
+              <span className="text-gray-400">No License</span>
+            )}
+          </div>
+        ),
+      },
+      {
         header: 'Status',
         accessor: (doctor: Doctor): React.ReactNode => (
           <div className="flex flex-col space-y-1">
@@ -491,6 +510,23 @@ const AdminManageDoctors: React.FC = () => {
               setEditDoctor({ ...editDoctor, licenseNumber: e.target.value })
             }
           />
+          <div className="w-full p-3 mb-3">
+            <label className="block text-sm font-medium text-gray-300 mb-1">
+              License Proof
+            </label>
+            {editDoctor.licenseProof ? (
+              <a
+                href={editDoctor.licenseProof}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-400 hover:text-blue-500 underline"
+              >
+                View License Proof
+              </a>
+            ) : (
+              <span className="text-gray-400">No License Proof</span>
+            )}
+          </div>
         </Modal>
       )}
     </div>
