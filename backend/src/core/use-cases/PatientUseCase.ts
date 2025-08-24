@@ -1,5 +1,4 @@
 import { IPatientUseCase } from '../interfaces/use-cases/IPatientUseCase';
-import { Patient } from '../entities/Patient';
 import { PatientSubscription } from '../entities/PatientSubscription';
 import { IPatientRepository } from '../interfaces/repositories/IPatientRepository';
 import { IPatientSubscriptionRepository } from '../interfaces/repositories/IPatientSubscriptionRepository';
@@ -39,7 +38,7 @@ export class PatientUseCase implements IPatientUseCase {
       throw new ValidationError('Patient with this email already exists');
     }
 
-    const newPatient: Patient = {
+    const newPatient = {
       ...PatientMapper.toEntity(dto as PatientDTO),
       isBlocked: false,
       createdAt: new Date(),
@@ -133,7 +132,8 @@ export class PatientUseCase implements IPatientUseCase {
 
   async listPatients(params: QueryParams): Promise<PaginatedPatientResponseDTO> {
     const { data, totalItems } = await this._patientRepository.findAllWithQuery(params);
-    return PatientMapper.toPaginatedResponseDTO(data, totalItems, params);
+    const patientDTOs = data.map(PatientMapper.toDTO);
+    return PatientMapper.toPaginatedResponseDTO(patientDTOs, totalItems, params);
   }
 
   async getPatientSubscriptions(patientId: string): Promise<PatientSubscriptionDTO[]> {

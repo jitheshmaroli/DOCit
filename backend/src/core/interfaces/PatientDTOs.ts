@@ -9,15 +9,15 @@ export interface PatientDTO {
   age?: string;
   isSubscribed?: boolean;
   isBlocked?: boolean;
-  lastSeen?: Date;
+  lastSeen?: string;
   address?: string;
   pincode?: string;
   profilePicture?: string;
   profilePicturePublicId?: string;
   gender?: 'Male' | 'Female' | 'Other';
   googleId?: string;
-  createdAt?: Date;
-  updatedAt?: Date;
+  createdAt?: string;
+  updatedAt?: string;
   subscribedPlans?: PatientSubscriptionDTO[];
 }
 
@@ -26,16 +26,16 @@ export interface PatientSubscriptionDTO {
   patientId: string;
   planId: string;
   planDetails?: SubscriptionPlan;
-  startDate: Date;
-  endDate: Date;
+  startDate: string;
+  endDate: string;
   status: 'active' | 'expired' | 'cancelled';
   price: number;
   appointmentsUsed: number;
   appointmentsLeft: number;
   stripePaymentId?: string;
   remainingDays?: number;
-  createdAt?: Date;
-  updatedAt?: Date;
+  createdAt?: string;
+  updatedAt?: string;
   cancellationReason?: string;
 }
 

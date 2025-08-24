@@ -43,16 +43,16 @@ export interface PatientSubscriptionResponseDTO {
   _id?: string;
   patientId: string;
   planId: string;
-  startDate: Date;
-  endDate: Date;
+  startDate: string;
+  endDate: string;
   status: 'active' | 'expired' | 'cancelled';
   price: number;
   appointmentsUsed: number;
   appointmentsLeft: number;
   stripePaymentId?: string;
   remainingDays?: number;
-  createdAt?: Date;
-  updatedAt?: Date;
+  createdAt?: string;
+  updatedAt?: string;
   cancellationReason?: string;
 }
 

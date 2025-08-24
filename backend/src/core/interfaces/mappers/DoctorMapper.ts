@@ -24,8 +24,9 @@ export class DoctorMapper {
       licenseProof: entity.licenseProof,
       licenseProofPublicId: entity.licenseProofPublicId,
       averageRating: entity.averageRating,
-      createdAt: entity.createdAt,
-      updatedAt: entity.updatedAt,
+      createdAt: entity.createdAt?.toISOString(),
+      updatedAt: entity.updatedAt?.toISOString(),
+      lastSeen: entity.lastSeen?.toISOString(),
     };
   }
 
@@ -50,16 +51,21 @@ export class DoctorMapper {
       licenseProof: dto.licenseProof,
       licenseProofPublicId: dto.licenseProofPublicId,
       averageRating: dto.averageRating,
-      createdAt: dto.createdAt,
-      updatedAt: dto.updatedAt,
+      createdAt: dto.createdAt ? new Date(dto.createdAt) : undefined,
+      updatedAt: dto.updatedAt ? new Date(dto.updatedAt) : undefined,
+      lastSeen: dto.lastSeen ? new Date(dto.lastSeen) : undefined,
     };
   }
 
-  static toPaginatedResponseDTO(data: Doctor[], totalItems: number, params: QueryParams): PaginatedDoctorResponseDTO {
+  static toPaginatedResponseDTO(
+    data: DoctorDTO[],
+    totalItems: number,
+    params: QueryParams
+  ): PaginatedDoctorResponseDTO {
     const { page = 1, limit = 10 } = params;
     const totalPages = Math.ceil(totalItems / limit);
     return {
-      data: data.map(DoctorMapper.toDTO),
+      data,
       totalPages,
       currentPage: page,
       totalItems,

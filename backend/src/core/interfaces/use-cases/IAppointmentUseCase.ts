@@ -1,6 +1,5 @@
 import { QueryParams } from '../../../types/authTypes';
 import {
-  AdminCancelAppointmentRequestDTO,
   AppointmentDTO,
   BookAppointmentRequestDTO,
   BookAppointmentResponseDTO,
@@ -17,7 +16,7 @@ import {
 export interface IAppointmentUseCase {
   bookAppointment(dto: BookAppointmentRequestDTO): Promise<BookAppointmentResponseDTO>;
   cancelAppointment(dto: CancelAppointmentRequestDTO): Promise<void>;
-  adminCancelAppointment(dto: AdminCancelAppointmentRequestDTO): Promise<void>;
+  adminCancelAppointment(appointmentId: string): Promise<void>;
   completeAppointment(dto: CompleteAppointmentRequestDTO): Promise<CompleteAppointmentResponseDTO>;
   getAllAppointments(params: QueryParams): Promise<GetAppointmentsResponseDTO>;
   getDoctorAppointments(doctorId: string, params: QueryParams): Promise<GetAppointmentsResponseDTO>;

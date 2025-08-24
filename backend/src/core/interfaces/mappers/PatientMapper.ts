@@ -18,9 +18,9 @@ export class PatientMapper {
       profilePicture: entity.profilePicture,
       profilePicturePublicId: entity.profilePicturePublicId,
       gender: entity.gender,
-      createdAt: entity.createdAt,
-      updatedAt: entity.updatedAt,
-      lastSeen: entity.lastSeen,
+      createdAt: entity.createdAt?.toISOString(),
+      updatedAt: entity.updatedAt?.toISOString(),
+      lastSeen: entity.lastSeen?.toISOString(),
       subscribedPlans: entity.subscribedPlans?.map(PatientSubscriptionMapper.toDTO),
     };
   }
@@ -46,11 +46,15 @@ export class PatientMapper {
     };
   }
 
-  static toPaginatedResponseDTO(data: Patient[], totalItems: number, params: QueryParams): PaginatedPatientResponseDTO {
+  static toPaginatedResponseDTO(
+    data: PatientDTO[],
+    totalItems: number,
+    params: QueryParams
+  ): PaginatedPatientResponseDTO {
     const { page = 1, limit = 10 } = params;
     const totalPages = Math.ceil(totalItems / limit);
     return {
-      data: data.map(PatientMapper.toDTO),
+      data,
       totalPages,
       currentPage: page,
       totalItems,

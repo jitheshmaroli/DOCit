@@ -24,10 +24,6 @@ export interface CancelAppointmentResponseDTO {
   message: string;
 }
 
-export interface AdminCancelAppointmentRequestDTO {
-  appointmentId: string;
-}
-
 export interface AdminCancelAppointmentResponseDTO {
   message: string;
 }

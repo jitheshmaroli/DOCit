@@ -9,7 +9,7 @@ export interface DoctorDTO {
   location?: string;
   speciality?: string;
   totalExperience?: number;
-  lastSeen?: Date;
+  lastSeen?: string;
   experiences?: Array<{
     hospitalName: string;
     department: string;
@@ -25,8 +25,8 @@ export interface DoctorDTO {
   licenseProofPublicId?: string;
   averageRating?: number;
   googleId?: string;
-  createdAt?: Date;
-  updatedAt?: Date;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface PaginatedDoctorResponseDTO {

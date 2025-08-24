@@ -1,5 +1,4 @@
 import { IDoctorUseCase } from '../interfaces/use-cases/IDoctorUseCase';
-import { Doctor } from '../entities/Doctor';
 import { IDoctorRepository } from '../interfaces/repositories/IDoctorRepository';
 import { ISpecialityRepository } from '../interfaces/repositories/ISpecialityRepository';
 import { QueryParams } from '../../types/authTypes';
@@ -28,7 +27,7 @@ export class DoctorUseCase implements IDoctorUseCase {
       throw new NotFoundError('Speciality not found');
     }
 
-    const newDoctor: Doctor = {
+    const newDoctor = {
       ...DoctorMapper.toEntity(dto as DoctorDTO),
       isVerified: false,
       isBlocked: false,
@@ -153,7 +152,8 @@ export class DoctorUseCase implements IDoctorUseCase {
 
   async listDoctors(params: QueryParams): Promise<PaginatedDoctorResponseDTO> {
     const { data, totalItems } = await this._doctorRepository.findAllWithQuery(params);
-    return DoctorMapper.toPaginatedResponseDTO(data, totalItems, params);
+    const doctorDTOs = data.map(DoctorMapper.toDTO);
+    return DoctorMapper.toPaginatedResponseDTO(doctorDTOs, totalItems, params);
   }
 
   async getDoctor(doctorId: string): Promise<DoctorDTO | null> {
@@ -170,6 +170,7 @@ export class DoctorUseCase implements IDoctorUseCase {
 
   async getVerifiedDoctors(params: QueryParams): Promise<PaginatedDoctorResponseDTO> {
     const { data, totalItems } = await this._doctorRepository.findVerified(params);
-    return DoctorMapper.toPaginatedResponseDTO(data, totalItems, params);
+    const doctorDTOs = data.map(DoctorMapper.toDTO);
+    return DoctorMapper.toPaginatedResponseDTO(doctorDTOs, totalItems, params);
   }
 }

@@ -27,4 +27,19 @@ export class ChatMapper {
       unreadBy: [dto.receiverId],
     };
   }
+
+  static toChatMessageEntityFromResponse(dto: ChatMessageResponseDTO): ChatMessage {
+    return {
+      _id: dto._id,
+      senderId: dto.senderId,
+      receiverId: dto.receiverId,
+      message: dto.message,
+      createdAt: new Date(dto.createdAt),
+      isRead: dto.isRead,
+      attachment: dto.attachment,
+      reactions: dto.reactions,
+      unreadBy: dto.isRead ? undefined : [dto.receiverId],
+      updatedAt: new Date(),
+    };
+  }
 }

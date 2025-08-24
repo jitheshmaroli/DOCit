@@ -17,7 +17,6 @@ import {
   BookAppointmentRequestDTO,
   BookAppointmentResponseDTO,
   CancelAppointmentRequestDTO,
-  AdminCancelAppointmentRequestDTO,
   CompleteAppointmentRequestDTO,
   CompleteAppointmentResponseDTO,
   GetAppointmentsResponseDTO,
@@ -256,15 +255,15 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     ]);
   }
 
-  async adminCancelAppointment(dto: AdminCancelAppointmentRequestDTO): Promise<void> {
-    const appointment = await this._appointmentRepository.findById(dto.appointmentId);
+  async adminCancelAppointment(appointmentId: string): Promise<void> {
+    const appointment = await this._appointmentRepository.findById(appointmentId);
     if (!appointment) {
-      logger.error(`Appointment not found: ${dto.appointmentId}`);
+      logger.error(`Appointment not found: ${appointmentId}`);
       throw new NotFoundError('Appointment not found');
     }
 
     if (appointment.status === 'cancelled') {
-      logger.warn(`Appointment already cancelled: ${dto.appointmentId}`);
+      logger.warn(`Appointment already cancelled: ${appointmentId}`);
       throw new ValidationError('Appointment is already cancelled');
     }
 
@@ -274,7 +273,7 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     } else if (appointment.patientId && 'name' in appointment.patientId && appointment.patientId._id) {
       patientId = appointment.patientId._id.toString();
     } else {
-      logger.error(`Invalid patientId for appointment ${dto.appointmentId}`);
+      logger.error(`Invalid patientId for appointment ${appointmentId}`);
       throw new ValidationError('Invalid patient ID');
     }
 
@@ -284,7 +283,7 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     } else if (appointment.doctorId && 'name' in appointment.doctorId && appointment.doctorId._id) {
       doctorId = appointment.doctorId._id.toString();
     } else {
-      logger.error(`Invalid doctorId for appointment ${dto.appointmentId}`);
+      logger.error(`Invalid doctorId for appointment ${appointmentId}`);
       throw new ValidationError('Invalid doctor ID');
     }
 
@@ -294,7 +293,7 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     const patient = await this._patientRepository.findById(patientId);
     if (!patient) throw new NotFoundError('Patient not found');
 
-    await this._appointmentRepository.update(dto.appointmentId, { status: 'cancelled' });
+    await this._appointmentRepository.update(appointmentId, { status: 'cancelled' });
 
     const startOfDay = DateUtils.startOfDayUTC(appointment.date);
     try {

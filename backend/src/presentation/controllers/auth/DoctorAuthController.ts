@@ -58,10 +58,7 @@ export class DoctorAuthController {
         password: req.body.password,
       };
       if (!loginDTO.email || !loginDTO.password) throw new ValidationError(ResponseMessages.BAD_REQUEST);
-      const { accessToken, refreshToken } = await this._authenticationUseCase.loginDoctor(
-        loginDTO.email,
-        loginDTO.password
-      );
+      const { accessToken, refreshToken } = await this._authenticationUseCase.loginDoctor(loginDTO);
       setTokensInCookies(res, accessToken, refreshToken);
       const responseDTO: LoginResponseDTO = {
         accessToken,

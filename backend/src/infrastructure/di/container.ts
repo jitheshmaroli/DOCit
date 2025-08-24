@@ -34,6 +34,8 @@ import { PatientSubscriptionRepository } from '../repositories/PatientSubscripti
 import { ReportUseCase } from '../../core/use-cases/ReportUseCase';
 import { SpecialityUseCase } from '../../core/use-cases/SpecialityUseCase';
 import { UserUseCase } from '../../core/use-cases/UserUseCase';
+import { ChatMapper } from '../../core/interfaces/mappers/ChatMapper';
+import { SendMessageRequestDTO, ChatMessageResponseDTO } from '../../core/interfaces/ChatDTOs';
 
 export class Container {
   private static instance: Container;
@@ -63,16 +65,30 @@ export class Container {
     const chatService = new (class implements IChatService {
       constructor(private container: Container) {}
       async sendMessage(message: ChatMessage, file?: Express.Multer.File): Promise<ChatMessage> {
-        return await this.container.get<IChatUseCase>('IChatUseCase').sendMessage(message, file);
+        const dto: SendMessageRequestDTO = {
+          receiverId: message.receiverId,
+          message: message.message,
+          senderName: message.senderName ?? 'Unknown', // Default senderName to avoid undefined
+        };
+        const chatMessageDTO: ChatMessageResponseDTO = await this.container
+          .get<IChatUseCase>('IChatUseCase')
+          .sendMessage(dto, file);
+        return ChatMapper.toChatMessageEntityFromResponse(chatMessageDTO);
       }
       async getMessages(senderId: string, receiverId: string): Promise<ChatMessage[]> {
-        return this.container.get<IChatUseCase>('IChatUseCase').getMessages(senderId, receiverId);
+        const messagesDTO: ChatMessageResponseDTO[] = await this.container
+          .get<IChatUseCase>('IChatUseCase')
+          .getMessages(senderId, receiverId);
+        return messagesDTO.map(ChatMapper.toChatMessageEntityFromResponse);
       }
       async deleteMessage(messageId: string, userId: string): Promise<void> {
         await this.container.get<IChatUseCase>('IChatUseCase').deleteMessage(messageId, userId);
       }
       async getChatHistory(userId: string, params: QueryParams): Promise<ChatMessage[]> {
-        return this.container.get<IChatUseCase>('IChatUseCase').getChatHistory(userId, params);
+        const historyDTO: ChatMessageResponseDTO[] = await this.container
+          .get<IChatUseCase>('IChatUseCase')
+          .getChatHistory(userId, params);
+        return historyDTO.map(ChatMapper.toChatMessageEntityFromResponse);
       }
     })(this);
     const socketService = new SocketService(chatService, tokenService, patientRepository, doctorRepository);

@@ -17,10 +17,10 @@ import {
   ResetPasswordRequestDTO,
   ResetPasswordResponseDTO,
   VerifySignupOTPRequestDTO,
-  VerifySignupOTPResponseDTO,
   ResendSignupOTPRequestDTO,
   ResendSignupOTPResponseDTO,
 } from '../../../core/interfaces/AuthDtos';
+import { AuthMapper } from '../../../core/interfaces/mappers/AuthMapper';
 
 export class SharedAuthController {
   private _authenticationUseCase: IAuthenticationUseCase;
@@ -151,12 +151,12 @@ export class SharedAuthController {
       }
 
       setTokensInCookies(res, accessToken, refreshToken);
-      const responseDTO: VerifySignupOTPResponseDTO = {
-        message: ResponseMessages.OTP_VERIFIED,
+      const responseDTO = AuthMapper.mapEntityToVerifySignupResponseDTO(
         user,
+        verifySignupOTPDTO.role,
         accessToken,
-        refreshToken,
-      };
+        refreshToken
+      );
       res.status(HttpStatusCode.OK).json(responseDTO);
     } catch (error) {
       next(error);

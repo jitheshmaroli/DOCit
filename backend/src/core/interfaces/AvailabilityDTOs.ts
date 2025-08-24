@@ -5,10 +5,10 @@ export interface TimeSlotDTO {
 }
 
 export interface SetAvailabilityRequestDTO {
-  date: string;
+  date: Date;
   timeSlots: Array<{ startTime: string; endTime: string }>;
   isRecurring: boolean;
-  recurringEndDate?: string;
+  recurringEndDate?: Date;
   recurringDays?: number[];
   forceCreate: boolean;
 }
