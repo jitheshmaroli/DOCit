@@ -40,19 +40,19 @@ export interface SubscriptionPlanResponseDTO {
 }
 
 export interface PatientSubscriptionResponseDTO {
-  _id: string;
+  _id?: string;
   patientId: string;
   planId: string;
-  startDate: string;
-  endDate: string;
+  startDate: Date;
+  endDate: Date;
   status: 'active' | 'expired' | 'cancelled';
   price: number;
   appointmentsUsed: number;
   appointmentsLeft: number;
   stripePaymentId?: string;
   remainingDays?: number;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: Date;
+  updatedAt?: Date;
   cancellationReason?: string;
 }
 
@@ -72,6 +72,6 @@ export interface PlanSubscriptionCountsResponseDTO {
 export interface CancelSubscriptionResponseDTO {
   message: string;
   refundId: string;
-  cardLast4: string | 'N/A';
+  cardLast4?: string;
   amount: number;
 }

@@ -16,7 +16,7 @@ export interface DoctorDTO {
     years: number;
   }>;
   allowFreeBooking?: boolean;
-  gender?: string;
+  gender?: 'Male' | 'Female' | 'Other';
   isVerified?: boolean;
   isBlocked?: boolean;
   profilePicture?: string;

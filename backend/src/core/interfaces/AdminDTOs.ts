@@ -4,6 +4,7 @@ export interface AdminDTO {
   password?: string;
   name?: string;
   role?: 'admin';
+  gender?: 'Male' | 'Female' | 'Other';
   createdAt?: Date;
   updatedAt?: Date;
 }

@@ -6,6 +6,8 @@ export interface Admin {
   phone?: string;
   refreshToken?: string;
   isBlocked?: boolean;
+  gender?: 'Male' | 'Female' | 'Other';
+  lastSeen?: Date;
   createdAt?: Date;
   updatedAt?: Date;
 }

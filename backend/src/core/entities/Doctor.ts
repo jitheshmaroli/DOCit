@@ -15,7 +15,7 @@ export interface Doctor {
     years: number;
   }>;
   allowFreeBooking?: boolean;
-  gender?: string;
+  gender?: 'Male' | 'Female' | 'Other';
   isVerified?: boolean;
   isBlocked?: boolean;
   profilePicture?: string;
