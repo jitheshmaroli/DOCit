@@ -5,27 +5,17 @@ import { IPatientRepository } from '../interfaces/repositories/IPatientRepositor
 import { IDoctorRepository } from '../interfaces/repositories/IDoctorRepository';
 import { IImageUploadService } from '../interfaces/services/IImageUploadService';
 import { QueryParams } from '../../types/authTypes';
+import { UserRole } from '../../types';
 import { NotFoundError, ValidationError } from '../../utils/errors';
 import logger from '../../utils/logger';
 import { SocketService } from '../../infrastructure/services/SocketService';
-
-export interface InboxResponse {
-  _id: string;
-  receiverId: string;
-  senderName: string;
-  subject?: string;
-  createdAt: string;
-  partnerProfilePicture?: string;
-  latestMessage: {
-    _id: string;
-    message: string;
-    createdAt: Date;
-    isSender: boolean;
-  } | null;
-  unreadCount: number;
-  isOnline: boolean;
-  lastSeen?: string;
-}
+import {
+  SendMessageRequestDTO,
+  ChatMessageResponseDTO,
+  InboxResponseDTO,
+  AddReactionRequestDTO,
+} from '../interfaces/ChatDTOs';
+import { ChatMapper } from '../interfaces/mappers/ChatMapper';
 
 export class ChatUseCase implements IChatUseCase {
   constructor(
@@ -36,12 +26,12 @@ export class ChatUseCase implements IChatUseCase {
     private _imageUploadService: IImageUploadService
   ) {}
 
-  async sendMessage(message: ChatMessage, file?: Express.Multer.File): Promise<ChatMessage> {
+  async sendMessage(message: SendMessageRequestDTO, file?: Express.Multer.File): Promise<ChatMessageResponseDTO> {
     const sender =
-      (await this._patientRepository.findById(message.senderId)) ||
-      (await this._doctorRepository.findById(message.senderId));
+      (await this._patientRepository.findById(message.senderName)) ||
+      (await this._doctorRepository.findById(message.senderName));
     if (!sender) {
-      logger.error(`Sender not found: ${message.senderId}`);
+      logger.error(`Sender not found: ${message.senderName}`);
       throw new NotFoundError('Sender not found');
     }
 
@@ -68,31 +58,26 @@ export class ChatUseCase implements IChatUseCase {
       }
     }
 
-    const newMessage: ChatMessage = {
-      ...message,
-      attachment,
-      isRead: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      unreadBy: [message.receiverId],
-    };
+    const newMessage = ChatMapper.toChatMessageEntity(message, message.senderName);
+    newMessage.attachment = attachment;
 
     try {
       const savedMessage = await this._chatRepository.create(newMessage);
-      return savedMessage;
+      return ChatMapper.toChatMessageResponseDTO(savedMessage);
     } catch (error) {
       logger.error(`Error sending message: ${(error as Error).message}`);
       throw new Error('Failed to send message');
     }
   }
 
-  async getMessages(senderId: string, receiverId: string): Promise<ChatMessage[]> {
+  async getMessages(senderId: string, receiverId: string): Promise<ChatMessageResponseDTO[]> {
     if (!senderId || !receiverId) {
       logger.error('Sender ID and receiver ID are required for fetching messages');
       throw new ValidationError('Sender ID and receiver ID are required');
     }
 
-    return await this._chatRepository.findByParticipants(senderId, receiverId);
+    const messages = await this._chatRepository.findByParticipants(senderId, receiverId);
+    return messages.map((message) => ChatMapper.toChatMessageResponseDTO(message));
   }
 
   async deleteMessage(messageId: string, userId: string): Promise<void> {
@@ -120,16 +105,21 @@ export class ChatUseCase implements IChatUseCase {
     }
   }
 
-  async getChatHistory(userId: string, params: QueryParams): Promise<ChatMessage[]> {
+  async getChatHistory(userId: string, params: QueryParams): Promise<ChatMessageResponseDTO[]> {
     if (!userId) {
       logger.error('User ID is required for fetching chat history');
       throw new ValidationError('User ID is required');
     }
 
-    return await this._chatRepository.getChatHistory(userId, params);
+    const messages = await this._chatRepository.getChatHistory(userId, params);
+    return messages.map((message) => ChatMapper.toChatMessageResponseDTO(message));
   }
 
-  async getInbox(userId: string, role: 'patient' | 'doctor', params: QueryParams): Promise<InboxResponse[]> {
+  async getInbox(
+    userId: string,
+    role: UserRole.Patient | UserRole.Doctor,
+    params: QueryParams
+  ): Promise<InboxResponseDTO[]> {
     if (!userId || !role) {
       logger.error('User ID and role are required for fetching inbox');
       throw new ValidationError('User ID and role are required');
@@ -137,7 +127,7 @@ export class ChatUseCase implements IChatUseCase {
 
     const inboxEntries = await this._chatRepository.getInbox(userId, params);
 
-    const inboxResponses: InboxResponse[] = await Promise.all(
+    const inboxResponses: InboxResponseDTO[] = await Promise.all(
       inboxEntries.map(async (entry) => {
         const partnerId = entry.partnerId;
         let partnerName: string;
@@ -146,7 +136,7 @@ export class ChatUseCase implements IChatUseCase {
 
         const isOnline = this._socketService.isUserOnline(partnerId);
 
-        if (role === 'patient') {
+        if (role === UserRole.Patient) {
           const doctor = await this._doctorRepository.findById(partnerId);
           if (!doctor) {
             throw new ValidationError(`Doctor with ID ${partnerId} not found`);
@@ -172,12 +162,10 @@ export class ChatUseCase implements IChatUseCase {
           createdAt: entry.latestMessage?.createdAt?.toISOString() || new Date().toISOString(),
           partnerProfilePicture,
           latestMessage: entry.latestMessage
-            ? {
-                _id: entry.latestMessage._id!,
-                message: entry.latestMessage.message,
-                createdAt: entry.latestMessage.createdAt!,
-                isSender: entry.latestMessage.senderId === userId,
-              }
+            ? ChatMapper.toChatMessageResponseDTO({
+                ...entry.latestMessage,
+                isRead: entry.latestMessage.isRead ?? false,
+              })
             : null,
           unreadCount: entry.unreadCount || 0,
           isOnline,
@@ -207,15 +195,15 @@ export class ChatUseCase implements IChatUseCase {
     }
 
     try {
-      await this._chatRepository.update(messageId, { isRead: true });
+      await this._chatRepository.update(messageId, { isRead: true, unreadBy: [] });
     } catch (error) {
       logger.error(`Error marking message ${messageId} as read: ${(error as Error).message}`);
       throw new Error('Failed to mark message as read');
     }
   }
 
-  async addReaction(messageId: string, userId: string, emoji: string, replace: boolean): Promise<ChatMessage> {
-    if (!messageId || !userId || !emoji) {
+  async addReaction(messageId: string, userId: string, dto: AddReactionRequestDTO): Promise<ChatMessageResponseDTO> {
+    if (!messageId || !userId || !dto.emoji) {
       logger.error('Message ID, user ID, and emoji are required for adding reaction');
       throw new ValidationError('Message ID, user ID, and emoji are required');
     }
@@ -231,7 +219,9 @@ export class ChatUseCase implements IChatUseCase {
       throw new ValidationError('Unauthorized to add reaction to this message');
     }
 
-    const updatedReactions = replace ? [{ userId, emoji }] : [...(message.reactions || []), { userId, emoji }];
+    const updatedReactions = dto.replace
+      ? [{ userId, emoji: dto.emoji }]
+      : [...(message.reactions || []), { userId, emoji: dto.emoji }];
 
     try {
       const updatedMessage = await this._chatRepository.update(messageId, { reactions: updatedReactions });
@@ -239,7 +229,7 @@ export class ChatUseCase implements IChatUseCase {
         logger.error(`Failed to add reaction to message ${messageId}`);
         throw new NotFoundError('Failed to add reaction');
       }
-      return updatedMessage;
+      return ChatMapper.toChatMessageResponseDTO(updatedMessage);
     } catch (error) {
       logger.error(`Error adding reaction to message ${messageId}: ${(error as Error).message}`);
       throw new Error('Failed to add reaction');

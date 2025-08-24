@@ -8,6 +8,19 @@ import { CustomRequest } from '../../../types';
 import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 import { IAuthenticationUseCase } from '../../../core/interfaces/use-cases/IAuthenticationUseCase';
+import {
+  RefreshTokenRequestDTO,
+  RefreshTokenResponseDTO,
+  LogoutResponseDTO,
+  ForgotPasswordRequestDTO,
+  ForgotPasswordResponseDTO,
+  ResetPasswordRequestDTO,
+  ResetPasswordResponseDTO,
+  VerifySignupOTPRequestDTO,
+  VerifySignupOTPResponseDTO,
+  ResendSignupOTPRequestDTO,
+  ResendSignupOTPResponseDTO,
+} from '../../../core/interfaces/AuthDtos';
 
 export class SharedAuthController {
   private _authenticationUseCase: IAuthenticationUseCase;
@@ -18,12 +31,20 @@ export class SharedAuthController {
 
   async refreshToken(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const refreshToken = req.cookies.refreshToken;
-      if (!refreshToken) throw new AuthenticationError(ResponseMessages.INVALID_TOKEN);
-      const { accessToken, refreshToken: newRefreshToken } =
-        await this._authenticationUseCase.refreshToken(refreshToken);
-      setTokensInCookies(res, accessToken, newRefreshToken);
-      res.status(HttpStatusCode.OK).json({ message: ResponseMessages.SUCCESS });
+      const refreshTokenDTO: RefreshTokenRequestDTO = {
+        refreshToken: req.cookies.refreshToken,
+      };
+      if (!refreshTokenDTO.refreshToken) throw new AuthenticationError(ResponseMessages.INVALID_TOKEN);
+      const { accessToken, refreshToken } = await this._authenticationUseCase.refreshToken(
+        refreshTokenDTO.refreshToken
+      );
+      setTokensInCookies(res, accessToken, refreshToken);
+      const responseDTO: RefreshTokenResponseDTO = {
+        accessToken,
+        refreshToken,
+        message: ResponseMessages.SUCCESS,
+      };
+      res.status(HttpStatusCode.OK).json(responseDTO);
     } catch (error) {
       next(error);
     }
@@ -48,7 +69,10 @@ export class SharedAuthController {
         sameSite: 'strict',
       });
 
-      res.status(HttpStatusCode.OK).json({ message: ResponseMessages.LOGGED_OUT });
+      const responseDTO: LogoutResponseDTO = {
+        message: ResponseMessages.LOGGED_OUT,
+      };
+      res.status(HttpStatusCode.OK).json(responseDTO);
     } catch (error) {
       next(error);
     }
@@ -56,10 +80,15 @@ export class SharedAuthController {
 
   async forgotPassword(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { email } = req.body;
-      if (!email) throw new ValidationError(ResponseMessages.BAD_REQUEST);
-      await this._authenticationUseCase.forgotPassword(email);
-      res.status(HttpStatusCode.OK).json({ message: ResponseMessages.OTP_SENT });
+      const forgotPasswordDTO: ForgotPasswordRequestDTO = {
+        email: req.body.email,
+      };
+      if (!forgotPasswordDTO.email) throw new ValidationError(ResponseMessages.BAD_REQUEST);
+      await this._authenticationUseCase.forgotPassword(forgotPasswordDTO.email);
+      const responseDTO: ForgotPasswordResponseDTO = {
+        message: ResponseMessages.OTP_SENT,
+      };
+      res.status(HttpStatusCode.OK).json(responseDTO);
     } catch (error) {
       next(error);
     }
@@ -67,11 +96,26 @@ export class SharedAuthController {
 
   async resetPassword(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { email, otp, newPassword } = req.body;
-      if (!email || !otp || !newPassword) throw new ValidationError(ResponseMessages.BAD_REQUEST);
-      if (!validatePassword(newPassword)) throw new ValidationError(ResponseMessages.BAD_REQUEST);
-      await this._authenticationUseCase.resetPassword(email, otp, newPassword);
-      res.status(HttpStatusCode.OK).json({ message: ResponseMessages.PASSWORD_RESET });
+      const resetPasswordDTO: ResetPasswordRequestDTO = {
+        email: req.body.email,
+        otp: req.body.otp,
+        newPassword: req.body.newPassword,
+      };
+      if (!resetPasswordDTO.email || !resetPasswordDTO.otp || !resetPasswordDTO.newPassword) {
+        throw new ValidationError(ResponseMessages.BAD_REQUEST);
+      }
+      if (!validatePassword(resetPasswordDTO.newPassword)) {
+        throw new ValidationError(ResponseMessages.BAD_REQUEST);
+      }
+      await this._authenticationUseCase.resetPassword(
+        resetPasswordDTO.email,
+        resetPasswordDTO.otp,
+        resetPasswordDTO.newPassword
+      );
+      const responseDTO: ResetPasswordResponseDTO = {
+        message: ResponseMessages.PASSWORD_RESET,
+      };
+      res.status(HttpStatusCode.OK).json(responseDTO);
     } catch (error) {
       next(error);
     }
@@ -79,41 +123,41 @@ export class SharedAuthController {
 
   async verifySignUpOTP(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { email, otp, name, password, phone, role, licenseNumber } = req.body;
-      if (!email || !otp || !role || !name || !password || !phone || (role === 'doctor' && !licenseNumber)) {
+      const verifySignupOTPDTO: VerifySignupOTPRequestDTO = {
+        email: req.body.email,
+        otp: req.body.otp,
+        _id: req.body._id,
+        name: req.body.name,
+        password: req.body.password,
+        phone: req.body.phone,
+        role: req.body.role,
+        licenseNumber: req.body.licenseNumber,
+      };
+      if (
+        !verifySignupOTPDTO.email ||
+        !verifySignupOTPDTO.otp ||
+        !verifySignupOTPDTO.role ||
+        !verifySignupOTPDTO.name ||
+        !verifySignupOTPDTO.password ||
+        !verifySignupOTPDTO.phone ||
+        (verifySignupOTPDTO.role === 'doctor' && !verifySignupOTPDTO.licenseNumber)
+      ) {
         throw new ValidationError('Missing required fields');
       }
 
-      const entity = {
-        email,
-        name,
-        password,
-        phone,
-        ...(role === 'doctor' && { licenseNumber, speciality: '' }),
-        _id: req.body._id,
-        role,
-      };
-
-      const { newEntity, accessToken, refreshToken } = await this._authenticationUseCase.verifySignUpOTP(
-        email,
-        otp,
-        entity
-      );
-
-      if (!newEntity) {
-        throw new ValidationError(`Failed to verify ${role}`);
+      const { user, accessToken, refreshToken } = await this._authenticationUseCase.verifySignUpOTP(verifySignupOTPDTO);
+      if (!user) {
+        throw new ValidationError(`Failed to verify ${verifySignupOTPDTO.role}`);
       }
 
       setTokensInCookies(res, accessToken, refreshToken);
-      res.status(HttpStatusCode.OK).json({
+      const responseDTO: VerifySignupOTPResponseDTO = {
         message: ResponseMessages.OTP_VERIFIED,
-        user: {
-          _id: newEntity._id,
-          email: newEntity.email,
-          name: newEntity.name,
-          role,
-        },
-      });
+        user,
+        accessToken,
+        refreshToken,
+      };
+      res.status(HttpStatusCode.OK).json(responseDTO);
     } catch (error) {
       next(error);
     }
@@ -121,12 +165,18 @@ export class SharedAuthController {
 
   async resendSignupOTP(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { email, role } = req.body;
-      if (!email || !role) {
+      const resendSignupOTPDTO: ResendSignupOTPRequestDTO = {
+        email: req.body.email,
+        role: req.body.role,
+      };
+      if (!resendSignupOTPDTO.email || !resendSignupOTPDTO.role) {
         throw new ValidationError('Email and role are required');
       }
-      await this._authenticationUseCase.resendSignupOTP(email, role);
-      res.status(HttpStatusCode.OK).json({ message: ResponseMessages.OTP_SENT });
+      await this._authenticationUseCase.resendSignupOTP(resendSignupOTPDTO.email, resendSignupOTPDTO.role);
+      const responseDTO: ResendSignupOTPResponseDTO = {
+        message: ResponseMessages.OTP_SENT,
+      };
+      res.status(HttpStatusCode.OK).json(responseDTO);
     } catch (error) {
       next(error);
     }

@@ -1,14 +1,13 @@
-import { Patient } from '../../entities/Patient';
-import { PatientSubscription } from '../../entities/PatientSubscription';
 import { QueryParams } from '../../../types/authTypes';
+import { PatientDTO, PatientSubscriptionDTO, PaginatedPatientResponseDTO } from '../PatientDTOs';
 
 export interface IPatientUseCase {
-  createPatient(patient: Partial<Patient>): Promise<Patient>;
-  updatePatient(patientId: string, updates: Partial<Patient>): Promise<Patient | null>;
+  createPatient(dto: Partial<PatientDTO>): Promise<PatientDTO>;
+  updatePatient(patientId: string, updates: Partial<PatientDTO>): Promise<PatientDTO | null>;
   deletePatient(patientId: string): Promise<void>;
-  blockPatient(patientId: string, isBlocked: boolean): Promise<Patient | null>;
-  listPatients(params: QueryParams): Promise<{ data: Patient[]; totalItems: number }>;
-  getPatientSubscriptions(patientId: string): Promise<PatientSubscription[]>;
-  getPatientActiveSubscription(patientId: string, doctorId: string): Promise<PatientSubscription | null>;
-  getSubscribedPatients(doctorId: string): Promise<Patient[] | null>;
+  blockPatient(patientId: string, isBlocked: boolean): Promise<PatientDTO | null>;
+  listPatients(params: QueryParams): Promise<PaginatedPatientResponseDTO>;
+  getPatientSubscriptions(patientId: string): Promise<PatientSubscriptionDTO[]>;
+  getPatientActiveSubscription(patientId: string, doctorId: string): Promise<PatientSubscriptionDTO | null>;
+  getSubscribedPatients(doctorId: string): Promise<PatientDTO[] | null>;
 }

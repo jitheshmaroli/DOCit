@@ -1,40 +1,34 @@
-import { Appointment } from '../../entities/Appointment';
-import { Prescription } from '../../entities/Prescription';
 import { QueryParams } from '../../../types/authTypes';
+import {
+  AdminCancelAppointmentRequestDTO,
+  AppointmentDTO,
+  BookAppointmentRequestDTO,
+  BookAppointmentResponseDTO,
+  CancelAppointmentRequestDTO,
+  CheckFreeBookingRequestDTO,
+  CompleteAppointmentRequestDTO,
+  CompleteAppointmentResponseDTO,
+  GetAppointmentsResponseDTO,
+  GetDoctorAndPatientAppointmentsRequestDTO,
+  GetPatientAppointmentsForDoctorRequestDTO,
+  GetPatientAppointmentsResponseDTO,
+} from '../AppointmentDTOs';
 
 export interface IAppointmentUseCase {
-  bookAppointment(
-    patientId: string,
-    doctorId: string,
-    date: Date,
-    startTime: string,
-    endTime: string,
-    isFreeBooking: boolean
-  ): Promise<Appointment>;
-  cancelAppointment(appointmentId: string, patientId: string, cancellationReason?: string): Promise<void>;
-  adminCancelAppointment(appointmentId: string): Promise<void>;
-  completeAppointment(
-    doctorId: string,
-    appointmentId: string,
-    prescription: Omit<Prescription, '_id' | 'appointmentId' | 'patientId' | 'doctorId' | 'createdAt' | 'updatedAt'>
-  ): Promise<Appointment>;
-  getAllAppointments(params: QueryParams): Promise<{ data: Appointment[]; totalItems: number }>;
-  getDoctorAppointments(doctorId: string, params: QueryParams): Promise<{ data: Appointment[]; totalItems: number }>;
+  bookAppointment(dto: BookAppointmentRequestDTO): Promise<BookAppointmentResponseDTO>;
+  cancelAppointment(dto: CancelAppointmentRequestDTO): Promise<void>;
+  adminCancelAppointment(dto: AdminCancelAppointmentRequestDTO): Promise<void>;
+  completeAppointment(dto: CompleteAppointmentRequestDTO): Promise<CompleteAppointmentResponseDTO>;
+  getAllAppointments(params: QueryParams): Promise<GetAppointmentsResponseDTO>;
+  getDoctorAppointments(doctorId: string, params: QueryParams): Promise<GetAppointmentsResponseDTO>;
   getDoctorAndPatientAppointmentsWithQuery(
-    doctorId: string,
-    patientId: string,
-    params: QueryParams
-  ): Promise<{ data: Appointment[]; totalItems: number }>;
-  getPatientAppointments(
-    patientId: string,
-    queryParams: QueryParams
-  ): Promise<{ appointments: Appointment[]; totalItems: number }>;
-  getSingleAppointment(doctorId: string, appointmentId: string): Promise<Appointment>;
+    dto: GetDoctorAndPatientAppointmentsRequestDTO
+  ): Promise<GetAppointmentsResponseDTO>;
+  getPatientAppointments(patientId: string, queryParams: QueryParams): Promise<GetPatientAppointmentsResponseDTO>;
+  getSingleAppointment(doctorId: string, appointmentId: string): Promise<AppointmentDTO>;
   getPatientAppointmentsForDoctor(
-    patientId: string,
-    doctorId: string,
-    queryParams: QueryParams
-  ): Promise<{ appointments: Appointment[]; totalItems: number }>;
-  getAppointmentById(appointmentId: string): Promise<Appointment>;
-  checkFreeBooking(patientId: string, doctorId: string): Promise<boolean>;
+    dto: GetPatientAppointmentsForDoctorRequestDTO
+  ): Promise<GetPatientAppointmentsResponseDTO>;
+  getAppointmentById(appointmentId: string): Promise<AppointmentDTO>;
+  checkFreeBooking(dto: CheckFreeBookingRequestDTO): Promise<boolean>;
 }

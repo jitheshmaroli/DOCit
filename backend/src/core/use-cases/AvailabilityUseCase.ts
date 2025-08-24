@@ -1,10 +1,17 @@
 import { IAvailabilityUseCase } from '../interfaces/use-cases/IAvailabilityUseCase';
-import { Availability, TimeSlot } from '../entities/Availability';
+import { Availability } from '../entities/Availability';
 import { IAvailabilityRepository } from '../interfaces/repositories/IAvailabilityRepository';
 import { IDoctorRepository } from '../interfaces/repositories/IDoctorRepository';
 import { ValidationError, NotFoundError } from '../../utils/errors';
 import logger from '../../utils/logger';
 import moment from 'moment';
+import {
+  SetAvailabilityRequestDTO,
+  UpdateSlotRequestDTO,
+  AvailabilityResponseDTO,
+  SetAvailabilityResponseDTO,
+} from '../interfaces/AvailabilityDTOs';
+import { AvailabilityMapper } from '../interfaces/mappers/AvailabilityMapper';
 
 export class AvailabilityUseCase implements IAvailabilityUseCase {
   constructor(
@@ -101,16 +108,8 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
     return dates;
   }
 
-  async setAvailability(
-    doctorId: string,
-    date: Date,
-    timeSlots: TimeSlot[],
-    isRecurring: boolean,
-    recurringEndDate?: Date,
-    recurringDays?: number[],
-    forceCreate: boolean = false
-  ): Promise<{ availabilities: Availability | Availability[]; conflicts: { date: string; error: string }[] }> {
-    if (!doctorId || !date || !timeSlots || timeSlots.length === 0) {
+  async setAvailability(doctorId: string, dto: SetAvailabilityRequestDTO): Promise<SetAvailabilityResponseDTO> {
+    if (!doctorId || !dto.date || !dto.timeSlots || dto.timeSlots.length === 0) {
       logger.error('Missing required fields for setting availability');
       throw new ValidationError('Doctor ID, date, and time slots are required');
     }
@@ -121,26 +120,30 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
       throw new NotFoundError('Doctor not found');
     }
 
-    if (isRecurring && (!recurringEndDate || !recurringDays || recurringDays.length === 0)) {
+    if (dto.isRecurring && (!dto.recurringEndDate || !dto.recurringDays || dto.recurringDays.length === 0)) {
       logger.error('Recurring availability requires end date and days');
       throw new ValidationError('Recurring end date and days are required for recurring availability');
     }
 
-    for (const slot of timeSlots) {
-      this._validateTimeSlot(slot.startTime, slot.endTime, date);
+    for (const slot of dto.timeSlots) {
+      this._validateTimeSlot(slot.startTime, slot.endTime, new Date(dto.date));
     }
 
-    this._checkOverlappingSlots(timeSlots, date);
+    this._checkOverlappingSlots(dto.timeSlots, new Date(dto.date));
 
     const conflicts: { date: string; error: string }[] = [];
-    const availabilities: Availability[] = [];
+    const availabilities: AvailabilityResponseDTO[] = [];
 
-    if (isRecurring) {
-      const dates = this.generateRecurringDates(date, recurringEndDate!, recurringDays!);
+    if (dto.isRecurring) {
+      const dates = this.generateRecurringDates(
+        new Date(dto.date),
+        new Date(dto.recurringEndDate!),
+        dto.recurringDays!
+      );
       for (const currentDate of dates) {
         const startOfDay = this.startOfDayUTC(currentDate);
         const existingAvailability = await this._availabilityRepository.findByDoctorAndDate(doctorId, startOfDay);
-        if (existingAvailability && !forceCreate) {
+        if (existingAvailability && !dto.forceCreate) {
           conflicts.push({
             date: startOfDay.toISOString(),
             error: 'Availability already exists for this date',
@@ -151,7 +154,7 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
         const newAvailability: Availability = {
           doctorId,
           date: startOfDay,
-          timeSlots: timeSlots.map((slot) => ({ ...slot, isBooked: false })),
+          timeSlots: dto.timeSlots.map((slot) => ({ ...slot, isBooked: false })),
         };
 
         try {
@@ -159,7 +162,7 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
             ? await this._availabilityRepository.update(existingAvailability._id!, newAvailability)
             : await this._availabilityRepository.create(newAvailability);
           if (savedAvailability) {
-            availabilities.push(savedAvailability);
+            availabilities.push(AvailabilityMapper.toAvailabilityResponseDTO(savedAvailability));
           } else {
             conflicts.push({ date: startOfDay.toISOString(), error: 'Failed to save availability' });
           }
@@ -170,25 +173,21 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
       }
       return { availabilities, conflicts };
     } else {
-      const startOfDay = this.startOfDayUTC(date);
+      const startOfDay = this.startOfDayUTC(new Date(dto.date));
       const existingAvailability = await this._availabilityRepository.findByDoctorAndDate(doctorId, startOfDay);
-      if (existingAvailability && !forceCreate) {
+      if (existingAvailability && !dto.forceCreate) {
         conflicts.push({ date: startOfDay.toISOString(), error: 'Availability already exists for this date' });
         return { availabilities: [], conflicts };
       }
 
-      const newAvailability: Availability = {
-        doctorId,
-        date: startOfDay,
-        timeSlots: timeSlots.map((slot) => ({ ...slot, isBooked: false })),
-      };
+      const newAvailability = AvailabilityMapper.toAvailabilityEntity({ ...dto, date: dto.date }, doctorId);
 
       try {
         const savedAvailability = existingAvailability
           ? await this._availabilityRepository.update(existingAvailability._id!, newAvailability)
           : await this._availabilityRepository.create(newAvailability);
         if (savedAvailability) {
-          return { availabilities: savedAvailability, conflicts };
+          return { availabilities: [AvailabilityMapper.toAvailabilityResponseDTO(savedAvailability)], conflicts };
         } else {
           conflicts.push({ date: startOfDay.toISOString(), error: 'Failed to save availability' });
           return { availabilities: [], conflicts };
@@ -201,25 +200,7 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
     }
   }
 
-  async getAvailability(doctorId: string, startDate: Date, endDate: Date): Promise<Availability[]> {
-    if (!doctorId || !startDate || !endDate) {
-      throw new ValidationError('Doctor ID, start date, and end date are required');
-    }
-
-    const doctor = await this._doctorRepository.findById(doctorId);
-    if (!doctor) {
-      throw new NotFoundError('Doctor not found');
-    }
-
-    return this._availabilityRepository.findByDoctorAndDateRange(doctorId, startDate, endDate);
-  }
-
-  async getDoctorAvailability(
-    doctorId: string,
-    startDate: Date,
-    endDate: Date,
-    filterBooked: boolean
-  ): Promise<Availability[]> {
+  async getAvailability(doctorId: string, startDate: Date, endDate: Date): Promise<AvailabilityResponseDTO[]> {
     if (!doctorId || !startDate || !endDate) {
       throw new ValidationError('Doctor ID, start date, and end date are required');
     }
@@ -230,16 +211,42 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
     }
 
     const availabilities = await this._availabilityRepository.findByDoctorAndDateRange(doctorId, startDate, endDate);
+    return availabilities.map((availability) => AvailabilityMapper.toAvailabilityResponseDTO(availability));
+  }
+
+  async getDoctorAvailability(
+    doctorId: string,
+    startDate: Date,
+    endDate: Date,
+    filterBooked: boolean
+  ): Promise<AvailabilityResponseDTO[]> {
+    if (!doctorId || !startDate || !endDate) {
+      throw new ValidationError('Doctor ID, start date, and end date are required');
+    }
+
+    const doctor = await this._doctorRepository.findById(doctorId);
+    if (!doctor) {
+      throw new NotFoundError('Doctor not found');
+    }
+
+    const availabilities = await this._availabilityRepository.findByDoctorAndDateRange(doctorId, startDate, endDate);
+    const mappedAvailabilities = availabilities.map((availability) =>
+      AvailabilityMapper.toAvailabilityResponseDTO(availability)
+    );
     if (filterBooked) {
-      return availabilities.map((availability) => ({
+      return mappedAvailabilities.map((availability) => ({
         ...availability,
         timeSlots: availability.timeSlots.filter((slot) => !slot.isBooked),
       }));
     }
-    return availabilities;
+    return mappedAvailabilities;
   }
 
-  async removeSlot(availabilityId: string, slotIndex: number, doctorId: string): Promise<Availability | null> {
+  async removeSlot(
+    availabilityId: string,
+    slotIndex: number,
+    doctorId: string
+  ): Promise<AvailabilityResponseDTO | null> {
     if (!availabilityId || slotIndex < 0 || !doctorId) {
       throw new ValidationError('Availability ID, slot index, and doctor ID are required');
     }
@@ -270,15 +277,15 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
     const updatedAvailability = await this._availabilityRepository.update(availabilityId, {
       timeSlots: availability.timeSlots,
     });
-    return updatedAvailability;
+    return updatedAvailability ? AvailabilityMapper.toAvailabilityResponseDTO(updatedAvailability) : null;
   }
 
   async updateSlot(
     availabilityId: string,
     slotIndex: number,
-    newSlot: { startTime: string; endTime: string },
+    newSlot: UpdateSlotRequestDTO,
     doctorId: string
-  ): Promise<Availability | null> {
+  ): Promise<AvailabilityResponseDTO | null> {
     if (!availabilityId || slotIndex < 0 || !newSlot.startTime || !newSlot.endTime || !doctorId) {
       throw new ValidationError('Availability ID, slot index, new slot details, and doctor ID are required');
     }
@@ -305,10 +312,10 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
     tempSlots[slotIndex] = { ...newSlot, isBooked: false };
     this._checkOverlappingSlots(tempSlots, availability.date);
 
-    availability.timeSlots[slotIndex] = { ...newSlot, isBooked: false };
+    availability.timeSlots[slotIndex] = AvailabilityMapper.toTimeSlotEntity({ ...newSlot, isBooked: false });
     const updatedAvailability = await this._availabilityRepository.update(availabilityId, {
       timeSlots: availability.timeSlots,
     });
-    return updatedAvailability;
+    return updatedAvailability ? AvailabilityMapper.toAvailabilityResponseDTO(updatedAvailability) : null;
   }
 }

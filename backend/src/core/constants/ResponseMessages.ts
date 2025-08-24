@@ -25,4 +25,5 @@ export const ResponseMessages = {
   PLAN_REJECTED: 'Plan rejected',
   PLAN_DELETED: 'Plan deleted successfully',
   SUBSCRIPTION_CANCELLED: 'Subscription cancelled successfully.',
+  PATIENT_NOT_FOUND: 'Patient not found',
 };

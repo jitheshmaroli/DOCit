@@ -1,14 +1,14 @@
 import { IBaseRepository } from './IBaseRepository';
-import { Doctor } from '../../entities/Doctor';
-import { PaginatedResponse, QueryParams } from '../../../types/authTypes';
+import { QueryParams } from '../../../types/authTypes';
+import { DoctorDTO, PaginatedDoctorResponseDTO } from '../DoctorDTOs';
 
-export interface IDoctorRepository extends IBaseRepository<Doctor> {
-  findByEmail(email: string): Promise<Doctor | null>;
-  findBySpeciality(specialityId: string): Promise<Doctor[]>;
-  findVerified(params: QueryParams): Promise<PaginatedResponse<Doctor>>;
-  findByCriteria(criteria: Partial<Doctor>): Promise<Doctor[]>;
-  findAllWithQuery(params: QueryParams): Promise<PaginatedResponse<Doctor>>;
-  getDoctorDetails(doctorId: string): Promise<Doctor | null>;
-  findDoctorsWithActiveSubscriptions(): Promise<Doctor[]>;
-  updateAllowFreeBooking(doctorId: string, allowFreeBooking: boolean): Promise<Doctor | null>;
+export interface IDoctorRepository extends IBaseRepository<DoctorDTO> {
+  findByEmail(email: string): Promise<DoctorDTO | null>;
+  findBySpeciality(specialityId: string): Promise<DoctorDTO[]>;
+  findVerified(params: QueryParams): Promise<PaginatedDoctorResponseDTO>;
+  findByCriteria(criteria: Partial<DoctorDTO>): Promise<DoctorDTO[]>;
+  findAllWithQuery(params: QueryParams): Promise<PaginatedDoctorResponseDTO>;
+  getDoctorDetails(doctorId: string): Promise<DoctorDTO | null>;
+  findDoctorsWithActiveSubscriptions(): Promise<DoctorDTO[]>;
+  updateAllowFreeBooking(doctorId: string, allowFreeBooking: boolean): Promise<DoctorDTO | null>;
 }

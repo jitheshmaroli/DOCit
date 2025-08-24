@@ -1,7 +1,5 @@
 import { v2 as cloudinary } from 'cloudinary';
 import { IProfileUseCase } from '../interfaces/use-cases/IProfileUseCase';
-import { Doctor } from '../entities/Doctor';
-import { Patient } from '../entities/Patient';
 import { IDoctorRepository } from '../interfaces/repositories/IDoctorRepository';
 import { IPatientRepository } from '../interfaces/repositories/IPatientRepository';
 import { ISpecialityRepository } from '../interfaces/repositories/ISpecialityRepository';
@@ -9,6 +7,10 @@ import { IImageUploadService } from '../interfaces/services/IImageUploadService'
 import { NotFoundError, ValidationError } from '../../utils/errors';
 import logger from '../../utils/logger';
 import { env } from '../../config/env';
+import { DoctorDTO } from '../interfaces/DoctorDTOs';
+import { PatientDTO } from '../interfaces/PatientDTOs';
+import { DoctorMapper } from '../interfaces/mappers/DoctorMapper';
+import { PatientMapper } from '../interfaces/mappers/PatientMapper';
 
 export class ProfileUseCase implements IProfileUseCase {
   constructor(
@@ -25,7 +27,7 @@ export class ProfileUseCase implements IProfileUseCase {
     });
   }
 
-  async viewDoctorProfile(doctorId: string): Promise<Doctor> {
+  async viewDoctorProfile(doctorId: string): Promise<DoctorDTO> {
     if (!doctorId) {
       logger.error('Doctor ID is required for viewing profile');
       throw new ValidationError('Doctor ID is required');
@@ -37,15 +39,15 @@ export class ProfileUseCase implements IProfileUseCase {
       throw new NotFoundError('Doctor not found');
     }
 
-    return doctor;
+    return DoctorMapper.toDTO(doctor);
   }
 
   async updateDoctorProfile(
     doctorId: string,
-    updates: Partial<Doctor>,
+    updates: Partial<DoctorDTO>,
     profilePictureFile?: Express.Multer.File,
     licenseProofFile?: Express.Multer.File
-  ): Promise<Doctor | null> {
+  ): Promise<DoctorDTO | null> {
     if (!doctorId) {
       logger.error('Doctor ID is required for updating profile');
       throw new ValidationError('Doctor ID is required');
@@ -115,14 +117,14 @@ export class ProfileUseCase implements IProfileUseCase {
         throw new NotFoundError('Failed to update doctor profile');
       }
 
-      return updatedDoctor;
+      return DoctorMapper.toDTO(updatedDoctor);
     } catch (error) {
       logger.error(`Error updating doctor profile ${doctorId}: ${(error as Error).message}`);
       throw new Error('Failed to update doctor profile');
     }
   }
 
-  async viewPatientProfile(patientId: string): Promise<Patient> {
+  async viewPatientProfile(patientId: string): Promise<PatientDTO> {
     if (!patientId) {
       logger.error('Patient ID is required for viewing profile');
       throw new ValidationError('Patient ID is required');
@@ -134,14 +136,14 @@ export class ProfileUseCase implements IProfileUseCase {
       throw new NotFoundError('Patient not found');
     }
 
-    return patient;
+    return PatientMapper.toDTO(patient);
   }
 
   async updatePatientProfile(
     patientId: string,
-    updates: Partial<Patient>,
+    updates: Partial<PatientDTO>,
     file?: Express.Multer.File
-  ): Promise<Patient | null> {
+  ): Promise<PatientDTO | null> {
     if (!patientId) {
       throw new ValidationError('Patient ID is required');
     }
@@ -179,7 +181,7 @@ export class ProfileUseCase implements IProfileUseCase {
         logger.error(`Failed to update patient profile ${patientId}`);
         throw new NotFoundError('Failed to update patient profile');
       }
-      return updatedPatient;
+      return PatientMapper.toDTO(updatedPatient);
     } catch (error) {
       logger.error(`Error updating patient profile ${patientId}: ${(error as Error).message}`);
       throw new Error('Failed to update patient profile');

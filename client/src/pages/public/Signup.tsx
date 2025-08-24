@@ -61,6 +61,13 @@ const InputField: React.FC<InputFieldProps> = ({
       }`}
       required
       minLength={name.toLowerCase().includes('password') ? 6 : undefined}
+      autoComplete={
+        name === 'password'
+          ? 'new-password'
+          : name === 'confirmPassword'
+            ? 'new-password'
+            : undefined
+      }
     />
     {touchedFields[name] && fieldErrors[name] && (
       <p className="mt-1 text-xs text-[#320A6B]">{fieldErrors[name]}</p>

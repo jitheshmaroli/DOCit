@@ -1,11 +1,9 @@
-export interface Admin {
+export interface AdminDTO {
   _id?: string;
   email: string;
   password?: string;
   name?: string;
-  phone?: string;
-  refreshToken?: string;
-  isBlocked?: boolean;
+  role?: 'admin';
   createdAt?: Date;
   updatedAt?: Date;
 }

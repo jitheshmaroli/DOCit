@@ -1,12 +1,6 @@
-import { Review } from '../../entities/Review';
+import { CreateReviewRequestDTO, ReviewResponseDTO } from '../ReviewDTOs';
 
 export interface IReviewUseCase {
-  createReview(
-    patientId: string,
-    doctorId: string,
-    appointmentId: string,
-    rating: number,
-    comment: string
-  ): Promise<Review>;
-  getDoctorReviews(doctorId: string): Promise<Review[]>;
+  createReview(patientId: string, dto: CreateReviewRequestDTO): Promise<ReviewResponseDTO>;
+  getDoctorReviews(doctorId: string): Promise<ReviewResponseDTO[]>;
 }

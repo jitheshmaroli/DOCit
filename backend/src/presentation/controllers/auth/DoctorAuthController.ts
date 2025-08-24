@@ -6,6 +6,14 @@ import { setTokensInCookies } from '../../../utils/cookieUtils';
 import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 import { IAuthenticationUseCase } from '../../../core/interfaces/use-cases/IAuthenticationUseCase';
+import {
+  SignupRequestDTO,
+  SignupResponseDTO,
+  LoginRequestDTO,
+  LoginResponseDTO,
+  GoogleSignInRequestDTO,
+  GoogleSignInResponseDTO,
+} from '../../../core/interfaces/AuthDtos';
 
 export class DoctorAuthController {
   private _authenticationUseCase: IAuthenticationUseCase;
@@ -16,17 +24,28 @@ export class DoctorAuthController {
 
   async signup(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const doctor = req.body;
+      const signupDTO: SignupRequestDTO = {
+        email: req.body.email,
+        password: req.body.password,
+        name: req.body.name,
+        phone: req.body.phone,
+        role: 'doctor',
+        licenseNumber: req.body.licenseNumber,
+      };
       if (
-        !validateEmail(doctor.email) ||
-        !validatePassword(doctor.password) ||
-        !validatePhone(doctor.phone) ||
-        !doctor.licenseNumber
+        !validateEmail(signupDTO.email) ||
+        !validatePassword(signupDTO.password) ||
+        !validatePhone(signupDTO.phone) ||
+        !signupDTO.licenseNumber
       ) {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
-      const savedDoctor = await this._authenticationUseCase.signupDoctor(doctor);
-      res.status(HttpStatusCode.OK).json({ message: ResponseMessages.OTP_SENT, _id: savedDoctor._id });
+      const savedDoctor = await this._authenticationUseCase.signupDoctor(signupDTO);
+      const responseDTO: SignupResponseDTO = {
+        message: ResponseMessages.OTP_SENT,
+        _id: savedDoctor._id!,
+      };
+      res.status(HttpStatusCode.OK).json(responseDTO);
     } catch (error) {
       next(error);
     }
@@ -34,11 +53,22 @@ export class DoctorAuthController {
 
   async login(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { email, password } = req.body;
-      if (!email || !password) throw new ValidationError(ResponseMessages.BAD_REQUEST);
-      const { accessToken, refreshToken } = await this._authenticationUseCase.loginDoctor(email, password);
+      const loginDTO: LoginRequestDTO = {
+        email: req.body.email,
+        password: req.body.password,
+      };
+      if (!loginDTO.email || !loginDTO.password) throw new ValidationError(ResponseMessages.BAD_REQUEST);
+      const { accessToken, refreshToken } = await this._authenticationUseCase.loginDoctor(
+        loginDTO.email,
+        loginDTO.password
+      );
       setTokensInCookies(res, accessToken, refreshToken);
-      res.status(HttpStatusCode.OK).json({ message: ResponseMessages.LOGGED_IN });
+      const responseDTO: LoginResponseDTO = {
+        accessToken,
+        refreshToken,
+        message: ResponseMessages.LOGGED_IN,
+      };
+      res.status(HttpStatusCode.OK).json(responseDTO);
     } catch (error) {
       next(error);
     }
@@ -46,11 +76,18 @@ export class DoctorAuthController {
 
   async googleSignIn(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { token } = req.body;
-      if (!token) throw new ValidationError(ResponseMessages.BAD_REQUEST);
-      const { accessToken, refreshToken } = await this._authenticationUseCase.googleSignInDoctor(token);
+      const googleSignInDTO: GoogleSignInRequestDTO = {
+        token: req.body.token,
+      };
+      if (!googleSignInDTO.token) throw new ValidationError(ResponseMessages.BAD_REQUEST);
+      const { accessToken, refreshToken } = await this._authenticationUseCase.googleSignInDoctor(googleSignInDTO.token);
       setTokensInCookies(res, accessToken, refreshToken);
-      res.status(HttpStatusCode.OK).json({ message: ResponseMessages.LOGGED_IN });
+      const responseDTO: GoogleSignInResponseDTO = {
+        accessToken,
+        refreshToken,
+        message: ResponseMessages.LOGGED_IN,
+      };
+      res.status(HttpStatusCode.OK).json(responseDTO);
     } catch (error) {
       next(error);
     }

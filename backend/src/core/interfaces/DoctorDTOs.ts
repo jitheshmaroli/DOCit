@@ -1,14 +1,15 @@
-export interface Doctor {
+export interface DoctorDTO {
   _id?: string;
   email: string;
-  password?: string;
   name?: string;
+  password?: string;
   phone?: string;
   qualifications?: string[];
   licenseNumber?: string;
   location?: string;
   speciality?: string;
   totalExperience?: number;
+  lastSeen?: Date;
   experiences?: Array<{
     hospitalName: string;
     department: string;
@@ -22,19 +23,15 @@ export interface Doctor {
   profilePicturePublicId?: string;
   licenseProof?: string;
   licenseProofPublicId?: string;
-  refreshToken?: string;
-  googleId?: string;
-  lastSeen?: Date;
-  isOnline?: boolean;
-  isOtpVerified?: boolean;
   averageRating?: number;
-  reviewIds?: string[];
+  googleId?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
 
-export interface Experience {
-  hospitalName: string;
-  department: string;
-  years: number;
+export interface PaginatedDoctorResponseDTO {
+  data: DoctorDTO[];
+  totalPages: number;
+  currentPage: number;
+  totalItems: number;
 }

@@ -1,13 +1,13 @@
-import { Doctor } from '../../entities/Doctor';
 import { QueryParams } from '../../../types/authTypes';
+import { DoctorDTO, PaginatedDoctorResponseDTO } from '../DoctorDTOs';
 
 export interface IDoctorUseCase {
-  createDoctor(doctor: Partial<Doctor>): Promise<Doctor>;
-  updateDoctor(doctorId: string, updates: Partial<Doctor>): Promise<Doctor>;
+  createDoctor(dto: Partial<DoctorDTO>): Promise<DoctorDTO>;
+  updateDoctor(doctorId: string, updates: Partial<DoctorDTO>): Promise<DoctorDTO>;
   deleteDoctor(doctorId: string): Promise<void>;
-  blockDoctor(doctorId: string, isBlocked: boolean): Promise<Doctor>;
-  verifyDoctor(doctorId: string): Promise<Doctor>;
-  listDoctors(params: QueryParams): Promise<{ data: Doctor[]; totalItems: number }>;
-  getDoctor(doctorId: string): Promise<Doctor | null>;
-  getVerifiedDoctors(params: QueryParams): Promise<{ data: Doctor[]; totalItems: number }>;
+  blockDoctor(doctorId: string, isBlocked: boolean): Promise<DoctorDTO>;
+  verifyDoctor(doctorId: string): Promise<DoctorDTO>;
+  listDoctors(params: QueryParams): Promise<PaginatedDoctorResponseDTO>;
+  getDoctor(doctorId: string): Promise<DoctorDTO | null>;
+  getVerifiedDoctors(params: QueryParams): Promise<PaginatedDoctorResponseDTO>;
 }
