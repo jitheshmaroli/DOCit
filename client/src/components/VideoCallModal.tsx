@@ -73,7 +73,7 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
       analyserRef.current.getByteFrequencyData(dataArray);
       const average =
         dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length;
-      setIsSpeaking(average > 10); // Adjust threshold as needed
+      setIsSpeaking(average > 10);
       requestAnimationFrame(detectSpeech);
     };
     detectSpeech();

@@ -22,6 +22,7 @@ interface DataTableProps<T> {
   error?: string | null;
   onRetry?: () => void;
   emptyMessage?: string;
+  enableHorizontalScroll?: boolean; // New prop to control scrolling behavior
 }
 
 const DataTable = React.memo(
@@ -33,6 +34,7 @@ const DataTable = React.memo(
     error,
     onRetry,
     emptyMessage = 'No data found.',
+    enableHorizontalScroll = true, // Default to true for horizontal scrolling
   }: DataTableProps<T>) => {
     const renderCell = useCallback((item: T, column: Column<T>) => {
       if (typeof column.accessor === 'function') {
@@ -107,13 +109,15 @@ const DataTable = React.memo(
           {columns.map((column) => (
             <td
               key={String(column.accessor)}
-              className={`px-4 py-3 text-sm text-white ${column.className || ''}`}
+              className={`px-4 py-3 text-sm text-white ${enableHorizontalScroll ? 'whitespace-nowrap' : ''} ${column.className || ''}`}
             >
               {renderCell(item, column)}
             </td>
           ))}
           {actions.length > 0 && (
-            <td className="px-4 py-3 text-sm">
+            <td
+              className={`px-4 py-3 text-sm ${enableHorizontalScroll ? 'whitespace-nowrap' : ''}`}
+            >
               <div className="flex flex-wrap gap-2">
                 {actions
                   .filter(
@@ -143,25 +147,30 @@ const DataTable = React.memo(
       onRetry,
       emptyMessage,
       renderCell,
+      enableHorizontalScroll,
     ]);
 
     return (
       <>
         <ToastContainer position="top-right" autoClose={3000} theme="dark" />
-        <div className="overflow-x-auto">
+        <div
+          className={`overflow-x-auto ${enableHorizontalScroll ? 'scrollbar-thin scrollbar-thumb-purple-600 scrollbar-track-white/10' : ''}`}
+        >
           <table className="min-w-full bg-white/10 backdrop-blur-lg border border-white/20 rounded-lg">
             <thead>
               <tr className="bg-white/5 border-b border-white/20">
                 {columns.map((column) => (
                   <th
                     key={String(column.accessor)}
-                    className={`px-4 py-3 text-left text-xs font-semibold text-gray-200 uppercase tracking-wider ${column.className || ''}`}
+                    className={`px-4 py-3 text-left text-xs font-semibold text-gray-200 uppercase tracking-wider ${enableHorizontalScroll ? 'whitespace-nowrap' : ''} ${column.className || ''}`}
                   >
                     {column.header}
                   </th>
                 ))}
                 {actions.length > 0 && (
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-200 uppercase tracking-wider">
+                  <th
+                    className={`px-4 py-3 text-left text-xs font-semibold text-gray-200 uppercase tracking-wider ${enableHorizontalScroll ? 'whitespace-nowrap' : ''}`}
+                  >
                     Actions
                   </th>
                 )}

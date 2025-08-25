@@ -17,25 +17,25 @@ import {
   DoctorDashboardStatsResponseDTO,
   ReportDataResponseDTO,
   ReportFilterDTO,
-} from '../../../core/interfaces/ReportDTOs';
+} from '../../../application/dtos/ReportDTOs';
 import {
   AvailabilityResponseDTO,
   SetAvailabilityResponseDTO,
   SetAvailabilityRequestDTO,
   UpdateSlotRequestDTO,
-} from '../../../core/interfaces/AvailabilityDTOs';
+} from '../../../application/dtos/AvailabilityDTOs';
 import {
   PaginatedSubscriptionPlanResponseDTO,
   SubscriptionPlanResponseDTO,
-} from '../../../core/interfaces/SubscriptionPlanDTOs';
+} from '../../../application/dtos/SubscriptionPlanDTOs';
 import {
   AppointmentDTO,
   CompleteAppointmentResponseDTO,
   GetAppointmentsResponseDTO,
   CompleteAppointmentRequestDTO,
-} from '../../../core/interfaces/AppointmentDTOs';
-import { SpecialityResponseDTO } from '../../../core/interfaces/SpecialityDTOs';
-import { PatientDTO } from '../../../core/interfaces/PatientDTOs';
+} from '../../../application/dtos/AppointmentDTOs';
+import { SpecialityResponseDTO } from '../../../application/dtos/SpecialityDTOs';
+import { PatientDTO } from '../../../application/dtos/PatientDTOs';
 
 export class DoctorController {
   private _subscriptionPlanUseCase: ISubscriptionPlanUseCase;

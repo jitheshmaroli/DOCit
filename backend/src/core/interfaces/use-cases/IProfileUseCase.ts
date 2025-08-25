@@ -1,5 +1,5 @@
-import { DoctorDTO } from '../DoctorDTOs';
-import { PatientDTO } from '../PatientDTOs';
+import { DoctorDTO } from '../../../application/dtos/DoctorDTOs';
+import { PatientDTO } from '../../../application/dtos/PatientDTOs';
 
 export interface IProfileUseCase {
   viewDoctorProfile(doctorId: string): Promise<DoctorDTO>;

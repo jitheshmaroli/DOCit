@@ -29,7 +29,10 @@ import PaymentForm from './PaymentForm';
 import { DateUtils } from '../../utils/DateUtils';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
-import { TimeSlot } from '../../types/authTypes';
+import {
+  TimeSlot,
+  Appointment,
+} from '../../types/authTypes';
 import Pagination from '../../components/common/Pagination';
 import CancelAppointmentModal from '../../components/CancelAppointmentModal';
 import Modal from '../../components/common/Modal';
@@ -107,7 +110,11 @@ const DoctorDetails: React.FC = () => {
     ?.speciality;
 
   const activeSubscription = useMemo(
-    () => (doctorId ? activeSubscriptions[doctorId] : null),
+    () =>
+      doctorId
+        ? activeSubscriptions.find((sub) => sub.plan.doctorId === doctorId) ||
+          null
+        : null,
     [doctorId, activeSubscriptions]
   );
   const plans = useMemo(
@@ -115,6 +122,10 @@ const DoctorDetails: React.FC = () => {
     [doctorId, doctorPlans]
   );
   const canBookFreeAppointment = doctorId ? canBookFree : false;
+  const doctorAppointments = useMemo(
+    () => (doctorId ? appointments[doctorId] || [] : []),
+    [doctorId, appointments]
+  );
 
   useEffect(() => {
     if (doctorId) {
@@ -415,8 +426,8 @@ const DoctorDetails: React.FC = () => {
       return;
     }
     try {
-      const appointment = appointments.find(
-        (appt) => appt._id === appointmentId
+      const appointment = doctorAppointments.find(
+        (appt: Appointment) => appt._id === appointmentId
       );
       if (!appointment) {
         throw new Error('Appointment not found');
@@ -470,9 +481,9 @@ const DoctorDetails: React.FC = () => {
     return <div className="text-white text-center py-8">Doctor not found</div>;
   }
 
-  const upcomingAppointments = appointments.filter((appt) => {
-    return appt.status !== 'cancelled';
-  });
+  const upcomingAppointments = doctorAppointments.filter(
+    (appt: Appointment) => appt.status !== 'cancelled'
+  );
 
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
@@ -823,13 +834,13 @@ const DoctorDetails: React.FC = () => {
           </div>
         ) : null}
 
-        {upcomingAppointments.length > 0 && (
+        {doctorAppointments.length > 0 && (
           <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20">
             <h2 className="text-2xl font-bold text-white mb-6">
               Upcoming Appointments
             </h2>
             <div className="space-y-4">
-              {upcomingAppointments.map((appt) => (
+              {upcomingAppointments.map((appt: Appointment) => (
                 <div
                   key={appt._id}
                   className="bg-white/20 p-4 rounded-lg border border-white/20 flex justify-between items-center"

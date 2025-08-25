@@ -4,7 +4,7 @@ import {
   UpdateSpecialityRequestDTO,
   SpecialityResponseDTO,
   PaginatedSpecialityResponseDTO,
-} from '../SpecialityDTOs';
+} from '../../../application/dtos/SpecialityDTOs';
 
 export interface ISpecialityUseCase {
   addSpeciality(dto: AddSpecialityRequestDTO): Promise<SpecialityResponseDTO>;

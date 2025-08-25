@@ -6,8 +6,8 @@ import { ISpecialityUseCase } from '../../../core/interfaces/use-cases/ISpeciali
 import fs from 'fs';
 import logger from '../../../utils/logger';
 import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
-import { DoctorDTO } from '../../../core/interfaces/DoctorDTOs';
-import { SpecialityResponseDTO } from '../../../core/interfaces/SpecialityDTOs';
+import { DoctorDTO } from '../../../application/dtos/DoctorDTOs';
+import { SpecialityResponseDTO } from '../../../application/dtos/SpecialityDTOs';
 
 export class DoctorProfileController {
   private _profileUseCase: IProfileUseCase;

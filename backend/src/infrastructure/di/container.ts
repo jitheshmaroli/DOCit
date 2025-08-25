@@ -1,13 +1,13 @@
 import { IChatUseCase } from '../../core/interfaces/use-cases/IChatUseCase';
-import { AppointmentUseCase } from '../../core/use-cases/AppointmentUseCase';
-import { NotificationUseCase } from '../../core/use-cases/NotificationUseCase';
-import { AvailabilityUseCase } from '../../core/use-cases/AvailabilityUseCase';
-import { SubscriptionPlanUseCase } from '../../core/use-cases/SubscriptionPlanUseCase';
-import { DoctorUseCase } from '../../core/use-cases/DoctorUseCase';
-import { PatientUseCase } from '../../core/use-cases/PatientUseCase';
-import { ChatUseCase } from '../../core/use-cases/ChatUseCase';
-import { ReviewUseCase } from '../../core/use-cases/ReviewUseCase';
-import { ProfileUseCase } from '../../core/use-cases/ProfileUseCase';
+import { AppointmentUseCase } from '../../application/use-cases/AppointmentUseCase';
+import { NotificationUseCase } from '../../application/use-cases/NotificationUseCase';
+import { AvailabilityUseCase } from '../../application/use-cases/AvailabilityUseCase';
+import { SubscriptionPlanUseCase } from '../../application/use-cases/SubscriptionPlanUseCase';
+import { DoctorUseCase } from '../../application/use-cases/DoctorUseCase';
+import { PatientUseCase } from '../../application/use-cases/PatientUseCase';
+import { ChatUseCase } from '../../application/use-cases/ChatUseCase';
+import { ReviewUseCase } from '../../application/use-cases/ReviewUseCase';
+import { ProfileUseCase } from '../../application/use-cases/ProfileUseCase';
 import { PatientRepository } from '../repositories/PatientRepository';
 import { DoctorRepository } from '../repositories/DoctorRepository';
 import { AdminRepository } from '../repositories/AdminRepository';
@@ -29,13 +29,13 @@ import { ReviewRepository } from '../repositories/ReviewRepository';
 import { IChatService } from '../../core/interfaces/services/IChatService';
 import { ChatMessage } from '../../core/entities/ChatMessage';
 import { QueryParams } from '../../types/authTypes';
-import { AuthenticationUseCase } from '../../core/use-cases/AuthenticationUseCase';
+import { AuthenticationUseCase } from '../../application/use-cases/AuthenticationUseCase';
 import { PatientSubscriptionRepository } from '../repositories/PatientSubscriptionRepositroy';
-import { ReportUseCase } from '../../core/use-cases/ReportUseCase';
-import { SpecialityUseCase } from '../../core/use-cases/SpecialityUseCase';
-import { UserUseCase } from '../../core/use-cases/UserUseCase';
-import { ChatMapper } from '../../core/interfaces/mappers/ChatMapper';
-import { SendMessageRequestDTO, ChatMessageResponseDTO } from '../../core/interfaces/ChatDTOs';
+import { ReportUseCase } from '../../application/use-cases/ReportUseCase';
+import { SpecialityUseCase } from '../../application/use-cases/SpecialityUseCase';
+import { UserUseCase } from '../../application/use-cases/UserUseCase';
+import { ChatMapper } from '../../application/mappers/ChatMapper';
+import { SendMessageRequestDTO, ChatMessageResponseDTO } from '../../application/dtos/ChatDTOs';
 
 export class Container {
   private static instance: Container;
@@ -68,7 +68,7 @@ export class Container {
         const dto: SendMessageRequestDTO = {
           receiverId: message.receiverId,
           message: message.message,
-          senderName: message.senderName ?? 'Unknown', // Default senderName to avoid undefined
+          senderName: message.senderName ?? 'Unknown',
         };
         const chatMessageDTO: ChatMessageResponseDTO = await this.container
           .get<IChatUseCase>('IChatUseCase')

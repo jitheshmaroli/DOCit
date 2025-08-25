@@ -174,7 +174,7 @@ const AdminManageDoctors: React.FC = () => {
       {
         header: 'Name',
         accessor: (doctor: Doctor): React.ReactNode => {
-          const maxLength = 20; // Maximum length for the name
+          const maxLength = 20;
           const displayName =
             doctor.name && doctor.name.length > maxLength
               ? `${doctor.name.substring(0, maxLength)}...`
@@ -187,27 +187,32 @@ const AdminManageDoctors: React.FC = () => {
                 profilePicture={doctor.profilePicture}
               />
               <span
-                className="ml-4 text-sm font-medium text-white truncate max-w-[150px]"
-                title={doctor.name || 'Unknown'} // Tooltip for full name
+                className="ml-4 text-sm font-medium text-white truncate"
+                style={{ maxWidth: '150px' }} // Fixed maxWidth
+                title={doctor.name || 'Unknown'}
               >
                 {displayName}
               </span>
             </div>
           );
         },
-        className: 'align-middle', // Ensure vertical alignment
+        className: 'align-middle',
+        minWidth: '200px',
       },
       {
         header: 'Email',
         accessor: 'email' as keyof Doctor,
+        minWidth: '200px',
       },
       {
         header: 'Phone',
         accessor: 'phone' as keyof Doctor,
+        minWidth: '120px',
       },
       {
         header: 'License',
         accessor: 'licenseNumber' as keyof Doctor,
+        minWidth: '120px',
       },
       {
         header: 'License Proof',
@@ -227,11 +232,12 @@ const AdminManageDoctors: React.FC = () => {
             )}
           </div>
         ),
+        minWidth: '120px',
       },
       {
         header: 'Status',
         accessor: (doctor: Doctor): React.ReactNode => (
-          <div className="flex flex-col space-y-1">
+          <div className="flex flex-nowrap gap-2">
             <span
               className={`px-2 py-1 text-xs font-semibold rounded-full ${
                 doctor.isVerified
@@ -252,9 +258,10 @@ const AdminManageDoctors: React.FC = () => {
             </span>
           </div>
         ),
+        minWidth: '180px',
       },
     ],
-    []
+    [] // Removed truncateMaxWidth from dependencies
   );
 
   const actions = useMemo(

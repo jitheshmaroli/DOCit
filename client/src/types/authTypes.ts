@@ -294,6 +294,7 @@ export interface PatientSubscription {
     name: string;
     description: string;
     doctorId: string;
+    doctorName: string;
     price: number;
     validityDays: number;
     appointmentCount: number;

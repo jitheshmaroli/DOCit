@@ -5,7 +5,7 @@ import { IUserUseCase } from '../../../core/interfaces/use-cases/IUserUseCase';
 import { CustomRequest, UserRole } from '../../../types';
 import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
-import { GetUserResponseDTO } from '../../../core/interfaces/UserDTOs';
+import { GetUserResponseDTO } from '../../../application/dtos/UserDTOs';
 
 export class UserController {
   private _userUseCase: IUserUseCase;

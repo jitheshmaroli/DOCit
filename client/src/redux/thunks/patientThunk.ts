@@ -9,6 +9,7 @@ import {
   cancelAppointment,
   cancelSubscription,
   getPatientSubscriptions,
+  getDoctor,
 } from '../../services/patientService';
 import {
   GetDoctorAvailabilityPayload,
@@ -95,6 +96,7 @@ export const getPatientSubscriptionThunk = createAsyncThunk(
       if (!subscription) {
         return null;
       }
+      const doctor = await getDoctor(doctorId);
       return {
         _id: subscription._id,
         plan: {
@@ -105,6 +107,7 @@ export const getPatientSubscriptionThunk = createAsyncThunk(
           validityDays: subscription.planId.validityDays,
           appointmentCount: subscription.planId.appointmentCount,
           doctorId: subscription.planId.doctorId,
+          doctorName: doctor?.name || 'Unknown Doctor',
         },
         daysUntilExpiration: subscription.remainingDays,
         isExpired:
@@ -130,26 +133,30 @@ export const getPatientSubscriptionsThunk = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const subscriptions = await getPatientSubscriptions();
-      const formattedSubscriptions = subscriptions.map(
-        (subscription: PatientSubscription) => ({
-          _id: subscription._id,
-          plan: {
-            _id: subscription.planId._id,
-            name: subscription.planId.name,
-            description: subscription.planId.description,
-            price: subscription.planId.price,
-            validityDays: subscription.planId.validityDays,
-            appointmentCount: subscription.planId.appointmentCount,
-            doctorId: subscription.planId.doctorId,
-          },
-          daysUntilExpiration: subscription.remainingDays,
-          isExpired:
-            subscription.status !== 'active' ||
-            DateUtils.parseToUTC(subscription.expiryDate) < new Date(),
-          appointmentsLeft: subscription.appointmentsLeft,
-          status: subscription.status,
-          createdAt: subscription.createdAt,
-          expiryDate: subscription.expiryDate,
+      const formattedSubscriptions = await Promise.all(
+        subscriptions.map(async (subscription: PatientSubscription) => {
+          const doctor = await getDoctor(subscription.planId.doctorId);
+          return {
+            _id: subscription._id,
+            plan: {
+              _id: subscription.planId._id,
+              name: subscription.planId.name,
+              description: subscription.planId.description,
+              price: subscription.planId.price,
+              validityDays: subscription.planId.validityDays,
+              appointmentCount: subscription.planId.appointmentCount,
+              doctorId: subscription.planId.doctorId,
+              doctorName: doctor?.name || 'Unknown Doctor',
+            },
+            daysUntilExpiration: subscription.remainingDays,
+            isExpired:
+              subscription.status !== 'active' ||
+              DateUtils.parseToUTC(subscription.expiryDate) < new Date(),
+            appointmentsLeft: subscription.appointmentsLeft,
+            status: subscription.status,
+            createdAt: subscription.createdAt,
+            expiryDate: subscription.expiryDate,
+          };
         })
       );
       return formattedSubscriptions;

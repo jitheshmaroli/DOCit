@@ -3,7 +3,7 @@ import {
   UpdateSlotRequestDTO,
   AvailabilityResponseDTO,
   SetAvailabilityResponseDTO,
-} from '../AvailabilityDTOs';
+} from '../../../application/dtos/AvailabilityDTOs';
 
 export interface IAvailabilityUseCase {
   setAvailability(doctorId: string, dto: SetAvailabilityRequestDTO): Promise<SetAvailabilityResponseDTO>;

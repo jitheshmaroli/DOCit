@@ -9,7 +9,7 @@ import {
   cancelAppointmentThunk,
   cancelSubscriptionThunk,
   getPatientSubscriptionsThunk,
-} from '../../redux/thunks/patientThunk';
+} from '../thunks/patientThunk';
 import {
   AvailabilityPayload,
   TimeSlot,
@@ -26,12 +26,14 @@ interface PatientSubscription {
     validityDays: number;
     appointmentCount: number;
     doctorId: string;
+    doctorName?: string;
   };
   daysUntilExpiration: number;
   isExpired: boolean;
   appointmentsLeft: number;
   status: string;
   createdAt?: string;
+  expiryDate?: string;
 }
 
 interface CancelSubscriptionResponse {
@@ -41,8 +43,8 @@ interface CancelSubscriptionResponse {
 }
 
 interface PatientState {
-  activeSubscriptions: { [doctorId: string]: PatientSubscription | null };
-  appointments: Appointment[];
+  activeSubscriptions: PatientSubscription[];
+  appointments: { [doctorId: string]: Appointment[] };
   totalItems: number;
   availability: AvailabilityPayload[];
   timeSlots: TimeSlot[];
@@ -53,8 +55,8 @@ interface PatientState {
 }
 
 const initialState: PatientState = {
-  activeSubscriptions: {},
-  appointments: [],
+  activeSubscriptions: [],
+  appointments: {},
   totalItems: 0,
   availability: [],
   timeSlots: [],
@@ -112,7 +114,12 @@ const patientSlice = createSlice({
         state.error = null;
       })
       .addCase(bookAppointmentThunk.fulfilled, (state, action) => {
-        state.appointments.push(action.payload);
+        const appointment = action.payload;
+        const doctorId = appointment.doctorId._id;
+        if (!state.appointments[doctorId]) {
+          state.appointments[doctorId] = [];
+        }
+        state.appointments[doctorId].push(appointment);
         state.loading = false;
       })
       .addCase(bookAppointmentThunk.rejected, (state, action) => {
@@ -127,16 +134,7 @@ const patientSlice = createSlice({
         getPatientSubscriptionsThunk.fulfilled,
         (state, action: PayloadAction<PatientSubscription[]>) => {
           state.loading = false;
-          // Transform the array of subscriptions into a map
-          const subscriptionsMap: {
-            [doctorId: string]: PatientSubscription | null;
-          } = {};
-          action.payload.forEach((subscription) => {
-            if (subscription.plan?.doctorId) {
-              subscriptionsMap[subscription.plan.doctorId] = subscription;
-            }
-          });
-          state.activeSubscriptions = subscriptionsMap;
+          state.activeSubscriptions = action.payload;
         }
       )
       .addCase(getPatientSubscriptionsThunk.rejected, (state, action) => {
@@ -158,10 +156,15 @@ const patientSlice = createSlice({
           >
         ) => {
           state.loading = false;
-          if (action.meta.arg) {
-            state.activeSubscriptions[action.meta.arg] = action.payload;
-          } else {
-            state.error = 'Invalid doctorId for subscription';
+          if (action.payload) {
+            const existingIndex = state.activeSubscriptions.findIndex(
+              (sub) => sub._id === action.payload?._id
+            );
+            if (existingIndex >= 0) {
+              state.activeSubscriptions[existingIndex] = action.payload;
+            } else {
+              state.activeSubscriptions.push(action.payload);
+            }
           }
         }
       )
@@ -177,13 +180,18 @@ const patientSlice = createSlice({
         getPatientAppointmentsForDoctorThunk.fulfilled,
         (
           state,
-          action: PayloadAction<{
-            appointments: Appointment[];
-            totalItems: number;
-            canBookFree?: boolean;
-          }>
+          action: PayloadAction<
+            {
+              appointments: Appointment[];
+              totalItems: number;
+              canBookFree?: boolean;
+            },
+            string,
+            { arg: { doctorId: string } }
+          >
         ) => {
-          state.appointments = action.payload.appointments;
+          const doctorId = action.meta.arg.doctorId;
+          state.appointments[doctorId] = action.payload.appointments;
           state.totalItems = action.payload.totalItems;
           state.canBookFree = action.payload.canBookFree ?? state.canBookFree;
           state.loading = false;
@@ -203,7 +211,15 @@ const patientSlice = createSlice({
       .addCase(
         getPatientAppointmentsThunk.fulfilled,
         (state, action: PayloadAction<Appointment[]>) => {
-          state.appointments = action.payload;
+          // Clear existing appointments and group by doctorId
+          state.appointments = {};
+          action.payload.forEach((appt) => {
+            const doctorId = appt.doctorId._id;
+            if (!state.appointments[doctorId]) {
+              state.appointments[doctorId] = [];
+            }
+            state.appointments[doctorId].push(appt);
+          });
           state.loading = false;
         }
       )
@@ -216,9 +232,12 @@ const patientSlice = createSlice({
         state.error = null;
       })
       .addCase(cancelAppointmentThunk.fulfilled, (state, action) => {
-        state.appointments = state.appointments.filter(
-          (appt) => appt._id !== action.meta.arg.appointmentId
-        );
+        const appointmentId = action.meta.arg.appointmentId;
+        Object.keys(state.appointments).forEach((doctorId) => {
+          state.appointments[doctorId] = state.appointments[doctorId].filter(
+            (appt) => appt._id !== appointmentId
+          );
+        });
         state.loading = false;
       })
       .addCase(cancelAppointmentThunk.rejected, (state, action) => {
@@ -240,12 +259,11 @@ const patientSlice = createSlice({
             { arg: { subscriptionId: string; cancellationReason?: string } }
           >
         ) => {
-          const subscriptionId = action.meta.arg.subscriptionId;
-          Object.keys(state.activeSubscriptions).forEach((doctorId) => {
-            if (state.activeSubscriptions[doctorId]?._id === subscriptionId) {
-              state.activeSubscriptions[doctorId] = null;
-            }
-          });
+          state.activeSubscriptions = state.activeSubscriptions.map((sub) =>
+            sub._id === action.meta.arg.subscriptionId
+              ? { ...sub, status: 'cancelled' }
+              : sub
+          );
           state.lastRefundDetails = action.payload;
           state.loading = false;
         }

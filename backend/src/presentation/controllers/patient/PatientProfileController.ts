@@ -6,7 +6,7 @@ import fs from 'fs';
 import { CustomRequest } from '../../../types';
 import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
-import { PatientDTO } from '../../../core/interfaces/PatientDTOs';
+import { PatientDTO } from '../../../application/dtos/PatientDTOs';
 
 export class PatientProfileController {
   private _profileUseCase: IProfileUseCase;

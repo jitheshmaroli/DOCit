@@ -14,19 +14,19 @@ import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 import { IAvailabilityUseCase } from '../../../core/interfaces/use-cases/IAvailabilityUseCase';
 import { IDoctorUseCase } from '../../../core/interfaces/use-cases/IDoctorUseCase';
-import { AvailabilityResponseDTO } from '../../../core/interfaces/AvailabilityDTOs';
+import { AvailabilityResponseDTO } from '../../../application/dtos/AvailabilityDTOs';
 import {
   AppointmentDTO,
   BookAppointmentResponseDTO,
   CancelAppointmentRequestDTO,
   GetPatientAppointmentsForDoctorRequestDTO,
   GetPatientAppointmentsResponseDTO,
-} from '../../../core/interfaces/AppointmentDTOs';
-import { PatientSubscriptionDTO } from '../../../core/interfaces/PatientDTOs';
-import { SubscriptionPlanResponseDTO } from '../../../core/interfaces/SubscriptionPlanDTOs';
-import { DoctorDTO, PaginatedDoctorResponseDTO } from '../../../core/interfaces/DoctorDTOs';
-import { SpecialityResponseDTO } from '../../../core/interfaces/SpecialityDTOs';
-import { ReviewResponseDTO } from '../../../core/interfaces/ReviewDTOs';
+} from '../../../application/dtos/AppointmentDTOs';
+import { PatientSubscriptionDTO } from '../../../application/dtos/PatientDTOs';
+import { SubscriptionPlanResponseDTO } from '../../../application/dtos/SubscriptionPlanDTOs';
+import { DoctorDTO, PaginatedDoctorResponseDTO } from '../../../application/dtos/DoctorDTOs';
+import { SpecialityResponseDTO } from '../../../application/dtos/SpecialityDTOs';
+import { ReviewResponseDTO } from '../../../application/dtos/ReviewDTOs';
 
 export interface ExtendedGetPatientAppointmentsResponseDTO extends GetPatientAppointmentsResponseDTO {
   canBookFree?: boolean;
@@ -199,7 +199,22 @@ export class PatientController {
         throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const subscriptions: PatientSubscriptionDTO[] = await this._patientUseCase.getPatientSubscriptions(patientId);
-      res.status(HttpStatusCode.OK).json(subscriptions);
+      const enhancedSubscriptions = await Promise.all(
+        subscriptions.map(async (sub) => {
+          if (sub.planDetails?.doctorId) {
+            const doctor = await this._doctorUseCase.getDoctor(sub.planDetails.doctorId);
+            return {
+              ...sub,
+              planDetails: {
+                ...sub.planDetails,
+                doctorName: doctor?.name || 'Unknown Doctor',
+              },
+            };
+          }
+          return sub;
+        })
+      );
+      res.status(HttpStatusCode.OK).json(enhancedSubscriptions);
     } catch (error) {
       next(error);
     }

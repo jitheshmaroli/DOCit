@@ -1,4 +1,4 @@
-import { CreateReviewRequestDTO, ReviewResponseDTO } from '../ReviewDTOs';
+import { CreateReviewRequestDTO, ReviewResponseDTO } from '../../../application/dtos/ReviewDTOs';
 
 export interface IReviewUseCase {
   createReview(patientId: string, dto: CreateReviewRequestDTO): Promise<ReviewResponseDTO>;

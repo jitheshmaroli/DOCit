@@ -3,7 +3,7 @@ import { ITokenService } from '../../core/interfaces/services/ITokenService';
 import { AuthenticationError, ForbiddenError } from '../../utils/errors';
 import { Container } from '../../infrastructure/di/container';
 import { CustomRequest, UserRole } from '../../types';
-import { UserUseCase } from '../../core/use-cases/UserUseCase';
+import { UserUseCase } from '../../application/use-cases/UserUseCase';
 
 export const authMiddleware = (container: Container) => {
   const tokenService: ITokenService = container.get('ITokenService');

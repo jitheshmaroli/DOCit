@@ -1,5 +1,5 @@
 import { QueryParams } from '../../../types/authTypes';
-import { DoctorDTO, PaginatedDoctorResponseDTO } from '../DoctorDTOs';
+import { DoctorDTO, PaginatedDoctorResponseDTO } from '../../../application/dtos/DoctorDTOs';
 
 export interface IDoctorUseCase {
   createDoctor(dto: Partial<DoctorDTO>): Promise<DoctorDTO>;
