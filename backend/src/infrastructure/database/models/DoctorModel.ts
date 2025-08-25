@@ -24,6 +24,8 @@ const DoctorSchema = new Schema<Doctor>(
     isBlocked: { type: Boolean, default: false },
     profilePicture: { type: String },
     profilePicturePublicId: { type: String },
+    licenseProof: { type: String },
+    licenseProofPublicId: { type: String },
     refreshToken: { type: String },
     googleId: { type: String, unique: true, sparse: true },
     lastSeen: { type: Date },

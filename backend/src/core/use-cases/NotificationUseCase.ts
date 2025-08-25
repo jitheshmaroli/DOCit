@@ -1,35 +1,34 @@
 import { INotificationUseCase } from '../interfaces/use-cases/INotificationUseCase';
-import { Notification } from '../entities/Notification';
 import { INotificationRepository } from '../interfaces/repositories/INotificationRepository';
 import { QueryParams } from '../../types/authTypes';
 import { ValidationError, NotFoundError } from '../../utils/errors';
+import { SendNotificationRequestDTO, NotificationResponseDTO } from '../interfaces/NotificationDTOs';
+import { NotificationMapper } from '../interfaces/mappers/NotificationMapper';
 
 export class NotificationUseCase implements INotificationUseCase {
   constructor(private _notificationRepository: INotificationRepository) {}
 
-  async sendNotification(notification: Notification): Promise<Notification> {
-    if (!notification.userId || !notification.message || !notification.type) {
+  async sendNotification(dto: SendNotificationRequestDTO): Promise<NotificationResponseDTO> {
+    if (!dto.userId || !dto.message || !dto.type) {
       throw new ValidationError('User ID, message, and type are required for notification');
     }
 
-    const createdNotification: Notification = {
-      ...notification,
-      isRead: false,
-      createdAt: new Date(),
-    };
+    const createdNotification = NotificationMapper.toNotificationEntity(dto);
 
     try {
-      return await this._notificationRepository.create(createdNotification);
+      const savedNotification = await this._notificationRepository.create(createdNotification);
+      return NotificationMapper.toNotificationResponseDTO(savedNotification);
     } catch {
       throw new Error('Failed to create notification');
     }
   }
 
-  async getNotifications(userId: string, params: QueryParams): Promise<Notification[]> {
+  async getNotifications(userId: string, params: QueryParams): Promise<NotificationResponseDTO[]> {
     if (!userId) {
       throw new ValidationError('User ID is required');
     }
-    return this._notificationRepository.findByUserId(userId, params);
+    const notifications = await this._notificationRepository.findByUserId(userId, params);
+    return notifications.map((notification) => NotificationMapper.toNotificationResponseDTO(notification));
   }
 
   async deleteNotification(notificationId: string, userId: string): Promise<void> {

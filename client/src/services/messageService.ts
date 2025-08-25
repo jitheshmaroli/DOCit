@@ -1,5 +1,8 @@
 import { AxiosError } from 'axios';
-import { ChatMessageResponse, InboxThreadResponse } from '../types/messageTypes';
+import {
+  ChatMessageResponse,
+  InboxThreadResponse,
+} from '../types/messageTypes';
 import api from './api';
 import { ROUTES } from '../constants/routeConstants';
 
@@ -68,13 +71,18 @@ export const fetchUserStatus = async (userId: string, role: string) => {
   }
 };
 
-export const sendMessage = async (receiverId: string, message: string) => {
+export const sendMessage = async (
+  receiverId: string,
+  message: string,
+  senderName: string
+) => {
   try {
     const response = await api.post<ChatMessageResponse>(
       ROUTES.API.MESSAGE.SEND_MESSAGE,
       {
         receiverId,
         message,
+        senderName,
       }
     );
     return response.data;

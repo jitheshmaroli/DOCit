@@ -182,7 +182,9 @@ const LoginPage: React.FC = () => {
                 required
               />
               {touchedFields.email && fieldErrors.email && (
-                <p className="mt-1 text-xs text-[#320A6B]">{fieldErrors.email}</p>
+                <p className="mt-1 text-xs text-[#320A6B]">
+                  {fieldErrors.email}
+                </p>
               )}
             </div>
 
@@ -201,6 +203,7 @@ const LoginPage: React.FC = () => {
                 }`}
                 required
                 minLength={6}
+                autoComplete="current-password"
               />
               {touchedFields.password && fieldErrors.password && (
                 <p className="mt-1 text-xs text-[#320A6B]">

@@ -1,9 +1,7 @@
 import { UserRole } from '../../../types';
-import { Admin } from '../../entities/Admin';
-import { Doctor } from '../../entities/Doctor';
-import { Patient } from '../../entities/Patient';
+import { GetUserResponseDTO } from '../UserDTOs';
 
 export interface IUserUseCase {
-  getCurrentUser(userId: string, role: UserRole): Promise<Patient | Doctor | Admin | null>;
-  getUser(userId: string): Promise<Patient | Doctor | Admin | null>;
+  getCurrentUser(userId: string, role: UserRole): Promise<GetUserResponseDTO | null>;
+  getUser(userId: string): Promise<GetUserResponseDTO | null>;
 }

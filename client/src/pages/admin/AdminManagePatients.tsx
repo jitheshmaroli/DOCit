@@ -195,18 +195,26 @@ const AdminManagePatients: React.FC = () => {
     () => [
       {
         header: 'Name',
-        accessor: (patient: Patient): React.ReactNode => (
-          <div className="flex items-center">
-            <Avatar
-              name={patient.name || 'Unknown'}
-              id={patient._id}
-              profilePicture={patient.profilePicture ?? ''}
-            />
-            <span className="ml-4 text-sm font-medium text-white">
-              {patient.name || 'Unknown'}
-            </span>
-          </div>
-        ),
+        accessor: (patient: Patient): React.ReactNode => {
+          const maxLength = 20; // Set a maximum length for the name
+          const displayName =
+            patient.name && patient.name.length > maxLength
+              ? `${patient.name.substring(0, maxLength)}...`
+              : patient.name || 'Unknown';
+          return (
+            <div className="flex items-center">
+              <Avatar
+                name={patient.name || 'Unknown'}
+                id={patient._id}
+                profilePicture={patient.profilePicture ?? ''}
+              />
+              <span className="ml-4 text-sm font-medium text-white truncate max-w-[150px]">
+                {displayName}
+              </span>
+            </div>
+          );
+        },
+        className: 'align-middle', // Optional: Ensure vertical alignment
       },
       {
         header: 'Email',
@@ -226,12 +234,20 @@ const AdminManagePatients: React.FC = () => {
         accessor: (patient: Patient): React.ReactNode => (
           <div className="flex flex-col space-y-1">
             <span
-              className={`px-2 py-1 text-xs font-semibold rounded-full ${patient.isSubscribed ? 'bg-green-500/20 text-green-300' : 'bg-gray-500/20 text-gray-300'}`}
+              className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                patient.isSubscribed
+                  ? 'bg-green-500/20 text-green-300'
+                  : 'bg-gray-500/20 text-gray-300'
+              }`}
             >
               {patient.isSubscribed ? 'Subscribed' : 'Not Subscribed'}
             </span>
             <span
-              className={`px-2 py-1 text-xs font-semibold rounded-full ${patient.isBlocked ? 'bg-red-500/20 text-red-300' : 'bg-gray-500/20 text-gray-300'}`}
+              className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                patient.isBlocked
+                  ? 'bg-red-500/20 text-red-300'
+                  : 'bg-gray-500/20 text-gray-300'
+              }`}
             >
               {patient.isBlocked ? 'Blocked' : 'Active'}
             </span>

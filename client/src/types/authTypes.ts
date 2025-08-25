@@ -39,6 +39,10 @@ export interface Doctor {
   reviewIds?: string[];
   experiences?: Experience[];
   totalExperience?: number;
+  location?: string;
+  allowFreeBooking?: boolean;
+  licenseProof?: string;
+  licenseProofPublicId?: string;
   createdAt: string;
   updatedAt: string;
 }

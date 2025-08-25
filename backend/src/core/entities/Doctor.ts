@@ -14,12 +14,14 @@ export interface Doctor {
     department: string;
     years: number;
   }>;
-  allowFreeBooking: boolean;
-  gender?: string;
-  isVerified: boolean;
+  allowFreeBooking?: boolean;
+  gender?: 'Male' | 'Female' | 'Other';
+  isVerified?: boolean;
   isBlocked?: boolean;
   profilePicture?: string;
   profilePicturePublicId?: string;
+  licenseProof?: string;
+  licenseProofPublicId?: string;
   refreshToken?: string;
   googleId?: string;
   lastSeen?: Date;

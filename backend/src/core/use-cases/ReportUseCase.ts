@@ -1,4 +1,10 @@
-import { IReportUseCase } from '../interfaces/use-cases/IReportUseCase';
+import {
+  IReportUseCase,
+  ReportData,
+  DailyReportData,
+  MonthlyReportData,
+  YearlyReportData,
+} from '../interfaces/use-cases/IReportUseCase';
 import { IAppointmentRepository } from '../interfaces/repositories/IAppointmentRepository';
 import { IPatientSubscriptionRepository } from '../interfaces/repositories/IPatientSubscriptionRepository';
 import { ISubscriptionPlanRepository } from '../interfaces/repositories/ISubscriptionPlanRepository';
@@ -8,18 +14,17 @@ import { ValidationError } from '../../utils/errors';
 import { DateUtils } from '../../utils/DateUtils';
 import logger from '../../utils/logger';
 import {
-  ReportData,
-  DoctorDashboardStats,
-  AdminDashboardStats,
-  TopSubscriber,
-  TopPatient,
-  TopDoctor,
-} from '../interfaces/use-cases/IReportUseCase';
+  ReportFilterDTO,
+  ReportDataResponseDTO,
+  AdminDashboardStatsResponseDTO,
+  DoctorDashboardStatsResponseDTO,
+} from '../interfaces/ReportDTOs';
 import { PatientSubscription } from '../entities/PatientSubscription';
 import { SubscriptionPlan } from '../entities/SubscriptionPlan';
 import { Appointment } from '../entities/Appointment';
 import { Doctor } from '../entities/Doctor';
 import { Patient } from '../entities/Patient';
+import { ReportMapper } from '../interfaces/mappers/ReportMapper';
 
 export class ReportUseCase implements IReportUseCase {
   constructor(
@@ -30,58 +35,31 @@ export class ReportUseCase implements IReportUseCase {
     private _patientRepository: IPatientRepository
   ) {}
 
-  async getAdminReports(filter: {
-    type: 'daily' | 'monthly' | 'yearly';
-    startDate?: Date;
-    endDate?: Date;
-  }): Promise<ReportData> {
+  async getAdminReports(filter: ReportFilterDTO): Promise<ReportDataResponseDTO> {
     if (!filter.type) {
       logger.error('Report type is required');
       throw new ValidationError('Report type is required');
     }
 
     const { type, startDate, endDate } = filter;
-    const normalizedStartDate = startDate ? DateUtils.startOfDayUTC(startDate) : undefined;
-    const normalizedEndDate = endDate ? DateUtils.endOfDayUTC(endDate) : undefined;
+    const normalizedStartDate = startDate ? DateUtils.startOfDayUTC(new Date(startDate)) : undefined;
+    const normalizedEndDate = endDate ? DateUtils.endOfDayUTC(new Date(endDate)) : undefined;
 
     const subscriptions = await this._patientSubscriptionRepository.findActiveSubscriptions();
     const appointments = await this._appointmentRepository.findAllWithQuery({});
 
-    const reportData: ReportData = {};
+    const reportData = this._generateReportData(
+      type,
+      subscriptions,
+      appointments.data,
+      normalizedStartDate,
+      normalizedEndDate
+    );
 
-    if (type === 'daily') {
-      const dailyData = this._aggregateDailyData(
-        subscriptions,
-        appointments.data,
-        normalizedStartDate,
-        normalizedEndDate
-      );
-      reportData.daily = dailyData;
-    } else if (type === 'monthly') {
-      const monthlyData = this._aggregateMonthlyData(
-        subscriptions,
-        appointments.data,
-        normalizedStartDate,
-        normalizedEndDate
-      );
-      reportData.monthly = monthlyData;
-    } else if (type === 'yearly') {
-      const yearlyData = this._aggregateYearlyData(
-        subscriptions,
-        appointments.data,
-        normalizedStartDate,
-        normalizedEndDate
-      );
-      reportData.yearly = yearlyData;
-    }
-
-    return reportData;
+    return ReportMapper.toReportDataResponseDTO(reportData);
   }
 
-  async getDoctorReports(
-    doctorId: string,
-    filter: { type: 'daily' | 'monthly' | 'yearly'; startDate?: Date; endDate?: Date }
-  ): Promise<ReportData> {
+  async getDoctorReports(doctorId: string, filter: ReportFilterDTO): Promise<ReportDataResponseDTO> {
     if (!doctorId) {
       logger.error('Doctor ID is required for doctor reports');
       throw new ValidationError('Doctor ID is required');
@@ -99,14 +77,14 @@ export class ReportUseCase implements IReportUseCase {
     }
 
     const { type, startDate, endDate } = filter;
-    const normalizedStartDate = startDate ? DateUtils.startOfDayUTC(startDate) : undefined;
-    const normalizedEndDate = endDate ? DateUtils.endOfDayUTC(endDate) : undefined;
+    const normalizedStartDate = startDate ? DateUtils.startOfDayUTC(new Date(startDate)) : undefined;
+    const normalizedEndDate = endDate ? DateUtils.endOfDayUTC(new Date(endDate)) : undefined;
 
     const subscriptions = await this._patientSubscriptionRepository.findActiveSubscriptions();
     const doctorSubscriptions = await Promise.all(
       subscriptions.map(async (sub) => {
         const planId = typeof sub.planId === 'string' ? sub.planId : sub.planId;
-        if (!planId) return false;
+        if (!planId) return null;
         const plan = await this._subscriptionPlanRepository.findById(planId);
         return plan?.doctorId === doctorId ? sub : null;
       })
@@ -114,38 +92,18 @@ export class ReportUseCase implements IReportUseCase {
 
     const appointments = await this._appointmentRepository.findByDoctor(doctorId);
 
-    const reportData: ReportData = {};
+    const reportData = this._generateReportData(
+      type,
+      doctorSubscriptions,
+      appointments,
+      normalizedStartDate,
+      normalizedEndDate
+    );
 
-    if (type === 'daily') {
-      const dailyData = this._aggregateDailyData(
-        doctorSubscriptions,
-        appointments,
-        normalizedStartDate,
-        normalizedEndDate
-      );
-      reportData.daily = dailyData;
-    } else if (type === 'monthly') {
-      const monthlyData = this._aggregateMonthlyData(
-        doctorSubscriptions,
-        appointments,
-        normalizedStartDate,
-        normalizedEndDate
-      );
-      reportData.monthly = monthlyData;
-    } else if (type === 'yearly') {
-      const yearlyData = this._aggregateYearlyData(
-        doctorSubscriptions,
-        appointments,
-        normalizedStartDate,
-        normalizedEndDate
-      );
-      reportData.yearly = yearlyData;
-    }
-
-    return reportData;
+    return ReportMapper.toReportDataResponseDTO(reportData);
   }
 
-  async getAdminDashboardStats(): Promise<AdminDashboardStats> {
+  async getAdminDashboardStats(): Promise<AdminDashboardStatsResponseDTO> {
     const [plans, subscriptions, appointments, doctors, patients] = await Promise.all([
       this._subscriptionPlanRepository.findAllWithQuery({}),
       this._patientSubscriptionRepository.findActiveSubscriptions(),
@@ -192,7 +150,7 @@ export class ReportUseCase implements IReportUseCase {
       {}
     );
 
-    const topSubscribers: TopSubscriber[] = Object.entries(subscriptionCounts)
+    const topSubscribers = Object.entries(subscriptionCounts)
       .map(([patientId, { count, totalSpent, patientName }]) => ({
         patientId,
         patientName,
@@ -205,8 +163,7 @@ export class ReportUseCase implements IReportUseCase {
     // Calculate top patients by appointment count
     const appointmentCounts = appointments.data.reduce(
       (acc: Record<string, { count: number; patientName: string }>, appt: Appointment) => {
-        // const patientId = typeof appt.patientId === 'string' ? appt.patientId : appt.patientId?._id;
-        const patientId = appt.patientId;
+        const patientId = typeof appt.patientId === 'string' ? appt.patientId : appt.patientId?._id?.toString();
         if (!patientId) {
           logger.warn(`Invalid patientId in appointment: ${appt._id || 'unknown'}`);
           return acc;
@@ -225,7 +182,7 @@ export class ReportUseCase implements IReportUseCase {
       {}
     );
 
-    const topPatients: TopPatient[] = Object.entries(appointmentCounts)
+    const topPatients = Object.entries(appointmentCounts)
       .map(([patientId, { count, patientName }]) => ({
         patientId,
         patientName,
@@ -269,7 +226,7 @@ export class ReportUseCase implements IReportUseCase {
       {}
     );
 
-    const topDoctors: TopDoctor[] = Object.entries(doctorSubscriberCounts)
+    const topDoctors = Object.entries(doctorSubscriberCounts)
       .map(([doctorId, { count, doctorName }]) => ({
         doctorId,
         doctorName,
@@ -284,7 +241,7 @@ export class ReportUseCase implements IReportUseCase {
       topDoctors,
     });
 
-    return {
+    const stats = {
       totalDoctors: doctors.totalItems,
       totalPatients: patients.totalItems,
       totalAppointments: appointments.totalItems,
@@ -294,9 +251,11 @@ export class ReportUseCase implements IReportUseCase {
       topPatients,
       topDoctors,
     };
+
+    return ReportMapper.toAdminDashboardStatsResponseDTO(stats);
   }
 
-  async getDoctorDashboardStats(doctorId: string): Promise<DoctorDashboardStats> {
+  async getDoctorDashboardStats(doctorId: string): Promise<DoctorDashboardStatsResponseDTO> {
     if (!doctorId) {
       logger.error('Doctor ID is required for dashboard stats');
       throw new ValidationError('Doctor ID is required');
@@ -354,7 +313,7 @@ export class ReportUseCase implements IReportUseCase {
 
     const totalRevenue = planWiseRevenue.reduce((sum, plan) => sum + plan.revenue, 0);
 
-    return {
+    const stats = {
       activePlans,
       totalSubscribers,
       appointmentsThroughPlans,
@@ -362,6 +321,24 @@ export class ReportUseCase implements IReportUseCase {
       totalRevenue,
       planWiseRevenue,
     };
+
+    return ReportMapper.toDoctorDashboardStatsResponseDTO(stats);
+  }
+
+  private _generateReportData(
+    type: 'daily' | 'monthly' | 'yearly',
+    subscriptions: PatientSubscription[],
+    appointments: Appointment[],
+    startDate?: Date,
+    endDate?: Date
+  ): ReportData {
+    if (type === 'daily') {
+      return { daily: this._aggregateDailyData(subscriptions, appointments, startDate, endDate) };
+    } else if (type === 'monthly') {
+      return { monthly: this._aggregateMonthlyData(subscriptions, appointments, startDate, endDate) };
+    } else {
+      return { yearly: this._aggregateYearlyData(subscriptions, appointments, startDate, endDate) };
+    }
   }
 
   private _aggregateDailyData(
@@ -369,7 +346,7 @@ export class ReportUseCase implements IReportUseCase {
     appointments: Appointment[],
     startDate?: Date,
     endDate?: Date
-  ): Array<{ date: string; appointments: number; revenue: number }> {
+  ): DailyReportData[] {
     const dailyMap: Record<string, { appointments: number; revenue: number }> = {};
 
     subscriptions.forEach((sub) => {
@@ -406,7 +383,7 @@ export class ReportUseCase implements IReportUseCase {
     appointments: Appointment[],
     startDate?: Date,
     endDate?: Date
-  ): Array<{ month: string; appointments: number; revenue: number }> {
+  ): MonthlyReportData[] {
     const monthlyMap: Record<string, { appointments: number; revenue: number }> = {};
 
     subscriptions.forEach((sub) => {
@@ -447,7 +424,7 @@ export class ReportUseCase implements IReportUseCase {
     appointments: Appointment[],
     startDate?: Date,
     endDate?: Date
-  ): Array<{ year: string; appointments: number; revenue: number }> {
+  ): YearlyReportData[] {
     const yearlyMap: Record<string, { appointments: number; revenue: number }> = {};
 
     subscriptions.forEach((sub) => {

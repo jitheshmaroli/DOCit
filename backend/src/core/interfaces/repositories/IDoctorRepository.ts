@@ -1,6 +1,6 @@
 import { IBaseRepository } from './IBaseRepository';
-import { Doctor } from '../../entities/Doctor';
 import { PaginatedResponse, QueryParams } from '../../../types/authTypes';
+import { Doctor } from '../../entities/Doctor';
 
 export interface IDoctorRepository extends IBaseRepository<Doctor> {
   findByEmail(email: string): Promise<Doctor | null>;

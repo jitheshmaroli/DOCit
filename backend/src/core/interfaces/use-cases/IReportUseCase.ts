@@ -1,7 +1,32 @@
+import {
+  AdminDashboardStatsResponseDTO,
+  DoctorDashboardStatsResponseDTO,
+  ReportDataResponseDTO,
+  ReportFilterDTO,
+} from '../ReportDTOs';
+
+export interface DailyReportData {
+  date: string;
+  appointments: number;
+  revenue: number;
+}
+
+export interface MonthlyReportData {
+  month: string;
+  appointments: number;
+  revenue: number;
+}
+
+export interface YearlyReportData {
+  year: string;
+  appointments: number;
+  revenue: number;
+}
+
 export interface ReportData {
-  daily?: Array<{ date: string; appointments: number; revenue: number }>;
-  monthly?: Array<{ month: string; appointments: number; revenue: number }>;
-  yearly?: Array<{ year: string; appointments: number; revenue: number }>;
+  daily?: DailyReportData[];
+  monthly?: MonthlyReportData[];
+  yearly?: YearlyReportData[];
 }
 
 export interface DoctorDashboardStats {
@@ -51,15 +76,8 @@ export interface AdminDashboardStats {
 }
 
 export interface IReportUseCase {
-  getAdminReports(filter: {
-    type: 'daily' | 'monthly' | 'yearly';
-    startDate?: Date;
-    endDate?: Date;
-  }): Promise<ReportData>;
-  getDoctorReports(
-    doctorId: string,
-    filter: { type: 'daily' | 'monthly' | 'yearly'; startDate?: Date; endDate?: Date }
-  ): Promise<ReportData>;
-  getAdminDashboardStats(): Promise<AdminDashboardStats>;
-  getDoctorDashboardStats(doctorId: string): Promise<DoctorDashboardStats>;
+  getAdminReports(filter: ReportFilterDTO): Promise<ReportDataResponseDTO>;
+  getDoctorReports(doctorId: string, filter: ReportFilterDTO): Promise<ReportDataResponseDTO>;
+  getAdminDashboardStats(): Promise<AdminDashboardStatsResponseDTO>;
+  getDoctorDashboardStats(doctorId: string): Promise<DoctorDashboardStatsResponseDTO>;
 }
