@@ -17,7 +17,7 @@ interface AppointmentDoctor {
   _id: string;
   name: string;
   profilePicture?: string;
-  speciality?: string[];
+  speciality?: string;
   qualifications?: string[];
   gender?: string;
 }

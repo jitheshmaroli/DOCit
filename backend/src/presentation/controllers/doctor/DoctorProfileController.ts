@@ -6,7 +6,8 @@ import { ISpecialityUseCase } from '../../../core/interfaces/use-cases/ISpeciali
 import fs from 'fs';
 import logger from '../../../utils/logger';
 import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
-import { Experience } from '../../../core/entities/Doctor';
+import { DoctorDTO } from '../../../core/interfaces/DoctorDTOs';
+import { SpecialityResponseDTO } from '../../../core/interfaces/SpecialityDTOs';
 
 export class DoctorProfileController {
   private _profileUseCase: IProfileUseCase;
@@ -20,12 +21,13 @@ export class DoctorProfileController {
   async viewProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      const doctor = await this._profileUseCase.viewDoctorProfile(id);
+      const doctor: DoctorDTO = await this._profileUseCase.viewDoctorProfile(id);
       if (!doctor) {
         throw new ValidationError('Doctor not found');
       }
       res.status(HttpStatusCode.OK).json(doctor);
     } catch (error) {
+      logger.error(`Error in viewProfile: ${(error as Error).message}`);
       next(error);
     }
   }
@@ -33,43 +35,47 @@ export class DoctorProfileController {
   async updateProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const doctorId = req.params.id;
-      const updates = { ...req.body };
+      const updates: Partial<DoctorDTO> = { ...req.body };
 
-      // Convert allowFreeBooking string to boolean
-      if (updates.allowFreeBooking !== undefined) {
-        if (updates.allowFreeBooking === 'true') {
+      // Parse allowFreeBooking from string to boolean
+      if (req.body.allowFreeBooking !== undefined) {
+        if (req.body.allowFreeBooking === 'true') {
           updates.allowFreeBooking = true;
-        } else if (updates.allowFreeBooking === 'false') {
+        } else if (req.body.allowFreeBooking === 'false') {
           updates.allowFreeBooking = false;
         } else {
-          logger.error(`Invalid allowFreeBooking value: ${updates.allowFreeBooking}`);
+          logger.error(`Invalid allowFreeBooking value: ${req.body.allowFreeBooking}`);
           throw new ValidationError('allowFreeBooking must be "true" or "false"');
         }
       }
 
-      if (updates.qualifications) {
-        if (typeof updates.qualifications === 'string') {
-          updates.qualifications = updates.qualifications
+      if (req.body.qualifications) {
+        let qualifications: string[];
+        if (typeof req.body.qualifications === 'string') {
+          qualifications = req.body.qualifications
             .split(',')
             .map((q: string) => q.trim())
             .filter((q: string) => q);
-        } else if (!Array.isArray(updates.qualifications)) {
+        } else if (Array.isArray(req.body.qualifications)) {
+          qualifications = req.body.qualifications;
+        } else {
           logger.error('Invalid qualifications format: must be a string or array');
           throw new ValidationError('Qualifications must be a comma-separated string or an array');
         }
+        updates.qualifications = qualifications;
       }
 
-      if (updates.experiences) {
-        let experiences: Experience[];
-        if (typeof updates.experiences === 'string') {
+      if (req.body.experiences) {
+        let experiences: Array<{ hospitalName: string; department: string; years: number }>;
+        if (typeof req.body.experiences === 'string') {
           try {
-            experiences = JSON.parse(updates.experiences);
+            experiences = JSON.parse(req.body.experiences);
           } catch (error) {
             logger.error(`Failed to parse experiences: ${(error as Error).message}`);
             throw new ValidationError('Invalid experiences format: must be valid JSON');
           }
-        } else if (Array.isArray(updates.experiences)) {
-          experiences = updates.experiences;
+        } else if (Array.isArray(req.body.experiences)) {
+          experiences = req.body.experiences;
         } else {
           logger.error('Invalid experiences format: must be a string or array');
           throw new ValidationError('Experiences must be a JSON string or an array');
@@ -95,22 +101,22 @@ export class DoctorProfileController {
         updates.experiences = experiences;
       }
 
-      if (updates.speciality) {
-        const specialities = await this._specialityUseCase.getAllSpecialities();
-        const validSpeciality = specialities.find((s) => s.name === updates.speciality);
+      if (req.body.speciality) {
+        const specialities: SpecialityResponseDTO[] = await this._specialityUseCase.getAllSpecialities();
+        const validSpeciality = specialities.find((s) => s.name === req.body.speciality);
         if (!validSpeciality) {
-          throw new ValidationError(`Speciality "${updates.speciality}" not found`);
+          throw new ValidationError(`Speciality "${req.body.speciality}" not found`);
         }
         updates.speciality = validSpeciality._id;
       }
 
-      if (updates.phone && typeof updates.phone !== 'string') {
+      if (req.body.phone && typeof req.body.phone !== 'string') {
         throw new ValidationError('Phone must be a string');
       }
-      if (updates.gender && !['Male', 'Female', 'Other'].includes(updates.gender)) {
+      if (req.body.gender && !['Male', 'Female', 'Other'].includes(req.body.gender)) {
         throw new ValidationError('Gender must be "Male", "Female", or "Other"');
       }
-      if (updates.location && typeof updates.location !== 'string') {
+      if (req.body.location && typeof req.body.location !== 'string') {
         throw new ValidationError('Location must be a string');
       }
 
@@ -119,7 +125,7 @@ export class DoctorProfileController {
       const profilePictureFile: Express.Multer.File | undefined = files?.['profilePicture']?.[0];
       const licenseProofFile: Express.Multer.File | undefined = files?.['licenseProof']?.[0];
 
-      const doctor = await this._profileUseCase.updateDoctorProfile(
+      const doctor: DoctorDTO | null = await this._profileUseCase.updateDoctorProfile(
         doctorId,
         updates,
         profilePictureFile,
@@ -170,6 +176,7 @@ export class DoctorProfileController {
           );
         }
       }
+      logger.error(`Error in updateProfile: ${(error as Error).message}`);
       next(error);
     }
   }

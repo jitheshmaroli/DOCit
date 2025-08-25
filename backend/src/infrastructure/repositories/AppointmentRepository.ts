@@ -42,7 +42,7 @@ export class AppointmentRepository implements IAppointmentRepository {
         status: 'pending',
       })
       .populate('patientId', 'name')
-      .populate('doctorId', 'name')
+      .populate('doctorId', 'name profilePicture speciality qualifications gender')
       .exec();
 
     const filteredAppointments = appointments.filter((appt) => {

@@ -1,18 +1,18 @@
-import { Doctor } from '../../entities/Doctor';
-import { Patient } from '../../entities/Patient';
+import { DoctorDTO } from '../DoctorDTOs';
+import { PatientDTO } from '../PatientDTOs';
 
 export interface IProfileUseCase {
-  viewDoctorProfile(doctorId: string): Promise<Doctor>;
+  viewDoctorProfile(doctorId: string): Promise<DoctorDTO>;
   updateDoctorProfile(
     doctorId: string,
-    updates: Partial<Doctor>,
+    updates: Partial<DoctorDTO>,
     profilePictureFile?: Express.Multer.File,
     licenseProofFile?: Express.Multer.File
-  ): Promise<Doctor | null>;
-  viewPatientProfile(patientId: string): Promise<Patient>;
+  ): Promise<DoctorDTO | null>;
+  viewPatientProfile(patientId: string): Promise<PatientDTO>;
   updatePatientProfile(
     patientId: string,
-    updates: Partial<Patient>,
+    updates: Partial<PatientDTO>,
     file?: Express.Multer.File
-  ): Promise<Patient | null>;
+  ): Promise<PatientDTO | null>;
 }

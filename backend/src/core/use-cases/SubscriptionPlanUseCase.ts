@@ -1,5 +1,4 @@
 import { ISubscriptionPlanUseCase } from '../interfaces/use-cases/ISubscriptionPlanUseCase';
-import { SubscriptionPlan } from '../entities/SubscriptionPlan';
 import { PatientSubscription } from '../entities/PatientSubscription';
 import { ISubscriptionPlanRepository } from '../interfaces/repositories/ISubscriptionPlanRepository';
 import { IPatientSubscriptionRepository } from '../interfaces/repositories/IPatientSubscriptionRepository';
@@ -13,6 +12,20 @@ import { QueryParams } from '../../types/authTypes';
 import moment from 'moment';
 import { Notification, NotificationType } from '../entities/Notification';
 import logger from '../../utils/logger';
+import {
+  CreateSubscriptionPlanRequestDTO,
+  UpdateSubscriptionPlanRequestDTO,
+  SubscribeToPlanRequestDTO,
+  ConfirmSubscriptionRequestDTO,
+  CancelSubscriptionRequestDTO,
+  SubscriptionPlanResponseDTO,
+  PatientSubscriptionResponseDTO,
+  PaginatedSubscriptionPlanResponseDTO,
+  PlanSubscriptionCountsResponseDTO,
+  CancelSubscriptionResponseDTO,
+} from '../interfaces/SubscriptionPlanDTOs';
+import { SubscriptionPlanMapper } from '../interfaces/mappers/SubscriptionPlanMapper';
+import { PatientSubscriptionMapper } from '../interfaces/mappers/PatientSubscriptionMapper';
 
 export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
   constructor(
@@ -27,8 +40,8 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
 
   async createSubscriptionPlan(
     doctorId: string,
-    plan: Omit<SubscriptionPlan, '_id' | 'doctorId' | 'status' | 'createdAt' | 'updatedAt'>
-  ): Promise<SubscriptionPlan> {
+    plan: CreateSubscriptionPlanRequestDTO
+  ): Promise<SubscriptionPlanResponseDTO> {
     const doctor = await this._doctorRepository.findById(doctorId);
     if (!doctor) {
       throw new NotFoundError('Doctor not found');
@@ -51,20 +64,22 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
       }
     });
 
-    const subscriptionPlan: SubscriptionPlan = {
-      ...plan,
-      doctorId,
-      status: 'pending',
-    };
+    const subscriptionPlan = SubscriptionPlanMapper.toSubscriptionPlanEntity(plan, doctorId);
 
-    return this._subscriptionPlanRepository.create(subscriptionPlan);
+    try {
+      const createdPlan = await this._subscriptionPlanRepository.create(subscriptionPlan);
+      return SubscriptionPlanMapper.toSubscriptionPlanResponseDTO(createdPlan);
+    } catch (error) {
+      logger.error(`Error creating subscription plan: ${(error as Error).message}`);
+      throw new Error('Failed to create subscription plan');
+    }
   }
 
   async updateDoctorSubscriptionPlan(
     subscriptionPlanId: string,
     doctorId: string,
-    planData: Partial<SubscriptionPlan>
-  ): Promise<SubscriptionPlan> {
+    planData: UpdateSubscriptionPlanRequestDTO
+  ): Promise<SubscriptionPlanResponseDTO> {
     const plan = await this._subscriptionPlanRepository.findById(subscriptionPlanId);
     if (!plan) {
       throw new NotFoundError('Plan not found');
@@ -73,50 +88,61 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
       throw new ValidationError('Unauthorized to update this plan');
     }
 
-    const updatedPlan = await this._subscriptionPlanRepository.update(subscriptionPlanId, planData);
-    if (!updatedPlan) {
-      throw new NotFoundError('Failed to update plan');
+    try {
+      const updatedPlan = await this._subscriptionPlanRepository.update(subscriptionPlanId, {
+        ...planData,
+        updatedAt: new Date(),
+      });
+      if (!updatedPlan) {
+        throw new NotFoundError('Failed to update plan');
+      }
+      return SubscriptionPlanMapper.toSubscriptionPlanResponseDTO(updatedPlan);
+    } catch (error) {
+      logger.error(`Error updating subscription plan ${subscriptionPlanId}: ${(error as Error).message}`);
+      throw new Error('Failed to update subscription plan');
     }
-    return updatedPlan;
   }
 
   async getDoctorSubscriptionPlans(
     doctorId: string,
     params?: QueryParams
-  ): Promise<{ data: SubscriptionPlan[]; totalItems: number }> {
-    return await this._subscriptionPlanRepository.findByDoctor(doctorId, params);
+  ): Promise<PaginatedSubscriptionPlanResponseDTO> {
+    const { data, totalItems } = await this._subscriptionPlanRepository.findByDoctor(doctorId, params);
+    return SubscriptionPlanMapper.toPaginatedResponseDTO(data, totalItems, params || {});
   }
 
-  async getDoctorApprovedPlans(doctorId: string): Promise<SubscriptionPlan[]> {
-    return await this._subscriptionPlanRepository.findApprovedByDoctor(doctorId);
+  async getDoctorApprovedPlans(doctorId: string): Promise<SubscriptionPlanResponseDTO[]> {
+    const plans = await this._subscriptionPlanRepository.findApprovedByDoctor(doctorId);
+    return plans.map(SubscriptionPlanMapper.toSubscriptionPlanResponseDTO);
   }
 
-  async manageSubscriptionPlanGetAll(params: QueryParams): Promise<{ data: SubscriptionPlan[]; totalItems: number }> {
-    return this._subscriptionPlanRepository.findAllWithQuery(params);
+  async manageSubscriptionPlanGetAll(params: QueryParams): Promise<PaginatedSubscriptionPlanResponseDTO> {
+    const { data, totalItems } = await this._subscriptionPlanRepository.findAllWithQuery(params);
+    return SubscriptionPlanMapper.toPaginatedResponseDTO(data, totalItems, params);
   }
 
-  async approveSubscriptionPlan(planId: string): Promise<SubscriptionPlan> {
-    const plan = await this._subscriptionPlanRepository.update(planId, { status: 'approved' });
+  async approveSubscriptionPlan(planId: string): Promise<SubscriptionPlanResponseDTO> {
+    const plan = await this._subscriptionPlanRepository.update(planId, { status: 'approved', updatedAt: new Date() });
     if (!plan) {
       throw new NotFoundError('Plan not found');
     }
     const doctor = await this._doctorRepository.findById(plan.doctorId);
-    return {
+    return SubscriptionPlanMapper.toSubscriptionPlanResponseDTO({
       ...plan,
       doctorName: doctor?.name || 'N/A',
-    };
+    });
   }
 
-  async rejectSubscriptionPlan(planId: string): Promise<SubscriptionPlan> {
-    const plan = await this._subscriptionPlanRepository.update(planId, { status: 'rejected' });
+  async rejectSubscriptionPlan(planId: string): Promise<SubscriptionPlanResponseDTO> {
+    const plan = await this._subscriptionPlanRepository.update(planId, { status: 'rejected', updatedAt: new Date() });
     if (!plan) {
       throw new NotFoundError('Plan not found');
     }
     const doctor = await this._doctorRepository.findById(plan.doctorId);
-    return {
+    return SubscriptionPlanMapper.toSubscriptionPlanResponseDTO({
       ...plan,
       doctorName: doctor?.name || 'N/A',
-    };
+    });
   }
 
   async deleteSubscriptionPlan(planId: string): Promise<void> {
@@ -134,15 +160,20 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
     if (isPlanInUse) {
       throw new ValidationError('Plan is in use by one or more patients and cannot be deleted');
     }
-    await this._subscriptionPlanRepository.delete(planId);
+
+    try {
+      await this._subscriptionPlanRepository.delete(planId);
+    } catch (error) {
+      logger.error(`Error deleting subscription plan ${planId}: ${(error as Error).message}`);
+      throw new Error('Failed to delete subscription plan');
+    }
   }
 
   async subscribeToPlan(
     patientId: string,
-    planId: string,
-    price: number
+    dto: SubscribeToPlanRequestDTO
   ): Promise<{ clientSecret: string; paymentIntentId: string }> {
-    const plan = await this._subscriptionPlanRepository.findById(planId);
+    const plan = await this._subscriptionPlanRepository.findById(dto.planId);
     if (!plan) {
       throw new NotFoundError('Plan not found');
     }
@@ -155,14 +186,21 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
       throw new ValidationError('You are already subscribed to a plan for this doctor');
     }
 
-    const clientSecret = await this._stripeService.createPaymentIntent(price * 100);
-    const paymentIntentId = clientSecret.split('_secret_')[0];
-
-    return { clientSecret, paymentIntentId };
+    try {
+      const clientSecret = await this._stripeService.createPaymentIntent(dto.price * 100);
+      const paymentIntentId = clientSecret.split('_secret_')[0];
+      return { clientSecret, paymentIntentId };
+    } catch (error) {
+      logger.error(`Error creating payment intent: ${(error as Error).message}`);
+      throw new Error('Failed to create payment intent');
+    }
   }
 
-  async confirmSubscription(patientId: string, planId: string, paymentIntentId: string): Promise<PatientSubscription> {
-    const plan = await this._subscriptionPlanRepository.findById(planId);
+  async confirmSubscription(
+    patientId: string,
+    dto: ConfirmSubscriptionRequestDTO
+  ): Promise<PatientSubscriptionResponseDTO> {
+    const plan = await this._subscriptionPlanRepository.findById(dto.planId);
     if (!plan) {
       throw new NotFoundError('Plan not found');
     }
@@ -175,72 +213,78 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
       throw new ValidationError('You are already subscribed to a plan for this doctor');
     }
 
-    await this._stripeService.confirmPaymentIntent(paymentIntentId);
+    try {
+      await this._stripeService.confirmPaymentIntent(dto.paymentIntentId);
 
-    const startDate = new Date();
-    const endDate = moment(startDate).add(plan.validityDays, 'days').toDate();
+      const startDate = new Date();
+      const endDate = moment(startDate).add(plan.validityDays, 'days').toDate();
 
-    const subscription: PatientSubscription = {
-      patientId,
-      planId,
-      startDate,
-      endDate,
-      status: 'active',
-      price: plan.price,
-      appointmentsUsed: 0,
-      appointmentsLeft: plan.appointmentCount,
-      stripePaymentId: paymentIntentId,
-    };
+      const subscription: PatientSubscription = {
+        patientId,
+        planId: dto.planId,
+        startDate,
+        endDate,
+        status: 'active',
+        price: plan.price,
+        appointmentsUsed: 0,
+        appointmentsLeft: plan.appointmentCount,
+        stripePaymentId: dto.paymentIntentId,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
 
-    const savedSubscription = await this._patientSubscriptionRepository.create(subscription);
+      const savedSubscription = await this._patientSubscriptionRepository.create(subscription);
 
-    const patient = await this._patientRepository.findById(patientId);
-    if (!patient) throw new NotFoundError('Patient not found');
+      const patient = await this._patientRepository.findById(patientId);
+      if (!patient) throw new NotFoundError('Patient not found');
 
-    const doctor = await this._doctorRepository.findById(plan.doctorId);
-    if (!doctor) throw new NotFoundError('Doctor not found');
+      const doctor = await this._doctorRepository.findById(plan.doctorId);
+      if (!doctor) throw new NotFoundError('Doctor not found');
 
-    const patientNotification: Notification = {
-      userId: patientId,
-      type: NotificationType.SUBSCRIPTION_CONFIRMED,
-      message: `Your subscription to plan "${plan.name}" with Dr. ${doctor.name} has been confirmed.`,
-      isRead: false,
-      createdAt: new Date(),
-    };
+      const patientNotification: Notification = {
+        userId: patientId,
+        type: NotificationType.SUBSCRIPTION_CONFIRMED,
+        message: `Your subscription to plan "${plan.name}" with Dr. ${doctor.name} has been confirmed.`,
+        isRead: false,
+        createdAt: new Date(),
+      };
 
-    const doctorNotification: Notification = {
-      userId: plan.doctorId,
-      type: NotificationType.SUBSCRIPTION_CONFIRMED,
-      message: `Your plan "${plan.name}" was subscribed by ${patient.name}.`,
-      isRead: false,
-      createdAt: new Date(),
-    };
+      const doctorNotification: Notification = {
+        userId: plan.doctorId,
+        type: NotificationType.SUBSCRIPTION_CONFIRMED,
+        message: `Your plan "${plan.name}" was subscribed by ${patient.name}.`,
+        isRead: false,
+        createdAt: new Date(),
+      };
 
-    const patientEmailSubject = 'Subscription Confirmation';
-    const patientEmailText = `Dear ${patient.name},\n\nYour subscription to the plan "${plan.name}" with Dr. ${doctor.name} has been successfully confirmed. It is valid until ${endDate.toLocaleDateString()} and includes ${plan.appointmentCount} appointments.\n\nBest regards,\nDOCit Team`;
-    const doctorEmailSubject = 'New Subscription';
-    const doctorEmailText = `Dear Dr. ${doctor.name},\n\n${patient.name} has subscribed to your plan "${plan.name}". The subscription is valid until ${endDate.toLocaleDateString()}.\n\nBest regards,\nDOCit Team`;
+      const patientEmailSubject = 'Subscription Confirmation';
+      const patientEmailText = `Dear ${patient.name},\n\nYour subscription to the plan "${plan.name}" with Dr. ${doctor.name} has been successfully confirmed. It is valid until ${endDate.toLocaleDateString()} and includes ${plan.appointmentCount} appointments.\n\nBest regards,\nDOCit Team`;
+      const doctorEmailSubject = 'New Subscription';
+      const doctorEmailText = `Dear Dr. ${doctor.name},\n\n${patient.name} has subscribed to your plan "${plan.name}". The subscription is valid until ${endDate.toLocaleDateString()}.\n\nBest regards,\nDOCit Team`;
 
-    await Promise.all([
-      this._notificationService.sendNotification(patientNotification),
-      this._notificationService.sendNotification(doctorNotification),
-      this._emailService.sendEmail(patient.email, patientEmailSubject, patientEmailText),
-      this._emailService.sendEmail(doctor.email, doctorEmailSubject, doctorEmailText),
-    ]);
+      await Promise.all([
+        this._notificationService.sendNotification(patientNotification),
+        this._notificationService.sendNotification(doctorNotification),
+        this._emailService.sendEmail(patient.email, patientEmailSubject, patientEmailText),
+        this._emailService.sendEmail(doctor.email, doctorEmailSubject, doctorEmailText),
+      ]);
 
-    const activeSubscriptions = await this._patientSubscriptionRepository.findActiveSubscriptions();
-    const hasActiveSubscriptions = activeSubscriptions.some((sub) => sub.patientId === patientId);
-    await this._patientRepository.updateSubscriptionStatus(patientId, hasActiveSubscriptions);
+      const activeSubscriptions = await this._patientSubscriptionRepository.findActiveSubscriptions();
+      const hasActiveSubscriptions = activeSubscriptions.some((sub) => sub.patientId === patientId);
+      await this._patientRepository.updateSubscriptionStatus(patientId, hasActiveSubscriptions);
 
-    return savedSubscription;
+      return PatientSubscriptionMapper.toDTO(savedSubscription);
+    } catch (error) {
+      logger.error(`Error confirming subscription: ${(error as Error).message}`);
+      throw new Error('Failed to confirm subscription');
+    }
   }
 
   async cancelSubscription(
     patientId: string,
-    subscriptionId: string,
-    cancellationReason?: string
-  ): Promise<{ refundId: string; cardLast4?: string; amount: number }> {
-    const subscription = await this._patientSubscriptionRepository.findById(subscriptionId);
+    dto: CancelSubscriptionRequestDTO
+  ): Promise<CancelSubscriptionResponseDTO> {
+    const subscription = await this._patientSubscriptionRepository.findById(dto.subscriptionId);
     if (!subscription) {
       throw new NotFoundError('Subscription not found');
     }
@@ -262,49 +306,63 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
     if (minutesSinceCreation > 30) {
       throw new ValidationError('Cancellation only allowed within 30 minutes of subscription creation');
     }
+
     let refundDetails: { refundId: string; cardLast4?: string; amount: number } | null = null;
     if (subscription.stripePaymentId) {
       try {
         refundDetails = await this._stripeService.createRefund(subscription.stripePaymentId);
       } catch (error) {
+        logger.error(`Error processing refund: ${(error as Error).message}`);
         throw new Error(`Failed to process refund: ${(error as Error).message}`);
       }
     }
-    await this._patientSubscriptionRepository.update(subscriptionId, {
-      status: 'cancelled',
-      cancellationReason: cancellationReason || 'Patient requested cancellation',
-      updatedAt: new Date(),
-    });
-    const planId = typeof subscription.planId === 'string' ? subscription.planId : subscription.planId;
-    if (!planId) {
-      throw new NotFoundError('Plan ID not found');
-    }
-    const plan = await this._subscriptionPlanRepository.findById(planId);
-    const patient = await this._patientRepository.findById(patientId);
-    if (patient && plan) {
-      await this._notificationService.sendNotification({
-        userId: patientId,
-        type: NotificationType.SUBSCRIPTION_CANCELLED,
-        message: `Subscription to ${plan.name} has been cancelled`,
-        createdAt: new Date(),
+
+    try {
+      await this._patientSubscriptionRepository.update(dto.subscriptionId, {
+        status: 'cancelled',
+        cancellationReason: dto.cancellationReason || 'Patient requested cancellation',
+        updatedAt: new Date(),
       });
-      await this._emailService.sendEmail(
-        patient.email,
-        'Subscription Cancelled',
-        `Your subscription to ${plan.name} has been cancelled. A refund has been issued.`
-      );
+
+      const planId = typeof subscription.planId === 'string' ? subscription.planId : subscription.planId;
+      if (!planId) {
+        throw new NotFoundError('Plan ID not found');
+      }
+      const plan = await this._subscriptionPlanRepository.findById(planId);
+      const patient = await this._patientRepository.findById(patientId);
+      if (patient && plan) {
+        await this._notificationService.sendNotification({
+          userId: patientId,
+          type: NotificationType.SUBSCRIPTION_CANCELLED,
+          message: `Subscription to ${plan.name} has been cancelled`,
+          createdAt: new Date(),
+        });
+        await this._emailService.sendEmail(
+          patient.email,
+          'Subscription Cancelled',
+          `Your subscription to ${plan.name} has been cancelled. A refund has been issued.`
+        );
+      }
+      return {
+        message: `Subscription ${dto.subscriptionId} cancelled successfully`,
+        refundId: refundDetails?.refundId || 'N/A',
+        cardLast4: refundDetails?.cardLast4 || 'N/A',
+        amount: refundDetails?.amount || 0,
+      };
+    } catch (error) {
+      logger.error(`Error cancelling subscription ${dto.subscriptionId}: ${(error as Error).message}`);
+      throw new Error('Failed to cancel subscription');
     }
-    logger.info('refund details:', refundDetails);
-    return refundDetails || { refundId: 'N/A', cardLast4: 'N/A', amount: 0 };
   }
 
-  async getPatientSubscriptions(patientId: string): Promise<PatientSubscription[]> {
-    return this._patientSubscriptionRepository.findByPatient(patientId);
+  async getPatientSubscriptions(patientId: string): Promise<PatientSubscriptionResponseDTO[]> {
+    const subscriptions = await this._patientSubscriptionRepository.findByPatient(patientId);
+    return subscriptions.map(PatientSubscriptionMapper.toDTO);
   }
 
-  async getPlanSubscriptionCounts(planId: string): Promise<{ active: number; expired: number; cancelled: number }> {
+  async getPlanSubscriptionCounts(planId: string): Promise<PlanSubscriptionCountsResponseDTO> {
     const subscriptions = await this._patientSubscriptionRepository.findByPlan(planId);
-    const counts = {
+    const counts: PlanSubscriptionCountsResponseDTO = {
       active: 0,
       expired: 0,
       cancelled: 0,

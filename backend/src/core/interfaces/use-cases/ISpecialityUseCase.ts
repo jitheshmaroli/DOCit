@@ -1,11 +1,16 @@
-import { Speciality } from '../../entities/Speciality';
 import { QueryParams } from '../../../types/authTypes';
+import {
+  AddSpecialityRequestDTO,
+  UpdateSpecialityRequestDTO,
+  SpecialityResponseDTO,
+  PaginatedSpecialityResponseDTO,
+} from '../SpecialityDTOs';
 
 export interface ISpecialityUseCase {
-  addSpeciality(speciality: Partial<Speciality>): Promise<Speciality>;
-  updateSpeciality(specialityId: string, updates: Partial<Speciality>): Promise<Speciality>;
+  addSpeciality(dto: AddSpecialityRequestDTO): Promise<SpecialityResponseDTO>;
+  updateSpeciality(specialityId: string, updates: UpdateSpecialityRequestDTO): Promise<SpecialityResponseDTO>;
   deleteSpeciality(specialityId: string): Promise<void>;
-  getSpecialities(): Promise<Speciality[]>;
-  getSpecialitiesWithQuery(params: QueryParams): Promise<{ data: Speciality[]; totalItems: number }>;
-  getAllSpecialities(): Promise<Speciality[]>;
+  getSpecialities(): Promise<SpecialityResponseDTO[]>;
+  getSpecialitiesWithQuery(params: QueryParams): Promise<PaginatedSpecialityResponseDTO>;
+  getAllSpecialities(): Promise<SpecialityResponseDTO[]>;
 }

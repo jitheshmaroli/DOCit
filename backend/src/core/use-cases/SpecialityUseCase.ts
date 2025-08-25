@@ -1,10 +1,16 @@
 import { ISpecialityUseCase } from '../interfaces/use-cases/ISpecialityUseCase';
-import { Speciality } from '../entities/Speciality';
 import { ISpecialityRepository } from '../interfaces/repositories/ISpecialityRepository';
 import { IDoctorRepository } from '../interfaces/repositories/IDoctorRepository';
 import { QueryParams } from '../../types/authTypes';
 import { ValidationError, NotFoundError } from '../../utils/errors';
 import logger from '../../utils/logger';
+import {
+  AddSpecialityRequestDTO,
+  UpdateSpecialityRequestDTO,
+  SpecialityResponseDTO,
+  PaginatedSpecialityResponseDTO,
+} from '../interfaces/SpecialityDTOs';
+import { SpecialityMapper } from '../interfaces/mappers/SpecialityMapper';
 
 export class SpecialityUseCase implements ISpecialityUseCase {
   constructor(
@@ -12,33 +18,30 @@ export class SpecialityUseCase implements ISpecialityUseCase {
     private doctorRepository: IDoctorRepository
   ) {}
 
-  async addSpeciality(speciality: Partial<Speciality>): Promise<Speciality> {
-    if (!speciality.name) {
+  async addSpeciality(dto: AddSpecialityRequestDTO): Promise<SpecialityResponseDTO> {
+    if (!dto.name) {
       logger.error('Speciality name is required');
       throw new ValidationError('Speciality name is required');
     }
 
-    const existingSpeciality = await this._specialityRepository.findByName(speciality.name);
+    const existingSpeciality = await this._specialityRepository.findByName(dto.name);
     if (existingSpeciality) {
-      logger.error(`Speciality with name ${speciality.name} already exists`);
+      logger.error(`Speciality with name ${dto.name} already exists`);
       throw new ValidationError('Speciality with this name already exists');
     }
 
-    const newSpeciality: Speciality = {
-      name: speciality.name,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+    const newSpeciality = SpecialityMapper.toSpecialityEntity(dto);
 
     try {
-      return await this._specialityRepository.create(newSpeciality);
+      const createdSpeciality = await this._specialityRepository.create(newSpeciality);
+      return SpecialityMapper.toSpecialityResponseDTO(createdSpeciality);
     } catch (error) {
       logger.error(`Error creating speciality: ${(error as Error).message}`);
       throw new Error('Failed to create speciality');
     }
   }
 
-  async updateSpeciality(specialityId: string, updates: Partial<Speciality>): Promise<Speciality> {
+  async updateSpeciality(specialityId: string, updates: UpdateSpecialityRequestDTO): Promise<SpecialityResponseDTO> {
     if (!specialityId) {
       logger.error('Speciality ID is required for updating speciality');
       throw new ValidationError('Speciality ID is required');
@@ -67,7 +70,7 @@ export class SpecialityUseCase implements ISpecialityUseCase {
         logger.error(`Failed to update speciality ${specialityId}`);
         throw new NotFoundError('Failed to update speciality');
       }
-      return updatedSpeciality;
+      return SpecialityMapper.toSpecialityResponseDTO(updatedSpeciality);
     } catch (error) {
       logger.error(`Error updating speciality ${specialityId}: ${(error as Error).message}`);
       throw new Error('Failed to update speciality');
@@ -100,15 +103,18 @@ export class SpecialityUseCase implements ISpecialityUseCase {
     }
   }
 
-  async getSpecialities(): Promise<Speciality[]> {
-    return await this._specialityRepository.findAll();
+  async getSpecialities(): Promise<SpecialityResponseDTO[]> {
+    const specialities = await this._specialityRepository.findAll();
+    return specialities.map(SpecialityMapper.toSpecialityResponseDTO);
   }
 
-  async getSpecialitiesWithQuery(params: QueryParams): Promise<{ data: Speciality[]; totalItems: number }> {
-    return await this._specialityRepository.findAllWithQuery(params);
+  async getSpecialitiesWithQuery(params: QueryParams): Promise<PaginatedSpecialityResponseDTO> {
+    const { data, totalItems } = await this._specialityRepository.findAllWithQuery(params);
+    return SpecialityMapper.toPaginatedResponseDTO(data, totalItems, params);
   }
 
-  async getAllSpecialities(): Promise<Speciality[]> {
-    return await this._specialityRepository.findAll();
+  async getAllSpecialities(): Promise<SpecialityResponseDTO[]> {
+    const specialities = await this._specialityRepository.findAll();
+    return specialities.map(SpecialityMapper.toSpecialityResponseDTO);
   }
 }

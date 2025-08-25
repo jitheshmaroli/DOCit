@@ -11,6 +11,7 @@ const ProfilePage = () => {
   const [activeTab, setActiveTab] = useState('personal');
   const { user } = useAppSelector((state: RootState) => state.auth);
 
+  console.log('user:', user);
   const tabs = useMemo(
     () => [
       { id: 'personal', label: 'Personal Information' },
