@@ -390,7 +390,7 @@ const SignupPage: React.FC = () => {
           )}
 
           {apiError && (
-            <div className="mb-4 p-3 bg-[#320A6B]/20 text-[#320A6B] rounded-lg text-sm">
+            <div className="mb-4 p-3 bg-slate-500 text-[#6b0a10] rounded-lg text-sm">
               {apiError}
             </div>
           )}

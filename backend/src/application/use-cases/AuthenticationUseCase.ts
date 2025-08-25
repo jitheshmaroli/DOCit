@@ -141,6 +141,13 @@ export class AuthenticationUseCase implements IAuthenticationUseCase {
 
     const { googleId, email, name } = await verifyGoogleToken(token);
 
+    // Check if email is already registered as a patient
+    const existingPatient = await this._patientRepository.findByEmail(email);
+    if (existingPatient) {
+      logger.error(`Email already registered as patient: ${email}`);
+      throw new ValidationError('Email is already registered as a patient');
+    }
+
     let doctor = await this._doctorRepository.findByEmail(email);
     if (!doctor) {
       doctor = await this._doctorRepository.create({
@@ -177,6 +184,13 @@ export class AuthenticationUseCase implements IAuthenticationUseCase {
 
     const { googleId, email, name } = await verifyGoogleToken(token);
 
+    // Check if email is already registered as a doctor
+    const existingDoctor = await this._doctorRepository.findByEmail(email);
+    if (existingDoctor) {
+      logger.error(`Email already registered as doctor: ${email}`);
+      throw new ValidationError('Email is already registered as a doctor');
+    }
+
     let patient = await this._patientRepository.findByEmail(email);
     if (!patient) {
       patient = await this._patientRepository.create({
@@ -204,9 +218,16 @@ export class AuthenticationUseCase implements IAuthenticationUseCase {
       throw new ValidationError('Email, name, password, and license number are required');
     }
 
+    // Check if email is already registered as a doctor or patient
     const existingDoctor = await this._doctorRepository.findByEmail(dto.email);
     if (existingDoctor) {
-      throw new ValidationError('Doctor with this email already exists');
+      logger.error(`Doctor with email ${dto.email} already exists`);
+      throw new ValidationError('Email is already registered as a doctor');
+    }
+    const existingPatient = await this._patientRepository.findByEmail(dto.email);
+    if (existingPatient) {
+      logger.error(`Email already registered as patient: ${dto.email}`);
+      throw new ValidationError('Email is already registered as a patient');
     }
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
@@ -228,10 +249,16 @@ export class AuthenticationUseCase implements IAuthenticationUseCase {
       throw new ValidationError('Email, name, and password are required');
     }
 
+    // Check if email is already registered as a doctor or patient
     const existingPatient = await this._patientRepository.findByEmail(dto.email);
     if (existingPatient) {
       logger.error(`Patient with email ${dto.email} already exists`);
-      throw new ValidationError('Patient with this email already exists');
+      throw new ValidationError('Email is already registered as a patient');
+    }
+    const existingDoctor = await this._doctorRepository.findByEmail(dto.email);
+    if (existingDoctor) {
+      logger.error(`Email already registered as doctor: ${dto.email}`);
+      throw new ValidationError('Email is already registered as a doctor');
     }
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
