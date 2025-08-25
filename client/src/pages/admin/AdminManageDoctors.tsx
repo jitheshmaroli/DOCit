@@ -23,6 +23,13 @@ import Modal from '../../components/common/Modal';
 import Avatar from '../../components/common/Avatar';
 import { Doctor, QueryParams } from '../../types/authTypes';
 import { toast } from 'react-toastify';
+import {
+  validateName,
+  validateEmail,
+  validatePassword,
+  validatePhone,
+  validateLicenseNumber,
+} from '../../utils/validation';
 import { ITEMS_PER_PAGE } from '../../utils/constants';
 
 const AdminManageDoctors: React.FC = () => {
@@ -50,6 +57,13 @@ const AdminManageDoctors: React.FC = () => {
     phone: '',
     licenseNumber: '',
   });
+  const [formErrors, setFormErrors] = useState({
+    name: '',
+    email: '',
+    password: '',
+    phone: '',
+    licenseNumber: '',
+  });
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -65,7 +79,7 @@ const AdminManageDoctors: React.FC = () => {
       const params: QueryParams = {
         page: currentPage,
         limit: ITEMS_PER_PAGE,
-        search: searchTerm,
+        search: searchTerm.trim() || undefined,
         sortBy,
         sortOrder,
         speciality: specialtyFilter !== 'all' ? specialtyFilter : undefined,
@@ -94,7 +108,24 @@ const AdminManageDoctors: React.FC = () => {
     setTotalPages(totalPagesFromState.doctors);
   }, [totalPagesFromState.doctors]);
 
+  const validateForm = useCallback((doctor: typeof newDoctor | Doctor) => {
+    const errors = {
+      name: validateName(doctor.name) || '',
+      email: validateEmail(doctor.email) || '',
+      password:
+        'password' in doctor ? validatePassword(doctor.password) || '' : '',
+      phone: validatePhone(doctor.phone) || '',
+      licenseNumber: validateLicenseNumber(doctor.licenseNumber) || '',
+    };
+    setFormErrors(errors);
+    return Object.values(errors).every((error) => !error);
+  }, []);
+
   const handleCreateDoctor = useCallback(async () => {
+    if (!validateForm(newDoctor)) {
+      toast.error('Please fix the form errors');
+      return;
+    }
     try {
       await dispatch(createDoctorThunk(newDoctor)).unwrap();
       toast.success('Doctor created successfully');
@@ -106,23 +137,40 @@ const AdminManageDoctors: React.FC = () => {
         phone: '',
         licenseNumber: '',
       });
+      setFormErrors({
+        name: '',
+        email: '',
+        password: '',
+        phone: '',
+        licenseNumber: '',
+      });
     } catch (err) {
       toast.error(`Failed to create doctor: ${err}`);
     }
-  }, [dispatch, newDoctor]);
+  }, [dispatch, newDoctor, validateForm]);
 
   const handleUpdateDoctor = useCallback(async () => {
-    if (!editDoctor) return;
+    if (!editDoctor || !validateForm(editDoctor)) {
+      toast.error('Please fix the form errors');
+      return;
+    }
     try {
       await dispatch(
         updateDoctorThunk({ id: editDoctor._id, updates: editDoctor })
       ).unwrap();
       toast.success('Doctor updated successfully');
       setEditDoctor(null);
+      setFormErrors({
+        name: '',
+        email: '',
+        password: '',
+        phone: '',
+        licenseNumber: '',
+      });
     } catch (err) {
       toast.error(`Failed to update doctor: ${err}`);
     }
-  }, [dispatch, editDoctor]);
+  }, [dispatch, editDoctor, validateForm]);
 
   const handleDeleteDoctor = useCallback(
     async (doctor: Doctor) => {
@@ -188,7 +236,7 @@ const AdminManageDoctors: React.FC = () => {
               />
               <span
                 className="ml-4 text-sm font-medium text-white truncate"
-                style={{ maxWidth: '150px' }} // Fixed maxWidth
+                style={{ maxWidth: '150px' }}
                 title={doctor.name || 'Unknown'}
               >
                 {displayName}
@@ -239,20 +287,12 @@ const AdminManageDoctors: React.FC = () => {
         accessor: (doctor: Doctor): React.ReactNode => (
           <div className="flex flex-nowrap gap-2">
             <span
-              className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                doctor.isVerified
-                  ? 'bg-green-500/20 text-green-300'
-                  : 'bg-gray-500/20 text-gray-300'
-              }`}
+              className={`px-2 py-1 text-xs font-semibold rounded-full ${doctor.isVerified ? 'bg-green-500/20 text-green-300' : 'bg-gray-500/20 text-gray-300'}`}
             >
               {doctor.isVerified ? 'Verified' : 'Unverified'}
             </span>
             <span
-              className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                doctor.isBlocked
-                  ? 'bg-red-500/20 text-red-300'
-                  : 'bg-gray-500/20 text-gray-300'
-              }`}
+              className={`px-2 py-1 text-xs font-semibold rounded-full ${doctor.isBlocked ? 'bg-red-500/20 text-red-300' : 'bg-gray-500/20 text-gray-300'}`}
             >
               {doctor.isBlocked ? 'Blocked' : 'Active'}
             </span>
@@ -261,7 +301,7 @@ const AdminManageDoctors: React.FC = () => {
         minWidth: '180px',
       },
     ],
-    [] // Removed truncateMaxWidth from dependencies
+    []
   );
 
   const actions = useMemo(
@@ -335,7 +375,7 @@ const AdminManageDoctors: React.FC = () => {
   }, []);
 
   const handleSearch = useCallback((term: string) => {
-    setSearchTerm(term);
+    setSearchTerm(term.trim());
     setCurrentPage(1);
   }, []);
 
@@ -391,7 +431,7 @@ const AdminManageDoctors: React.FC = () => {
           const params: QueryParams = {
             page: currentPage,
             limit: ITEMS_PER_PAGE,
-            search: searchTerm,
+            search: searchTerm.trim(),
             sortBy,
             sortOrder,
             speciality: specialtyFilter !== 'all' ? specialtyFilter : undefined,
@@ -414,12 +454,30 @@ const AdminManageDoctors: React.FC = () => {
       />
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => {
+          setIsModalOpen(false);
+          setFormErrors({
+            name: '',
+            email: '',
+            password: '',
+            phone: '',
+            licenseNumber: '',
+          });
+        }}
         title="Add Doctor"
         footer={
           <div className="flex justify-end gap-3">
             <button
-              onClick={() => setIsModalOpen(false)}
+              onClick={() => {
+                setIsModalOpen(false);
+                setFormErrors({
+                  name: '',
+                  email: '',
+                  password: '',
+                  phone: '',
+                  licenseNumber: '',
+                });
+              }}
               className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
             >
               Cancel
@@ -433,60 +491,129 @@ const AdminManageDoctors: React.FC = () => {
           </div>
         }
       >
-        <input
-          ref={inputRef}
-          type="text"
-          placeholder="Name"
-          className="w-full p-3 mb-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-          value={newDoctor.name}
-          onChange={(e) => setNewDoctor({ ...newDoctor, name: e.target.value })}
-        />
-        <input
-          type="email"
-          placeholder="Email"
-          className="w-full p-3 mb-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-          value={newDoctor.email}
-          onChange={(e) =>
-            setNewDoctor({ ...newDoctor, email: e.target.value })
-          }
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          className="w-full p-3 mb-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-          value={newDoctor.password}
-          onChange={(e) =>
-            setNewDoctor({ ...newDoctor, password: e.target.value })
-          }
-        />
-        <input
-          type="text"
-          placeholder="Phone"
-          className="w-full p-3 mb-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-          value={newDoctor.phone}
-          onChange={(e) =>
-            setNewDoctor({ ...newDoctor, phone: e.target.value })
-          }
-        />
-        <input
-          type="text"
-          placeholder="License Number"
-          className="w-full p-3 mb-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-          value={newDoctor.licenseNumber}
-          onChange={(e) =>
-            setNewDoctor({ ...newDoctor, licenseNumber: e.target.value })
-          }
-        />
+        <div className="space-y-4">
+          <div>
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder="Name"
+              className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+              value={newDoctor.name}
+              onChange={(e) => {
+                setNewDoctor({ ...newDoctor, name: e.target.value });
+                setFormErrors({
+                  ...formErrors,
+                  name: validateName(e.target.value) || '',
+                });
+              }}
+            />
+            {formErrors.name && (
+              <p className="text-red-400 text-xs mt-1">{formErrors.name}</p>
+            )}
+          </div>
+          <div>
+            <input
+              type="email"
+              placeholder="Email"
+              className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+              value={newDoctor.email}
+              onChange={(e) => {
+                setNewDoctor({ ...newDoctor, email: e.target.value });
+                setFormErrors({
+                  ...formErrors,
+                  email: validateEmail(e.target.value) || '',
+                });
+              }}
+            />
+            {formErrors.email && (
+              <p className="text-red-400 text-xs mt-1">{formErrors.email}</p>
+            )}
+          </div>
+          <div>
+            <input
+              type="password"
+              placeholder="Password"
+              className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+              value={newDoctor.password}
+              onChange={(e) => {
+                setNewDoctor({ ...newDoctor, password: e.target.value });
+                setFormErrors({
+                  ...formErrors,
+                  password: validatePassword(e.target.value) || '',
+                });
+              }}
+            />
+            {formErrors.password && (
+              <p className="text-red-400 text-xs mt-1">{formErrors.password}</p>
+            )}
+          </div>
+          <div>
+            <input
+              type="text"
+              placeholder="Phone"
+              className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+              value={newDoctor.phone}
+              onChange={(e) => {
+                setNewDoctor({ ...newDoctor, phone: e.target.value });
+                setFormErrors({
+                  ...formErrors,
+                  phone: validatePhone(e.target.value) || '',
+                });
+              }}
+            />
+            {formErrors.phone && (
+              <p className="text-red-400 text-xs mt-1">{formErrors.phone}</p>
+            )}
+          </div>
+          <div>
+            <input
+              type="text"
+              placeholder="License Number"
+              className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+              value={newDoctor.licenseNumber}
+              onChange={(e) => {
+                setNewDoctor({ ...newDoctor, licenseNumber: e.target.value });
+                setFormErrors({
+                  ...formErrors,
+                  licenseNumber: validateLicenseNumber(e.target.value) || '',
+                });
+              }}
+            />
+            {formErrors.licenseNumber && (
+              <p className="text-red-400 text-xs mt-1">
+                {formErrors.licenseNumber}
+              </p>
+            )}
+          </div>
+        </div>
       </Modal>
       {editDoctor && (
         <Modal
           isOpen={!!editDoctor}
-          onClose={() => setEditDoctor(null)}
+          onClose={() => {
+            setEditDoctor(null);
+            setFormErrors({
+              name: '',
+              email: '',
+              password: '',
+              phone: '',
+              licenseNumber: '',
+            });
+          }}
           title="Edit Doctor"
           footer={
             <div className="flex justify-end gap-3">
               <button
-                onClick={() => setEditDoctor(null)}
+                onClick={() => {
+                  setEditDoctor(null);
+                  setFormErrors({
+                    name: '',
+                    email: '',
+                    password: '',
+                    phone: '',
+                    licenseNumber: '',
+                  });
+                }}
                 className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
               >
                 Cancel
@@ -500,58 +627,101 @@ const AdminManageDoctors: React.FC = () => {
             </div>
           }
         >
-          <input
-            type="text"
-            placeholder="Name"
-            className="w-full p-3 mb-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-            value={editDoctor.name}
-            onChange={(e) =>
-              setEditDoctor({ ...editDoctor, name: e.target.value })
-            }
-          />
-          <input
-            type="email"
-            placeholder="Email"
-            className="w-full p-3 mb-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-            value={editDoctor.email}
-            onChange={(e) =>
-              setEditDoctor({ ...editDoctor, email: e.target.value })
-            }
-          />
-          <input
-            type="text"
-            placeholder="Phone"
-            className="w-full p-3 mb-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-            value={editDoctor.phone}
-            onChange={(e) =>
-              setEditDoctor({ ...editDoctor, phone: e.target.value })
-            }
-          />
-          <input
-            type="text"
-            placeholder="License Number"
-            className="w-full p-3 mb-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-            value={editDoctor.licenseNumber}
-            onChange={(e) =>
-              setEditDoctor({ ...editDoctor, licenseNumber: e.target.value })
-            }
-          />
-          <div className="w-full p-3 mb-3">
-            <label className="block text-sm font-medium text-gray-300 mb-1">
-              License Proof
-            </label>
-            {editDoctor.licenseProof ? (
-              <a
-                href={editDoctor.licenseProof}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-400 hover:text-blue-500 underline"
-              >
-                View License Proof
-              </a>
-            ) : (
-              <span className="text-gray-400">No License Proof</span>
-            )}
+          <div className="space-y-4">
+            <div>
+              <input
+                type="text"
+                placeholder="Name"
+                className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                value={editDoctor.name}
+                onChange={(e) => {
+                  setEditDoctor({ ...editDoctor, name: e.target.value });
+                  setFormErrors({
+                    ...formErrors,
+                    name: validateName(e.target.value) || '',
+                  });
+                }}
+              />
+              {formErrors.name && (
+                <p className="text-red-400 text-xs mt-1">{formErrors.name}</p>
+              )}
+            </div>
+            <div>
+              <input
+                type="email"
+                placeholder="Email"
+                className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                value={editDoctor.email}
+                onChange={(e) => {
+                  setEditDoctor({ ...editDoctor, email: e.target.value });
+                  setFormErrors({
+                    ...formErrors,
+                    email: validateEmail(e.target.value) || '',
+                  });
+                }}
+              />
+              {formErrors.email && (
+                <p className="text-red-400 text-xs mt-1">{formErrors.email}</p>
+              )}
+            </div>
+            <div>
+              <input
+                type="text"
+                placeholder="Phone"
+                className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                value={editDoctor.phone}
+                onChange={(e) => {
+                  setEditDoctor({ ...editDoctor, phone: e.target.value });
+                  setFormErrors({
+                    ...formErrors,
+                    phone: validatePhone(e.target.value) || '',
+                  });
+                }}
+              />
+              {formErrors.phone && (
+                <p className="text-red-400 text-xs mt-1">{formErrors.phone}</p>
+              )}
+            </div>
+            <div>
+              <input
+                type="text"
+                placeholder="License Number"
+                className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                value={editDoctor.licenseNumber}
+                onChange={(e) => {
+                  setEditDoctor({
+                    ...editDoctor,
+                    licenseNumber: e.target.value,
+                  });
+                  setFormErrors({
+                    ...formErrors,
+                    licenseNumber: validateLicenseNumber(e.target.value) || '',
+                  });
+                }}
+              />
+              {formErrors.licenseNumber && (
+                <p className="text-red-400 text-xs mt-1">
+                  {formErrors.licenseNumber}
+                </p>
+              )}
+            </div>
+            <div className="w-full p-3">
+              <label className="block text-sm font-medium text-gray-300 mb-1">
+                License Proof
+              </label>
+              {editDoctor.licenseProof ? (
+                <a
+                  href={editDoctor.licenseProof}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-400 hover:text-blue-500 underline"
+                >
+                  View License Proof
+                </a>
+              ) : (
+                <span className="text-gray-400">No License Proof</span>
+              )}
+            </div>
           </div>
         </Modal>
       )}

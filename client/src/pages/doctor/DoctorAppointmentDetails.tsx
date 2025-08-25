@@ -10,6 +10,12 @@ import { MessageSquare, Video } from 'lucide-react';
 import api from '../../services/api';
 import VideoCallModal from '../../components/VideoCallModal';
 import { useSocket } from '../../hooks/useSocket';
+import {
+  validateMedicationName,
+  validateDosage,
+  validateFrequency,
+  validateDuration,
+} from '../../utils/validation';
 
 interface AppointmentPatient {
   _id: string;
@@ -179,13 +185,7 @@ const DoctorAppointmentDetails: React.FC = () => {
     return () => {
       // Handlers are managed by SocketContext
     };
-  }, [
-    socket,
-    appointment,
-    appointmentId,
-    user,
-    registerHandlers,
-  ]);
+  }, [socket, appointment, appointmentId, user, registerHandlers]);
 
   const isWithinAppointmentTime = () => {
     if (!appointment) return false;
@@ -234,20 +234,25 @@ const DoctorAppointmentDetails: React.FC = () => {
     let isValid = true;
 
     medications.forEach((med, index) => {
-      if (!med.name.trim()) {
-        newErrors.medications[index].name = 'Medication name is required';
+      const nameError = validateMedicationName(med.name);
+      const dosageError = validateDosage(med.dosage);
+      const frequencyError = validateFrequency(med.frequency);
+      const durationError = validateDuration(med.duration);
+
+      if (nameError) {
+        newErrors.medications[index].name = nameError;
         isValid = false;
       }
-      if (!med.dosage.trim()) {
-        newErrors.medications[index].dosage = 'Dosage is required';
+      if (dosageError) {
+        newErrors.medications[index].dosage = dosageError;
         isValid = false;
       }
-      if (!med.frequency.trim()) {
-        newErrors.medications[index].frequency = 'Frequency is required';
+      if (frequencyError) {
+        newErrors.medications[index].frequency = frequencyError;
         isValid = false;
       }
-      if (!med.duration.trim()) {
-        newErrors.medications[index].duration = 'Duration is required';
+      if (durationError) {
+        newErrors.medications[index].duration = durationError;
         isValid = false;
       }
     });
@@ -292,7 +297,7 @@ const DoctorAppointmentDetails: React.FC = () => {
 
   const handleSubmitPrescription = async () => {
     if (!validateForm()) {
-      toast.error('Please fill in all required fields');
+      toast.error('Please fix all form errors');
       return;
     }
     if (!appointment || !user?._id) return;
@@ -473,229 +478,231 @@ const DoctorAppointmentDetails: React.FC = () => {
                 )}
             </div>
 
-            <div className="bg-white/20 backdrop-blur-lg rounded-xl border border-white/30 p-6">
-              <h3 className="text-lg font-semibold text-white mb-4">
-                {appointment.prescription
-                  ? 'Prescription'
-                  : 'Create Prescription'}
-              </h3>
-              {appointment.prescription ? (
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="text-sm text-gray-300">Medications</h4>
-                    {appointment.prescription.medications.map((med, index) => (
-                      <div
-                        key={index}
-                        className="border-b border-white/20 py-2"
-                      >
-                        <p className="text-white">
-                          <strong>Name:</strong> {med.name}
-                        </p>
-                        <p className="text-white">
-                          <strong>Dosage:</strong> {med.dosage}
-                        </p>
-                        <p className="text-white">
-                          <strong>Frequency:</strong> {med.frequency}
-                        </p>
-                        <p className="text-white">
-                          <strong>Duration:</strong> {med.duration}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                  {appointment.prescription.notes && (
+            {appointment.status !== 'cancelled' && (
+              <div className="bg-white/20 backdrop-blur-lg rounded-xl border border-white/30 p-6">
+                <h3 className="text-lg font-semibold text-white mb-4">
+                  {appointment.prescription
+                    ? 'Prescription'
+                    : 'Create Prescription'}
+                </h3>
+                {appointment.prescription ? (
+                  <div className="space-y-4">
                     <div>
-                      <h4 className="text-sm text-gray-300">
-                        Additional Notes
-                      </h4>
-                      <p className="text-white">
-                        {appointment.prescription.notes}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              ) : appointment.status === 'completed' ? (
-                <p className="text-gray-200">
-                  No prescription created for this appointment.
-                </p>
-              ) : (
-                <div className="space-y-6">
-                  <div>
-                    <h4 className="text-sm text-gray-300 mb-2">Medications</h4>
-                    {medications.map((medication, index) => (
-                      <div
-                        key={index}
-                        className="flex flex-col space-y-3 border-b border-white/20 pb-4 mb-4"
-                      >
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <label
-                              htmlFor={`medication-name-${index}`}
-                              className="block text-sm font-medium text-white mb-1"
-                            >
-                              Medication Name
-                            </label>
-                            <input
-                              id={`medication-name-${index}`}
-                              type="text"
-                              placeholder="Enter medication name (e.g., Ibuprofen)"
-                              className={`w-full p-2 bg-white/10 border ${
-                                errors.medications[index]?.name
-                                  ? 'border-red-500'
-                                  : 'border-white/20'
-                              } rounded-lg text-white placeholder-gray-400`}
-                              value={medication.name}
-                              onChange={(e) =>
-                                handleMedicationChange(
-                                  index,
-                                  'name',
-                                  e.target.value
-                                )
-                              }
-                            />
-                            {errors.medications[index]?.name && (
-                              <p className="text-red-500 text-xs mt-1">
-                                {errors.medications[index].name}
-                              </p>
-                            )}
-                          </div>
-                          <div>
-                            <label
-                              htmlFor={`medication-dosage-${index}`}
-                              className="block text-sm font-medium text-white mb-1"
-                            >
-                              Dosage
-                            </label>
-                            <input
-                              id={`medication-dosage-${index}`}
-                              type="text"
-                              placeholder="Enter dosage (e.g., 200mg)"
-                              className={`w-full p-2 bg-white/10 border ${
-                                errors.medications[index]?.dosage
-                                  ? 'border-red-500'
-                                  : 'border-white/20'
-                              } rounded-lg text-white placeholder-gray-400`}
-                              value={medication.dosage}
-                              onChange={(e) =>
-                                handleMedicationChange(
-                                  index,
-                                  'dosage',
-                                  e.target.value
-                                )
-                              }
-                            />
-                            {errors.medications[index]?.dosage && (
-                              <p className="text-red-500 text-xs mt-1">
-                                {errors.medications[index].dosage}
-                              </p>
-                            )}
-                          </div>
-                          <div>
-                            <label
-                              htmlFor={`medication-frequency-${index}`}
-                              className="block text-sm font-medium text-white mb-1"
-                            >
-                              Frequency
-                            </label>
-                            <input
-                              id={`medication-frequency-${index}`}
-                              type="text"
-                              placeholder="Enter frequency (e.g., Twice daily)"
-                              className={`w-full p-2 bg-white/10 border ${
-                                errors.medications[index]?.frequency
-                                  ? 'border-red-500'
-                                  : 'border-white/20'
-                              } rounded-lg text-white placeholder-gray-400`}
-                              value={medication.frequency}
-                              onChange={(e) =>
-                                handleMedicationChange(
-                                  index,
-                                  'frequency',
-                                  e.target.value
-                                )
-                              }
-                            />
-                            {errors.medications[index]?.frequency && (
-                              <p className="text-red-500 text-xs mt-1">
-                                {errors.medications[index].frequency}
-                              </p>
-                            )}
-                          </div>
-                          <div>
-                            <label
-                              htmlFor={`medication-duration-${index}`}
-                              className="block text-sm font-medium text-white mb-1"
-                            >
-                              Duration
-                            </label>
-                            <input
-                              id={`medication-duration-${index}`}
-                              type="text"
-                              placeholder="Enter duration (e.g., 7 days)"
-                              className={`w-full p-2 bg-white/10 border ${
-                                errors.medications[index]?.duration
-                                  ? 'border-red-500'
-                                  : 'border-white/20'
-                              } rounded-lg text-white placeholder-gray-400`}
-                              value={medication.duration}
-                              onChange={(e) =>
-                                handleMedicationChange(
-                                  index,
-                                  'duration',
-                                  e.target.value
-                                )
-                              }
-                            />
-                            {errors.medications[index]?.duration && (
-                              <p className="text-red-500 text-xs mt-1">
-                                {errors.medications[index].duration}
-                              </p>
-                            )}
-                          </div>
+                      <h4 className="text-sm text-gray-300">Medications</h4>
+                      {appointment.prescription.medications.map((med, index) => (
+                        <div
+                          key={index}
+                          className="border-b border-white/20 py-2"
+                        >
+                          <p className="text-white">
+                            <strong>Name:</strong> {med.name}
+                          </p>
+                          <p className="text-white">
+                            <strong>Dosage:</strong> {med.dosage}
+                          </p>
+                          <p className="text-white">
+                            <strong>Frequency:</strong> {med.frequency}
+                          </p>
+                          <p className="text-white">
+                            <strong>Duration:</strong> {med.duration}
+                          </p>
                         </div>
-                        {medications.length > 1 && (
-                          <button
-                            onClick={() => handleRemoveMedication(index)}
-                            className="text-red-400 hover:text-red-300 text-sm"
-                          >
-                            Remove Medication
-                          </button>
-                        )}
+                      ))}
+                    </div>
+                    {appointment.prescription.notes && (
+                      <div>
+                        <h4 className="text-sm text-gray-300">
+                          Additional Notes
+                        </h4>
+                        <p className="text-white">
+                          {appointment.prescription.notes}
+                        </p>
                       </div>
-                    ))}
+                    )}
+                  </div>
+                ) : appointment.status === 'completed' ? (
+                  <p className="text-gray-200">
+                    No prescription created for this appointment.
+                  </p>
+                ) : (
+                  <div className="space-y-6">
+                    <div>
+                      <h4 className="text-sm text-gray-300 mb-2">Medications</h4>
+                      {medications.map((medication, index) => (
+                        <div
+                          key={index}
+                          className="flex flex-col space-y-3 border-b border-white/20 pb-4 mb-4"
+                        >
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label
+                                htmlFor={`medication-name-${index}`}
+                                className="block text-sm font-medium text-white mb-1"
+                              >
+                                Medication Name
+                              </label>
+                              <input
+                                id={`medication-name-${index}`}
+                                type="text"
+                                placeholder="Enter medication name (e.g., Ibuprofen)"
+                                className={`w-full p-2 bg-white/10 border ${
+                                  errors.medications[index]?.name
+                                    ? 'border-red-500'
+                                    : 'border-white/20'
+                                } rounded-lg text-white placeholder-gray-400`}
+                                value={medication.name}
+                                onChange={(e) =>
+                                  handleMedicationChange(
+                                    index,
+                                    'name',
+                                    e.target.value
+                                  )
+                                }
+                              />
+                              {errors.medications[index]?.name && (
+                                <p className="text-red-500 text-xs mt-1">
+                                  {errors.medications[index].name}
+                                </p>
+                              )}
+                            </div>
+                            <div>
+                              <label
+                                htmlFor={`medication-dosage-${index}`}
+                                className="block text-sm font-medium text-white mb-1"
+                              >
+                                Dosage
+                              </label>
+                              <input
+                                id={`medication-dosage-${index}`}
+                                type="text"
+                                placeholder="Enter dosage (e.g., 200mg)"
+                                className={`w-full p-2 bg-white/10 border ${
+                                  errors.medications[index]?.dosage
+                                    ? 'border-red-500'
+                                    : 'border-white/20'
+                                } rounded-lg text-white placeholder-gray-400`}
+                                value={medication.dosage}
+                                onChange={(e) =>
+                                  handleMedicationChange(
+                                    index,
+                                    'dosage',
+                                    e.target.value
+                                  )
+                                }
+                              />
+                              {errors.medications[index]?.dosage && (
+                                <p className="text-red-500 text-xs mt-1">
+                                  {errors.medications[index].dosage}
+                                </p>
+                              )}
+                            </div>
+                            <div>
+                              <label
+                                htmlFor={`medication-frequency-${index}`}
+                                className="block text-sm font-medium text-white mb-1"
+                              >
+                                Frequency
+                              </label>
+                              <input
+                                id={`medication-frequency-${index}`}
+                                type="text"
+                                placeholder="Enter frequency (e.g., Twice daily)"
+                                className={`w-full p-2 bg-white/10 border ${
+                                  errors.medications[index]?.frequency
+                                    ? 'border-red-500'
+                                    : 'border-white/20'
+                                } rounded-lg text-white placeholder-gray-400`}
+                                value={medication.frequency}
+                                onChange={(e) =>
+                                  handleMedicationChange(
+                                    index,
+                                    'frequency',
+                                    e.target.value
+                                  )
+                                }
+                              />
+                              {errors.medications[index]?.frequency && (
+                                <p className="text-red-500 text-xs mt-1">
+                                  {errors.medications[index].frequency}
+                                </p>
+                              )}
+                            </div>
+                            <div>
+                              <label
+                                htmlFor={`medication-duration-${index}`}
+                                className="block text-sm font-medium text-white mb-1"
+                              >
+                                Duration
+                              </label>
+                              <input
+                                id={`medication-duration-${index}`}
+                                type="text"
+                                placeholder="Enter duration (e.g., 7 days)"
+                                className={`w-full p-2 bg-white/10 border ${
+                                  errors.medications[index]?.duration
+                                    ? 'border-red-500'
+                                    : 'border-white/20'
+                                } rounded-lg text-white placeholder-gray-400`}
+                                value={medication.duration}
+                                onChange={(e) =>
+                                  handleMedicationChange(
+                                    index,
+                                    'duration',
+                                    e.target.value
+                                  )
+                                }
+                              />
+                              {errors.medications[index]?.duration && (
+                                <p className="text-red-500 text-xs mt-1">
+                                  {errors.medications[index].duration}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          {medications.length > 1 && (
+                            <button
+                              onClick={() => handleRemoveMedication(index)}
+                              className="text-red-400 hover:text-red-300 text-sm"
+                            >
+                              Remove Medication
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      <button
+                        onClick={handleAddMedication}
+                        className="text-blue-300 hover:text-blue-200 text-sm"
+                      >
+                        + Add Another Medication
+                      </button>
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="prescription-notes"
+                        className="block text-sm font-medium text-white mb-1"
+                      >
+                        Additional Notes
+                      </label>
+                      <textarea
+                        id="prescription-notes"
+                        placeholder="Enter any additional notes"
+                        className="w-full p-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400"
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        rows={4}
+                      />
+                    </div>
                     <button
-                      onClick={handleAddMedication}
-                      className="text-blue-300 hover:text-blue-200 text-sm"
+                      onClick={handleSubmitPrescription}
+                      className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-2 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-300"
+                      disabled={appointment.status !== 'pending'}
                     >
-                      + Add Another Medication
+                      Submit Prescription
                     </button>
                   </div>
-                  <div>
-                    <label
-                      htmlFor="prescription-notes"
-                      className="block text-sm font-medium text-white mb-1"
-                    >
-                      Additional Notes
-                    </label>
-                    <textarea
-                      id="prescription-notes"
-                      placeholder="Enter any additional notes"
-                      className="w-full p-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400"
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      rows={4}
-                    />
-                  </div>
-                  <button
-                    onClick={handleSubmitPrescription}
-                    className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-2-rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-300"
-                    disabled={appointment.status !== 'pending'}
-                  >
-                    Submit Prescription
-                  </button>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

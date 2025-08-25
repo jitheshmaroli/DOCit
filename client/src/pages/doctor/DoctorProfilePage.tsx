@@ -59,10 +59,10 @@ const DoctorProfilePage: React.FC = () => {
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
-  const [licenseProofFile, setLicenseProofFile] = useState<File | null>(null); // New state for license proof file
-  const [errors, setErrors] = useState<Record<string, string | null>>({});
+  const [licenseProofFile, setLicenseProofFile] = useState<File | null>(null);
+  const [errors, setErrors] = useState<Record<string, string | undefined>>({});
   const [experienceErrors, setExperienceErrors] = useState<
-    Array<Record<string, string | null>>
+    Array<Record<string, string | undefined>>
   >([]);
   const [specialities, setSpecialities] = useState<Speciality[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
@@ -72,16 +72,13 @@ const DoctorProfilePage: React.FC = () => {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        // Fetch specialities first to map _id to name
         const specialitiesResponse = await api.get(`/api/doctors/specialities`);
         const specialitiesData = specialitiesResponse.data;
         setSpecialities(specialitiesData);
 
         const response = await api.get(`/api/doctors/${doctorId}`);
         const data = response.data;
-        console.log('datadoctor:', data);
 
-        // Map speciality _id to name
         let specialityName = '';
         if (data.speciality) {
           const specialityId = Array.isArray(data.speciality)
@@ -109,7 +106,7 @@ const DoctorProfilePage: React.FC = () => {
               department: exp.department || '',
               years: exp.years?.toString() || '',
             })) || [],
-          licenseProof: data.licenseProof || '', // New field
+          licenseProof: data.licenseProof || '',
         };
 
         setFormData(newFormData);
@@ -130,13 +127,10 @@ const DoctorProfilePage: React.FC = () => {
     fetchProfile();
   }, [doctorId]);
 
-  console.log(formData);
-  // Detect changes in formData or files
   useEffect(() => {
     if (!initialFormData) return;
 
     const isFormDataChanged = () => {
-      // Compare simple fields
       const simpleFields: (keyof FormData)[] = [
         'name',
         'email',
@@ -155,7 +149,6 @@ const DoctorProfilePage: React.FC = () => {
         }
       }
 
-      // Compare experiences array
       if (formData.experiences.length !== initialFormData.experiences.length) {
         return true;
       }
@@ -272,31 +265,31 @@ const DoctorProfilePage: React.FC = () => {
       case 'licenseNumber':
         setErrors((prev) => ({
           ...prev,
-          licenseNumber: !value ? 'License Number is required' : null,
+          licenseNumber: !value ? 'License Number is required' : undefined,
         }));
         break;
       case 'qualifications':
         setErrors((prev) => ({
           ...prev,
-          qualifications: !value ? 'Qualifications are required' : null,
+          qualifications: !value ? 'Qualifications are required' : undefined,
         }));
         break;
       case 'location':
         setErrors((prev) => ({
           ...prev,
-          location: !value ? 'Location is required' : null,
+          location: !value ? 'Location is required' : undefined,
         }));
         break;
       case 'speciality':
         setErrors((prev) => ({
           ...prev,
-          speciality: !value ? 'Speciality is required' : null,
+          speciality: !value ? 'Speciality is required' : undefined,
         }));
         break;
       case 'gender':
         setErrors((prev) => ({
           ...prev,
-          gender: !value ? 'Gender is required' : null,
+          gender: !value ? 'Gender is required' : undefined,
         }));
         break;
       default:
@@ -319,21 +312,21 @@ const DoctorProfilePage: React.FC = () => {
             ? 'Hospital Name is required'
             : value.length > 100
               ? 'Hospital Name must be 100 characters or less'
-              : null;
+              : undefined;
           break;
         case 'department':
           newErrors[index].department = !value
             ? 'Department is required'
             : value.length > 50
               ? 'Department must be 50 characters or less'
-              : null;
+              : undefined;
           break;
         case 'years':
           newErrors[index].years =
             validateNumeric(value, 'Years') ||
             (value && (parseInt(value) < 0 || parseInt(value) > 99)
               ? 'Years must be between 0-99'
-              : null);
+              : undefined);
           break;
         default:
           break;
@@ -343,7 +336,7 @@ const DoctorProfilePage: React.FC = () => {
   };
 
   const validateForm = () => {
-    const newErrors: Record<string, string | null> = {};
+    const newErrors: Record<string, string | undefined> = {};
     let isValid = true;
 
     Object.entries(formData).forEach(([key, value]) => {
@@ -363,7 +356,7 @@ const DoctorProfilePage: React.FC = () => {
           newErrors[key] = errors[key];
           isValid = false;
         } else {
-          newErrors[key] = null;
+          newErrors[key] = undefined;
         }
       }
     });
@@ -372,23 +365,26 @@ const DoctorProfilePage: React.FC = () => {
       validateExperienceField(index, 'hospitalName', exp.hospitalName);
       validateExperienceField(index, 'department', exp.department);
       validateExperienceField(index, 'years', exp.years);
-      if (
-        !exp.hospitalName ||
-        !exp.department ||
-        !exp.years ||
-        (exp.years && (parseInt(exp.years) < 0 || parseInt(exp.years) > 99))
-      ) {
-        isValid = false;
-      }
-      return {
-        hospitalName: !exp.hospitalName ? 'Hospital Name is required' : null,
-        department: !exp.department ? 'Department is required' : null,
+      const expErrors: Record<string, string | undefined> = {
+        hospitalName: !exp.hospitalName
+          ? 'Hospital Name is required'
+          : undefined,
+        department: !exp.department ? 'Department is required' : undefined,
         years:
           validateNumeric(exp.years, 'Years') ||
           (exp.years && (parseInt(exp.years) < 0 || parseInt(exp.years) > 99)
             ? 'Years must be between 0-99'
-            : null),
+            : undefined),
       };
+      if (
+        !exp.hospitalName ||
+        !exp.department ||
+        !exp.years ||
+        expErrors.years
+      ) {
+        isValid = false;
+      }
+      return expErrors;
     });
 
     setErrors(newErrors);
@@ -453,7 +449,6 @@ const DoctorProfilePage: React.FC = () => {
                   }
                 );
 
-                // Update speciality name after successful update
                 const speciality = specialities.find(
                   (s) => s._id === response.data.speciality
                 );
@@ -463,7 +458,7 @@ const DoctorProfilePage: React.FC = () => {
                     ? speciality.name
                     : formData.speciality,
                   licenseProof:
-                    response.data.licenseProof || formData.licenseProof, // Update licenseProof
+                    response.data.licenseProof || formData.licenseProof,
                 };
                 setFormData(updatedFormData);
                 setInitialFormData(updatedFormData);
@@ -471,7 +466,7 @@ const DoctorProfilePage: React.FC = () => {
                 setProfilePicture(imageUrl);
                 setPreviewImage(imageUrl);
                 setFile(null);
-                setLicenseProofFile(null); // Reset license proof file
+                setLicenseProofFile(null);
 
                 toast.success('Profile updated successfully!', {
                   position: 'bottom-right',
@@ -555,7 +550,6 @@ const DoctorProfilePage: React.FC = () => {
                   onChange={handlePhotoChange}
                 />
               </label>
-              {/* License Proof */}
               <div className="mt-4">
                 <label className="text-[12px] text-gray-200">
                   License Proof (PDF)
@@ -595,7 +589,6 @@ const DoctorProfilePage: React.FC = () => {
 
               <form onSubmit={handleSubmit}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Name */}
                   <div>
                     <label className="text-[12px] text-gray-200">
                       Name <span className="text-red-500">*</span>
@@ -612,8 +605,6 @@ const DoctorProfilePage: React.FC = () => {
                       <p className="text-red-500 text-[12px]">{errors.name}</p>
                     )}
                   </div>
-
-                  {/* Email */}
                   <div>
                     <label className="text-[12px] text-gray-200">
                       Email Address
@@ -624,8 +615,6 @@ const DoctorProfilePage: React.FC = () => {
                       </span>
                     </div>
                   </div>
-
-                  {/* Phone */}
                   <div>
                     <label className="text-[12px] text-gray-200">
                       Phone Number <span className="text-red-500">*</span>
@@ -642,8 +631,6 @@ const DoctorProfilePage: React.FC = () => {
                       <p className="text-red-500 text-[12px]">{errors.phone}</p>
                     )}
                   </div>
-
-                  {/* License Number */}
                   <div>
                     <label className="text-[12px] text-gray-200">
                       License Number <span className="text-red-500">*</span>
@@ -662,8 +649,6 @@ const DoctorProfilePage: React.FC = () => {
                       </p>
                     )}
                   </div>
-
-                  {/* Qualifications */}
                   <div>
                     <label className="text-[12px] text-gray-200">
                       Qualifications (comma-separated){' '}
@@ -683,8 +668,6 @@ const DoctorProfilePage: React.FC = () => {
                       </p>
                     )}
                   </div>
-
-                  {/* Location */}
                   <div>
                     <label className="text-[12px] text-gray-200">
                       Location <span className="text-red-500">*</span>
@@ -703,8 +686,6 @@ const DoctorProfilePage: React.FC = () => {
                       </p>
                     )}
                   </div>
-
-                  {/* Speciality */}
                   <div>
                     <label className="text-[12px] text-gray-200">
                       Speciality <span className="text-red-500">*</span>
@@ -734,8 +715,6 @@ const DoctorProfilePage: React.FC = () => {
                       </p>
                     )}
                   </div>
-
-                  {/* Gender */}
                   <div>
                     <label className="text-[12px] text-gray-200">
                       Gender <span className="text-red-500">*</span>
@@ -757,8 +736,6 @@ const DoctorProfilePage: React.FC = () => {
                       </p>
                     )}
                   </div>
-
-                  {/* Allow Free Booking Toggle */}
                   <div className="col-span-2">
                     <label className="text-[12px] text-gray-200 flex items-center gap-2">
                       Allow Free Booking
@@ -774,8 +751,6 @@ const DoctorProfilePage: React.FC = () => {
                       </span>
                     </label>
                   </div>
-
-                  {/* Experiences */}
                   <div className="col-span-2">
                     <label className="text-[12px] text-gray-200">
                       Work Experience

@@ -18,6 +18,7 @@ import Pagination from '../../components/common/Pagination';
 import Modal from '../../components/common/Modal';
 import { Speciality } from '../../types/authTypes';
 import { toast } from 'react-toastify';
+import { validateName } from '../../utils/validation';
 
 const AdminSpecialityManagement: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -35,6 +36,7 @@ const AdminSpecialityManagement: React.FC = () => {
   const [selectedSpeciality, setSelectedSpeciality] =
     useState<Speciality | null>(null);
   const [specialityName, setSpecialityName] = useState('');
+  const [formError, setFormError] = useState('');
   const itemsPerPage = 5;
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -44,7 +46,7 @@ const AdminSpecialityManagement: React.FC = () => {
         getAllSpecialitiesThunk({
           page: currentPage,
           limit: itemsPerPage,
-          search: searchTerm,
+          search: searchTerm.trim(),
         })
       );
     }
@@ -54,9 +56,15 @@ const AdminSpecialityManagement: React.FC = () => {
     setTotalPages(totalPagesFromState.specialities);
   }, [totalPagesFromState.specialities]);
 
+  const validateForm = useCallback(() => {
+    const error = validateName(specialityName) || '';
+    setFormError(error);
+    return !error;
+  }, [specialityName]);
+
   const handleCreateOrUpdateSpeciality = useCallback(async () => {
-    if (!specialityName.trim()) {
-      toast.error('Speciality name is required');
+    if (!validateForm()) {
+      toast.error('Please fix the form error');
       return;
     }
     try {
@@ -75,12 +83,13 @@ const AdminSpecialityManagement: React.FC = () => {
       setIsModalOpen(false);
       setSpecialityName('');
       setSelectedSpeciality(null);
+      setFormError('');
     } catch (err) {
       toast.error(
         `Failed to ${selectedSpeciality ? 'update' : 'create'} speciality: ${err}`
       );
     }
-  }, [dispatch, selectedSpeciality, specialityName]);
+  }, [dispatch, selectedSpeciality, specialityName, validateForm]);
 
   const handleEditSpeciality = useCallback((speciality: Speciality) => {
     setSelectedSpeciality(speciality);
@@ -106,6 +115,7 @@ const AdminSpecialityManagement: React.FC = () => {
     setSelectedSpeciality(null);
     setSpecialityName('');
     setIsModalOpen(true);
+    setFormError('');
   }, []);
 
   const columns = useMemo(
@@ -113,7 +123,7 @@ const AdminSpecialityManagement: React.FC = () => {
       {
         header: 'Name',
         accessor: (speciality: Speciality): React.ReactNode => {
-          const maxLength = 20; // Maximum length for the specialty name
+          const maxLength = 20;
           const displayName =
             speciality.name && speciality.name.length > maxLength
               ? `${speciality.name.substring(0, maxLength)}...`
@@ -159,7 +169,7 @@ const AdminSpecialityManagement: React.FC = () => {
   }, []);
 
   const handleSearch = useCallback((term: string) => {
-    setSearchTerm(term);
+    setSearchTerm(term.trim());
     setCurrentPage(1);
   }, []);
 
@@ -194,7 +204,7 @@ const AdminSpecialityManagement: React.FC = () => {
             getAllSpecialitiesThunk({
               page: currentPage,
               limit: itemsPerPage,
-              search: searchTerm,
+              search: searchTerm.trim(),
             })
           )
         }
@@ -206,12 +216,18 @@ const AdminSpecialityManagement: React.FC = () => {
       />
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => {
+          setIsModalOpen(false);
+          setFormError('');
+        }}
         title={selectedSpeciality ? 'Edit Speciality' : 'Add Speciality'}
         footer={
           <>
             <button
-              onClick={() => setIsModalOpen(false)}
+              onClick={() => {
+                setIsModalOpen(false);
+                setFormError('');
+              }}
               className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
             >
               Cancel
@@ -225,14 +241,24 @@ const AdminSpecialityManagement: React.FC = () => {
           </>
         }
       >
-        <input
-          ref={inputRef}
-          type="text"
-          placeholder="Speciality name"
-          className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-          value={specialityName}
-          onChange={(e) => setSpecialityName(e.target.value)}
-        />
+        <div className="space-y-4">
+          <div>
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder="Speciality name"
+              className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+              value={specialityName}
+              onChange={(e) => {
+                setSpecialityName(e.target.value);
+                setFormError(validateName(e.target.value) || '');
+              }}
+            />
+            {formError && (
+              <p className="text-red-400 text-xs mt-1">{formError}</p>
+            )}
+          </div>
+        </div>
       </Modal>
     </div>
   );

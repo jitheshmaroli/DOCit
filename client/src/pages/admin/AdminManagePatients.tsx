@@ -22,6 +22,12 @@ import Avatar from '../../components/common/Avatar';
 import { Patient } from '../../types/authTypes';
 import { toast } from 'react-toastify';
 import { formatDate } from '../../utils/helpers';
+import {
+  validateName,
+  validateEmail,
+  validatePassword,
+  validatePhone,
+} from '../../utils/validation';
 
 interface PaginationParams {
   page: number;
@@ -70,12 +76,19 @@ const AdminManagePatients: React.FC = () => {
     name: '',
     phone: '',
   });
+  const [formErrors, setFormErrors] = useState({
+    name: '',
+    email: '',
+    password: '',
+    phone: '',
+  });
   const [confirmation, setConfirmation] = useState<Confirmation>({
     isOpen: false,
     message: '',
     onConfirm: () => {},
   });
   const inputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     if (user?.role === 'admin') {
       const [sortBy, sortOrder] = sortFilter.split(':') as [
@@ -85,7 +98,7 @@ const AdminManagePatients: React.FC = () => {
       const params: PaginationParams = {
         page: currentPage,
         limit: ITEMS_PER_PAGE,
-        search: searchTerm || undefined,
+        search: searchTerm.trim() || undefined,
         sortBy,
         sortOrder,
       };
@@ -105,29 +118,52 @@ const AdminManagePatients: React.FC = () => {
     setTotalPages(totalPagesFromState.patients);
   }, [totalPagesFromState.patients]);
 
+  const validateForm = useCallback((patient: typeof newPatient | Patient) => {
+    const errors = {
+      name: validateName(patient.name ?? '') || '',
+      email: validateEmail(patient.email ?? '') || '',
+      password:
+        'password' in patient
+          ? validatePassword(patient.password ?? '') || ''
+          : '',
+      phone: validatePhone(patient.phone ?? '') || '',
+    };
+    setFormErrors(errors);
+    return Object.values(errors).every((error) => !error);
+  }, []);
+
   const handleCreatePatient = useCallback(async () => {
+    if (!validateForm(newPatient)) {
+      toast.error('Please fix the form errors');
+      return;
+    }
     try {
       await dispatch(createPatientThunk(newPatient)).unwrap();
       toast.success('Patient created successfully');
       setIsModalOpen(false);
       setNewPatient({ email: '', password: '', name: '', phone: '' });
+      setFormErrors({ name: '', email: '', password: '', phone: '' });
     } catch (err) {
       toast.error(`Failed to create patient: ${err}`);
     }
-  }, [dispatch, newPatient]);
+  }, [dispatch, newPatient, validateForm]);
 
   const handleUpdatePatient = useCallback(async () => {
-    if (!editPatient) return;
+    if (!editPatient || !validateForm(editPatient)) {
+      toast.error('Please fix the form errors');
+      return;
+    }
     try {
       await dispatch(
         updatePatientThunk({ id: editPatient._id, updates: editPatient })
       ).unwrap();
       toast.success('Patient updated successfully');
       setEditPatient(null);
+      setFormErrors({ name: '', email: '', password: '', phone: '' });
     } catch (err) {
       toast.error(`Failed to update patient: ${err}`);
     }
-  }, [dispatch, editPatient]);
+  }, [dispatch, editPatient, validateForm]);
 
   const handleDeletePatient = useCallback(
     async (patient: Patient) => {
@@ -196,7 +232,7 @@ const AdminManagePatients: React.FC = () => {
       {
         header: 'Name',
         accessor: (patient: Patient): React.ReactNode => {
-          const maxLength = 20; // Set a maximum length for the name
+          const maxLength = 20;
           const displayName =
             patient.name && patient.name.length > maxLength
               ? `${patient.name.substring(0, maxLength)}...`
@@ -214,7 +250,7 @@ const AdminManagePatients: React.FC = () => {
             </div>
           );
         },
-        className: 'align-middle', // Optional: Ensure vertical alignment
+        className: 'align-middle',
       },
       {
         header: 'Email',
@@ -234,20 +270,12 @@ const AdminManagePatients: React.FC = () => {
         accessor: (patient: Patient): React.ReactNode => (
           <div className="flex flex-col space-y-1">
             <span
-              className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                patient.isSubscribed
-                  ? 'bg-green-500/20 text-green-300'
-                  : 'bg-gray-500/20 text-gray-300'
-              }`}
+              className={`px-2 py-1 text-xs font-semibold rounded-full ${patient.isSubscribed ? 'bg-green-500/20 text-green-300' : 'bg-gray-500/20 text-gray-300'}`}
             >
               {patient.isSubscribed ? 'Subscribed' : 'Not Subscribed'}
             </span>
             <span
-              className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                patient.isBlocked
-                  ? 'bg-red-500/20 text-red-300'
-                  : 'bg-gray-500/20 text-gray-300'
-              }`}
+              className={`px-2 py-1 text-xs font-semibold rounded-full ${patient.isBlocked ? 'bg-red-500/20 text-red-300' : 'bg-gray-500/20 text-gray-300'}`}
             >
               {patient.isBlocked ? 'Blocked' : 'Active'}
             </span>
@@ -312,7 +340,7 @@ const AdminManagePatients: React.FC = () => {
   }, []);
 
   const handleSearch = useCallback((term: string) => {
-    setSearchTerm(term);
+    setSearchTerm(term.trim());
     setCurrentPage(1);
   }, []);
 
@@ -361,7 +389,7 @@ const AdminManagePatients: React.FC = () => {
           const params: PaginationParams = {
             page: currentPage,
             limit: ITEMS_PER_PAGE,
-            search: searchTerm || undefined,
+            search: searchTerm.trim() || undefined,
             sortBy,
             sortOrder,
           };
@@ -383,12 +411,18 @@ const AdminManagePatients: React.FC = () => {
       />
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => {
+          setIsModalOpen(false);
+          setFormErrors({ name: '', email: '', password: '', phone: '' });
+        }}
         title="Add Patient"
         footer={
           <div className="flex justify-end gap-3">
             <button
-              onClick={() => setIsModalOpen(false)}
+              onClick={() => {
+                setIsModalOpen(false);
+                setFormErrors({ name: '', email: '', password: '', phone: '' });
+              }}
               className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
             >
               Cancel
@@ -402,53 +436,102 @@ const AdminManagePatients: React.FC = () => {
           </div>
         }
       >
-        <input
-          ref={inputRef}
-          type="text"
-          placeholder="Name"
-          className="w-full p-3 mb-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-          value={newPatient.name}
-          onChange={(e) =>
-            setNewPatient({ ...newPatient, name: e.target.value })
-          }
-        />
-        <input
-          type="email"
-          placeholder="Email"
-          className="w-full p-3 mb-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-          value={newPatient.email}
-          onChange={(e) =>
-            setNewPatient({ ...newPatient, email: e.target.value })
-          }
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          className="w-full p-3 mb-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-          value={newPatient.password}
-          onChange={(e) =>
-            setNewPatient({ ...newPatient, password: e.target.value })
-          }
-        />
-        <input
-          type="text"
-          placeholder="Phone"
-          className="w-full p-3 mb-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-          value={newPatient.phone}
-          onChange={(e) =>
-            setNewPatient({ ...newPatient, phone: e.target.value })
-          }
-        />
+        <div className="space-y-4">
+          <div>
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder="Name"
+              className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+              value={newPatient.name}
+              onChange={(e) => {
+                setNewPatient({ ...newPatient, name: e.target.value });
+                setFormErrors({
+                  ...formErrors,
+                  name: validateName(e.target.value) || '',
+                });
+              }}
+            />
+            {formErrors.name && (
+              <p className="text-red-400 text-xs mt-1">{formErrors.name}</p>
+            )}
+          </div>
+          <div>
+            <input
+              type="email"
+              placeholder="Email"
+              className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+              value={newPatient.email}
+              onChange={(e) => {
+                setNewPatient({ ...newPatient, email: e.target.value });
+                setFormErrors({
+                  ...formErrors,
+                  email: validateEmail(e.target.value) || '',
+                });
+              }}
+            />
+            {formErrors.email && (
+              <p className="text-red-400 text-xs mt-1">{formErrors.email}</p>
+            )}
+          </div>
+          <div>
+            <input
+              type="password"
+              placeholder="Password"
+              className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+              value={newPatient.password}
+              onChange={(e) => {
+                setNewPatient({ ...newPatient, password: e.target.value });
+                setFormErrors({
+                  ...formErrors,
+                  password: validatePassword(e.target.value) || '',
+                });
+              }}
+            />
+            {formErrors.password && (
+              <p className="text-red-400 text-xs mt-1">{formErrors.password}</p>
+            )}
+          </div>
+          <div>
+            <input
+              type="text"
+              placeholder="Phone"
+              className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+              value={newPatient.phone}
+              onChange={(e) => {
+                setNewPatient({ ...newPatient, phone: e.target.value });
+                setFormErrors({
+                  ...formErrors,
+                  phone: validatePhone(e.target.value) || '',
+                });
+              }}
+            />
+            {formErrors.phone && (
+              <p className="text-red-400 text-xs mt-1">{formErrors.phone}</p>
+            )}
+          </div>
+        </div>
       </Modal>
       {editPatient && (
         <Modal
           isOpen={!!editPatient}
-          onClose={() => setEditPatient(null)}
+          onClose={() => {
+            setEditPatient(null);
+            setFormErrors({ name: '', email: '', password: '', phone: '' });
+          }}
           title="Edit Patient"
           footer={
             <div className="flex justify-end gap-3">
               <button
-                onClick={() => setEditPatient(null)}
+                onClick={() => {
+                  setEditPatient(null);
+                  setFormErrors({
+                    name: '',
+                    email: '',
+                    password: '',
+                    phone: '',
+                  });
+                }}
                 className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
               >
                 Cancel
@@ -462,33 +545,62 @@ const AdminManagePatients: React.FC = () => {
             </div>
           }
         >
-          <input
-            type="text"
-            placeholder="Name"
-            className="w-full p-3 mb-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-            value={editPatient.name}
-            onChange={(e) =>
-              setEditPatient({ ...editPatient, name: e.target.value })
-            }
-          />
-          <input
-            type="email"
-            placeholder="Email"
-            className="w-full p-3 mb-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-            value={editPatient.email}
-            onChange={(e) =>
-              setEditPatient({ ...editPatient, email: e.target.value })
-            }
-          />
-          <input
-            type="text"
-            placeholder="Phone"
-            className="w-full p-3 mb-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-            value={editPatient.phone}
-            onChange={(e) =>
-              setEditPatient({ ...editPatient, phone: e.target.value })
-            }
-          />
+          <div className="space-y-4">
+            <div>
+              <input
+                type="text"
+                placeholder="Name"
+                className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                value={editPatient.name}
+                onChange={(e) => {
+                  setEditPatient({ ...editPatient, name: e.target.value });
+                  setFormErrors({
+                    ...formErrors,
+                    name: validateName(e.target.value) || '',
+                  });
+                }}
+              />
+              {formErrors.name && (
+                <p className="text-red-400 text-xs mt-1">{formErrors.name}</p>
+              )}
+            </div>
+            <div>
+              <input
+                type="email"
+                placeholder="Email"
+                className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                value={editPatient.email}
+                onChange={(e) => {
+                  setEditPatient({ ...editPatient, email: e.target.value });
+                  setFormErrors({
+                    ...formErrors,
+                    email: validateEmail(e.target.value) || '',
+                  });
+                }}
+              />
+              {formErrors.email && (
+                <p className="text-red-400 text-xs mt-1">{formErrors.email}</p>
+              )}
+            </div>
+            <div>
+              <input
+                type="text"
+                placeholder="Phone"
+                className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                value={editPatient.phone}
+                onChange={(e) => {
+                  setEditPatient({ ...editPatient, phone: e.target.value });
+                  setFormErrors({
+                    ...formErrors,
+                    phone: validatePhone(e.target.value) || '',
+                  });
+                }}
+              />
+              {formErrors.phone && (
+                <p className="text-red-400 text-xs mt-1">{formErrors.phone}</p>
+              )}
+            </div>
+          </div>
         </Modal>
       )}
       <Modal
