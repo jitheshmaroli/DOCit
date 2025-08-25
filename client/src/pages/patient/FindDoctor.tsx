@@ -9,6 +9,7 @@ import { fetchVerifiedDoctorsThunk } from '../../redux/thunks/doctorThunk';
 import { getImageUrl } from '../../utils/config';
 import { clearError as clearDoctorError } from '../../redux/slices/doctorSlice';
 import api from '../../services/api';
+import SearchBar from '../../components/common/SearchBar';
 
 interface Filters {
   searchQuery: string;
@@ -116,14 +117,11 @@ const FindDoctor: React.FC = () => {
             Find a Doctor
           </h2>
           <div className="flex flex-col md:flex-row gap-4 justify-center items-center">
-            <input
-              type="text"
+            <SearchBar
+              value={filters.searchQuery}
+              onChange={(value) => handleFilterChange('searchQuery', value)}
               placeholder="Find doctors by name"
               className="w-full md:w-2/3 p-4 bg-white/10 border border-white/20 rounded-full text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-              value={filters.searchQuery}
-              onChange={(e) =>
-                handleFilterChange('searchQuery', e.target.value)
-              }
             />
             <button className="bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 px-8 rounded-full hover:from-purple-700 hover:to-blue-700 transition-all duration-300 shadow-lg hover:shadow-xl">
               Search

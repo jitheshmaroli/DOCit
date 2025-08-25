@@ -6,7 +6,7 @@ import { QueryParams } from '../../../types/authTypes';
 import { INotificationUseCase } from '../../../core/interfaces/use-cases/INotificationUseCase';
 import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
-import { SendNotificationRequestDTO, NotificationResponseDTO } from '../../../core/interfaces/NotificationDTOs';
+import { SendNotificationRequestDTO, NotificationResponseDTO } from '../../../application/dtos/NotificationDTOs';
 
 export class NotificationController {
   private _notificationUseCase: INotificationUseCase;

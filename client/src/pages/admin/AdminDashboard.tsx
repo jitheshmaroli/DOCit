@@ -13,6 +13,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { toast } from 'react-toastify';
 import { getDashboardStats, getReports } from '../../services/adminService';
+import { validateDate } from '../../utils/validation';
 
 interface TopSubscriber {
   patientId: string;
@@ -78,6 +79,10 @@ const AdminDashboard: React.FC = () => {
   );
   const [reportData, setReportData] = useState<ReportItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
+  const [formErrors, setFormErrors] = useState({
+    startDate: '',
+    endDate: '',
+  });
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -95,7 +100,24 @@ const AdminDashboard: React.FC = () => {
     fetchStats();
   }, []);
 
+  const validateForm = () => {
+    if (reportType !== 'daily') return true;
+    const errors = {
+      startDate: validateDate(startDate) || '',
+      endDate: validateDate(endDate) || '',
+    };
+    if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+      errors.endDate = 'End date must be after start date';
+    }
+    setFormErrors(errors);
+    return Object.values(errors).every((error) => !error);
+  };
+
   const fetchReports = async () => {
+    if (!validateForm()) {
+      toast.error('Please fix the form errors');
+      return;
+    }
     try {
       setLoading(true);
       const data = await getReports({
@@ -336,18 +358,44 @@ const AdminDashboard: React.FC = () => {
           </select>
           {reportType === 'daily' && (
             <>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="bg-gray-800 text-white p-2 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm w-full sm:w-48"
-              />
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="bg-gray-800 text-white p-2 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm w-full sm:w-48"
-              />
+              <div className="w-full sm:w-48">
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => {
+                    setStartDate(e.target.value);
+                    setFormErrors({
+                      ...formErrors,
+                      startDate: validateDate(e.target.value) || '',
+                    });
+                  }}
+                  className="bg-gray-800 text-white p-2 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm w-full"
+                />
+                {formErrors.startDate && (
+                  <p className="text-red-400 text-xs mt-1">
+                    {formErrors.startDate}
+                  </p>
+                )}
+              </div>
+              <div className="w-full sm:w-48">
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => {
+                    setEndDate(e.target.value);
+                    setFormErrors({
+                      ...formErrors,
+                      endDate: validateDate(e.target.value) || '',
+                    });
+                  }}
+                  className="bg-gray-800 text-white p-2 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm w-full"
+                />
+                {formErrors.endDate && (
+                  <p className="text-red-400 text-xs mt-1">
+                    {formErrors.endDate}
+                  </p>
+                )}
+              </div>
             </>
           )}
           <div className="flex gap-3 w-full sm:w-auto">
@@ -381,22 +429,23 @@ const AdminDashboard: React.FC = () => {
                       ? 'month'
                       : 'year'
                 }
-                stroke="#fff"
-                tick={{ fontSize: 12 }}
+                stroke="#ffffff"
+                tick={{ fill: '#ffffff', fontSize: 12 }}
               />
-              <YAxis stroke="#fff" tick={{ fontSize: 12 }} />
+              <YAxis
+                stroke="#ffffff"
+                tick={{ fill: '#ffffff', fontSize: 12 }}
+              />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: '#1f2937',
+                  backgroundColor: '#1a1a1a',
                   border: 'none',
-                  fontSize: 12,
+                  borderRadius: '8px',
+                  color: '#ffffff',
                 }}
-                formatter={(value, name) =>
-                  name === 'revenue' ? `₹${value.toLocaleString()}` : value
-                }
               />
-              <Bar dataKey="revenue" fill="#4f46e5" name="Revenue (₹)" />
-              <Bar dataKey="appointments" fill="#10b981" name="Appointments" />
+              <Bar dataKey="appointments" fill="#8884d8" name="Appointments" />
+              <Bar dataKey="revenue" fill="#82ca9d" name="Revenue (₹)" />
             </BarChart>
           </ResponsiveContainer>
         )}

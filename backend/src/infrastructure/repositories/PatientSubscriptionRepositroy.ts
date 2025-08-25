@@ -14,22 +14,6 @@ export class PatientSubscriptionRepository
     super(PatientSubscriptionModel);
   }
 
-  // async findActiveByPatientAndDoctor(patientId: string, doctorId: string): Promise<PatientSubscription | null> {
-  //   const subscription = await this.model
-  //     .findOne({
-  //       patientId,
-  //       planId: {
-  //         $in: await SubscriptionPlanModel.find({ doctorId }).distinct('_id'),
-  //       },
-  //       status: 'active',
-  //       endDate: { $gte: new Date() },
-  //     })
-  //     .populate('planId')
-  //     .lean()
-  //     .exec();
-  //   return subscription ? this.calculateSubscriptionDetails(subscription) : null;
-  // }
-
   async findActiveByPatientAndDoctor(patientId: string, doctorId: string): Promise<PatientSubscription | null> {
     const subscription = await this.model
       .findOne({
@@ -38,7 +22,7 @@ export class PatientSubscriptionRepository
       })
       .populate({
         path: 'planId',
-        match: { doctorId }, // Ensure the plan belongs to the specified doctor
+        match: { doctorId },
       })
       .exec();
     return subscription && subscription.planId ? this.calculateSubscriptionDetails(subscription) : null;

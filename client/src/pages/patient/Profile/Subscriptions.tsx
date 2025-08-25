@@ -20,11 +20,7 @@ import {
   getPatientAppointmentsForDoctorThunk,
 } from '../../../redux/thunks/patientThunk';
 import { clearError } from '../../../redux/slices/patientSlice';
-import {
-  Doctor,
-  PatientSubscription,
-  Appointment,
-} from '../../../types/authTypes';
+import { PatientSubscription, Appointment } from '../../../types/authTypes';
 import DataTable, { Column } from '../../../components/common/DataTable';
 import dayjs from 'dayjs';
 
@@ -37,6 +33,7 @@ interface ExtendedPatientSubscription extends PatientSubscription {
     validityDays: number;
     appointmentCount: number;
     doctorId: string;
+    doctorName?: string;
   };
   daysUntilExpiration: number;
   isExpired: boolean;
@@ -52,10 +49,10 @@ const Subscriptions: React.FC<SubscriptionsProps> = () => {
   const navigate = useNavigate();
   const {
     activeSubscriptions,
+    appointments,
     loading,
     error,
     lastRefundDetails,
-    appointments,
   } = useSelector((state: RootState) => state.patient);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -133,12 +130,13 @@ const Subscriptions: React.FC<SubscriptionsProps> = () => {
 
   const canRenewSubscription = (status: string, subscriptionId: string) => {
     if (status !== 'expired') return false;
-    return !Object.values(activeSubscriptions).some(
-      (sub): sub is ExtendedPatientSubscription =>
-        sub !== null &&
-        'plan' in sub &&
+    return !activeSubscriptions.some(
+      (sub) =>
         sub.status === 'active' &&
-        sub._id !== subscriptionId
+        sub._id !== subscriptionId &&
+        sub.plan.doctorId ===
+          activeSubscriptions.find((s) => s._id === subscriptionId)?.plan
+            .doctorId
     );
   };
 
@@ -154,21 +152,9 @@ const Subscriptions: React.FC<SubscriptionsProps> = () => {
     );
   };
 
-  const subscriptions = Object.values(activeSubscriptions).filter(
-    (sub): sub is ExtendedPatientSubscription =>
-      sub !== null &&
-      typeof sub === 'object' &&
-      'plan' in sub &&
-      sub.plan !== null &&
-      typeof sub.plan === 'object' &&
-      'daysUntilExpiration' in sub &&
-      'isExpired' in sub &&
-      'expiryDate' in sub
-  );
-
-  const filteredSubscriptions = subscriptions.filter((sub) =>
+  const filteredSubscriptions = activeSubscriptions.filter((sub) =>
     filterStatus === 'all' ? true : sub.status === filterStatus
-  );
+  ) as ExtendedPatientSubscription[];
 
   const appointmentColumns: Column<Appointment>[] = [
     {
@@ -255,7 +241,7 @@ const Subscriptions: React.FC<SubscriptionsProps> = () => {
               <div>
                 <p className="text-gray-200 text-sm">Total Plans</p>
                 <p className="text-2xl font-bold text-white">
-                  {subscriptions.length}
+                  {filteredSubscriptions.length}
                 </p>
               </div>
               <Stethoscope className="w-8 h-8 text-purple-400" />
@@ -267,7 +253,7 @@ const Subscriptions: React.FC<SubscriptionsProps> = () => {
                 <p className="text-gray-200 text-sm">Total Cost</p>
                 <p className="text-2xl font-bold text-white">
                   ₹
-                  {subscriptions
+                  {filteredSubscriptions
                     .reduce((sum, sub) => sum + (sub.plan?.price || 0), 0)
                     .toFixed(2)}
                 </p>
@@ -280,7 +266,7 @@ const Subscriptions: React.FC<SubscriptionsProps> = () => {
               <div>
                 <p className="text-gray-200 text-sm">Appointments Left</p>
                 <p className="text-2xl font-bold text-white">
-                  {subscriptions
+                  {filteredSubscriptions
                     .filter((sub) => sub.status === 'active')
                     .reduce((sum, sub) => sum + (sub.appointmentsLeft || 0), 0)}
                 </p>
@@ -317,162 +303,158 @@ const Subscriptions: React.FC<SubscriptionsProps> = () => {
                 className="flex transition-transform duration-300"
                 style={{ transform: `translateX(-${currentCardIndex * 100}%)` }}
               >
-                {filteredSubscriptions.map((subscription) => {
-                  const doctor = subscription.plan as unknown as Doctor;
-
-                  return (
-                    <div
-                      key={subscription._id}
-                      className="w-full flex-shrink-0 bg-white/20 backdrop-blur-lg border border-white/20 rounded-2xl shadow-xl"
-                    >
-                      {/* Card Header */}
-                      <div className="p-6 border-b border-white/20">
-                        <div className="flex justify-between items-start mb-4">
-                          <div className="flex items-center gap-3">
-                            <User className="w-8 h-8 text-gray-200" />
-                            <div>
-                              <h3 className="text-lg font-semibold text-white">
-                                {doctor.name || 'Unknown Doctor'}
-                              </h3>
-                              <p className="text-gray-200 text-sm">
-                                {doctor.speciality?.join(', ') || 'N/A'}
-                              </p>
-                            </div>
+                {filteredSubscriptions.map((subscription) => (
+                  <div
+                    key={subscription._id}
+                    className="w-full flex-shrink-0 bg-white/20 backdrop-blur-lg border border-white/20 rounded-2xl shadow-xl"
+                  >
+                    {/* Card Header */}
+                    <div className="p-6 border-b border-white/20">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex items-center gap-3">
+                          <User className="w-8 h-8 text-gray-200" />
+                          <div>
+                            <h3 className="text-lg font-semibold text-white">
+                              {subscription.plan?.doctorName ||
+                                'Unknown Doctor'}
+                            </h3>
+                            <p className="text-gray-200 text-sm">
+                              {subscription.status || 'N/A'}
+                            </p>
                           </div>
-                          <span
-                            className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${getStatusColor(
-                              subscription.status
-                            )}`}
-                          >
-                            {getStatusIcon(subscription.status)}
-                            {subscription.status.charAt(0).toUpperCase() +
-                              subscription.status.slice(1)}
-                          </span>
                         </div>
-                        <div className="mb-4">
-                          <h4 className="text-xl font-bold text-white">
-                            {subscription.plan?.name || 'N/A'}
-                          </h4>
-                          <p className="text-2xl font-bold text-purple-400">
-                            ₹{subscription.plan?.price || 0}
-                          </p>
-                        </div>
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${getStatusColor(
+                            subscription.status
+                          )}`}
+                        >
+                          {getStatusIcon(subscription.status)}
+                          {subscription.status.charAt(0).toUpperCase() +
+                            subscription.status.slice(1)}
+                        </span>
                       </div>
-
-                      {/* Card Body */}
-                      <div className="p-6">
-                        {/* Appointment Usage */}
-                        <div className="mb-6">
-                          <div className="flex justify-between items-center mb-2">
-                            <span className="text-sm font-medium text-gray-200">
-                              Appointments
-                            </span>
-                            <span className="text-sm text-gray-200">
-                              {subscription.appointmentsLeft || 0}/
-                              {subscription.plan?.appointmentCount || 0}
-                            </span>
-                          </div>
-                          <div className="w-full bg-gray-500/20 rounded-full h-2">
-                            <div
-                              className="bg-purple-500 h-2 rounded-full"
-                              style={{
-                                width: `${
-                                  subscription.plan?.appointmentCount
-                                    ? (subscription.appointmentsLeft /
-                                        subscription.plan.appointmentCount) *
-                                      100
-                                    : 0
-                                }%`,
-                              }}
-                            />
-                          </div>
-                        </div>
-
-                        {/* Plan Description */}
-                        <div className="mb-6">
-                          <h5 className="text-sm font-medium text-gray-200 mb-3">
-                            Plan Description
-                          </h5>
-                          <p className="text-sm text-gray-300">
-                            {subscription.plan?.description ||
-                              'No description available'}
-                          </p>
-                        </div>
-
-                        {/* Dates */}
-                        <div className="space-y-3 mb-6">
-                          <div className="flex items-center gap-2 text-sm text-gray-300">
-                            <Calendar className="w-4 h-4" />
-                            <span>
-                              Started:{' '}
-                              {subscription.createdAt
-                                ? new Date(
-                                    subscription.createdAt
-                                  ).toLocaleDateString()
-                                : 'N/A'}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-gray-300">
-                            <Clock className="w-4 h-4" />
-                            <span>
-                              {subscription.status === 'active' &&
-                              subscription.expiryDate
-                                ? `Expires: ${new Date(subscription.expiryDate).toLocaleDateString()}`
-                                : subscription.expiryDate
-                                  ? `Expired: ${new Date(subscription.expiryDate).toLocaleDateString()}`
-                                  : 'No expiry date'}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Action Buttons */}
-                        <div className="flex gap-2">
-                          {subscription.status === 'active' ? (
-                            <>
-                              <button
-                                className="flex-1 bg-blue-500/20 text-blue-300 px-4 py-2 rounded-lg hover:bg-blue-500/30 transition-colors text-sm font-medium"
-                                onClick={() => navigate(`/patient/find-doctor`)}
-                              >
-                                Book Appointment
-                              </button>
-                              <button
-                                className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                                  canCancelSubscription(subscription)
-                                    ? 'bg-gray-500/20 text-gray-300 hover:bg-gray-500/30'
-                                    : 'bg-gray-700/20 text-gray-500 cursor-not-allowed'
-                                }`}
-                                onClick={() =>
-                                  handleCancelSubscription(subscription._id)
-                                }
-                                disabled={
-                                  !canCancelSubscription(subscription) ||
-                                  loading
-                                }
-                                title={
-                                  !canCancelSubscription(subscription)
-                                    ? 'Cancellation only allowed within 30 minutes of subscription and if no appointments are used'
-                                    : ''
-                                }
-                              >
-                                Cancel Subscription
-                              </button>
-                            </>
-                          ) : canRenewSubscription(
-                              subscription.status,
-                              subscription._id
-                            ) ? (
-                            <button
-                              className="w-full bg-green-500/20 text-green-300 px-4 py-2 rounded-lg hover:bg-green-500/30 transition-colors text-sm font-medium"
-                              onClick={() => navigate(`/patient/find-doctor`)}
-                            >
-                              Renew Subscription
-                            </button>
-                          ) : null}
-                        </div>
+                      <div className="mb-4">
+                        <h4 className="text-xl font-bold text-white">
+                          {subscription.plan?.name || 'N/A'}
+                        </h4>
+                        <p className="text-2xl font-bold text-purple-400">
+                          ₹{subscription.plan?.price || 0}
+                        </p>
                       </div>
                     </div>
-                  );
-                })}
+
+                    {/* Card Body */}
+                    <div className="p-6">
+                      {/* Appointment Usage */}
+                      <div className="mb-6">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-sm font-medium text-gray-200">
+                            Appointments
+                          </span>
+                          <span className="text-sm text-gray-200">
+                            {subscription.appointmentsLeft || 0}/
+                            {subscription.plan?.appointmentCount || 0}
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-500/20 rounded-full h-2">
+                          <div
+                            className="bg-purple-500 h-2 rounded-full"
+                            style={{
+                              width: `${
+                                subscription.plan?.appointmentCount
+                                  ? (subscription.appointmentsLeft /
+                                      subscription.plan.appointmentCount) *
+                                    100
+                                  : 0
+                              }%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Plan Description */}
+                      <div className="mb-6">
+                        <h5 className="text-sm font-medium text-gray-200 mb-3">
+                          Plan Description
+                        </h5>
+                        <p className="text-sm text-gray-300">
+                          {subscription.plan?.description ||
+                            'No description available'}
+                        </p>
+                      </div>
+
+                      {/* Dates */}
+                      <div className="space-y-3 mb-6">
+                        <div className="flex items-center gap-2 text-sm text-gray-300">
+                          <Calendar className="w-4 h-4" />
+                          <span>
+                            Started:{' '}
+                            {subscription.createdAt
+                              ? dayjs(subscription.createdAt).format(
+                                  'MM/DD/YYYY'
+                                )
+                              : 'N/A'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-gray-300">
+                          <Clock className="w-4 h-4" />
+                          <span>
+                            {subscription.status === 'active' &&
+                            subscription.daysUntilExpiration !== undefined
+                              ? `Expires: ${dayjs().add(subscription.daysUntilExpiration, 'day').format('MM/DD/YYYY')}`
+                              : subscription.expiryDate
+                                ? `Expired: ${dayjs(subscription.expiryDate).format('MM/DD/YYYY')}`
+                                : 'No expiry date'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex gap-2">
+                        {subscription.status === 'active' ? (
+                          <>
+                            <button
+                              className="flex-1 bg-blue-500/20 text-blue-300 px-4 py-2 rounded-lg hover:bg-blue-500/30 transition-colors text-sm font-medium"
+                              onClick={() => navigate(`/patient/find-doctor`)}
+                            >
+                              Book Appointment
+                            </button>
+                            <button
+                              className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                canCancelSubscription(subscription)
+                                  ? 'bg-gray-500/20 text-gray-300 hover:bg-gray-500/30'
+                                  : 'bg-gray-700/20 text-gray-500 cursor-not-allowed'
+                              }`}
+                              onClick={() =>
+                                handleCancelSubscription(subscription._id)
+                              }
+                              disabled={
+                                !canCancelSubscription(subscription) || loading
+                              }
+                              title={
+                                !canCancelSubscription(subscription)
+                                  ? 'Cancellation only allowed within 30 minutes of subscription and if no appointments are used'
+                                  : ''
+                              }
+                            >
+                              Cancel Subscription
+                            </button>
+                          </>
+                        ) : canRenewSubscription(
+                            subscription.status,
+                            subscription._id
+                          ) ? (
+                          <button
+                            className="w-full bg-green-500/20 text-green-300 px-4 py-2 rounded-lg hover:bg-green-500/30 transition-colors text-sm font-medium"
+                            onClick={() => navigate(`/patient/find-doctor`)}
+                          >
+                            Renew Subscription
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -492,11 +474,13 @@ const Subscriptions: React.FC<SubscriptionsProps> = () => {
             </h2>
             <div className="bg-white/20 backdrop-blur-lg border border-white/20 rounded-2xl shadow-xl p-6">
               <DataTable
-                data={appointments.filter(
-                  (appt) =>
-                    appt.doctorId._id ===
-                    filteredSubscriptions[currentCardIndex]?.plan?.doctorId
-                )}
+                data={
+                  filteredSubscriptions[currentCardIndex]?.plan?.doctorId
+                    ? appointments[
+                        filteredSubscriptions[currentCardIndex].plan.doctorId
+                      ] || []
+                    : []
+                }
                 columns={appointmentColumns}
                 isLoading={loading}
                 error={error}

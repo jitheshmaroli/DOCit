@@ -13,7 +13,7 @@ import {
   LoginResponseDTO,
   GoogleSignInRequestDTO,
   GoogleSignInResponseDTO,
-} from '../../../core/interfaces/AuthDtos';
+} from '../../../application/dtos/AuthDtos';
 import logger from '../../../utils/logger';
 
 export class PatientAuthController {

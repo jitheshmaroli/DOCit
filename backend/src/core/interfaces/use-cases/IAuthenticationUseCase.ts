@@ -12,7 +12,7 @@ import {
   VerifySignupOTPRequestDTO,
   VerifySignupOTPResponseDTO,
   LoginRequestDTO,
-} from '../AuthDtos';
+} from '../../../application/dtos/AuthDtos';
 
 export interface IAuthenticationUseCase {
   loginAdmin(dto: LoginRequestDTO): Promise<LoginResponseDTO>;

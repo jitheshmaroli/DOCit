@@ -12,9 +12,9 @@ import {
   AddReactionRequestDTO,
   ChatMessageResponseDTO,
   InboxResponseDTO,
-} from '../../../core/interfaces/ChatDTOs';
+} from '../../../application/dtos/ChatDTOs';
 import { ChatMessage } from '../../../core/entities/ChatMessage';
-import { ChatMapper } from '../../../core/interfaces/mappers/ChatMapper';
+import { ChatMapper } from '../../../application/mappers/ChatMapper';
 
 export class ChatController {
   private _chatUseCase: IChatUseCase;

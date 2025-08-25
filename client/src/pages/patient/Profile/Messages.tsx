@@ -74,7 +74,7 @@ const Messages = ({ patientId }: MessagesProps) => {
         const partnerId = message.senderId;
         let partnerName = message.senderName || 'Unknown';
         let partnerProfilePicture: string | undefined;
-        let partnerRole: 'patient' | 'doctor' = 'doctor'; // Default to doctor, as patients typically message doctors
+        let partnerRole: 'patient' | 'doctor' = 'doctor';
 
         try {
           const partner = await fetchPartnerDetails(partnerId);
@@ -338,7 +338,7 @@ const Messages = ({ patientId }: MessagesProps) => {
               latestMessage: null,
               messages: [],
               unreadCount: 0,
-              isOnline: false, // Will be updated by socket or API
+              isOnline: false,
               lastSeen: null,
               role: partner.role || 'doctor',
             };

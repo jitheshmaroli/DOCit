@@ -4,6 +4,7 @@ import {
   BookAppointmentPayload,
   GetDoctorAvailabilityPayload,
   SubscriptionPlan,
+  Doctor,
 } from '../types/authTypes';
 import { DateUtils } from '../utils/DateUtils';
 import { ROUTES } from '../constants/routeConstants';
@@ -49,6 +50,20 @@ export const getDoctors = async () => {
     const axiosError = error as AxiosError<PatientApiError>;
     throw new Error(
       axiosError.response?.data.message || 'Failed to fetch doctors'
+    );
+  }
+};
+
+export const getDoctor = async (doctorId: string): Promise<Doctor | null> => {
+  try {
+    const response = await api.get(
+      ROUTES.API.PATIENT.DOCTOR_BY_ID.replace(':doctorId', doctorId)
+    );
+    return response.data || null;
+  } catch (error) {
+    const axiosError = error as AxiosError<PatientApiError>;
+    throw new Error(
+      axiosError.response?.data.message || 'Failed to fetch doctor'
     );
   }
 };

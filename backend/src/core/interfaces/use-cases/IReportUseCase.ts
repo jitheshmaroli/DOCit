@@ -3,7 +3,7 @@ import {
   DoctorDashboardStatsResponseDTO,
   ReportDataResponseDTO,
   ReportFilterDTO,
-} from '../ReportDTOs';
+} from '../../../application/dtos/ReportDTOs';
 
 export interface DailyReportData {
   date: string;

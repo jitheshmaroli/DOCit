@@ -7,12 +7,12 @@ import { setTokensInCookies } from '../../../utils/cookieUtils';
 import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 import { IAuthenticationUseCase } from '../../../core/interfaces/use-cases/IAuthenticationUseCase';
-import { LoginRequestDTO, LoginResponseDTO } from '../../../core/interfaces/AuthDtos';
+import { LoginRequestDTO, LoginResponseDTO } from '../../../application/dtos/AuthDtos';
 import { QueryParams } from '../../../types/authTypes';
-import { DoctorMapper } from '../../../core/interfaces/mappers/DoctorMapper';
-import { PatientMapper } from '../../../core/interfaces/mappers/PatientMapper';
-import { DoctorDTO } from '../../../core/interfaces/DoctorDTOs';
-import { PatientDTO } from '../../../core/interfaces/PatientDTOs';
+import { DoctorMapper } from '../../../application/mappers/DoctorMapper';
+import { PatientMapper } from '../../../application/mappers/PatientMapper';
+import { DoctorDTO } from '../../../application/dtos/DoctorDTOs';
+import { PatientDTO } from '../../../application/dtos/PatientDTOs';
 
 export class AdminAuthController {
   private _authenticationUseCase: IAuthenticationUseCase;

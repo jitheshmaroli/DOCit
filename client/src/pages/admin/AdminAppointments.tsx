@@ -295,7 +295,7 @@ const AdminAppointments: React.FC = () => {
                         : 'N/A'}
                     </span>
                   </div>
-                  <div className="flex justify-between">
+                  {/* <div className="flex justify-between">
                     <span className="text-gray-300">Booking Time:</span>
                     <span>
                       {selectedAppointment.createdAt
@@ -304,7 +304,7 @@ const AdminAppointments: React.FC = () => {
                           ).toLocaleString()
                         : 'N/A'}
                     </span>
-                  </div>
+                  </div> */}
                 </div>
               </div>
 
@@ -382,26 +382,6 @@ const AdminAppointments: React.FC = () => {
                   <div className="flex justify-between">
                     <span className="text-gray-300">Has Review:</span>
                     <span>{selectedAppointment.hasReview ? 'Yes' : 'No'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-300">Created At:</span>
-                    <span>
-                      {selectedAppointment.createdAt
-                        ? new Date(
-                            selectedAppointment.createdAt
-                          ).toLocaleString()
-                        : 'N/A'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-300">Updated At:</span>
-                    <span>
-                      {selectedAppointment.updatedAt
-                        ? new Date(
-                            selectedAppointment.updatedAt
-                          ).toLocaleString()
-                        : 'N/A'}
-                    </span>
                   </div>
                 </div>
               </div>

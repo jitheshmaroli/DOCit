@@ -31,7 +31,7 @@ const PersonalInformation = ({ patientId }: { patientId: string }) => {
     pincode: '',
   });
   const [initialFormData, setInitialFormData] = useState<FormData | null>(null);
-  const [errors, setErrors] = useState<Record<string, string | null>>({});
+  const [errors, setErrors] = useState<Record<string, string | undefined>>({});
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -70,7 +70,6 @@ const PersonalInformation = ({ patientId }: { patientId: string }) => {
     fetchProfile();
   }, [patientId]);
 
-  // Detect changes in formData or file
   useEffect(() => {
     if (!initialFormData) return;
 
@@ -136,19 +135,19 @@ const PersonalInformation = ({ patientId }: { patientId: string }) => {
             validateNumeric(value, 'Age') ||
             (value && (parseInt(value) < 0 || parseInt(value) > 120)
               ? 'Age must be between 0-120'
-              : null),
+              : undefined),
         }));
         break;
       case 'gender':
         setErrors((prev) => ({
           ...prev,
-          gender: !value ? 'Gender is required' : null,
+          gender: !value ? 'Gender is required' : undefined,
         }));
         break;
       case 'address':
         setErrors((prev) => ({
           ...prev,
-          address: !value ? 'Address is required' : null,
+          address: !value ? 'Address is required' : undefined,
         }));
         break;
       case 'pincode':
@@ -156,7 +155,7 @@ const PersonalInformation = ({ patientId }: { patientId: string }) => {
           ...prev,
           pincode:
             validateNumeric(value, 'Pincode') ||
-            (value.length !== 6 ? 'Pincode must be 6 digits' : null),
+            (value.length !== 6 ? 'Pincode must be 6 digits' : undefined),
         }));
         break;
       default:
@@ -165,7 +164,7 @@ const PersonalInformation = ({ patientId }: { patientId: string }) => {
   };
 
   const validateForm = () => {
-    const newErrors: Record<string, string | null> = {};
+    const newErrors: Record<string, string | undefined> = {};
     let isValid = true;
 
     Object.entries(formData).forEach(([key, value]) => {
@@ -180,7 +179,7 @@ const PersonalInformation = ({ patientId }: { patientId: string }) => {
           newErrors[key] = errors[key];
           isValid = false;
         } else {
-          newErrors[key] = null;
+          newErrors[key] = undefined;
         }
       }
     });

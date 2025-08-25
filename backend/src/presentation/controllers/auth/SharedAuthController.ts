@@ -19,8 +19,8 @@ import {
   VerifySignupOTPRequestDTO,
   ResendSignupOTPRequestDTO,
   ResendSignupOTPResponseDTO,
-} from '../../../core/interfaces/AuthDtos';
-import { AuthMapper } from '../../../core/interfaces/mappers/AuthMapper';
+} from '../../../application/dtos/AuthDtos';
+import { AuthMapper } from '../../../application/mappers/AuthMapper';
 
 export class SharedAuthController {
   private _authenticationUseCase: IAuthenticationUseCase;

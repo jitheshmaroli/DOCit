@@ -11,7 +11,7 @@ import {
   GetDoctorAndPatientAppointmentsRequestDTO,
   GetPatientAppointmentsForDoctorRequestDTO,
   GetPatientAppointmentsResponseDTO,
-} from '../AppointmentDTOs';
+} from '../../../application/dtos/AppointmentDTOs';
 
 export interface IAppointmentUseCase {
   bookAppointment(dto: BookAppointmentRequestDTO): Promise<BookAppointmentResponseDTO>;

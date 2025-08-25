@@ -1,6 +1,11 @@
 import { QueryParams } from '../../../types/authTypes';
 import { UserRole } from '../../../types';
-import { SendMessageRequestDTO, ChatMessageResponseDTO, InboxResponseDTO, AddReactionRequestDTO } from '../ChatDTOs';
+import {
+  SendMessageRequestDTO,
+  ChatMessageResponseDTO,
+  InboxResponseDTO,
+  AddReactionRequestDTO,
+} from '../../../application/dtos/ChatDTOs';
 
 export interface IChatUseCase {
   sendMessage(message: SendMessageRequestDTO, file?: Express.Multer.File): Promise<ChatMessageResponseDTO>;

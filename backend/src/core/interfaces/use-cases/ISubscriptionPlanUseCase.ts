@@ -10,7 +10,7 @@ import {
   PaginatedSubscriptionPlanResponseDTO,
   PlanSubscriptionCountsResponseDTO,
   CancelSubscriptionResponseDTO,
-} from '../SubscriptionPlanDTOs';
+} from '../../../application/dtos/SubscriptionPlanDTOs';
 
 export interface ISubscriptionPlanUseCase {
   createSubscriptionPlan(

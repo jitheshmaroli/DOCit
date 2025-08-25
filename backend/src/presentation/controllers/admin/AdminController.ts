@@ -13,14 +13,14 @@ import {
   AdminDashboardStatsResponseDTO,
   ReportDataResponseDTO,
   ReportFilterDTO,
-} from '../../../core/interfaces/ReportDTOs';
+} from '../../../application/dtos/ReportDTOs';
 import {
   PaginatedSubscriptionPlanResponseDTO,
   SubscriptionPlanResponseDTO,
-} from '../../../core/interfaces/SubscriptionPlanDTOs';
-import { AppointmentDTO, GetAppointmentsResponseDTO } from '../../../core/interfaces/AppointmentDTOs';
-import { PatientSubscriptionDTO } from '../../../core/interfaces/PatientDTOs';
-import { PaginatedSpecialityResponseDTO, SpecialityResponseDTO } from '../../../core/interfaces/SpecialityDTOs';
+} from '../../../application/dtos/SubscriptionPlanDTOs';
+import { AppointmentDTO, GetAppointmentsResponseDTO } from '../../../application/dtos/AppointmentDTOs';
+import { PatientSubscriptionDTO } from '../../../application/dtos/PatientDTOs';
+import { PaginatedSpecialityResponseDTO, SpecialityResponseDTO } from '../../../application/dtos/SpecialityDTOs';
 
 export class AdminController {
   private _subscriptionPlanUseCase: ISubscriptionPlanUseCase;

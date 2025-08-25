@@ -14,8 +14,25 @@ import { SubscriptionPlan } from '../../types/authTypes';
 import DataTable, { Column } from '../../components/common/DataTable';
 import { useNavigate } from 'react-router-dom';
 import Pagination from '../../components/common/Pagination';
+import { validateName, validateNumeric } from '../../utils/validation';
 
 const ITEMS_PER_PAGE = 5;
+
+interface PlanFormData {
+  name: string;
+  description: string;
+  price: string;
+  validityDays: string;
+  appointmentCount: string;
+}
+
+interface FormErrors {
+  name?: string;
+  description?: string;
+  price?: string;
+  validityDays?: string;
+  appointmentCount?: string;
+}
 
 const DoctorPlans: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -26,19 +43,18 @@ const DoctorPlans: React.FC = () => {
     totalItems,
   } = useAppSelector((state) => state.doctors);
   const { user } = useAppSelector((state) => state.auth);
-  const [isModalOpen, setIsModalOpen] = React.useState<boolean>(false);
-  const [isEditMode, setIsEditMode] = React.useState<boolean>(false);
-  const [selectedPlanId, setSelectedPlanId] = React.useState<string | null>(
-    null
-  );
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [isEditMode, setIsEditMode] = useState<boolean>(false);
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [planData, setPlanData] = React.useState({
+  const [planData, setPlanData] = useState<PlanFormData>({
     name: '',
     description: '',
     price: '',
     validityDays: '',
     appointmentCount: '',
   });
+  const [formErrors, setFormErrors] = useState<FormErrors>({});
 
   useEffect(() => {
     if (user?.role === 'doctor') {
@@ -48,32 +64,50 @@ const DoctorPlans: React.FC = () => {
     }
   }, [dispatch, user?.role, currentPage]);
 
+  const validateDescription = (description: string): string | undefined => {
+    if (!description) return 'Description is required';
+    if (description.length < 10 || description.length > 500)
+      return 'Description must be 10-500 characters';
+    return undefined;
+  };
+
+  const validateForm = (): boolean => {
+    const errors: FormErrors = {
+      name: validateName(planData.name),
+      description: validateDescription(planData.description),
+      price: validateNumeric(planData.price, 'Price'),
+      validityDays: validateNumeric(planData.validityDays, 'Validity days'),
+      appointmentCount: validateNumeric(
+        planData.appointmentCount,
+        'Appointment count'
+      ),
+    };
+    setFormErrors(errors);
+    return Object.values(errors).every((error) => !error);
+  };
+
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
-    setPlanData({ ...planData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setPlanData({ ...planData, [name]: value });
+    setFormErrors((prev) => ({
+      ...prev,
+      [name]:
+        name === 'name'
+          ? validateName(value)
+          : name === 'description'
+            ? validateDescription(value)
+            : validateNumeric(
+                value,
+                name.charAt(0).toUpperCase() + name.slice(1)
+              ),
+    }));
   };
 
   const handleSubmitPlan = async () => {
-    if (
-      !planData.name ||
-      !planData.description ||
-      !planData.price ||
-      !planData.validityDays ||
-      !planData.appointmentCount
-    ) {
-      toast.error('Please fill in all fields');
-      return;
-    }
-
-    const price = parseInt(planData.price);
-    const validityDays = parseInt(planData.validityDays);
-    const appointmentCount = parseInt(planData.appointmentCount);
-
-    if (price <= 0 || validityDays <= 0 || appointmentCount <= 0) {
-      toast.error(
-        'Price, validity days, and appointment count must be positive numbers'
-      );
+    if (!validateForm()) {
+      toast.error('Please fix all form errors');
       return;
     }
 
@@ -81,9 +115,9 @@ const DoctorPlans: React.FC = () => {
       const payload = {
         name: planData.name,
         description: planData.description,
-        price,
-        validityDays,
-        appointmentCount,
+        price: parseInt(planData.price),
+        validityDays: parseInt(planData.validityDays),
+        appointmentCount: parseInt(planData.appointmentCount),
       };
 
       if (isEditMode && selectedPlanId) {
@@ -106,6 +140,7 @@ const DoctorPlans: React.FC = () => {
         validityDays: '',
         appointmentCount: '',
       });
+      setFormErrors({});
       dispatch(
         getSubscriptionPlansThunk({ page: currentPage, limit: ITEMS_PER_PAGE })
       );
@@ -128,6 +163,7 @@ const DoctorPlans: React.FC = () => {
       validityDays: plan.validityDays.toString(),
       appointmentCount: plan.appointmentCount.toString(),
     });
+    setFormErrors({});
     setIsModalOpen(true);
   };
 
@@ -247,6 +283,7 @@ const DoctorPlans: React.FC = () => {
                 validityDays: '',
                 appointmentCount: '',
               });
+              setFormErrors({});
               setIsModalOpen(true);
             }}
             className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300 shadow-lg hover:shadow-xl"
@@ -292,8 +329,13 @@ const DoctorPlans: React.FC = () => {
                   placeholder="Enter plan name"
                   value={planData.name}
                   onChange={handleInputChange}
-                  className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                  className={`w-full p-3 bg-white/10 border ${
+                    formErrors.name ? 'border-red-500' : 'border-white/20'
+                  } rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400`}
                 />
+                {formErrors.name && (
+                  <p className="text-red-500 text-xs mt-1">{formErrors.name}</p>
+                )}
               </div>
               <div>
                 <label
@@ -308,8 +350,17 @@ const DoctorPlans: React.FC = () => {
                   placeholder="Enter plan description"
                   value={planData.description}
                   onChange={handleInputChange}
-                  className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                  className={`w-full p-3 bg-white/10 border ${
+                    formErrors.description
+                      ? 'border-red-500'
+                      : 'border-white/20'
+                  } rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400`}
                 />
+                {formErrors.description && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {formErrors.description}
+                  </p>
+                )}
               </div>
               <div>
                 <label
@@ -325,10 +376,17 @@ const DoctorPlans: React.FC = () => {
                   placeholder="Enter price in rupees"
                   value={planData.price}
                   onChange={handleInputChange}
-                  className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                  className={`w-full p-3 bg-white/10 border ${
+                    formErrors.price ? 'border-red-500' : 'border-white/20'
+                  } rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400`}
                   min="0"
                   step="1"
                 />
+                {formErrors.price && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {formErrors.price}
+                  </p>
+                )}
               </div>
               <div>
                 <label
@@ -344,10 +402,19 @@ const DoctorPlans: React.FC = () => {
                   placeholder="Enter validity in days"
                   value={planData.validityDays}
                   onChange={handleInputChange}
-                  className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                  className={`w-full p-3 bg-white/10 border ${
+                    formErrors.validityDays
+                      ? 'border-red-500'
+                      : 'border-white/20'
+                  } rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400`}
                   min="1"
                   step="1"
                 />
+                {formErrors.validityDays && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {formErrors.validityDays}
+                  </p>
+                )}
               </div>
               <div>
                 <label
@@ -363,10 +430,19 @@ const DoctorPlans: React.FC = () => {
                   placeholder="Enter number of appointments"
                   value={planData.appointmentCount}
                   onChange={handleInputChange}
-                  className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                  className={`w-full p-3 bg-white/10 border ${
+                    formErrors.appointmentCount
+                      ? 'border-red-500'
+                      : 'border-white/20'
+                  } rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400`}
                   min="1"
                   step="1"
                 />
+                {formErrors.appointmentCount && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {formErrors.appointmentCount}
+                  </p>
+                )}
               </div>
             </div>
             <div className="flex justify-end space-x-2 mt-6">
@@ -382,6 +458,7 @@ const DoctorPlans: React.FC = () => {
                     validityDays: '',
                     appointmentCount: '',
                   });
+                  setFormErrors({});
                 }}
                 className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
               >

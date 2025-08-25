@@ -1,5 +1,5 @@
 import { QueryParams } from '../../../types/authTypes';
-import { SendNotificationRequestDTO, NotificationResponseDTO } from '../NotificationDTOs';
+import { SendNotificationRequestDTO, NotificationResponseDTO } from '../../../application/dtos/NotificationDTOs';
 
 export interface INotificationUseCase {
   sendNotification(dto: SendNotificationRequestDTO): Promise<NotificationResponseDTO>;
