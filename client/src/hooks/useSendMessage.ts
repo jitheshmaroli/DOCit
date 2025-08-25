@@ -20,13 +20,24 @@ export const useSendMessage = () => {
       receiverId,
       messageText,
     }: SendMessageProps): Promise<Message | null> => {
-      if (!messageText.trim() || !receiverId || !user?._id) return null;
+      if (!messageText.trim() || !receiverId || !user?._id) {
+        console.log('Missing required fields:', {
+          messageText,
+          receiverId,
+          userId: user?._id,
+        });
+        return null;
+      }
       if (sending) return null;
 
       setSending(true);
 
       try {
-        const savedMessage = await sendMessage(receiverId, messageText);
+        const savedMessage = await sendMessage(
+          receiverId,
+          messageText,
+          user._id
+        );
         const updatedMessage: Message = {
           _id: savedMessage._id,
           message: savedMessage.message,

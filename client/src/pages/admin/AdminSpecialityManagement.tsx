@@ -112,7 +112,22 @@ const AdminSpecialityManagement: React.FC = () => {
     () => [
       {
         header: 'Name',
-        accessor: 'name' as keyof Speciality,
+        accessor: (speciality: Speciality): React.ReactNode => {
+          const maxLength = 20; // Maximum length for the specialty name
+          const displayName =
+            speciality.name && speciality.name.length > maxLength
+              ? `${speciality.name.substring(0, maxLength)}...`
+              : speciality.name || 'N/A';
+          return (
+            <span
+              className="text-sm text-white truncate max-w-[150px]"
+              title={speciality.name || 'N/A'}
+            >
+              {displayName}
+            </span>
+          );
+        },
+        className: 'align-middle',
       },
       {
         header: 'Created At',

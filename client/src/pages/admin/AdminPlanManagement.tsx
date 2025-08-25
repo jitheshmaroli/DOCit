@@ -84,13 +84,42 @@ const AdminPlanManagement: React.FC = () => {
     () => [
       {
         header: 'Name',
-        accessor: (plan: SubscriptionPlan): React.ReactNode =>
-          plan.name || 'N/A',
+        accessor: (plan: SubscriptionPlan): React.ReactNode => {
+          const maxLength = 20; // Maximum length for the plan name
+          const displayName =
+            plan.name && plan.name.length > maxLength
+              ? `${plan.name.substring(0, maxLength)}...`
+              : plan.name || 'N/A';
+          return (
+            <span
+              className="text-sm text-white truncate max-w-[150px]"
+              title={plan.name || 'N/A'}
+            >
+              {displayName}
+            </span>
+          );
+        },
+        className: 'align-middle',
       },
       {
         header: 'Doctor',
-        accessor: (plan: SubscriptionPlan): React.ReactNode =>
-          plan.doctorName || plan.doctorId || 'N/A',
+        accessor: (plan: SubscriptionPlan): React.ReactNode => {
+          const doctorName = plan.doctorName || plan.doctorId || 'N/A';
+          const maxLength = 20; // Maximum length for the doctor name
+          const displayName =
+            doctorName.length > maxLength
+              ? `${doctorName.substring(0, maxLength)}...`
+              : doctorName;
+          return (
+            <span
+              className="text-sm text-white truncate max-w-[150px]"
+              title={doctorName}
+            >
+              {displayName}
+            </span>
+          );
+        },
+        className: 'align-middle',
       },
       {
         header: 'Price',

@@ -1,5 +1,20 @@
 import { QueryParams } from '../../types/authTypes';
 
+export interface AppointmentPatientDTO {
+  _id: string;
+  name?: string;
+  profilePicture?: string;
+}
+
+export interface AppointmentDoctorDTO {
+  _id: string;
+  name: string;
+  profilePicture?: string;
+  speciality?: string;
+  qualifications?: string[];
+  gender?: 'Male' | 'Female' | 'Other';
+}
+
 export interface BookAppointmentRequestDTO {
   patientId: string;
   doctorId: string;
@@ -68,8 +83,8 @@ export interface CheckFreeBookingRequestDTO {
 
 export interface AppointmentDTO {
   _id?: string;
-  patientId: string;
-  doctorId: string;
+  patientId: AppointmentPatientDTO;
+  doctorId: AppointmentDoctorDTO;
   date: string;
   startTime: string;
   endTime: string;

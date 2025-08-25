@@ -465,7 +465,7 @@ const AppointmentDetails: React.FC = () => {
           </div>
         )}
 
-        {appointment.doctorId && typeof appointment.doctorId !== 'string' && (
+        {/* {appointment.doctorId && typeof appointment.doctorId !== 'string' && (
           <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">
             <h3 className="text-lg sm:text-xl font-semibold text-white mb-4">
               Doctor Information
@@ -485,7 +485,7 @@ const AppointmentDetails: React.FC = () => {
                 {appointment.doctorId.speciality &&
                   appointment.doctorId.speciality.length > 0 && (
                     <p className="text-gray-300 text-sm">
-                      {appointment.doctorId.speciality.join(', ')}
+                      {appointment.doctorId.speciality}
                     </p>
                   )}
                 {appointment.doctorId.qualifications &&
@@ -497,7 +497,7 @@ const AppointmentDetails: React.FC = () => {
               </div>
             </div>
           </div>
-        )}
+        )} */}
 
         {appointment.prescription && (
           <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">

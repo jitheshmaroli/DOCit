@@ -173,18 +173,29 @@ const AdminManageDoctors: React.FC = () => {
     () => [
       {
         header: 'Name',
-        accessor: (doctor: Doctor): React.ReactNode => (
-          <div className="flex items-center">
-            <Avatar
-              name={doctor.name}
-              id={doctor._id}
-              profilePicture={doctor.profilePicture}
-            />
-            <span className="ml-4 text-sm font-medium text-white">
-              {doctor.name}
-            </span>
-          </div>
-        ),
+        accessor: (doctor: Doctor): React.ReactNode => {
+          const maxLength = 20; // Maximum length for the name
+          const displayName =
+            doctor.name && doctor.name.length > maxLength
+              ? `${doctor.name.substring(0, maxLength)}...`
+              : doctor.name || 'Unknown';
+          return (
+            <div className="flex items-center">
+              <Avatar
+                name={doctor.name || 'Unknown'}
+                id={doctor._id}
+                profilePicture={doctor.profilePicture}
+              />
+              <span
+                className="ml-4 text-sm font-medium text-white truncate max-w-[150px]"
+                title={doctor.name || 'Unknown'} // Tooltip for full name
+              >
+                {displayName}
+              </span>
+            </div>
+          );
+        },
+        className: 'align-middle', // Ensure vertical alignment
       },
       {
         header: 'Email',
@@ -222,12 +233,20 @@ const AdminManageDoctors: React.FC = () => {
         accessor: (doctor: Doctor): React.ReactNode => (
           <div className="flex flex-col space-y-1">
             <span
-              className={`px-2 py-1 text-xs font-semibold rounded-full ${doctor.isVerified ? 'bg-green-500/20 text-green-300' : 'bg-gray-500/20 text-gray-300'}`}
+              className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                doctor.isVerified
+                  ? 'bg-green-500/20 text-green-300'
+                  : 'bg-gray-500/20 text-gray-300'
+              }`}
             >
               {doctor.isVerified ? 'Verified' : 'Unverified'}
             </span>
             <span
-              className={`px-2 py-1 text-xs font-semibold rounded-full ${doctor.isBlocked ? 'bg-red-500/20 text-red-300' : 'bg-gray-500/20 text-gray-300'}`}
+              className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                doctor.isBlocked
+                  ? 'bg-red-500/20 text-red-300'
+                  : 'bg-gray-500/20 text-gray-300'
+              }`}
             >
               {doctor.isBlocked ? 'Blocked' : 'Active'}
             </span>

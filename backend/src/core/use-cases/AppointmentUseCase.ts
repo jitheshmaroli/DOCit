@@ -87,10 +87,21 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       }
     }
 
-    // Create AppointmentDTO
+    // Create AppointmentDTO with patientId and doctorId as objects
     const appointmentDTO: AppointmentDTO = {
-      patientId: dto.patientId,
-      doctorId: dto.doctorId,
+      patientId: {
+        _id: patient._id ?? '',
+        name: patient.name ?? 'N/A',
+        profilePicture: patient.profilePicture,
+      },
+      doctorId: {
+        _id: doctor._id ?? '',
+        name: doctor.name ?? 'N/A',
+        profilePicture: doctor.profilePicture,
+        speciality: doctor.speciality,
+        qualifications: doctor.qualifications,
+        gender: doctor.gender,
+      },
       date: startOfDay.toISOString(),
       startTime: dto.startTime,
       endTime: dto.endTime,

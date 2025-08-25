@@ -1,23 +1,40 @@
 import { Appointment } from '../../entities/Appointment';
 import { Prescription } from '../../entities/Prescription';
-import { AppointmentDTO, PrescriptionDTO } from '../AppointmentDTOs';
+import { AppointmentDTO, AppointmentPatientDTO, AppointmentDoctorDTO, PrescriptionDTO } from '../AppointmentDTOs';
+import { Patient } from '../../entities/Patient';
+import { Doctor } from '../../entities/Doctor';
 
 export class AppointmentMapper {
   static toAppointmentDTO(appointment: Appointment): AppointmentDTO {
-    return {
-      _id: appointment._id?.toString(),
-      patientId:
+    const patientId: AppointmentPatientDTO = {
+      _id:
         typeof appointment.patientId === 'string'
           ? appointment.patientId
-          : appointment.patientId._id
-            ? appointment.patientId._id.toString()
-            : '',
-      doctorId:
-        typeof appointment.doctorId === 'string'
-          ? appointment.doctorId
-          : appointment.doctorId._id
-            ? appointment.doctorId._id.toString()
-            : '',
+          : (appointment.patientId?._id?.toString() ?? ''),
+      name:
+        typeof appointment.patientId !== 'string' && appointment.patientId?.name
+          ? appointment.patientId.name
+          : (appointment.patientName ?? 'N/A'),
+      profilePicture: typeof appointment.patientId !== 'string' ? appointment.patientId?.profilePicture : undefined,
+    };
+
+    const doctorId: AppointmentDoctorDTO = {
+      _id:
+        typeof appointment.doctorId === 'string' ? appointment.doctorId : (appointment.doctorId?._id?.toString() ?? ''),
+      name:
+        typeof appointment.doctorId !== 'string' && appointment.doctorId?.name
+          ? appointment.doctorId.name
+          : (appointment.doctorName ?? 'N/A'),
+      profilePicture: typeof appointment.doctorId !== 'string' ? appointment.doctorId?.profilePicture : undefined,
+      speciality: typeof appointment.doctorId !== 'string' ? appointment.doctorId?.speciality : undefined,
+      qualifications: typeof appointment.doctorId !== 'string' ? appointment.doctorId?.qualifications : undefined,
+      gender: typeof appointment.doctorId !== 'string' ? appointment.doctorId?.gender : undefined,
+    };
+
+    return {
+      _id: appointment._id?.toString(),
+      patientId,
+      doctorId,
       date: appointment.date.toISOString(),
       startTime: appointment.startTime,
       endTime: appointment.endTime,
@@ -35,10 +52,33 @@ export class AppointmentMapper {
   }
 
   static toAppointmentEntity(dto: AppointmentDTO): Appointment {
+    const patientId: string | Patient =
+      typeof dto.patientId === 'string'
+        ? dto.patientId
+        : {
+            _id: dto.patientId._id,
+            email: '', // Required field, set to empty string as fallback
+            name: dto.patientId.name,
+            profilePicture: dto.patientId.profilePicture,
+          };
+
+    const doctorId: string | Doctor =
+      typeof dto.doctorId === 'string'
+        ? dto.doctorId
+        : {
+            _id: dto.doctorId._id,
+            email: '', // Required field, set to empty string as fallback
+            name: dto.doctorId.name,
+            profilePicture: dto.doctorId.profilePicture,
+            speciality: dto.doctorId.speciality,
+            qualifications: dto.doctorId.qualifications,
+            gender: dto.doctorId.gender,
+          };
+
     return {
       _id: dto._id,
-      patientId: dto.patientId,
-      doctorId: dto.doctorId,
+      patientId,
+      doctorId,
       date: new Date(dto.date),
       startTime: dto.startTime,
       endTime: dto.endTime,
@@ -49,6 +89,8 @@ export class AppointmentMapper {
       cancellationReason: dto.cancellationReason,
       prescriptionId: dto.prescription ? this.toPrescriptionEntity(dto.prescription) : undefined,
       hasReview: dto.hasReview,
+      patientName: typeof dto.patientId !== 'string' ? dto.patientId.name : undefined,
+      doctorName: typeof dto.doctorId !== 'string' ? dto.doctorId.name : undefined,
     };
   }
 
