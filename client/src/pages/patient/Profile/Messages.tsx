@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { motion } from 'framer-motion';
 import { MessageInbox } from '../../../components/MessageInbox';
 import { ChatBox } from '../../../components/ChatBox';
 import { useSendMessage } from '../../../hooks/useSendMessage';
@@ -20,12 +21,11 @@ import {
 } from '../../../types/messageTypes';
 import { useSocket } from '../../../hooks/useSocket';
 import ROUTES from '../../../constants/routeConstants';
+import { useAppSelector } from '../../../redux/hooks';
+import { RootState } from '../../../redux/store';
 
-interface MessagesProps {
-  patientId: string;
-}
-
-const Messages = ({ patientId }: MessagesProps) => {
+const Messages: React.FC = () => {
+  const { user } = useAppSelector((state: RootState) => state.auth);
   const [threads, setThreads] = useState<MessageThread[]>([]);
   const [selectedThread, setSelectedThread] = useState<MessageThread | null>(
     null
@@ -39,6 +39,13 @@ const Messages = ({ patientId }: MessagesProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { connect, registerHandlers } = useSocket();
+  const patientId = user?._id;
+
+  useEffect(() => {
+    if (!patientId) {
+      navigate(ROUTES.PUBLIC.LOGIN);
+    }
+  }, [patientId, navigate]);
 
   const isAtBottom = useCallback(() => {
     if (!chatContainerRef.current) return true;
@@ -207,9 +214,6 @@ const Messages = ({ patientId }: MessagesProps) => {
         }
       },
       onUserStatusUpdate: (status) => {
-        console.log(
-          `User status updated: ${status.userId} is ${status.isOnline ? 'online' : 'offline'}`
-        );
         setThreads((prev) =>
           prev.map((thread) =>
             thread.id === status.userId
@@ -236,13 +240,13 @@ const Messages = ({ patientId }: MessagesProps) => {
     });
 
     connect(patientId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     patientId,
     connect,
     registerHandlers,
     navigate,
     selectedThread?.receiverId,
-    selectedThread?.id,
     isAtBottom,
   ]);
 
@@ -300,7 +304,12 @@ const Messages = ({ patientId }: MessagesProps) => {
         );
       } catch (error) {
         console.error('Fetch inbox error:', error);
-        toast.error('Failed to load inbox');
+        toast.error('Failed to load inbox', {
+          position: 'bottom-right',
+          autoClose: 3000,
+          className:
+            'bg-white/10 backdrop-blur-lg border border-white/20 rounded-lg',
+        });
       } finally {
         setLoading(false);
       }
@@ -356,7 +365,12 @@ const Messages = ({ patientId }: MessagesProps) => {
             navigate('/patient/profile?tab=messages', { replace: true });
           } catch (error) {
             console.error('Failed to create new thread:', error);
-            toast.error('Failed to open chat');
+            toast.error('Failed to open chat', {
+              position: 'bottom-right',
+              autoClose: 3000,
+              className:
+                'bg-white/10 backdrop-blur-lg border border-white/20 rounded-lg',
+            });
             navigate('/patient/profile?tab=messages', { replace: true });
           }
         };
@@ -393,7 +407,7 @@ const Messages = ({ patientId }: MessagesProps) => {
           )
         );
         const unreadMessages = formattedMessages.filter((msg: Message) =>
-          msg.unreadBy?.includes(patientId)
+          msg.unreadBy?.includes(patientId as string)
         );
         for (const msg of unreadMessages) {
           await markAsRead(msg._id);
@@ -409,7 +423,12 @@ const Messages = ({ patientId }: MessagesProps) => {
         }, 100);
       } catch (error) {
         console.error('Fetch messages error:', error);
-        toast.error('Failed to load messages');
+        toast.error('Failed to load messages', {
+          position: 'bottom-right',
+          autoClose: 3000,
+          className:
+            'bg-white/10 backdrop-blur-lg border border-white/20 rounded-lg',
+        });
       }
     };
     loadMessages();
@@ -454,7 +473,7 @@ const Messages = ({ patientId }: MessagesProps) => {
               (msg) => msg._id === message._id
             )
           ) {
-            return prev; // Skip duplicate
+            return prev;
           }
           updatedThreads[threadIndex] = {
             ...updatedThreads[threadIndex],
@@ -538,21 +557,43 @@ const Messages = ({ patientId }: MessagesProps) => {
             : thread
         )
       );
-      toast.success('Messages deleted successfully');
+      toast.success('Messages deleted successfully', {
+        position: 'bottom-right',
+        autoClose: 3000,
+        className:
+          'bg-white/10 backdrop-blur-lg border border-white/20 rounded-lg',
+      });
     } catch (error) {
       console.error('Failed to delete messages:', error);
-      toast.error('Failed to delete messages');
+      toast.error('Failed to delete messages', {
+        position: 'bottom-right',
+        autoClose: 3000,
+        className:
+          'bg-white/10 backdrop-blur-lg border border-white/20 rounded-lg',
+      });
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 py-8 px-4 sm:px-6 lg:px-8">
-      <ToastContainer position="bottom-right" autoClose={3000} theme="dark" />
-      <div className="container mx-auto">
-        <h2 className="text-2xl sm:text-3xl font-bold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent mb-6">
-          Messages
-        </h2>
-        <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-12rem)]">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 py-6 px-4 sm:px-6 lg:px-8">
+      <ToastContainer position="bottom-right" theme="dark" />
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="container mx-auto"
+      >
+        <div className="bg-white/10 backdrop-blur-lg py-6 rounded-xl border border-white/20 mb-6">
+          <h2 className="text-2xl sm:text-3xl font-bold text-white bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent text-center">
+            Messages
+          </h2>
+        </div>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className="flex flex-col lg:flex-row gap-4 h-[calc(100vh-10rem)]"
+        >
           <MessageInbox
             threads={threads}
             selectedThreadId={selectedThread?.id || null}
@@ -578,7 +619,7 @@ const Messages = ({ patientId }: MessagesProps) => {
             }}
             loading={loading}
           />
-          {selectedThread ? (
+          {selectedThread && patientId ? (
             <ChatBox
               thread={selectedThread}
               newMessage={newMessage}
@@ -595,12 +636,16 @@ const Messages = ({ patientId }: MessagesProps) => {
               currentUserId={patientId}
             />
           ) : (
-            <div className="w-full lg:w-2/3 bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 flex items-center justify-center text-gray-200">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="w-full lg:w-2/3 bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-6 flex items-center justify-center text-gray-300"
+            >
               Select a conversation to start chatting
-            </div>
+            </motion.div>
           )}
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     </div>
   );
 };

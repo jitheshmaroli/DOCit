@@ -219,6 +219,7 @@ export const checkAuthThunk = createAsyncThunk(
         email: response.email,
         role: response.role || expectedRole,
         phone: response.phone,
+        profilePicture: response.profilePicture,
       };
 
       thunkAPI.dispatch(setUser(user));

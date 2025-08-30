@@ -249,7 +249,7 @@ const AppointmentDetails: React.FC = () => {
       appointment.doctorId._id
     ) {
       navigate(
-        `/patient/profile?tab=messages&thread=${appointment.doctorId._id}`
+        `/patient/messages?thread=${appointment.doctorId._id}`
       );
     } else {
       toast.error('Cannot open chat: Doctor information missing');

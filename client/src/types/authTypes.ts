@@ -167,6 +167,7 @@ export interface User {
   name?: string;
   phone?: string;
   isBlocked?: boolean;
+  profilePicture?: string;
 }
 
 export interface SubscriptionPlan {
