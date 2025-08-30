@@ -11,7 +11,6 @@ import DoctorDashboard from './pages/doctor/DoctorDashboard';
 import NotFoundPage from './pages/public/NotFoundPage';
 import AdminLayout from './layouts/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
-// import ProfilePage from './pages/patient/ProfilePage';
 import AdminLoginPage from './pages/admin/AdminLoginPage';
 import ProtectedRoute from './components/layout/ProtectionRoute';
 import DoctorProfilePage from './pages/doctor/DoctorProfilePage';
@@ -34,6 +33,8 @@ import PlanDetails from './pages/doctor/PlanDetails';
 import PatientAppointments from './pages/doctor/PatientAppointments';
 import Subscriptions from './pages/patient/Profile/Subscriptions';
 import PersonalInformation from './pages/patient/Profile/PersonalInformation';
+import PatientMessages from './pages/patient/Profile/Messages';
+
 
 const AppRoutes = () => {
   const navigate = useNavigate();
@@ -67,7 +68,7 @@ const AppRoutes = () => {
         <Route path="/patient" element={<PatientLayout />}>
           <Route path="find-doctor" element={<FindDoctor />} />
           <Route path="subscriptions" element={<Subscriptions />} />
-          <Route path="messages" element={<Messages />} />
+          <Route path="messages" element={<PatientMessages />} />
           <Route path="profile" element={<PersonalInformation />} />
           <Route path="doctors/:doctorId" element={<DoctorDetails />} />
           <Route

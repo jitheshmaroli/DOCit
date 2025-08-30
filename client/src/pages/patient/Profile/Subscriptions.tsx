@@ -27,6 +27,7 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import dayjs from 'dayjs';
 import { useAppSelector } from '../../../redux/hooks';
+import ROUTES from '../../../constants/routeConstants';
 
 interface ExtendedPatientSubscription extends PatientSubscription {
   plan: {
@@ -535,7 +536,14 @@ const Subscriptions: React.FC = () => {
                               whileHover={{ scale: 1.05 }}
                               whileTap={{ scale: 0.95 }}
                               className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-3 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300 text-sm font-medium shadow-md"
-                              onClick={() => navigate(`/patient/find-doctor`)}
+                              onClick={() =>
+                                navigate(
+                                  `${ROUTES.PATIENT.DOCTOR_DETAILS.replace(
+                                    ':doctorId',
+                                    subscription.plan.doctorId
+                                  )}`
+                                )
+                              }
                             >
                               Book Appointment
                             </motion.button>
@@ -570,7 +578,7 @@ const Subscriptions: React.FC = () => {
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
                             className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-3 rounded-lg hover:from-green-700 hover:to-green-800 transition-all duration-300 text-sm font-medium shadow-md"
-                            onClick={() => navigate(`/patient/find-doctor`)}
+                            onClick={() => navigate('/patient/find-doctor')}
                           >
                             Renew Subscription
                           </motion.button>

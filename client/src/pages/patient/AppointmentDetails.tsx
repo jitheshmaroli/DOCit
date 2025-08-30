@@ -248,9 +248,9 @@ const AppointmentDetails: React.FC = () => {
       typeof appointment.doctorId !== 'string' &&
       appointment.doctorId._id
     ) {
-      navigate(
-        `/patient/messages?thread=${appointment.doctorId._id}`
-      );
+      navigate(`/patient/messages?thread=${appointment.doctorId._id}`, {
+        replace: true,
+      });
     } else {
       toast.error('Cannot open chat: Doctor information missing');
     }

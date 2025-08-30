@@ -21,7 +21,7 @@ export const ROUTES = {
     PROFILE: '/patient/profile',
     DOCTOR_DETAILS: '/patient/doctors/:doctorId',
     APPOINTMENT_DETAILS: '/patient/appointment/:appointmentId',
-    MESSAGES: '/patient/profile?tab=messages',
+    MESSAGES: '/patient/messages',
   },
 
   // Doctor Routes

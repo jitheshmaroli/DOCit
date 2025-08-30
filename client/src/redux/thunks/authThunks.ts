@@ -162,6 +162,7 @@ export const loginThunk = createAsyncThunk(
             email: userResponse.email,
             name: userResponse.name,
             role: userResponse.role || payload.role,
+            profilePicture: userResponse.profilePicture,
           };
 
           thunkAPI.dispatch(setUser(user));

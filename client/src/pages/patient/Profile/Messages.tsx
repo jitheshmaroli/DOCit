@@ -240,7 +240,7 @@ const Messages: React.FC = () => {
     });
 
     connect(patientId);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     patientId,
     connect,
@@ -331,7 +331,7 @@ const Messages: React.FC = () => {
             t.receiverId === threadId ? { ...t, unreadCount: 0 } : t
           )
         );
-        navigate(ROUTES.PATIENT.MESSAGES, { replace: true });
+        // Do not navigate away, just update the thread
       } else {
         const createNewThread = async () => {
           try {
@@ -362,7 +362,6 @@ const Messages: React.FC = () => {
               );
             });
             setSelectedThread(newThread);
-            navigate('/patient/profile?tab=messages', { replace: true });
           } catch (error) {
             console.error('Failed to create new thread:', error);
             toast.error('Failed to open chat', {
@@ -371,13 +370,12 @@ const Messages: React.FC = () => {
               className:
                 'bg-white/10 backdrop-blur-lg border border-white/20 rounded-lg',
             });
-            navigate('/patient/profile?tab=messages', { replace: true });
           }
         };
         createNewThread();
       }
     }
-  }, [threads, loading, location.search, navigate, selectedThread, patientId]);
+  }, [threads, loading, location.search, selectedThread, patientId]);
 
   useEffect(() => {
     const loadMessages = async () => {
@@ -575,7 +573,7 @@ const Messages: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 py-6 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 py-6 px-4 sm:px-6 lg:px-8">
       <ToastContainer position="bottom-right" theme="dark" />
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -583,7 +581,7 @@ const Messages: React.FC = () => {
         transition={{ duration: 0.5 }}
         className="container mx-auto"
       >
-        <div className="bg-white/10 backdrop-blur-lg py-6 rounded-xl border border-white/20 mb-6">
+        <div className="bg-white/10 backdrop-blur-lg py-6 rounded-2xl border border-white/20 mb-6">
           <h2 className="text-2xl sm:text-3xl font-bold text-white bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent text-center">
             Messages
           </h2>
@@ -639,7 +637,7 @@ const Messages: React.FC = () => {
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="w-full lg:w-2/3 bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-6 flex items-center justify-center text-gray-300"
+              className="w-full lg:w-2/3 bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 flex items-center justify-center text-gray-300"
             >
               Select a conversation to start chatting
             </motion.div>
