@@ -112,14 +112,6 @@ export class ReportUseCase implements IReportUseCase {
       this._patientRepository.findAllWithQuery({}),
     ]);
 
-    logger.debug('Fetched data counts:', {
-      plans: plans.data.length,
-      subscriptions: subscriptions.length,
-      appointments: appointments.data.length,
-      doctors: doctors.data.length,
-      patients: patients.data.length,
-    });
-
     const activePlans = plans.data.filter((plan: SubscriptionPlan) => plan.status === 'approved').length;
     const totalRevenue = subscriptions.reduce((sum: number, sub: PatientSubscription) => sum + sub.price, 0);
 
@@ -163,18 +155,17 @@ export class ReportUseCase implements IReportUseCase {
     // Calculate top patients by appointment count
     const appointmentCounts = appointments.data.reduce(
       (acc: Record<string, { count: number; patientName: string }>, appt: Appointment) => {
-        const patientId = typeof appt.patientId === 'string' ? appt.patientId : appt.patientId?._id?.toString();
+        const patientId = appt.patientId;
         if (!patientId) {
-          logger.warn(`Invalid patientId in appointment: ${appt._id || 'unknown'}`);
           return acc;
         }
         const patientIdStr = patientId.toString();
-        const patientName =
-          typeof appt.patientId === 'string'
-            ? patients.data.find((p: Patient) => p._id && p._id.toString() === patientIdStr)?.name || 'Unknown'
-            : appt.patientName || 'Unknown';
+        // const patientName =
+        //   typeof appt.patientId === 'string'
+        //     ? patients.data.find((p: Patient) => p._id && p._id.toString() === patientIdStr)?.name || 'Unknown'
+        //     : appt.patientName || 'Unknown';
         if (!acc[patientIdStr]) {
-          acc[patientIdStr] = { count: 0, patientName };
+          acc[patientIdStr] = { count: 0, patientName: patientIdStr };
         }
         acc[patientIdStr].count += 1;
         return acc;
