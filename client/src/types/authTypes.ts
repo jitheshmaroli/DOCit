@@ -315,3 +315,11 @@ export interface PatientSubscription {
   updatedAt?: string;
   cancellationReason?: string;
 }
+
+export interface UpdateSlotPayload {
+  availabilityId: string;
+  slotIndex: number;
+  startTime: string;
+  endTime: string;
+  reason?: string;
+}

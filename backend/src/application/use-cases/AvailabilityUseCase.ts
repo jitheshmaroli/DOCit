@@ -2,158 +2,94 @@ import { IAvailabilityUseCase } from '../../core/interfaces/use-cases/IAvailabil
 import { Availability } from '../../core/entities/Availability';
 import { IAvailabilityRepository } from '../../core/interfaces/repositories/IAvailabilityRepository';
 import { IDoctorRepository } from '../../core/interfaces/repositories/IDoctorRepository';
+import { IPatientRepository } from '../../core/interfaces/repositories/IPatientRepository';
 import { ValidationError, NotFoundError } from '../../utils/errors';
-import logger from '../../utils/logger';
-import moment from 'moment';
 import {
   SetAvailabilityRequestDTO,
   UpdateSlotRequestDTO,
   AvailabilityResponseDTO,
   SetAvailabilityResponseDTO,
 } from '../dtos/AvailabilityDTOs';
+import { IAppointmentRepository } from '../../core/interfaces/repositories/IAppointmentRepository';
+import { IEmailService } from '../../core/interfaces/services/IEmailService';
 import { AvailabilityMapper } from '../mappers/AvailabilityMapper';
+import { DateUtils } from '../../utils/DateUtils';
 
 export class AvailabilityUseCase implements IAvailabilityUseCase {
   constructor(
     private _doctorRepository: IDoctorRepository,
-    private _availabilityRepository: IAvailabilityRepository
+    private _availabilityRepository: IAvailabilityRepository,
+    private _appointmentRepository: IAppointmentRepository,
+    private _emailService: IEmailService,
+    private _patientRepository: IPatientRepository
   ) {}
 
-  private _validateTimeSlot(startTime: string, endTime: string, date: Date): void {
-    if (!startTime || !endTime) {
-      throw new ValidationError('Start time and end time are required');
-    }
-
-    const dateStr = moment.utc(date).format('YYYY-MM-DD');
-    const slotStart = moment.utc(`${dateStr} ${startTime}`, 'YYYY-MM-DD HH:mm', true);
-    const slotEnd = moment.utc(`${dateStr} ${endTime}`, 'YYYY-MM-DD HH:mm', true);
-
-    if (!slotStart.isValid() || !slotEnd.isValid()) {
-      throw new ValidationError('Invalid time format. Use HH:mm (e.g., 09:00)');
-    }
-
-    if (slotStart.isSameOrAfter(slotEnd)) {
-      throw new ValidationError('Start time must be before end time');
-    }
-
-    if (moment.utc(date).isSame(moment.utc(), 'day') && slotStart.isBefore(moment.utc())) {
-      throw new ValidationError('Cannot set slots before current time');
-    }
-  }
-
-  // Check for overlapping slots
-  private _checkOverlappingSlots(slots: { startTime: string; endTime: string }[], date: Date): void {
-    const slotMoments = slots
-      .map((slot) => ({
-        start: moment.utc(`${moment.utc(date).format('YYYY-MM-DD')} ${slot.startTime}`, 'YYYY-MM-DD HH:mm', true),
-        end: moment.utc(`${moment.utc(date).format('YYYY-MM-DD')} ${slot.endTime}`, 'YYYY-MM-DD HH:mm', true),
-      }))
-      .filter((slot) => slot.start.isValid() && slot.end.isValid())
-      .sort((a, b) => a.start.diff(b.start));
-
-    slotMoments.forEach((slot, index) => {
-      if (!slot.start.isValid() || !slot.end.isValid()) {
-        throw new ValidationError(`Invalid time format for slot at index ${index}`);
+  private async _notifyPatient(appointmentId: string, message: string): Promise<void> {
+    const appointment = await this._appointmentRepository.findById(appointmentId);
+    if (appointment) {
+      const patient = await this._patientRepository.findById(appointment.patientId.toString());
+      if (!patient || !patient.email) {
+        throw new NotFoundError('Patient email not found');
       }
-    });
-
-    for (let i = 0; i < slotMoments.length; i++) {
-      for (let j = i + 1; j < slotMoments.length; j++) {
-        const slot1 = slotMoments[i];
-        const slot2 = slotMoments[j];
-        if (
-          (slot1.start.isSameOrAfter(slot2.start) && slot1.start.isBefore(slot2.end)) ||
-          (slot1.end.isAfter(slot2.start) && slot1.end.isSameOrBefore(slot2.end)) ||
-          (slot1.start.isSameOrBefore(slot2.start) && slot1.end.isSameOrAfter(slot2.end))
-        ) {
-          throw new ValidationError('Time slots cannot overlap');
-        }
-      }
+      await this._emailService.sendEmail(patient.email, 'Appointment Update', message);
+    } else {
+      throw new NotFoundError('Appointment not found');
     }
-    logger.info(
-      'Checked slots for overlaps:',
-      slotMoments.map((slot) => ({
-        start: slot.start.format('HH:mm'),
-        end: slot.end.format('HH:mm'),
-      }))
-    );
-  }
-
-  // Get start of day in UTC
-  private startOfDayUTC(date: Date): Date {
-    return moment.utc(date).startOf('day').toDate();
-  }
-
-  // Generate recurring dates based on start date, end date, and selected days of the week
-  private generateRecurringDates(startDate: Date, endDate: Date, recurringDays: number[]): Date[] {
-    if (!recurringDays || recurringDays.length === 0) {
-      throw new ValidationError('At least one recurring day is required');
-    }
-    const dates: Date[] = [];
-    let currentDate = moment.utc(startDate);
-    const end = moment.utc(endDate);
-
-    while (currentDate.isBefore(end) || currentDate.isSame(end, 'day')) {
-      if (recurringDays.includes(currentDate.day())) {
-        dates.push(currentDate.toDate());
-      }
-      currentDate = currentDate.add(1, 'day');
-    }
-
-    logger.debug(
-      'Generated recurring dates:',
-      dates.map((d) => moment.utc(d).format('YYYY-MM-DD'))
-    );
-    return dates;
   }
 
   async setAvailability(doctorId: string, dto: SetAvailabilityRequestDTO): Promise<SetAvailabilityResponseDTO> {
     if (!doctorId || !dto.date || !dto.timeSlots || dto.timeSlots.length === 0) {
-      logger.error('Missing required fields for setting availability');
       throw new ValidationError('Doctor ID, date, and time slots are required');
     }
 
     const doctor = await this._doctorRepository.findById(doctorId);
     if (!doctor) {
-      logger.error(`Doctor not found: ${doctorId}`);
       throw new NotFoundError('Doctor not found');
     }
 
     if (dto.isRecurring && (!dto.recurringEndDate || !dto.recurringDays || dto.recurringDays.length === 0)) {
-      logger.error('Recurring availability requires end date and days');
       throw new ValidationError('Recurring end date and days are required for recurring availability');
     }
 
     for (const slot of dto.timeSlots) {
-      this._validateTimeSlot(slot.startTime, slot.endTime, new Date(dto.date));
+      DateUtils.validateTimeSlot(slot.startTime, slot.endTime, new Date(dto.date));
     }
 
-    this._checkOverlappingSlots(dto.timeSlots, new Date(dto.date));
+    DateUtils.checkOverlappingSlots(dto.timeSlots, new Date(dto.date));
 
     const conflicts: { date: string; error: string }[] = [];
     const availabilities: AvailabilityResponseDTO[] = [];
 
     if (dto.isRecurring) {
-      const dates = this.generateRecurringDates(
+      const dates = DateUtils.generateRecurringDates(
         new Date(dto.date),
         new Date(dto.recurringEndDate!),
         dto.recurringDays!
       );
       for (const currentDate of dates) {
-        const startOfDay = this.startOfDayUTC(currentDate);
+        const startOfDay = DateUtils.startOfDayUTC(currentDate);
         const existingAvailability = await this._availabilityRepository.findByDoctorAndDate(doctorId, startOfDay);
-        if (existingAvailability && !dto.forceCreate) {
-          conflicts.push({
-            date: startOfDay.toISOString(),
-            error: 'Availability already exists for this date',
-          });
-          continue;
+
+        let newTimeSlots = dto.timeSlots.map((slot) => ({ ...slot, isBooked: false }));
+
+        if (existingAvailability) {
+          const existingSlots = existingAvailability.timeSlots.map((slot) => ({
+            ...slot,
+            isBooked: slot.isBooked ?? false,
+          }));
+          newTimeSlots = [...existingSlots, ...newTimeSlots];
+          try {
+            DateUtils.checkOverlappingSlots(newTimeSlots, startOfDay);
+          } catch (error) {
+            conflicts.push({ date: startOfDay.toISOString(), error: (error as Error).message });
+            continue;
+          }
         }
 
         const newAvailability: Availability = {
           doctorId,
           date: startOfDay,
-          timeSlots: dto.timeSlots.map((slot) => ({ ...slot, isBooked: false })),
+          timeSlots: newTimeSlots,
         };
 
         try {
@@ -166,20 +102,34 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
             conflicts.push({ date: startOfDay.toISOString(), error: 'Failed to save availability' });
           }
         } catch (error) {
-          logger.error(`Error saving availability for date ${startOfDay}: ${(error as Error).message}`);
           conflicts.push({ date: startOfDay.toISOString(), error: (error as Error).message });
         }
       }
       return { availabilities, conflicts };
     } else {
-      const startOfDay = this.startOfDayUTC(new Date(dto.date));
+      const startOfDay = DateUtils.startOfDayUTC(new Date(dto.date));
       const existingAvailability = await this._availabilityRepository.findByDoctorAndDate(doctorId, startOfDay);
-      if (existingAvailability && !dto.forceCreate) {
-        conflicts.push({ date: startOfDay.toISOString(), error: 'Availability already exists for this date' });
-        return { availabilities: [], conflicts };
+
+      let newTimeSlots = dto.timeSlots.map((slot) => ({ ...slot, isBooked: false }));
+
+      if (existingAvailability) {
+        const existingSlots = existingAvailability.timeSlots.map((slot) => ({
+          ...slot,
+          isBooked: slot.isBooked ?? false,
+        }));
+        newTimeSlots = [...existingSlots, ...newTimeSlots];
+        try {
+          DateUtils.checkOverlappingSlots(newTimeSlots, startOfDay);
+        } catch (error) {
+          conflicts.push({ date: startOfDay.toISOString(), error: (error as Error).message });
+          return { availabilities: [], conflicts };
+        }
       }
 
-      const newAvailability = AvailabilityMapper.toAvailabilityEntity({ ...dto, date: dto.date }, doctorId);
+      const newAvailability = AvailabilityMapper.toAvailabilityEntity(
+        { ...dto, date: dto.date, timeSlots: newTimeSlots },
+        doctorId
+      );
 
       try {
         const savedAvailability = existingAvailability
@@ -192,7 +142,6 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
           return { availabilities: [], conflicts };
         }
       } catch (error) {
-        logger.error(`Error saving availability for date ${startOfDay}: ${(error as Error).message}`);
         conflicts.push({ date: startOfDay.toISOString(), error: (error as Error).message });
         return { availabilities: [], conflicts };
       }
@@ -244,7 +193,8 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
   async removeSlot(
     availabilityId: string,
     slotIndex: number,
-    doctorId: string
+    doctorId: string,
+    reason?: string
   ): Promise<AvailabilityResponseDTO | null> {
     if (!availabilityId || slotIndex < 0 || !doctorId) {
       throw new ValidationError('Availability ID, slot index, and doctor ID are required');
@@ -263,8 +213,24 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
       throw new ValidationError('Invalid slot index');
     }
 
-    if (availability.timeSlots[slotIndex].isBooked) {
-      throw new ValidationError('Cannot remove a booked slot');
+    const slot = availability.timeSlots[slotIndex];
+    if (slot.isBooked) {
+      if (!reason) {
+        throw new ValidationError('Reason is required to remove a booked slot');
+      }
+      const appointment = await this._appointmentRepository.findByDoctorAndSlot(
+        doctorId,
+        availability.date,
+        slot.startTime,
+        slot.endTime
+      );
+      if (appointment) {
+        await this._appointmentRepository.update(appointment._id!, { status: 'cancelled', cancellationReason: reason });
+        await this._notifyPatient(
+          appointment._id!,
+          `Your appointment on ${availability.date.toISOString()} at ${slot.startTime} has been cancelled. Reason: ${reason}`
+        );
+      }
     }
 
     availability.timeSlots.splice(slotIndex, 1);
@@ -283,7 +249,8 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
     availabilityId: string,
     slotIndex: number,
     newSlot: UpdateSlotRequestDTO,
-    doctorId: string
+    doctorId: string,
+    reason?: string
   ): Promise<AvailabilityResponseDTO | null> {
     if (!availabilityId || slotIndex < 0 || !newSlot.startTime || !newSlot.endTime || !doctorId) {
       throw new ValidationError('Availability ID, slot index, new slot details, and doctor ID are required');
@@ -302,16 +269,38 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
       throw new ValidationError('Invalid slot index');
     }
 
-    if (availability.timeSlots[slotIndex].isBooked) {
-      throw new ValidationError('Cannot update a booked slot');
+    const oldSlot = availability.timeSlots[slotIndex];
+    if (oldSlot.isBooked) {
+      if (!reason) {
+        throw new ValidationError('Reason is required to update a booked slot');
+      }
+      const appointment = await this._appointmentRepository.findByDoctorAndSlot(
+        doctorId,
+        availability.date,
+        oldSlot.startTime,
+        oldSlot.endTime
+      );
+      if (appointment) {
+        await this._appointmentRepository.update(appointment._id!, {
+          startTime: newSlot.startTime,
+          endTime: newSlot.endTime,
+        });
+        await this._notifyPatient(
+          appointment._id!,
+          `Your appointment on ${availability.date.toISOString()} has been updated to ${newSlot.startTime} - ${newSlot.endTime}. Reason: ${reason}`
+        );
+      }
     }
 
-    this._validateTimeSlot(newSlot.startTime, newSlot.endTime, availability.date);
+    DateUtils.validateTimeSlot(newSlot.startTime, newSlot.endTime, availability.date);
     const tempSlots = [...availability.timeSlots];
-    tempSlots[slotIndex] = { ...newSlot, isBooked: false };
-    this._checkOverlappingSlots(tempSlots, availability.date);
+    tempSlots[slotIndex] = { ...newSlot, isBooked: oldSlot.isBooked ?? false };
+    DateUtils.checkOverlappingSlots(tempSlots, availability.date);
 
-    availability.timeSlots[slotIndex] = AvailabilityMapper.toTimeSlotEntity({ ...newSlot, isBooked: false });
+    availability.timeSlots[slotIndex] = AvailabilityMapper.toTimeSlotEntity({
+      ...newSlot,
+      isBooked: oldSlot.isBooked ?? false,
+    });
     const updatedAvailability = await this._availabilityRepository.update(availabilityId, {
       timeSlots: availability.timeSlots,
     });

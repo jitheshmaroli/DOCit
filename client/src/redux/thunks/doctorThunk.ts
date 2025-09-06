@@ -31,6 +31,7 @@ import {
   QueryParams,
   Appointment,
   SubscriptionPlan,
+  UpdateSlotPayload,
 } from '../../types/authTypes';
 import { DateUtils } from '../../utils/DateUtils';
 
@@ -101,7 +102,7 @@ export const setAvailabilityThunk = createAsyncThunk(
 export const removeSlotThunk = createAsyncThunk(
   'doctors/removeSlot',
   async (
-    payload: { availabilityId: string; slotIndex: number },
+    payload: { availabilityId: string; slotIndex: number; reason?: string },
     { rejectWithValue }
   ) => {
     try {
@@ -114,15 +115,7 @@ export const removeSlotThunk = createAsyncThunk(
 
 export const updateSlotThunk = createAsyncThunk(
   'doctors/updateSlot',
-  async (
-    payload: {
-      availabilityId: string;
-      slotIndex: number;
-      startTime: string;
-      endTime: string;
-    },
-    { rejectWithValue }
-  ) => {
+  async (payload: UpdateSlotPayload, { rejectWithValue }) => {
     try {
       return await updateSlot(payload);
     } catch (error: any) {

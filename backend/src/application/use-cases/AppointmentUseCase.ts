@@ -96,18 +96,7 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       planId: dto.isFreeBooking ? undefined : activeSubscription?.planId,
     };
 
-    // Map to entity
     const appointment = AppointmentMapper.toAppointmentEntity(appointmentDTO);
-
-    // let savedAppointment: Appointment;
-    // try {
-    //   savedAppointment = await this._appointmentRepository.create(appointment);
-    // } catch (error) {
-    //   if (error instanceof MongoServerError && error.code === 11000) {
-    //     throw new ValidationError('This time slot is already booked');
-    //   }
-    //   throw error;
-    // }
 
     const savedAppointment = await this._appointmentRepository.create(appointment);
 
@@ -117,7 +106,6 @@ export class AppointmentUseCase implements IAppointmentUseCase {
 
     await this._availabilityRepository.updateSlotBookingStatus(dto.doctorId, startOfDay, dto.startTime, true);
 
-    // Map entity to DTO
     const savedAppointmentDTO = AppointmentMapper.toAppointmentDTO(savedAppointment);
 
     const patientNotification: Notification = {
@@ -168,26 +156,6 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       throw new ValidationError('Appointment is already cancelled');
     }
 
-    // let doctorId: string;
-    // if (typeof appointment.doctorId === 'string') {
-    //   doctorId = appointment.doctorId;
-    // } else if (appointment.doctorId && 'name' in appointment.doctorId && appointment.doctorId._id) {
-    //   doctorId = appointment.doctorId._id.toString();
-    // } else {
-    //   logger.error(`Invalid doctorId for appointment ${dto.appointmentId}`);
-    //   throw new ValidationError('Invalid doctor ID');
-    // }
-
-    // let patientId: string;
-    // if (typeof appointment.patientId === 'string') {
-    //   patientId = appointment.patientId;
-    // } else if (appointment.patientId && 'name' in appointment.patientId && appointment.patientId._id) {
-    //   patientId = appointment.patientId._id.toString();
-    // } else {
-    //   logger.error(`Invalid patientId for appointment ${dto.appointmentId}`);
-    //   throw new ValidationError('Invalid patient ID');
-    // }
-
     if (appointment.patientId.toString() !== dto.patientId.toString()) {
       throw new ValidationError('Unauthorized to cancel this appointment');
     }
@@ -204,19 +172,6 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     });
 
     const startOfDay = DateUtils.startOfDayUTC(appointment.date);
-    // try {
-    //   await this._availabilityRepository.updateSlotBookingStatus(
-    //     appointment.doctorId,
-    //     startOfDay,
-    //     appointment.startTime,
-    //     false
-    //   );
-    // } catch (error) {
-    //   logger.error(
-    //     `Failed to update availability slot for doctor ${appointment.doctorId}: ${(error as Error).message}`
-    //   );
-    //   throw new Error(`Failed to update availability: ${(error as Error).message}`);
-    // }
 
     await this._availabilityRepository.updateSlotBookingStatus(
       appointment.doctorId,
@@ -273,26 +228,6 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     if (appointment.status === AppointmentStatus.CANCELLED) {
       throw new ValidationError('Appointment is already cancelled');
     }
-
-    // let patientId: string;
-    // if (typeof appointment.patientId === 'string') {
-    //   patientId = appointment.patientId;
-    // } else if (appointment.patientId && 'name' in appointment.patientId && appointment.patientId._id) {
-    //   patientId = appointment.patientId._id.toString();
-    // } else {
-    //   logger.error(`Invalid patientId for appointment ${appointmentId}`);
-    //   throw new ValidationError('Invalid patient ID');
-    // }
-
-    // let doctorId: string;
-    // if (typeof appointment.doctorId === 'string') {
-    //   doctorId = appointment.doctorId;
-    // } else if (appointment.doctorId && 'name' in appointment.doctorId && appointment.doctorId._id) {
-    //   doctorId = appointment.doctorId._id.toString();
-    // } else {
-    //   logger.error(`Invalid doctorId for appointment ${appointmentId}`);
-    //   throw new ValidationError('Invalid doctor ID');
-    // }
 
     const doctor = await this._doctorRepository.findById(appointment.doctorId);
     if (!doctor) throw new NotFoundError('Doctor not found');
@@ -362,26 +297,6 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     if (appointment.status !== AppointmentStatus.PENDING) {
       throw new ValidationError('Only pending appointments can be marked as completed');
     }
-
-    // let patientId: string;
-    // if (typeof appointment.patientId === 'string') {
-    //   patientId = appointment.patientId;
-    // } else if (appointment.patientId && 'name' in appointment.patientId && appointment.patientId._id) {
-    //   patientId = appointment.patientId._id.toString();
-    // } else {
-    //   logger.error(`Invalid patientId for appointment ${dto.appointmentId}`);
-    //   throw new ValidationError('Invalid patient ID');
-    // }
-
-    // let doctorId: string;
-    // if (typeof appointment.doctorId === 'string') {
-    //   doctorId = appointment.doctorId;
-    // } else if (appointment.doctorId && 'name' in appointment.doctorId && appointment.doctorId._id) {
-    //   doctorId = appointment.doctorId._id.toString();
-    // } else {
-    //   logger.error(`Invalid doctorId for appointment ${dto.appointmentId}`);
-    //   throw new ValidationError('Invalid doctor ID');
-    // }
 
     if (appointment.doctorId.toString() !== dto.doctorId.toString()) {
       throw new ValidationError('Unauthorized to complete this appointment');
@@ -500,28 +415,14 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     };
   }
 
-  async getSingleAppointment(doctorId: string, appointmentId: string): Promise<AppointmentDTO> {
+  async getSingleAppointment(appointmentId: string): Promise<AppointmentDTO> {
     if (!appointmentId) {
       throw new ValidationError('Appointment ID is required');
     }
 
-    const appointment = await this._appointmentRepository.findById(appointmentId);
+    const appointment = await this._appointmentRepository.findByIdPopulated(appointmentId);
     if (!appointment) {
       throw new NotFoundError('Appointment not found');
-    }
-
-    // let resolvedDoctorId: string;
-    // if (typeof appointment.doctorId === 'string') {
-    //   resolvedDoctorId = appointment.doctorId;
-    // } else if (appointment.doctorId && 'name' in appointment.doctorId && appointment.doctorId._id) {
-    //   resolvedDoctorId = appointment.doctorId._id.toString();
-    // } else {
-    //   logger.error(`Invalid doctorId for appointment ${appointmentId}`);
-    //   throw new ValidationError('Invalid doctor ID');
-    // }
-
-    if (appointment.doctorId.toString() !== doctorId.toString()) {
-      throw new ValidationError('Unauthorized to access this appointment');
     }
 
     return AppointmentMapper.toAppointmentDTO(appointment);

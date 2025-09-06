@@ -199,6 +199,15 @@ const AppointmentDetails: React.FC = () => {
     );
   }, [appointment]);
 
+  const isFutureAppointment = useCallback(() => {
+    if (!appointment) return false;
+    const now = new Date();
+    const startTime = new Date(
+      `${appointment.date.split('T')[0]}T${appointment.startTime}:00Z`
+    );
+    return startTime > now;
+  }, [appointment]);
+
   const handleCancelAppointment = async (cancellationReason: string) => {
     if (!appointmentId || !user?._id) {
       toast.error('User not authenticated');
@@ -408,7 +417,7 @@ const AppointmentDetails: React.FC = () => {
             </div>
           </div>
 
-          {appointment.status === 'pending' && (
+          {appointment.status === 'pending' && isFutureAppointment() && (
             <button
               onClick={() => setIsCancelModalOpen(true)}
               className="mt-4 bg-gradient-to-r from-red-600 to-red-700 text-white px-4 py-2 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300"

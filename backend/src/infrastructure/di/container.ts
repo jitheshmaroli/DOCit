@@ -136,7 +136,16 @@ export class Container {
       )
     );
     this.dependencies.set('INotificationUseCase', new NotificationUseCase(notificationRepository));
-    this.dependencies.set('IAvailabilityUseCase', new AvailabilityUseCase(doctorRepository, availabilityRepository));
+    this.dependencies.set(
+      'IAvailabilityUseCase',
+      new AvailabilityUseCase(
+        doctorRepository,
+        availabilityRepository,
+        appointmentRepository,
+        emailService,
+        patientRepository
+      )
+    );
     this.dependencies.set(
       'ISubscriptionPlanUseCase',
       new SubscriptionPlanUseCase(
