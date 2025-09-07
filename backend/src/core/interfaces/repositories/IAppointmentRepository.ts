@@ -1,10 +1,10 @@
-import { Appointment, ExtendedAppointment } from '../../entities/Appointment';
+import { Appointment } from '../../entities/Appointment';
 import { Prescription } from '../../entities/Prescription';
 import { QueryParams } from '../../../types/authTypes';
 import { IBaseRepository } from './IBaseRepository';
 
 export interface IAppointmentRepository extends IBaseRepository<Appointment> {
-  findByIdPopulated(appointmentId: string): Promise<ExtendedAppointment | null>;
+  findByIdPopulated(appointmentId: string): Promise<Appointment | null>;
   findUpcomingAppointments(start: Date, end: Date): Promise<Appointment[]>;
   findByDoctorAndSlot(doctorId: string, date: Date, startTime: string, endTime: string): Promise<Appointment | null>;
   countByPatientAndDoctor(patientId: string, doctorId: string): Promise<number>;
@@ -22,4 +22,5 @@ export interface IAppointmentRepository extends IBaseRepository<Appointment> {
     appointmentId: string,
     prescription: Omit<Prescription, '_id' | 'appointmentId' | 'patientId' | 'doctorId' | 'createdAt' | 'updatedAt'>
   ): Promise<Appointment>;
+  getDistinctPatientIdsByDoctor(doctorId: string): Promise<string[]>;
 }

@@ -1,6 +1,6 @@
-import mongoose, { FilterQuery, Types } from 'mongoose';
+import mongoose, { FilterQuery } from 'mongoose';
 import { IAppointmentRepository } from '../../core/interfaces/repositories/IAppointmentRepository';
-import { Appointment, ExtendedAppointment } from '../../core/entities/Appointment';
+import { Appointment } from '../../core/entities/Appointment';
 import { QueryParams } from '../../types/authTypes';
 import { DateUtils } from '../../utils/DateUtils';
 import { AppointmentModel } from '../database/models/AppointmentModel';
@@ -10,7 +10,6 @@ import { Prescription } from '../../core/entities/Prescription';
 import { PrescriptionModel } from '../database/models/PrescriptionModel';
 import { BaseRepository } from './BaseRepository';
 import { AppointmentStatus } from '../../application/dtos/AppointmentDTOs';
-import logger from '../../utils/logger';
 
 export class AppointmentRepository extends BaseRepository<Appointment> implements IAppointmentRepository {
   constructor() {
@@ -26,122 +25,15 @@ export class AppointmentRepository extends BaseRepository<Appointment> implement
     return savedAppointment.toObject() as Appointment;
   }
 
-  // async findById(appointmentId: string): Promise<Appointment | null> {
-  //   if (!mongoose.Types.ObjectId.isValid(appointmentId)) return null;
-  //   const appointment = await this.model
-  //     .findById(appointmentId)
-  //     .populate('patientId')
-  //     .populate('doctorId')
-  //     .populate('prescriptionId')
-  //     .exec();
-  //   return appointment ? (appointment.toObject() as Appointment) : null;
-  // }
-
-  async findByIdPopulated(appointmentId: string): Promise<ExtendedAppointment | null> {
-    if (!Types.ObjectId.isValid(appointmentId)) {
-      logger.debug(`Invalid ObjectId: ${appointmentId}`);
-      return null;
-    }
-
-    const pipeline = [
-      {
-        $match: { _id: new Types.ObjectId(appointmentId) },
-      },
-      {
-        $lookup: {
-          from: 'patients',
-          localField: 'patientId',
-          foreignField: '_id',
-          as: 'patient',
-        },
-      },
-      {
-        $lookup: {
-          from: 'doctors',
-          localField: 'doctorId',
-          foreignField: '_id',
-          as: 'doctor',
-        },
-      },
-      {
-        $lookup: {
-          from: 'subscriptionplans',
-          localField: 'planId',
-          foreignField: '_id',
-          as: 'plan',
-        },
-      },
-      {
-        $lookup: {
-          from: 'prescriptions',
-          localField: 'prescriptionId',
-          foreignField: '_id',
-          as: 'prescription',
-        },
-      },
-      {
-        $unwind: { path: '$patient', preserveNullAndEmptyArrays: true },
-      },
-      {
-        $unwind: { path: '$doctor', preserveNullAndEmptyArrays: true },
-      },
-      {
-        $unwind: { path: '$plan', preserveNullAndEmptyArrays: true },
-      },
-      {
-        $unwind: { path: '$prescription', preserveNullAndEmptyArrays: true },
-      },
-      {
-        $project: {
-          _id: 1,
-          'patient.name': 1,
-          'doctor.name': 1,
-          plan: 1,
-          prescription: 1,
-          date: 1,
-          startTime: 1,
-          endTime: 1,
-          status: 1,
-          isFreeBooking: 1,
-          bookingTime: 1,
-          createdAt: 1,
-          updatedAt: 1,
-          reminderSent: 1,
-          cancellationReason: 1,
-          hasReview: 1,
-        },
-      },
-    ];
-
-    const testPipeline = [
-      {
-        $match: { _id: new Types.ObjectId('68b40d037cfe48a8b26b9ce2') },
-      },
-      {
-        $lookup: {
-          from: 'patients',
-          localField: 'patientId',
-          foreignField: '_id',
-          as: 'patient',
-        },
-      },
-    ];
-    const result = await this.model.aggregate(testPipeline).exec();
-    console.log(JSON.stringify(result[0].patient, null, 2));
-
-    const [appointment] = await this.model.aggregate(pipeline).exec();
-
-    console.log('appointment after aggregation:', JSON.stringify(appointment, null, 2));
-    if (!appointment) {
-      logger.debug(`No appointment found for ID: ${appointmentId}`);
-      return null;
-    }
-
-    // Log the raw appointment before population for comparison
-    const rawAppointment = await this.model.findById(appointmentId).lean();
-    console.log('raw appointment:', JSON.stringify(rawAppointment, null, 2));
-
-    return appointment as ExtendedAppointment;
+  async findByIdPopulated(appointmentId: string): Promise<Appointment | null> {
+    if (!mongoose.Types.ObjectId.isValid(appointmentId)) return null;
+    const appointment = await this.model
+      .findById(appointmentId)
+      .populate('patientId')
+      .populate('doctorId')
+      .populate('prescriptionId')
+      .exec();
+    return (appointment as Appointment) ?? null;
   }
 
   async findUpcomingAppointments(start: Date, end: Date): Promise<Appointment[]> {
@@ -224,6 +116,16 @@ export class AppointmentRepository extends BaseRepository<Appointment> implement
       .populate('doctorId', 'name')
       .exec();
     return appointments.map((appt) => appt.toObject() as Appointment);
+  }
+
+  async getDistinctPatientIdsByDoctor(doctorId: string): Promise<string[]> {
+    const results = await this.model.aggregate([
+      { $match: { doctorId } },
+      { $group: { _id: '$patientId' } },
+      { $project: { _id: 1 } },
+    ]);
+    console.log('resu;ts', results);
+    return results.map((r) => r._id.toString());
   }
 
   async findByPatientAndDoctorWithQuery(

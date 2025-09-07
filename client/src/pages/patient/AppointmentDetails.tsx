@@ -117,7 +117,7 @@ const AppointmentDetails: React.FC = () => {
         if (typeof appt.doctorId === 'string') {
           appt.doctorId = { _id: appt.doctorId, name: 'Unknown Doctor' };
         }
-        if (appt.prescriptionId) {
+        if (appt.prescriptionId === 'object') {
           appt.prescription = {
             medications: appt.prescriptionId.medications.map((med: any) => ({
               name: med.name,

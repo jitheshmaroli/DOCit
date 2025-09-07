@@ -4,7 +4,7 @@ import { AppointmentDTO, PrescriptionDTO } from '../dtos/AppointmentDTOs';
 
 export class AppointmentMapper {
   static toAppointmentDTO(appointment: Appointment): AppointmentDTO {
-    return {
+    const dto: AppointmentDTO = {
       _id: appointment._id?.toString(),
       patientId: appointment.patientId,
       doctorId: appointment.doctorId,
@@ -19,6 +19,12 @@ export class AppointmentMapper {
       prescriptionId: appointment.prescriptionId,
       hasReview: appointment.hasReview,
     };
+
+    if (appointment.prescriptionId && typeof appointment.prescriptionId !== 'string') {
+      dto.prescription = this.toPrescriptionDTO(appointment.prescriptionId as Prescription);
+    }
+
+    return dto;
   }
 
   static toAppointmentEntity(dto: AppointmentDTO): Appointment {
@@ -50,14 +56,14 @@ export class AppointmentMapper {
     };
   }
 
-  static toPrescriptionEntity(prescription: Prescription): PrescriptionDTO {
+  static toPrescriptionEntity(dto: PrescriptionDTO): Prescription {
     return {
-      _id: prescription._id?.toString(),
-      appointmentId: prescription.appointmentId,
-      patientId: prescription.patientId,
-      doctorId: prescription.doctorId,
-      medications: prescription.medications,
-      notes: prescription.notes,
+      _id: dto._id,
+      appointmentId: dto.appointmentId,
+      patientId: dto.patientId,
+      doctorId: dto.doctorId,
+      medications: dto.medications,
+      notes: dto.notes,
     };
   }
 }

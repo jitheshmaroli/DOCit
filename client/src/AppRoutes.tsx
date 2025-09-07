@@ -34,6 +34,7 @@ import PatientAppointments from './pages/doctor/PatientAppointments';
 import Subscriptions from './pages/patient/Profile/Subscriptions';
 import PersonalInformation from './pages/patient/Profile/PersonalInformation';
 import PatientMessages from './pages/patient/Profile/Messages';
+import DoctorPatients from './pages/doctor/DoctorPatients';
 
 
 const AppRoutes = () => {
@@ -88,6 +89,7 @@ const AppRoutes = () => {
           <Route path="messages" element={<Messages />} />
           <Route path="plans" element={<DoctorPlans />} />
           <Route path="plan-details/:planId" element={<PlanDetails />} />
+          <Route path="patients" element={<DoctorPatients />} />
           <Route path="patient/:patientId" element={<PatientDetails />} />
           <Route
             path="patient/:patientId/appointments"

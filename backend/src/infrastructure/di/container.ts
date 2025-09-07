@@ -159,7 +159,10 @@ export class Container {
       )
     );
     this.dependencies.set('IDoctorUseCase', new DoctorUseCase(doctorRepository, specialityRepository));
-    this.dependencies.set('IPatientUseCase', new PatientUseCase(patientRepository, patientSubscriptionRepository));
+    this.dependencies.set(
+      'IPatientUseCase',
+      new PatientUseCase(patientRepository, patientSubscriptionRepository, appointmentRepository)
+    );
     this.dependencies.set(
       'IChatUseCase',
       new ChatUseCase(chatRepository, patientRepository, doctorRepository, socketService, imageUploadService)

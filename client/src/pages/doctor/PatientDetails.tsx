@@ -2,12 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { Patient } from '../../types/authTypes';
+import { Patient, Prescription } from '../../types/authTypes';
 import { DateUtils } from '../../utils/DateUtils';
 import Pagination from '../../components/common/Pagination';
 import { getPatientAppointments } from '../../services/doctorService';
 import { useAppSelector } from '../../redux/hooks';
 import api from '../../services/api';
+import Modal from '../../components/common/Modal';
 
 interface Appointment {
   _id: string;
@@ -16,6 +17,8 @@ interface Appointment {
   startTime: string;
   endTime: string;
   status: string;
+  isFreeBooking?: boolean;
+  prescription?: Prescription;
 }
 
 const ITEMS_PER_PAGE = 4;
@@ -25,13 +28,15 @@ const PatientDetails: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAppSelector((state) => state.auth);
   const [patient, setPatient] = useState<Patient | null>(null);
-  const [activeTab, setActiveTab] = useState<'profile' | 'appointments'>(
+  const [activeTab, setActiveTab] = useState<'profile' | 'medicalHistory'>(
     'profile'
   );
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [totalItems, setTotalItems] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [selectedPrescription, setSelectedPrescription] =
+    useState<Prescription | null>(null);
 
   useEffect(() => {
     const fetchPatient = async () => {
@@ -70,7 +75,7 @@ const PatientDetails: React.FC = () => {
       }
     };
 
-    if (activeTab === 'appointments') {
+    if (activeTab === 'medicalHistory') {
       fetchAppointments();
     }
   }, [patientId, user?._id, currentPage, activeTab]);
@@ -84,6 +89,41 @@ const PatientDetails: React.FC = () => {
   return (
     <>
       <ToastContainer position="top-right" autoClose={3000} theme="dark" />
+      <Modal
+        isOpen={!!selectedPrescription}
+        onClose={() => setSelectedPrescription(null)}
+        title="Prescription Details"
+      >
+        {selectedPrescription && (
+          <div className="space-y-4 text-white">
+            <div>
+              <h4 className="text-sm text-gray-300">Medications</h4>
+              {selectedPrescription.medications?.map((med, index) => (
+                <div key={index} className="border-b border-white/20 py-2">
+                  <p>
+                    <strong>Name:</strong> {med.name}
+                  </p>
+                  <p>
+                    <strong>Dosage:</strong> {med.dosage}
+                  </p>
+                  <p>
+                    <strong>Frequency:</strong> {med.frequency}
+                  </p>
+                  <p>
+                    <strong>Duration:</strong> {med.duration}
+                  </p>
+                </div>
+              ))}
+            </div>
+            {selectedPrescription.notes && (
+              <div>
+                <h4 className="text-sm text-gray-300">Notes</h4>
+                <p>{selectedPrescription.notes}</p>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
       <div className="bg-white/10 backdrop-blur-lg p-4 sm:p-6 rounded-2xl border border-white/20 shadow-xl">
         <button
           onClick={() => navigate('/doctor/appointments')}
@@ -116,10 +156,10 @@ const PatientDetails: React.FC = () => {
               Profile
             </button>
             <button
-              className={`px-4 py-2 text-sm font-medium ${activeTab === 'appointments' ? 'text-white border-b-2 border-purple-400' : 'text-gray-400 hover:text-white'}`}
-              onClick={() => setActiveTab('appointments')}
+              className={`px-4 py-2 text-sm font-medium ${activeTab === 'medicalHistory' ? 'text-white border-b-2 border-purple-400' : 'text-gray-400 hover:text-white'}`}
+              onClick={() => setActiveTab('medicalHistory')}
             >
-              Appointment History
+              Medical History
             </button>
           </div>
         </div>
@@ -191,7 +231,7 @@ const PatientDetails: React.FC = () => {
                 </div>
               </div>
             )}
-            {activeTab === 'appointments' && (
+            {activeTab === 'medicalHistory' && (
               <div className="overflow-x-auto">
                 <table className="min-w-full bg-white/20 backdrop-blur-lg border border-white/20 rounded-lg">
                   <thead>
@@ -203,7 +243,13 @@ const PatientDetails: React.FC = () => {
                         Time
                       </th>
                       <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-200 uppercase tracking-wider">
+                        Type
+                      </th>
+                      <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-200 uppercase tracking-wider">
                         Status
+                      </th>
+                      <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-200 uppercase tracking-wider">
+                        Prescription
                       </th>
                     </tr>
                   </thead>
@@ -221,10 +267,13 @@ const PatientDetails: React.FC = () => {
                             {DateUtils.formatTimeToLocal(appt.startTime)} -{' '}
                             {DateUtils.formatTimeToLocal(appt.endTime)}
                           </td>
+                          <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-200">
+                            {appt.isFreeBooking ? 'Free Booking' : 'Subscribed'}
+                          </td>
                           <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                             <span
                               className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                appt.status === 'confirmed'
+                                appt.status === 'completed'
                                   ? 'bg-green-500/20 text-green-300'
                                   : appt.status === 'pending'
                                     ? 'bg-yellow-500/20 text-yellow-300'
@@ -234,15 +283,32 @@ const PatientDetails: React.FC = () => {
                               {appt.status || 'Pending'}
                             </span>
                           </td>
+                          <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-200">
+                            {appt.status === 'completed' &&
+                            appt.prescription ? (
+                              <button
+                                onClick={() =>
+                                  setSelectedPrescription(
+                                    appt.prescription ?? null
+                                  )
+                                }
+                                className="px-2 py-1 bg-purple-600 hover:bg-purple-700 rounded-lg text-white text-sm transition-all duration-300"
+                              >
+                                View
+                              </button>
+                            ) : (
+                              'N/A'
+                            )}
+                          </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
                         <td
-                          colSpan={3}
+                          colSpan={5}
                           className="px-4 sm:px-6 py-4 text-center text-gray-200"
                         >
-                          No appointments found.
+                          No medical history found.
                         </td>
                       </tr>
                     )}

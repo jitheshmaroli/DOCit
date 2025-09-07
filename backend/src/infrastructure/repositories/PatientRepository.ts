@@ -17,7 +17,7 @@ export class PatientRepository extends BaseRepository<Patient> implements IPatie
     return patient ? (patient.toObject() as Patient) : null;
   }
 
-  async findAllWithQuery(params: QueryParams): Promise<PaginatedResponse<Patient>> {
+  async findAllWithQuery(params: QueryParams & { ids?: string[] }): Promise<PaginatedResponse<Patient>> {
     const {
       search = '',
       page = 1,
@@ -27,6 +27,7 @@ export class PatientRepository extends BaseRepository<Patient> implements IPatie
       isBlocked,
       isVerified,
       isSubscribed,
+      ids,
     } = params;
 
     // Validate parameters
@@ -54,6 +55,11 @@ export class PatientRepository extends BaseRepository<Patient> implements IPatie
     }
     if (isSubscribed !== undefined) {
       query.isSubscribed = isSubscribed;
+    }
+
+    // Handle ids filter
+    if (ids && ids.length > 0) {
+      query._id = { $in: ids.map((id) => new mongoose.Types.ObjectId(id)) };
     }
 
     logger.debug('query in patientrepo:', query);

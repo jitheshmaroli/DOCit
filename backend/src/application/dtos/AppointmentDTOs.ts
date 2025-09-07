@@ -94,6 +94,7 @@ export interface AppointmentDTO {
   planId?: string;
   cancellationReason?: string;
   prescriptionId?: string;
+  prescription?: PrescriptionDTO;
   hasReview?: boolean;
 }
 export enum AppointmentStatus {

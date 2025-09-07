@@ -281,6 +281,14 @@ export const getReports = async (filter: {
 
 export const getSubscribedPatients = async () => {
   const response = await api.get(ROUTES.API.DOCTOR.SUBSCRIBED_PATIENTS);
+  console.log(response.data);
+  return response;
+};
+
+export const getAppointedPatients = async (page: number, limit: number) => {
+  const response = await api.get(ROUTES.API.DOCTOR.APPOINTED_PATIENTS, {
+    params: { page, limit },
+  });
   return response.data;
 };
 

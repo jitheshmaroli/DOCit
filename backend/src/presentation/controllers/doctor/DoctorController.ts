@@ -379,6 +379,25 @@ export class DoctorController {
     }
   }
 
+  async getAppointedPatients(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const doctorId = req.user?.id;
+      if (!doctorId) {
+        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
+      }
+      const { page = 1, limit = 10, search = '' } = req.query;
+      const params: QueryParams = {
+        page: parseInt(String(page)),
+        limit: parseInt(String(limit)),
+        search: String(search),
+      };
+      const patients = await this._patientUseCase.getAppointedPatients(doctorId, params);
+      res.status(HttpStatusCode.OK).json(patients);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getSubscribedPatients(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const doctorId = req.user?.id;
