@@ -15,6 +15,7 @@ const PrescriptionSchema = new Schema<Prescription>(
       },
     ],
     notes: { type: String },
+    pdfUrl: { type: String },
   },
   { timestamps: true }
 );

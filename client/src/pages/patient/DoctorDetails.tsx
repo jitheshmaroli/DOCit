@@ -29,10 +29,7 @@ import PaymentForm from './PaymentForm';
 import { DateUtils } from '../../utils/DateUtils';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
-import {
-  TimeSlot,
-  Appointment,
-} from '../../types/authTypes';
+import { TimeSlot, Appointment } from '../../types/authTypes';
 import Pagination from '../../components/common/Pagination';
 import CancelAppointmentModal from '../../components/CancelAppointmentModal';
 import Modal from '../../components/common/Modal';
@@ -306,7 +303,7 @@ const DoctorDetails: React.FC = () => {
       const selectedAvail = availability.find((avail) => avail.date === date);
       const slots = selectedAvail
         ? selectedAvail.timeSlots.filter((slot) => {
-            if (!slot.startTime || !slot.endTime) return false;
+            if (!slot.startTime || !slot.endTime || slot.isBooked) return false;
             const now = new Date();
             const slotDate = new Date(date);
             const endTime = new Date(`${date}T${slot.endTime}`);

@@ -9,7 +9,6 @@ import { ISpecialityUseCase } from '../../../core/interfaces/use-cases/ISpeciali
 import { IAppointmentUseCase } from '../../../core/interfaces/use-cases/IAppointmentUseCase';
 import { IReviewUseCase } from '../../../core/interfaces/use-cases/IReviewUseCase';
 import mongoose from 'mongoose';
-import logger from '../../../utils/logger';
 import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 import { IAvailabilityUseCase } from '../../../core/interfaces/use-cases/IAvailabilityUseCase';
@@ -61,8 +60,6 @@ export class PatientController {
       const startDate = new Date(date as string);
       const endDate = new Date(startDate);
       endDate.setDate(startDate.getDate() + 30);
-      logger.debug('paramsavailability:', req.params);
-      logger.debug('paramsavailability:', req.query);
       const availability: AvailabilityResponseDTO[] = await this._availabilityUseCase.getDoctorAvailability(
         doctorId,
         startDate,

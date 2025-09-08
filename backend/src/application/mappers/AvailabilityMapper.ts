@@ -10,7 +10,7 @@ export class AvailabilityMapper {
       timeSlots: availability.timeSlots.map((slot) => ({
         startTime: slot.startTime,
         endTime: slot.endTime,
-        isBooked: slot.isBooked ?? false,
+        isBooked: slot.isBooked,
       })),
     };
   }

@@ -6,10 +6,9 @@ import { DateUtils } from '../../utils/DateUtils';
 import { AppointmentModel } from '../database/models/AppointmentModel';
 import { PatientModel } from '../database/models/PatientModel';
 import { DoctorModel } from '../database/models/DoctorModel';
-import { Prescription } from '../../core/entities/Prescription';
-import { PrescriptionModel } from '../database/models/PrescriptionModel';
 import { BaseRepository } from './BaseRepository';
 import { AppointmentStatus } from '../../application/dtos/AppointmentDTOs';
+import { PrescriptionModel } from '../database/models/PrescriptionModel';
 
 export class AppointmentRepository extends BaseRepository<Appointment> implements IAppointmentRepository {
   constructor() {
@@ -31,7 +30,11 @@ export class AppointmentRepository extends BaseRepository<Appointment> implement
       .findById(appointmentId)
       .populate('patientId')
       .populate('doctorId')
-      .populate('prescriptionId')
+      .populate({
+        path: 'prescriptionId',
+        model: PrescriptionModel,
+        select: '_id appointmentId patientId doctorId medications notes pdfUrl createdAt updatedAt',
+      })
       .exec();
     return (appointment as Appointment) ?? null;
   }
@@ -104,11 +107,6 @@ export class AppointmentRepository extends BaseRepository<Appointment> implement
       .exec();
   }
 
-  async deleteById(appointmentId: string): Promise<void> {
-    if (!mongoose.Types.ObjectId.isValid(appointmentId)) return;
-    await this.model.findByIdAndDelete(appointmentId).exec();
-  }
-
   async findByPatient(patientId: string): Promise<Appointment[]> {
     const appointments = await this.model
       .find({ patientId })
@@ -124,7 +122,6 @@ export class AppointmentRepository extends BaseRepository<Appointment> implement
       { $group: { _id: '$patientId' } },
       { $project: { _id: 1 } },
     ]);
-    console.log('resu;ts', results);
     return results.map((r) => r._id.toString());
   }
 
@@ -225,10 +222,7 @@ export class AppointmentRepository extends BaseRepository<Appointment> implement
     return { data: appointments.map((appt) => appt.toObject() as Appointment), totalItems };
   }
 
-  async completeAppointmentAndCreatePrescription(
-    appointmentId: string,
-    prescription: Omit<Prescription, '_id' | 'appointmentId' | 'patientId' | 'doctorId' | 'createdAt' | 'updatedAt'>
-  ): Promise<Appointment> {
+  async completeAppointment(appointmentId: string, prescriptionId: string): Promise<Appointment> {
     if (!mongoose.Types.ObjectId.isValid(appointmentId)) {
       throw new Error('Invalid appointment ID');
     }
@@ -246,17 +240,8 @@ export class AppointmentRepository extends BaseRepository<Appointment> implement
       throw new Error('Only pending appointments can be marked as completed');
     }
 
-    const newPrescription = new PrescriptionModel({
-      appointmentId,
-      patientId: appointment.patientId,
-      doctorId: appointment.doctorId,
-      ...prescription,
-    });
-
-    const savedPrescription = await newPrescription.save();
-
     appointment.status = AppointmentStatus.COMPLETED;
-    appointment.prescriptionId = savedPrescription._id.toString();
+    appointment.prescriptionId = prescriptionId;
     await appointment.save();
 
     return appointment.toObject() as Appointment;

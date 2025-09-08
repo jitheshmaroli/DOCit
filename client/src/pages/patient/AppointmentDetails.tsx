@@ -7,11 +7,11 @@ import { MessageSquare, Video } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import { cancelAppointmentThunk } from '../../redux/thunks/patientThunk';
 import { DateUtils } from '../../utils/DateUtils';
-import axios from 'axios';
 import CancelAppointmentModal from '../../components/CancelAppointmentModal';
 import VideoCallModal from '../../components/VideoCallModal';
 import { useSocket } from '../../hooks/useSocket';
 import { createReview } from '../../services/patientService';
+import api from '../../services/api';
 
 interface AppointmentPatient {
   _id: string;
@@ -30,10 +30,10 @@ interface AppointmentDoctor {
 }
 
 interface Prescription {
-  _id: string;
-  appointmentId: string;
-  patientId: string | { _id: string; name: string };
-  doctorId: string | { _id: string; name: string };
+  _id?: string;
+  appointmentId?: string;
+  patientId?: string | { _id: string; name: string };
+  doctorId?: string | { _id: string; name: string };
   medications: Array<{
     name: string;
     dosage: string;
@@ -42,8 +42,9 @@ interface Prescription {
     _id?: string;
   }>;
   notes?: string;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
+  pdfUrl?: string;
 }
 
 interface Appointment {
@@ -68,11 +69,10 @@ interface Appointment {
       duration: string;
     }>;
     notes?: string;
+    pdfUrl?: string;
   };
   hasReview?: boolean;
 }
-
-const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 const AppointmentDetails: React.FC = () => {
   const { appointmentId } = useParams<{ appointmentId: string }>();
@@ -103,34 +103,37 @@ const AppointmentDetails: React.FC = () => {
     const fetchAppointmentDetails = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(
-          `${API_URL}/api/patients/appointments/${appointmentId}`,
+        const response = await api.get(
+          `/api/patients/appointments/${appointmentId}`,
           {
             withCredentials: true,
           }
         );
 
         const appt = response.data;
+
         if (typeof appt.patientId === 'string') {
           appt.patientId = { _id: appt.patientId, name: 'Unknown Patient' };
         }
         if (typeof appt.doctorId === 'string') {
           appt.doctorId = { _id: appt.doctorId, name: 'Unknown Doctor' };
         }
-        if (appt.prescriptionId === 'object') {
+
+        if (appt.prescriptionId && typeof appt.prescriptionId === 'object') {
           appt.prescription = {
             medications: appt.prescriptionId.medications.map((med: any) => ({
-              name: med.name,
-              dosage: med.dosage,
-              frequency: med.frequency,
-              duration: med.duration,
+              name: med.name || '',
+              dosage: med.dosage || '',
+              frequency: med.frequency || '',
+              duration: med.duration || '',
             })),
-            notes: appt.prescriptionId.notes,
+            notes: appt.prescriptionId.notes || undefined,
+            pdfUrl: appt.prescriptionId.pdfUrl || undefined,
           };
         }
+
         setAppointment(appt);
-      } catch (error: unknown) {
-        console.error('Failed to load appointment details:', error);
+      } catch {
         toast.error('Failed to load appointment details');
         setAppointment(null);
       } finally {
@@ -221,8 +224,7 @@ const AppointmentDetails: React.FC = () => {
       setAppointment((prev) =>
         prev ? { ...prev, status: 'cancelled', cancellationReason } : prev
       );
-    } catch (error) {
-      console.error('Failed to cancel appointment:', error);
+    } catch {
       toast.error('Failed to cancel appointment');
     }
   };
@@ -294,8 +296,7 @@ const AppointmentDetails: React.FC = () => {
       setAppointment((prev) => (prev ? { ...prev, hasReview: true } : prev));
       setRating(0);
       setComment('');
-    } catch (error) {
-      console.error('Failed to submit review:', error);
+    } catch {
       toast.error('Failed to submit review');
     } finally {
       setIsSubmittingReview(false);
@@ -474,40 +475,6 @@ const AppointmentDetails: React.FC = () => {
           </div>
         )}
 
-        {/* {appointment.doctorId && typeof appointment.doctorId !== 'string' && (
-          <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">
-            <h3 className="text-lg sm:text-xl font-semibold text-white mb-4">
-              Doctor Information
-            </h3>
-            <div className="flex items-center gap-4">
-              {appointment.doctorId.profilePicture && (
-                <img
-                  src={appointment.doctorId.profilePicture}
-                  alt={`Dr. ${appointment.doctorId.name}`}
-                  className="w-16 h-16 rounded-full object-cover border-2 border-white/20"
-                />
-              )}
-              <div>
-                <h4 className="text-white font-medium">
-                  Dr. {appointment.doctorId.name}
-                </h4>
-                {appointment.doctorId.speciality &&
-                  appointment.doctorId.speciality.length > 0 && (
-                    <p className="text-gray-300 text-sm">
-                      {appointment.doctorId.speciality}
-                    </p>
-                  )}
-                {appointment.doctorId.qualifications &&
-                  appointment.doctorId.qualifications.length > 0 && (
-                    <p className="text-gray-400 text-xs">
-                      {appointment.doctorId.qualifications.join(', ')}
-                    </p>
-                  )}
-              </div>
-            </div>
-          </div>
-        )} */}
-
         {appointment.prescription && (
           <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">
             <h3 className="text-lg sm:text-xl font-semibold text-white mb-4">
@@ -538,6 +505,20 @@ const AppointmentDetails: React.FC = () => {
                   <h4 className="text-sm text-gray-300">Additional Notes</h4>
                   <p className="text-white">{appointment.prescription.notes}</p>
                 </div>
+              )}
+              {appointment.prescription.pdfUrl ? (
+                <div>
+                  <h4 className="text-sm text-gray-300">Prescription PDF</h4>
+                  <a
+                    href={appointment.prescription.pdfUrl}
+                    download
+                    className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-2 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 inline-block"
+                  >
+                    Download Prescription PDF
+                  </a>
+                </div>
+              ) : (
+                <p className="text-gray-200">No prescription PDF available.</p>
               )}
             </div>
           </div>

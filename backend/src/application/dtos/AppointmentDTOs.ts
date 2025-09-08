@@ -105,9 +105,9 @@ export enum AppointmentStatus {
 
 export interface PrescriptionDTO {
   _id?: string;
-  appointmentId: string;
-  patientId: string;
-  doctorId: string;
+  appointmentId?: string;
+  patientId?: string;
+  doctorId?: string;
   medications: Array<{
     name: string;
     dosage: string;
@@ -115,4 +115,5 @@ export interface PrescriptionDTO {
     duration: string;
   }>;
   notes?: string;
+  pdfUrl?: string;
 }

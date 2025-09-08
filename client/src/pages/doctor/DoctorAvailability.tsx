@@ -121,8 +121,8 @@ const DoctorAvailability: React.FC = () => {
 
   const generateMonthDates = () => {
     const monthStart = dateFilter
-      ? dateFilter.startOf('month')
-      : dayjs().startOf('month');
+      ? dayjs.utc(dateFilter).startOf('month')
+      : dayjs.utc().startOf('month');
     const daysInMonth = monthStart.daysInMonth();
     const dates: string[] = [];
     for (let i = 0; i < daysInMonth; i++) {
@@ -145,11 +145,11 @@ const DoctorAvailability: React.FC = () => {
     }
     setSelectedDate(selected);
     const existingAvailability = availability.find((avail: Availability) =>
-      dayjs(avail.date).isSame(date, 'day')
+      dayjs.utc(avail.date).isSame(dayjs.utc(date), 'day')
     );
     setSelectedAvailabilityId(existingAvailability?._id || null);
     const existingSlots = existingAvailability
-      ? [...existingAvailability.timeSlots]
+      ? existingAvailability.timeSlots
       : [];
     setTimeSlots(existingSlots);
     setOriginalSlotCount(existingSlots.length);
@@ -385,11 +385,11 @@ const DoctorAvailability: React.FC = () => {
 
   const validateSlot = (slot: TimeSlot): boolean => {
     if (!slot.startTime || !slot.endTime) return false;
-    const start = dayjs.utc(
-      `${dayjs.utc(selectedDate!).format('YYYY-MM-DD')} ${slot.startTime}`
+    const start = dayjs(
+      `${dayjs(selectedDate!).format('YYYY-MM-DD')} ${slot.startTime}`
     );
-    const end = dayjs.utc(
-      `${dayjs.utc(selectedDate!).format('YYYY-MM-DD')} ${slot.endTime}`
+    const end = dayjs(
+      `${dayjs(selectedDate!).format('YYYY-MM-DD')} ${slot.endTime}`
     );
     if (!start.isValid() || !end.isValid() || !start.isBefore(end))
       return false;
@@ -460,21 +460,6 @@ const DoctorAvailability: React.FC = () => {
   ) => {
     if (value !== '' && !value.match(/^\d{2}:\d{2}$/)) return;
 
-    if (
-      recurringStartDate &&
-      recurringStartDate.isSame(dayjs(), 'day') &&
-      field === 'startTime'
-    ) {
-      const now = dayjs();
-      const slotTime = dayjs(
-        `${recurringStartDate.format('YYYY-MM-DD')} ${value}`
-      );
-      if (slotTime.isBefore(now)) {
-        toast.error('Cannot set recurring time slots before current time');
-        return;
-      }
-    }
-
     const updatedTimeSlots = [...recurringTimeSlots];
     updatedTimeSlots[index] = { ...updatedTimeSlots[index], [field]: value };
     setRecurringTimeSlots(updatedTimeSlots);
@@ -487,26 +472,31 @@ const DoctorAvailability: React.FC = () => {
   const handleSubmitRecurringAvailability = async () => {
     if (
       !recurringStartDate ||
-      recurringTimeSlots.length === 0 ||
       !recurringEndDate ||
-      recurringDays.length === 0
+      recurringDays.length === 0 ||
+      recurringTimeSlots.length === 0
     ) {
       toast.error(
-        'Please provide start date, time slots, end date, and recurring days'
+        'Please provide start date, end date, recurring days, and time slots'
       );
+      return;
+    }
+
+    if (recurringEndDate.isBefore(recurringStartDate, 'day')) {
+      toast.error('End date must be after start date');
       return;
     }
 
     for (const slot of recurringTimeSlots) {
       if (!slot.startTime || !slot.endTime) {
-        toast.error('All slots must have start and end times');
+        toast.error('All slots must have valid start and end times');
         return;
       }
-      const start = dayjs.utc(
-        `${dayjs.utc(recurringStartDate.toDate()).format('YYYY-MM-DD')} ${slot.startTime}`
+      const start = dayjs(
+        `${recurringStartDate.format('YYYY-MM-DD')} ${slot.startTime}`
       );
-      const end = dayjs.utc(
-        `${dayjs.utc(recurringStartDate.toDate()).format('YYYY-MM-DD')} ${slot.endTime}`
+      const end = dayjs(
+        `${recurringStartDate.format('YYYY-MM-DD')} ${slot.endTime}`
       );
       if (!start.isValid() || !end.isValid() || !start.isBefore(end)) {
         toast.error('Invalid slot: Start time must be before end time');
@@ -515,7 +505,9 @@ const DoctorAvailability: React.FC = () => {
       if (recurringStartDate.isSame(dayjs(), 'day')) {
         const now = dayjs();
         if (start.isBefore(now)) {
-          toast.error('Cannot set recurring slots before current time');
+          toast.error(
+            'Cannot set time slots before current time on current day'
+          );
           return;
         }
       }
@@ -654,12 +646,14 @@ const DoctorAvailability: React.FC = () => {
               {monthDates
                 .filter((date) => {
                   if (!dateFilter) return true;
-                  const dateObj = dayjs(date);
-                  return dateObj.isSame(dateFilter, 'month');
+                  const dateObj = dayjs.utc(date);
+                  return dateObj.isSame(dayjs.utc(dateFilter), 'month');
                 })
                 .filter((date) => {
+                  const isToday = dayjs.utc(date).isSame(dayjs.utc(), 'day');
+                  if (isToday) return true; // Always include today
                   const avail = availability.find((a: Availability) =>
-                    dayjs(a.date).isSame(date, 'day')
+                    dayjs.utc(a.date).isSame(dayjs.utc(date), 'day')
                   );
                   if (filterType === 'all') return true;
                   if (filterType === 'created')
@@ -673,7 +667,7 @@ const DoctorAvailability: React.FC = () => {
                 })
                 .map((date) => {
                   const avail = availability.find((a: Availability) =>
-                    dayjs(a.date).isSame(date, 'day')
+                    dayjs.utc(a.date).isSame(dayjs.utc(date), 'day')
                   );
                   const slotCount = avail?.timeSlots.length || 0;
                   return (

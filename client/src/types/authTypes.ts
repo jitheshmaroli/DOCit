@@ -226,6 +226,24 @@ export interface Appointment {
   prescriptionId?: string | Prescription;
   hasReview?: boolean;
   reminderSent?: boolean;
+  prescription?: Prescription;
+}
+
+export interface Prescription {
+  _id: string;
+  appointmentId: string;
+  patientId: string;
+  doctorId: string;
+  medications?: Array<{
+    name: string;
+    dosage: string;
+    frequency: string;
+    duration: string;
+  }>;
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  pdfUrl?: string;
 }
 
 export interface QueryParams {

@@ -84,6 +84,12 @@ const PatientDetails: React.FC = () => {
     setCurrentPage(page);
   };
 
+  const handleViewPrescription = (prescription: Prescription | undefined) => {
+    if (prescription) {
+      setSelectedPrescription(prescription);
+    }
+  };
+
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
   return (
@@ -93,6 +99,32 @@ const PatientDetails: React.FC = () => {
         isOpen={!!selectedPrescription}
         onClose={() => setSelectedPrescription(null)}
         title="Prescription Details"
+        footer={
+          selectedPrescription?.pdfUrl ? (
+            <>
+              <a
+                href={selectedPrescription.pdfUrl}
+                download
+                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-300"
+              >
+                Download PDF
+              </a>
+              <button
+                onClick={() => setSelectedPrescription(null)}
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
+              >
+                Close
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => setSelectedPrescription(null)}
+              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
+            >
+              Close
+            </button>
+          )
+        }
       >
         {selectedPrescription && (
           <div className="space-y-4 text-white">
@@ -288,11 +320,9 @@ const PatientDetails: React.FC = () => {
                             appt.prescription ? (
                               <button
                                 onClick={() =>
-                                  setSelectedPrescription(
-                                    appt.prescription ?? null
-                                  )
+                                  handleViewPrescription(appt.prescription)
                                 }
-                                className="px-2 py-1 bg-purple-600 hover:bg-purple-700 rounded-lg text-white text-sm transition-all duration-300"
+                                className="px-4 py-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-300"
                               >
                                 View
                               </button>

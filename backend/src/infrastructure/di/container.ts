@@ -36,6 +36,7 @@ import { SpecialityUseCase } from '../../application/use-cases/SpecialityUseCase
 import { UserUseCase } from '../../application/use-cases/UserUseCase';
 import { ChatMapper } from '../../application/mappers/ChatMapper';
 import { SendMessageRequestDTO, ChatMessageResponseDTO } from '../../application/dtos/ChatDTOs';
+import { PrescriptionRepository } from '../repositories/PrescriptionRepository';
 
 export class Container {
   private static instance: Container;
@@ -55,6 +56,7 @@ export class Container {
     const chatRepository = new ChatRepository();
     const notificationRepository = new NotificationRepository();
     const reviewRepository = new ReviewRepository();
+    const prescriptionRepository = new PrescriptionRepository();
 
     // Initialize services
     const emailService = new EmailService();
@@ -117,6 +119,7 @@ export class Container {
     this.dependencies.set('IChatRepository', chatRepository);
     this.dependencies.set('INotificationRepository', notificationRepository);
     this.dependencies.set('IReviewRepository', reviewRepository);
+    this.dependencies.set('IPrescriptionRepository', prescriptionRepository);
 
     // Register use cases
     this.dependencies.set(
@@ -132,7 +135,9 @@ export class Container {
         notificationService,
         emailService,
         doctorRepository,
-        patientRepository
+        patientRepository,
+        imageUploadService,
+        prescriptionRepository
       )
     );
     this.dependencies.set('INotificationUseCase', new NotificationUseCase(notificationRepository));

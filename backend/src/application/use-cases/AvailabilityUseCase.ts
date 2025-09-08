@@ -70,20 +70,14 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
         const startOfDay = DateUtils.startOfDayUTC(currentDate);
         const existingAvailability = await this._availabilityRepository.findByDoctorAndDate(doctorId, startOfDay);
 
-        let newTimeSlots = dto.timeSlots.map((slot) => ({ ...slot, isBooked: false }));
+        const existingSlots = existingAvailability ? [...existingAvailability.timeSlots] : [];
+        const newTimeSlots = [...existingSlots, ...dto.timeSlots.map((slot) => ({ ...slot, isBooked: false }))];
 
-        if (existingAvailability) {
-          const existingSlots = existingAvailability.timeSlots.map((slot) => ({
-            ...slot,
-            isBooked: slot.isBooked ?? false,
-          }));
-          newTimeSlots = [...existingSlots, ...newTimeSlots];
-          try {
-            DateUtils.checkOverlappingSlots(newTimeSlots, startOfDay);
-          } catch (error) {
-            conflicts.push({ date: startOfDay.toISOString(), error: (error as Error).message });
-            continue;
-          }
+        try {
+          DateUtils.checkOverlappingSlots(newTimeSlots, startOfDay);
+        } catch (error) {
+          conflicts.push({ date: startOfDay.toISOString(), error: (error as Error).message });
+          continue;
         }
 
         const newAvailability: Availability = {
@@ -110,26 +104,21 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
       const startOfDay = DateUtils.startOfDayUTC(new Date(dto.date));
       const existingAvailability = await this._availabilityRepository.findByDoctorAndDate(doctorId, startOfDay);
 
-      let newTimeSlots = dto.timeSlots.map((slot) => ({ ...slot, isBooked: false }));
+      const existingSlots = existingAvailability ? [...existingAvailability.timeSlots] : [];
+      const newTimeSlots = [...existingSlots, ...dto.timeSlots.map((slot) => ({ ...slot, isBooked: false }))];
 
-      if (existingAvailability) {
-        const existingSlots = existingAvailability.timeSlots.map((slot) => ({
-          ...slot,
-          isBooked: slot.isBooked ?? false,
-        }));
-        newTimeSlots = [...existingSlots, ...newTimeSlots];
-        try {
-          DateUtils.checkOverlappingSlots(newTimeSlots, startOfDay);
-        } catch (error) {
-          conflicts.push({ date: startOfDay.toISOString(), error: (error as Error).message });
-          return { availabilities: [], conflicts };
-        }
+      try {
+        DateUtils.checkOverlappingSlots(newTimeSlots, startOfDay);
+      } catch (error) {
+        conflicts.push({ date: startOfDay.toISOString(), error: (error as Error).message });
+        return { availabilities: [], conflicts };
       }
 
-      const newAvailability = AvailabilityMapper.toAvailabilityEntity(
-        { ...dto, date: dto.date, timeSlots: newTimeSlots },
-        doctorId
-      );
+      const newAvailability: Availability = {
+        doctorId,
+        date: startOfDay,
+        timeSlots: newTimeSlots,
+      };
 
       try {
         const savedAvailability = existingAvailability

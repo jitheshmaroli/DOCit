@@ -20,11 +20,19 @@ export class AppointmentMapper {
       hasReview: appointment.hasReview,
     };
 
-    if (appointment.prescriptionId && typeof appointment.prescriptionId !== 'string') {
-      dto.prescription = this.toPrescriptionDTO(appointment.prescriptionId as Prescription);
-    }
-
     return dto;
+  }
+
+  static toPrescriptionDTO(prescription: Prescription): PrescriptionDTO {
+    return {
+      _id: prescription._id?.toString(),
+      appointmentId: prescription.appointmentId,
+      patientId: prescription.patientId,
+      doctorId: prescription.doctorId,
+      medications: prescription.medications,
+      notes: prescription.notes,
+      pdfUrl: prescription.pdfUrl,
+    };
   }
 
   static toAppointmentEntity(dto: AppointmentDTO): Appointment {
@@ -45,23 +53,10 @@ export class AppointmentMapper {
     };
   }
 
-  static toPrescriptionDTO(prescription: Prescription): PrescriptionDTO {
+  static toPrescriptionEntity(
+    dto: PrescriptionDTO
+  ): Omit<Prescription, '_id' | 'appointmentId' | 'patientId' | 'doctorId' | 'createdAt' | 'updatedAt' | 'pdfUrl'> {
     return {
-      _id: prescription._id?.toString(),
-      appointmentId: prescription.appointmentId,
-      patientId: prescription.patientId,
-      doctorId: prescription.doctorId,
-      medications: prescription.medications,
-      notes: prescription.notes,
-    };
-  }
-
-  static toPrescriptionEntity(dto: PrescriptionDTO): Prescription {
-    return {
-      _id: dto._id,
-      appointmentId: dto.appointmentId,
-      patientId: dto.patientId,
-      doctorId: dto.doctorId,
       medications: dto.medications,
       notes: dto.notes,
     };

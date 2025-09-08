@@ -26,6 +26,9 @@ import {
   AppointmentStatus,
 } from '../dtos/AppointmentDTOs';
 import { AppointmentMapper } from '../mappers/AppointmentMapper';
+import { IImageUploadService } from '../../core/interfaces/services/IImageUploadService';
+import PDFKit from 'pdfkit';
+import { IPrescriptionRepository } from '../../core/interfaces/repositories/IPrescriptionRepository';
 
 export class AppointmentUseCase implements IAppointmentUseCase {
   constructor(
@@ -35,7 +38,9 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     private _notificationService: INotificationService,
     private _emailService: IEmailService,
     private _doctorRepository: IDoctorRepository,
-    private _patientRepository: IPatientRepository
+    private _patientRepository: IPatientRepository,
+    private _imageUploadService: IImageUploadService,
+    private _prescriptionRepository: IPrescriptionRepository
   ) {}
 
   async bookAppointment(dto: BookAppointmentRequestDTO): Promise<BookAppointmentResponseDTO> {
@@ -312,9 +317,37 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       throw new NotFoundError('Patient not found');
     }
 
-    const updatedAppointment = await this._appointmentRepository.completeAppointmentAndCreatePrescription(
+    const prescription = await this._prescriptionRepository.createPrescription(
       dto.appointmentId,
+      appointment.patientId,
+      appointment.doctorId,
       AppointmentMapper.toPrescriptionEntity(dto.prescription)
+    );
+
+    const pdfBuffer = await this.generatePrescriptionPDF({
+      patientName: patient.name || 'Unknown',
+      doctorName: doctor.name || 'Unknown',
+      doctorQualification: doctor.qualifications?.join(', ') || '',
+      date: appointment.date.toLocaleDateString(),
+      age: patient.age?.toString() || 'N/A',
+      gender: patient.gender || 'N/A',
+      contact: patient.phone || 'N/A',
+      address: patient.address || 'N/A',
+      medications: dto.prescription.medications,
+      notes: dto.prescription.notes,
+    });
+
+    const { url: pdfUrl } = await this._imageUploadService.uploadPDF(pdfBuffer, 'prescriptions');
+
+    if (prescription._id) {
+      await this._prescriptionRepository.update(prescription._id, { pdfUrl });
+    } else {
+      throw new Error('Failed to create prescription: No ID returned');
+    }
+
+    const updatedAppointment = await this._appointmentRepository.completeAppointment(
+      dto.appointmentId,
+      prescription._id
     );
 
     const updatedAppointmentDTO = AppointmentMapper.toAppointmentDTO(updatedAppointment);
@@ -347,7 +380,6 @@ export class AppointmentUseCase implements IAppointmentUseCase {
         this._emailService.sendEmail(patient.email, patientEmailSubject, patientEmailText),
         this._emailService.sendEmail(doctor.email, doctorEmailSubject, doctorEmailText),
       ]);
-      logger.info(`Notifications and emails sent for prescription of appointment ${dto.appointmentId}`);
     } catch (error) {
       logger.error(
         `Failed to send notifications or emails for prescription of appointment ${dto.appointmentId}: ${(error as Error).message}`
@@ -429,7 +461,7 @@ export class AppointmentUseCase implements IAppointmentUseCase {
   }
 
   async getAppointmentById(appointmentId: string): Promise<AppointmentDTO> {
-    const appointment = await this._appointmentRepository.findById(appointmentId);
+    const appointment = await this._appointmentRepository.findByIdPopulated(appointmentId);
     if (!appointment) {
       throw new NotFoundError('Appointment not found');
     }
@@ -459,5 +491,118 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     }
 
     return true;
+  }
+
+  private async generatePrescriptionPDF(data: {
+    patientName: string;
+    doctorName: string;
+    doctorQualification: string;
+    date: string;
+    diagnosis?: string;
+    age?: string;
+    weight?: string;
+    bp?: string;
+    gender?: string;
+    contact?: string;
+    address?: string;
+    medications: Array<{
+      name: string;
+      dosage: string;
+      frequency: string;
+      duration: string;
+    }>;
+    notes?: string;
+  }): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      const doc = new PDFKit({ size: 'A4', margin: 0 });
+      const buffers: Buffer[] = [];
+
+      doc.on('data', (buffer) => buffers.push(buffer));
+      doc.on('end', () => resolve(Buffer.concat(buffers)));
+      doc.on('error', reject);
+
+      // Colors from app design
+      const primaryColor = '#0F828C';
+
+      // Fonts
+      doc.registerFont('Arial', 'Helvetica');
+
+      // Header (simulating gradient with solid color)
+      doc.rect(0, 0, 595, 150).fill(primaryColor);
+      doc.font('Arial').fontSize(36).fillColor('#FFFFFF').text('DOCit', 50, 40);
+      doc.fontSize(24).text('+', 150, 45);
+      doc.fontSize(16).fillColor('#FFFFFF').text(`Dr. ${data.doctorName}`, 50, 90);
+      doc.text(data.doctorQualification || 'MD', 50, 110);
+
+      // Patient Information Table
+      doc.fillColor('#000000').fontSize(12);
+      let y = 170;
+      const tableWidth = 495;
+      const labelWidth = 100;
+      const valueWidth = 150;
+      const cellPadding = 5;
+
+      // Draw table background
+      doc.rect(50, y, tableWidth, 100).fill('#F5F5F5');
+
+      // Row 1: Name and Age
+      doc
+        .fillColor('#333333')
+        .font('Arial')
+        .fontSize(12)
+        .text('Name:', 50 + cellPadding, y + cellPadding, { width: labelWidth });
+      doc.text(data.patientName || 'Unknown Patient', 50 + labelWidth + cellPadding, y + cellPadding, {
+        width: valueWidth,
+      });
+      doc.text('Age:', 50 + labelWidth + valueWidth + cellPadding, y + cellPadding, { width: labelWidth });
+      doc.text(data.age || 'N/A', 50 + 2 * labelWidth + valueWidth + cellPadding, y + cellPadding, {
+        width: valueWidth,
+      });
+      y += 25;
+
+      // Row 3: Gender and Contact
+      doc.text('Gender:', 50 + cellPadding, y + cellPadding, { width: labelWidth });
+      doc.text(data.gender || 'N/A', 50 + labelWidth + cellPadding, y + cellPadding, { width: valueWidth });
+      doc.text('Contact:', 50 + labelWidth + valueWidth + cellPadding, y + cellPadding, { width: labelWidth });
+      doc.text(data.contact || 'N/A', 50 + 2 * labelWidth + valueWidth + cellPadding, y + cellPadding, {
+        width: valueWidth,
+      });
+      y += 25;
+
+      // Row 4: Address
+      doc.text('Address:', 50 + cellPadding, y + cellPadding, { width: labelWidth });
+      doc.text(data.address || 'N/A', 50 + labelWidth + cellPadding, y + cellPadding, {
+        width: tableWidth - labelWidth - 2 * cellPadding,
+      });
+      y += 40;
+
+      // Prescription Area
+      doc.fillColor('#000000').fontSize(14).text('Prescription', 50, y, { underline: true });
+      y += 30;
+
+      // Medications
+      doc.text('Medications:', 50, y, { width: labelWidth });
+      y += 20;
+      data.medications.forEach((med, index) => {
+        const medText = `${index + 1}. ${med.name} - ${med.dosage}, ${med.frequency}, ${med.duration}`;
+        doc.text(medText, 50 + cellPadding, y, { width: tableWidth - 2 * cellPadding });
+        y += 20;
+      });
+
+      // Notes (Instructions)
+      if (data.notes) {
+        doc.text('Instructions:', 50, y, { width: labelWidth });
+        doc.text(data.notes, 50 + labelWidth + cellPadding, y, { width: tableWidth - labelWidth - 2 * cellPadding });
+        y += 40;
+      }
+
+      // Footer
+      const footerY = 842 - 60; // A4 height - footer height
+      doc.rect(0, footerY, 595, 60).fill(primaryColor);
+      doc.fillColor('#FFFFFF').fontSize(12);
+      doc.text('DOCit Clinic', 50, footerY + 10);
+      doc.text('docit.site', 50, footerY + 30);
+      doc.end();
+    });
   }
 }
