@@ -39,6 +39,7 @@ router.get(
   doctorController.getPatientAppointments.bind(doctorController)
 );
 router.post('/appointments/complete', doctorAuth, doctorController.completeAppointment.bind(doctorController));
+router.post('/appointments/cancel', doctorAuth, doctorController.cancelAppointment.bind(doctorController));
 
 // Subscription plan routes
 router.get('/subscription-plans', doctorAuth, doctorController.getSubscriptionPlans.bind(doctorController));

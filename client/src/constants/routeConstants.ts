@@ -108,6 +108,7 @@ export const ROUTES = {
         '/doctors/subscription-plans/:planId/counts'
       ),
       APPOINTED_PATIENTS: apiPath('/doctors/patients/appointed'),
+      CANCEL_APPOINTMENT: apiPath('/doctors/appointments/cancel'),
     },
 
     PATIENT: {

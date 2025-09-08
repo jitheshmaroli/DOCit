@@ -115,7 +115,7 @@ const patientSlice = createSlice({
       })
       .addCase(bookAppointmentThunk.fulfilled, (state, action) => {
         const appointment = action.payload;
-        const doctorId = appointment.doctorId._id;
+        const doctorId = appointment.doctorId;
         if (!state.appointments[doctorId]) {
           state.appointments[doctorId] = [];
         }
