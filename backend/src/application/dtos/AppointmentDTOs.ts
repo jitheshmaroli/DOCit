@@ -31,7 +31,8 @@ export interface BookAppointmentResponseDTO {
 
 export interface CancelAppointmentRequestDTO {
   appointmentId: string;
-  patientId: string;
+  patientId?: string;
+  doctorId?: string;
   cancellationReason?: string;
 }
 
@@ -46,7 +47,7 @@ export interface AdminCancelAppointmentResponseDTO {
 export interface CompleteAppointmentRequestDTO {
   doctorId: string;
   appointmentId: string;
-  prescription: Omit<PrescriptionDTO, '_id' | 'appointmentId' | 'patientId' | 'doctorId' | 'createdAt' | 'updatedAt'>;
+  prescription: PrescriptionDTO;
 }
 
 export interface CompleteAppointmentResponseDTO {
@@ -83,25 +84,31 @@ export interface CheckFreeBookingRequestDTO {
 
 export interface AppointmentDTO {
   _id?: string;
-  patientId: AppointmentPatientDTO;
-  doctorId: AppointmentDoctorDTO;
+  patientId: string;
+  doctorId: string;
   date: string;
   startTime: string;
   endTime: string;
-  status: 'pending' | 'completed' | 'cancelled';
+  status: AppointmentStatus;
   isFreeBooking: boolean;
   bookingTime: string;
   planId?: string;
   cancellationReason?: string;
+  prescriptionId?: string;
   prescription?: PrescriptionDTO;
   hasReview?: boolean;
+}
+export enum AppointmentStatus {
+  PENDING = 'pending',
+  COMPLETED = 'completed',
+  CANCELLED = 'cancelled',
 }
 
 export interface PrescriptionDTO {
   _id?: string;
-  appointmentId: string;
-  patientId: string;
-  doctorId: string;
+  appointmentId?: string;
+  patientId?: string;
+  doctorId?: string;
   medications: Array<{
     name: string;
     dosage: string;
@@ -109,6 +116,5 @@ export interface PrescriptionDTO {
     duration: string;
   }>;
   notes?: string;
-  createdAt: string;
-  updatedAt: string;
+  pdfUrl?: string;
 }

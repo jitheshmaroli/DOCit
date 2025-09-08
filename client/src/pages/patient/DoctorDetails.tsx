@@ -13,7 +13,6 @@ import {
   bookAppointmentThunk,
   getPatientAppointmentsForDoctorThunk,
   getDoctorAvailabilityThunk,
-  cancelAppointmentThunk,
   cancelSubscriptionThunk,
 } from '../../redux/thunks/patientThunk';
 import { clearError as clearDoctorError } from '../../redux/slices/doctorSlice';
@@ -29,12 +28,8 @@ import PaymentForm from './PaymentForm';
 import { DateUtils } from '../../utils/DateUtils';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
-import {
-  TimeSlot,
-  Appointment,
-} from '../../types/authTypes';
+import { TimeSlot, Appointment } from '../../types/authTypes';
 import Pagination from '../../components/common/Pagination';
-import CancelAppointmentModal from '../../components/CancelAppointmentModal';
 import Modal from '../../components/common/Modal';
 import { getDoctorReviews } from '../../services/patientService';
 import { debounce } from 'lodash';
@@ -95,10 +90,6 @@ const DoctorDetails: React.FC = () => {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
-  const [appointmentToCancel, setAppointmentToCancel] = useState<string | null>(
-    null
-  );
   const [isCancelSubscriptionModalOpen, setIsCancelSubscriptionModalOpen] =
     useState(false);
   const [cancellationReason, setCancellationReason] = useState<string>('');
@@ -306,7 +297,7 @@ const DoctorDetails: React.FC = () => {
       const selectedAvail = availability.find((avail) => avail.date === date);
       const slots = selectedAvail
         ? selectedAvail.timeSlots.filter((slot) => {
-            if (!slot.startTime || !slot.endTime) return false;
+            if (!slot.startTime || !slot.endTime || slot.isBooked) return false;
             const now = new Date();
             const slotDate = new Date(date);
             const endTime = new Date(`${date}T${slot.endTime}`);
@@ -417,54 +408,6 @@ const DoctorDetails: React.FC = () => {
     }
   };
 
-  const handleCancelAppointment = async (
-    appointmentId: string,
-    cancellationReason: string
-  ) => {
-    if (!doctorId || !user?._id) {
-      toast.error('User not authenticated');
-      return;
-    }
-    try {
-      const appointment = doctorAppointments.find(
-        (appt: Appointment) => appt._id === appointmentId
-      );
-      if (!appointment) {
-        throw new Error('Appointment not found');
-      }
-      const createdAt = new Date(appointment.createdAt);
-      const now = new Date();
-      const minutesSinceBooking =
-        (now.getTime() - createdAt.getTime()) / (1000 * 60);
-      if (minutesSinceBooking > 30) {
-        throw new Error(
-          'Cancellation is only allowed within 30 minutes of booking'
-        );
-      }
-      await dispatch(
-        cancelAppointmentThunk({ appointmentId, cancellationReason })
-      ).unwrap();
-      toast.success('Appointment cancelled successfully');
-      dispatch(
-        getPatientAppointmentsForDoctorThunk({
-          doctorId,
-          page: currentPage,
-          limit: ITEMS_PER_PAGE,
-        })
-      );
-      dispatch(getPatientSubscriptionsThunk());
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-      toast.error(errorMessage);
-    }
-  };
-
-  const openCancelModal = (appointmentId: string) => {
-    setAppointmentToCancel(appointmentId);
-    setIsCancelModalOpen(true);
-  };
-
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
@@ -503,21 +446,13 @@ const DoctorDetails: React.FC = () => {
   return (
     <div
       className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 py-8"
-      key={doctorId} // Force re-mount when doctorId changes
+      key={doctorId}
     >
       <ToastContainer
         position="top-right"
         autoClose={3000}
         theme="dark"
         className="fixed top-4 right-4 z-60"
-      />
-      <CancelAppointmentModal
-        isOpen={isCancelModalOpen}
-        onClose={() => setIsCancelModalOpen(false)}
-        onConfirm={(reason) =>
-          handleCancelAppointment(appointmentToCancel!, reason)
-        }
-        appointmentId={appointmentToCancel || ''}
       />
       <Modal
         isOpen={isCancelSubscriptionModalOpen}
@@ -836,9 +771,7 @@ const DoctorDetails: React.FC = () => {
 
         {doctorAppointments.length > 0 && (
           <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20">
-            <h2 className="text-2xl font-bold text-white mb-6">
-              Upcoming Appointments
-            </h2>
+            <h2 className="text-2xl font-bold text-white mb-6">Appointments</h2>
             <div className="space-y-4">
               {upcomingAppointments.map((appt: Appointment) => (
                 <div
@@ -868,12 +801,6 @@ const DoctorDetails: React.FC = () => {
                       className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-3 py-1 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
                     >
                       View Details
-                    </button>
-                    <button
-                      onClick={() => openCancelModal(appt._id)}
-                      className="bg-gradient-to-r from-red-600 to-red-700 text-white px-3 py-1 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300"
-                    >
-                      Cancel
                     </button>
                   </div>
                 </div>

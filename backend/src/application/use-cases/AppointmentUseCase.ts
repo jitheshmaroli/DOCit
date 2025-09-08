@@ -8,10 +8,8 @@ import { IEmailService } from '../../core/interfaces/services/IEmailService';
 import { IDoctorRepository } from '../../core/interfaces/repositories/IDoctorRepository';
 import { IPatientRepository } from '../../core/interfaces/repositories/IPatientRepository';
 import { Notification, NotificationType } from '../../core/entities/Notification';
-import { Appointment } from '../../core/entities/Appointment';
 import { DateUtils } from '../../utils/DateUtils';
 import { NotFoundError, ValidationError } from '../../utils/errors';
-import { MongoServerError } from 'mongodb';
 import logger from '../../utils/logger';
 import {
   BookAppointmentRequestDTO,
@@ -25,9 +23,12 @@ import {
   GetPatientAppointmentsForDoctorRequestDTO,
   CheckFreeBookingRequestDTO,
   AppointmentDTO,
-  PrescriptionDTO,
+  AppointmentStatus,
 } from '../dtos/AppointmentDTOs';
 import { AppointmentMapper } from '../mappers/AppointmentMapper';
+import { IImageUploadService } from '../../core/interfaces/services/IImageUploadService';
+import PDFKit from 'pdfkit';
+import { IPrescriptionRepository } from '../../core/interfaces/repositories/IPrescriptionRepository';
 
 export class AppointmentUseCase implements IAppointmentUseCase {
   constructor(
@@ -37,7 +38,9 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     private _notificationService: INotificationService,
     private _emailService: IEmailService,
     private _doctorRepository: IDoctorRepository,
-    private _patientRepository: IPatientRepository
+    private _patientRepository: IPatientRepository,
+    private _imageUploadService: IImageUploadService,
+    private _prescriptionRepository: IPrescriptionRepository
   ) {}
 
   async bookAppointment(dto: BookAppointmentRequestDTO): Promise<BookAppointmentResponseDTO> {
@@ -87,41 +90,20 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       }
     }
 
-    const appointmentDTO: AppointmentDTO = {
-      patientId: {
-        _id: patient._id ?? '',
-        name: patient.name ?? 'N/A',
-        profilePicture: patient.profilePicture,
-      },
-      doctorId: {
-        _id: doctor._id ?? '',
-        name: doctor.name ?? 'N/A',
-        profilePicture: doctor.profilePicture,
-        speciality: doctor.speciality,
-        qualifications: doctor.qualifications,
-        gender: doctor.gender,
-      },
+    const appointmentDTO = {
+      ...dto,
       date: startOfDay.toISOString(),
       startTime: dto.startTime,
       endTime: dto.endTime,
-      status: 'pending',
+      status: AppointmentStatus.PENDING,
       isFreeBooking: dto.isFreeBooking,
       bookingTime: new Date().toISOString(),
       planId: dto.isFreeBooking ? undefined : activeSubscription?.planId,
     };
 
-    // Map to entity
     const appointment = AppointmentMapper.toAppointmentEntity(appointmentDTO);
 
-    let savedAppointment: Appointment;
-    try {
-      savedAppointment = await this._appointmentRepository.create(appointment);
-    } catch (error) {
-      if (error instanceof MongoServerError && error.code === 11000) {
-        throw new ValidationError('This time slot is already booked');
-      }
-      throw error;
-    }
+    const savedAppointment = await this._appointmentRepository.create(appointment);
 
     if (!dto.isFreeBooking && activeSubscription) {
       await this._patientSubscriptionRepository.incrementAppointmentCount(activeSubscription._id!);
@@ -129,7 +111,6 @@ export class AppointmentUseCase implements IAppointmentUseCase {
 
     await this._availabilityRepository.updateSlotBookingStatus(dto.doctorId, startOfDay, dto.startTime, true);
 
-    // Map entity to DTO
     const savedAppointmentDTO = AppointmentMapper.toAppointmentDTO(savedAppointment);
 
     const patientNotification: Notification = {
@@ -167,95 +148,90 @@ export class AppointmentUseCase implements IAppointmentUseCase {
   }
 
   async cancelAppointment(dto: CancelAppointmentRequestDTO): Promise<void> {
-    if (!dto.patientId) {
-      logger.error('No patientId provided for appointment cancellation');
-      throw new ValidationError('Patient ID is required');
-    }
+    const appointment = await this._appointmentRepository.findById(dto.appointmentId);
+    if (!appointment) throw new NotFoundError('Appointment not found');
 
-    const appointment: Appointment | null = await this._appointmentRepository.findById(dto.appointmentId);
-    if (!appointment) {
-      logger.error(`Appointment not found: ${dto.appointmentId}`);
-      throw new NotFoundError('Appointment not found');
-    }
-
-    if (appointment.status === 'cancelled') {
-      logger.warn(`Appointment already cancelled: ${dto.appointmentId}`);
+    if (appointment.status === AppointmentStatus.CANCELLED) {
       throw new ValidationError('Appointment is already cancelled');
     }
 
-    let doctorId: string;
-    if (typeof appointment.doctorId === 'string') {
-      doctorId = appointment.doctorId;
-    } else if (appointment.doctorId && 'name' in appointment.doctorId && appointment.doctorId._id) {
-      doctorId = appointment.doctorId._id.toString();
-    } else {
-      logger.error(`Invalid doctorId for appointment ${dto.appointmentId}`);
-      throw new ValidationError('Invalid doctor ID');
+    // Validate that either patientId or doctorId is provided and matches the appointment
+    if (!dto.patientId && !dto.doctorId) {
+      throw new ValidationError('Either patientId or doctorId must be provided');
+    }
+    if (dto.patientId && appointment.patientId.toString() !== dto.patientId) {
+      throw new ValidationError('Unauthorized: Patient ID does not match appointment');
+    }
+    if (dto.doctorId && appointment.doctorId.toString() !== dto.doctorId) {
+      throw new ValidationError('Unauthorized: Doctor ID does not match appointment');
     }
 
-    let patientId: string;
-    if (typeof appointment.patientId === 'string') {
-      patientId = appointment.patientId;
-    } else if (appointment.patientId && 'name' in appointment.patientId && appointment.patientId._id) {
-      patientId = appointment.patientId._id.toString();
-    } else {
-      logger.error(`Invalid patientId for appointment ${dto.appointmentId}`);
-      throw new ValidationError('Invalid patient ID');
+    // Ensure the appointment is in the future
+    const appointmentDateTime = new Date(
+      `${new Date(appointment.date).toISOString().split('T')[0]}T${appointment.startTime}:00Z`
+    );
+    const now = new Date();
+    if (appointmentDateTime <= now) {
+      throw new ValidationError('Cannot cancel past or ongoing appointments');
     }
 
-    if (patientId !== dto.patientId) {
-      logger.error(
-        `Unauthorized cancellation attempt by patient ${dto.patientId} for appointment ${dto.appointmentId}`
-      );
-      throw new ValidationError('Unauthorized to cancel this appointment');
-    }
-
-    const doctor = await this._doctorRepository.findById(doctorId);
-    if (!doctor) throw new NotFoundError('Doctor not found');
-
-    const patient = await this._patientRepository.findById(patientId);
-    if (!patient) throw new NotFoundError('Patient not found');
-
+    // Update appointment status
     await this._appointmentRepository.update(dto.appointmentId, {
-      status: 'cancelled',
+      status: AppointmentStatus.CANCELLED,
       cancellationReason: dto.cancellationReason,
     });
 
-    const startOfDay = DateUtils.startOfDayUTC(appointment.date);
-    try {
-      await this._availabilityRepository.updateSlotBookingStatus(doctorId, startOfDay, appointment.startTime, false);
-    } catch (error) {
-      logger.error(`Failed to update availability slot for doctor ${doctorId}: ${(error as Error).message}`);
-      throw new Error(`Failed to update availability: ${(error as Error).message}`);
-    }
+    // Free the availability slot
+    const startOfDay = DateUtils.startOfDayUTC(new Date(appointment.date));
+    await this._availabilityRepository.updateSlotBookingStatus(
+      appointment.doctorId.toString(),
+      startOfDay,
+      appointment.startTime,
+      false
+    );
 
+    // If not a free booking, increment appointmentsLeft in subscription
     if (!appointment.isFreeBooking && appointment.planId) {
-      const subscription = await this._patientSubscriptionRepository.findActiveByPatientAndDoctor(patientId, doctorId);
+      const subscription = await this._patientSubscriptionRepository.findActiveByPatientAndDoctor(
+        appointment.patientId.toString(),
+        appointment.doctorId.toString()
+      );
       if (subscription && subscription.planId === appointment.planId) {
         await this._patientSubscriptionRepository.decrementAppointmentCount(subscription._id!);
       }
     }
 
+    // Fetch doctor and patient for notifications
+    const doctor = await this._doctorRepository.findById(appointment.doctorId.toString());
+    if (!doctor) throw new NotFoundError('Doctor not found');
+    const patient = await this._patientRepository.findById(appointment.patientId.toString());
+    if (!patient) throw new NotFoundError('Patient not found');
+
+    // Determine who cancelled the appointment
+    const canceller = dto.patientId ? patient.name : `Dr. ${doctor.name}`;
+
+    // Send notifications
     const patientNotification: Notification = {
-      userId: patientId,
+      userId: appointment.patientId.toString(),
       type: NotificationType.APPOINTMENT_CANCELLED,
-      message: `Your appointment with Dr. ${doctor.name} for ${appointment.startTime} on ${appointment.date.toLocaleDateString()} has been cancelled.${dto.cancellationReason ? ` Reason: ${dto.cancellationReason}` : ''}`,
+      message: `Your appointment with Dr. ${doctor.name} on ${startOfDay.toLocaleDateString()} at ${appointment.startTime} has been cancelled by ${canceller}.${dto.cancellationReason ? ` Reason: ${dto.cancellationReason}` : ''}`,
       isRead: false,
       createdAt: new Date(),
     };
 
     const doctorNotification: Notification = {
-      userId: doctorId,
+      userId: appointment.doctorId.toString(),
       type: NotificationType.APPOINTMENT_CANCELLED,
-      message: `An appointment with ${patient.name} for ${appointment.startTime} on ${appointment.date.toLocaleDateString()} has been cancelled.${dto.cancellationReason ? ` Reason: ${dto.cancellationReason}` : ''}`,
+      message: `The appointment with ${patient.name} on ${startOfDay.toLocaleDateString()} at ${appointment.startTime} has been cancelled by ${canceller}.${dto.cancellationReason ? ` Reason: ${dto.cancellationReason}` : ''}`,
       isRead: false,
       createdAt: new Date(),
     };
 
+    // Send emails
     const patientEmailSubject = 'Appointment Cancellation';
-    const patientEmailText = `Dear ${patient.name},\n\nYour appointment with Dr. ${doctor.name} for ${appointment.startTime} on ${appointment.date.toLocaleDateString()} has been cancelled.${dto.cancellationReason ? ` Reason: ${dto.cancellationReason}` : ''}\n\nBest regards,\nDOCit Team`;
+    const patientEmailText = `Dear ${patient.name},\n\nYour appointment with Dr. ${doctor.name} on ${startOfDay.toLocaleDateString()} at ${appointment.startTime} has been cancelled by ${canceller}.${dto.cancellationReason ? ` Reason: ${dto.cancellationReason}` : ''}\n\nBest regards,\nDOCit Team`;
     const doctorEmailSubject = 'Appointment Cancellation';
-    const doctorEmailText = `Dear Dr. ${doctor.name},\n\nAn appointment with ${patient.name} for ${appointment.startTime} on ${appointment.date.toLocaleDateString()} has been cancelled.${dto.cancellationReason ? ` Reason: ${dto.cancellationReason}` : ''}\n\nBest regards,\nDOCit Team`;
+    const doctorEmailText = `Dear Dr. ${doctor.name},\n\nThe appointment with ${patient.name} on ${startOfDay.toLocaleDateString()} at ${appointment.startTime} has been cancelled by ${canceller}.${dto.cancellationReason ? ` Reason: ${dto.cancellationReason}` : ''}\n\nBest regards,\nDOCit Team`;
 
     await Promise.all([
       this._notificationService.sendNotification(patientNotification),
@@ -263,83 +239,66 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       this._emailService.sendEmail(patient.email, patientEmailSubject, patientEmailText),
       this._emailService.sendEmail(doctor.email, doctorEmailSubject, doctorEmailText),
     ]);
+
+    logger.info(`Appointment ${dto.appointmentId} cancelled successfully by ${canceller}`);
   }
 
   async adminCancelAppointment(appointmentId: string): Promise<void> {
     const appointment = await this._appointmentRepository.findById(appointmentId);
     if (!appointment) {
-      logger.error(`Appointment not found: ${appointmentId}`);
       throw new NotFoundError('Appointment not found');
     }
 
-    if (appointment.status === 'cancelled') {
-      logger.warn(`Appointment already cancelled: ${appointmentId}`);
+    if (appointment.status === AppointmentStatus.CANCELLED) {
       throw new ValidationError('Appointment is already cancelled');
     }
 
-    let patientId: string;
-    if (typeof appointment.patientId === 'string') {
-      patientId = appointment.patientId;
-    } else if (appointment.patientId && 'name' in appointment.patientId && appointment.patientId._id) {
-      patientId = appointment.patientId._id.toString();
-    } else {
-      logger.error(`Invalid patientId for appointment ${appointmentId}`);
-      throw new ValidationError('Invalid patient ID');
-    }
-
-    let doctorId: string;
-    if (typeof appointment.doctorId === 'string') {
-      doctorId = appointment.doctorId;
-    } else if (appointment.doctorId && 'name' in appointment.doctorId && appointment.doctorId._id) {
-      doctorId = appointment.doctorId._id.toString();
-    } else {
-      logger.error(`Invalid doctorId for appointment ${appointmentId}`);
-      throw new ValidationError('Invalid doctor ID');
-    }
-
-    const doctor = await this._doctorRepository.findById(doctorId);
+    const doctor = await this._doctorRepository.findById(appointment.doctorId.toString());
     if (!doctor) throw new NotFoundError('Doctor not found');
 
-    const patient = await this._patientRepository.findById(patientId);
+    const patient = await this._patientRepository.findById(appointment.patientId.toString());
     if (!patient) throw new NotFoundError('Patient not found');
 
-    await this._appointmentRepository.update(appointmentId, { status: 'cancelled' });
+    await this._appointmentRepository.update(appointmentId, { status: AppointmentStatus.CANCELLED });
 
-    const startOfDay = DateUtils.startOfDayUTC(appointment.date);
-    try {
-      await this._availabilityRepository.updateSlotBookingStatus(doctorId, startOfDay, appointment.startTime, false);
-    } catch (error) {
-      logger.error(`Failed to update availability slot for doctor ${doctorId}: ${(error as Error).message}`);
-      throw new Error(`Failed to update availability: ${(error as Error).message}`);
-    }
+    const startOfDay = DateUtils.startOfDayUTC(new Date(appointment.date));
+    await this._availabilityRepository.updateSlotBookingStatus(
+      appointment.doctorId.toString(),
+      startOfDay,
+      appointment.startTime,
+      false
+    );
 
     if (!appointment.isFreeBooking && appointment.planId) {
-      const subscription = await this._patientSubscriptionRepository.findActiveByPatientAndDoctor(patientId, doctorId);
+      const subscription = await this._patientSubscriptionRepository.findActiveByPatientAndDoctor(
+        appointment.patientId.toString(),
+        appointment.doctorId.toString()
+      );
       if (subscription && subscription.planId === appointment.planId) {
         await this._patientSubscriptionRepository.decrementAppointmentCount(subscription._id!);
       }
     }
 
     const patientNotification: Notification = {
-      userId: patientId,
+      userId: appointment.patientId.toString(),
       type: NotificationType.APPOINTMENT_CANCELLED,
-      message: `Your appointment with Dr. ${doctor.name} for ${appointment.startTime} on ${appointment.date.toLocaleDateString()} has been cancelled by an admin.`,
+      message: `Your appointment with Dr. ${doctor.name} for ${appointment.startTime} on ${startOfDay.toLocaleDateString()} has been cancelled by an admin.`,
       isRead: false,
       createdAt: new Date(),
     };
 
     const doctorNotification: Notification = {
-      userId: doctorId,
+      userId: appointment.doctorId.toString(),
       type: NotificationType.APPOINTMENT_CANCELLED,
-      message: `An appointment with ${patient.name} for ${appointment.startTime} on ${appointment.date.toLocaleDateString()} has been cancelled by an admin.`,
+      message: `An appointment with ${patient.name} for ${appointment.startTime} on ${startOfDay.toLocaleDateString()} has been cancelled by an admin.`,
       isRead: false,
       createdAt: new Date(),
     };
 
     const patientEmailSubject = 'Appointment Cancellation';
-    const patientEmailText = `Dear ${patient.name},\n\nYour appointment with Dr. ${doctor.name} for ${appointment.startTime} on ${appointment.date.toLocaleDateString()} has been cancelled by an admin.\n\nBest regards,\nDOCit Team`;
+    const patientEmailText = `Dear ${patient.name},\n\nYour appointment with Dr. ${doctor.name} for ${appointment.startTime} on ${startOfDay.toLocaleDateString()} has been cancelled by an admin.\n\nBest regards,\nDOCit Team`;
     const doctorEmailSubject = 'Appointment Cancellation';
-    const doctorEmailText = `Dear Dr. ${doctor.name},\n\nAn appointment with ${patient.name} for ${appointment.startTime} on ${appointment.date.toLocaleDateString()} has been cancelled by an admin.\n\nBest regards,\nDOCit Team`;
+    const doctorEmailText = `Dear Dr. ${doctor.name},\n\nAn appointment with ${patient.name} for ${appointment.startTime} on ${startOfDay.toLocaleDateString()} has been cancelled by an admin.\n\nBest regards,\nDOCit Team`;
 
     await Promise.all([
       this._notificationService.sendNotification(patientNotification),
@@ -352,102 +311,93 @@ export class AppointmentUseCase implements IAppointmentUseCase {
   async completeAppointment(dto: CompleteAppointmentRequestDTO): Promise<CompleteAppointmentResponseDTO> {
     const appointment = await this._appointmentRepository.findById(dto.appointmentId);
     if (!appointment) {
-      logger.error(`Appointment not found: ${dto.appointmentId}`);
       throw new NotFoundError('Appointment not found');
     }
 
-    if (appointment.status !== 'pending') {
-      logger.error(`Only pending appointments can be marked as completed: ${dto.appointmentId}`);
+    if (appointment.status !== AppointmentStatus.PENDING) {
       throw new ValidationError('Only pending appointments can be marked as completed');
     }
 
-    let patientId: string;
-    if (typeof appointment.patientId === 'string') {
-      patientId = appointment.patientId;
-    } else if (appointment.patientId && 'name' in appointment.patientId && appointment.patientId._id) {
-      patientId = appointment.patientId._id.toString();
-    } else {
-      logger.error(`Invalid patientId for appointment ${dto.appointmentId}`);
-      throw new ValidationError('Invalid patient ID');
-    }
-
-    let doctorId: string;
-    if (typeof appointment.doctorId === 'string') {
-      doctorId = appointment.doctorId;
-    } else if (appointment.doctorId && 'name' in appointment.doctorId && appointment.doctorId._id) {
-      doctorId = appointment.doctorId._id.toString();
-    } else {
-      logger.error(`Invalid doctorId for appointment ${dto.appointmentId}`);
-      throw new ValidationError('Invalid doctor ID');
-    }
-
-    if (doctorId !== dto.doctorId) {
-      logger.error(`Unauthorized completion attempt by doctor ${dto.doctorId} for appointment ${dto.appointmentId}`);
+    if (appointment.doctorId.toString() !== dto.doctorId.toString()) {
       throw new ValidationError('Unauthorized to complete this appointment');
     }
 
-    const doctor = await this._doctorRepository.findById(doctorId);
+    const doctor = await this._doctorRepository.findById(appointment.doctorId.toString());
     if (!doctor) {
-      logger.error(`Doctor not found: ${doctorId}`);
       throw new NotFoundError('Doctor not found');
     }
 
-    const patient = await this._patientRepository.findById(patientId);
+    const patient = await this._patientRepository.findById(appointment.patientId.toString());
     if (!patient) {
-      logger.error(`Patient not found: ${patientId}`);
       throw new NotFoundError('Patient not found');
     }
 
-    const prescriptionDTO: PrescriptionDTO = {
-      ...dto.prescription,
-      appointmentId: dto.appointmentId,
-      patientId,
-      doctorId,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    const updatedAppointment = await this._appointmentRepository.completeAppointmentAndCreatePrescription(
+    const prescription = await this._prescriptionRepository.createPrescription(
       dto.appointmentId,
-      AppointmentMapper.toPrescriptionEntity(prescriptionDTO)
+      appointment.patientId.toString(),
+      appointment.doctorId.toString(),
+      AppointmentMapper.toPrescriptionEntity(dto.prescription)
+    );
+
+    const pdfBuffer = await this.generatePrescriptionPDF({
+      patientName: patient.name || 'Unknown',
+      doctorName: doctor.name || 'Unknown',
+      doctorQualification: doctor.qualifications?.join(', ') || '',
+      date: appointment.date instanceof Date ? appointment.date.toISOString() : appointment.date,
+      age: patient.age?.toString() || 'N/A',
+      gender: patient.gender || 'N/A',
+      contact: patient.phone || 'N/A',
+      address: patient.address || 'N/A',
+      medications: dto.prescription.medications,
+      notes: dto.prescription.notes,
+    });
+
+    const { url: pdfUrl } = await this._imageUploadService.uploadPDF(pdfBuffer, 'prescriptions');
+
+    if (prescription._id) {
+      await this._prescriptionRepository.update(prescription._id, { pdfUrl });
+    } else {
+      throw new Error('Failed to create prescription: No ID returned');
+    }
+
+    const updatedAppointment = await this._appointmentRepository.completeAppointment(
+      dto.appointmentId,
+      prescription._id
     );
 
     const updatedAppointmentDTO = AppointmentMapper.toAppointmentDTO(updatedAppointment);
 
     const patientNotification: Notification = {
-      userId: patientId,
+      userId: appointment.patientId.toString(),
       type: NotificationType.PRESCRIPTION_ISSUED,
-      message: `A new prescription has been issued by Dr. ${doctor.name} for your appointment on ${appointment.date.toLocaleDateString()} at ${appointment.startTime}.`,
+      message: `A new prescription has been issued by Dr. ${doctor.name} for your appointment on ${new Date(appointment.date).toLocaleDateString()} at ${appointment.startTime}.`,
       isRead: false,
       createdAt: new Date(),
     };
 
     const doctorNotification: Notification = {
-      userId: doctorId,
+      userId: appointment.doctorId.toString(),
       type: NotificationType.PRESCRIPTION_ISSUED,
-      message: `You have issued a new prescription for ${patient.name} for the appointment on ${appointment.date.toLocaleDateString()} at ${appointment.startTime}.`,
+      message: `You have issued a new prescription for ${patient.name} for the appointment on ${new Date(appointment.date).toLocaleDateString()} at ${appointment.startTime}.`,
       isRead: false,
       createdAt: new Date(),
     };
 
     const patientEmailSubject = 'New Prescription Issued';
-    const patientEmailText = `Dear ${patient.name},\n\nDr. ${doctor.name} has issued a new prescription for your appointment on ${appointment.date.toLocaleDateString()} at ${appointment.startTime}. Please check your account for details.\n\nBest regards,\nDOCit Team`;
+    const patientEmailText = `Dear ${patient.name},\n\nDr. ${doctor.name} has issued a new prescription for your appointment on ${new Date(appointment.date).toLocaleDateString()} at ${appointment.startTime}. Please check your account for details.\n\nBest regards,\nDOCit Team`;
     const doctorEmailSubject = 'Prescription Issued Confirmation';
-    const doctorEmailText = `Dear Dr. ${doctor.name},\n\nYou have successfully issued a prescription for ${patient.name} for the appointment on ${appointment.date.toLocaleDateString()} at ${appointment.startTime}.\n\nBest regards,\nDOCit Team`;
+    const doctorEmailText = `Dear Dr. ${doctor.name},\n\nYou have successfully issued a prescription for ${patient.name} for the appointment on ${new Date(appointment.date).toLocaleDateString()} at ${appointment.startTime}.\n\nBest regards,\nDOCit Team`;
 
-    try {
-      await Promise.all([
-        this._notificationService.sendNotification(patientNotification),
-        this._notificationService.sendNotification(doctorNotification),
-        this._emailService.sendEmail(patient.email, patientEmailSubject, patientEmailText),
-        this._emailService.sendEmail(doctor.email, doctorEmailSubject, doctorEmailText),
-      ]);
-      logger.info(`Notifications and emails sent for prescription of appointment ${dto.appointmentId}`);
-    } catch (error) {
+    await Promise.all([
+      this._notificationService.sendNotification(patientNotification),
+      this._notificationService.sendNotification(doctorNotification),
+      this._emailService.sendEmail(patient.email, patientEmailSubject, patientEmailText),
+      this._emailService.sendEmail(doctor.email, doctorEmailSubject, doctorEmailText),
+    ]).catch((error) => {
       logger.error(
-        `Failed to send notifications or emails for prescription of appointment ${dto.appointmentId}: ${(error as Error).message}`
+        `Failed to send notifications or emails for prescription of appointment ${dto.appointmentId}: ${error.message}`
       );
-    }
+    });
 
     return {
       appointment: updatedAppointmentDTO,
@@ -510,36 +460,21 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     };
   }
 
-  async getSingleAppointment(doctorId: string, appointmentId: string): Promise<AppointmentDTO> {
+  async getSingleAppointment(appointmentId: string): Promise<AppointmentDTO> {
     if (!appointmentId) {
       throw new ValidationError('Appointment ID is required');
     }
 
-    const appointment = await this._appointmentRepository.findById(appointmentId);
+    const appointment = await this._appointmentRepository.findByIdPopulated(appointmentId);
     if (!appointment) {
       throw new NotFoundError('Appointment not found');
-    }
-
-    let resolvedDoctorId: string;
-    if (typeof appointment.doctorId === 'string') {
-      resolvedDoctorId = appointment.doctorId;
-    } else if (appointment.doctorId && 'name' in appointment.doctorId && appointment.doctorId._id) {
-      resolvedDoctorId = appointment.doctorId._id.toString();
-    } else {
-      logger.error(`Invalid doctorId for appointment ${appointmentId}`);
-      throw new ValidationError('Invalid doctor ID');
-    }
-
-    if (resolvedDoctorId !== doctorId) {
-      logger.error(`Unauthorized access attempt by doctor ${doctorId} for appointment ${appointmentId}`);
-      throw new ValidationError('Unauthorized to access this appointment');
     }
 
     return AppointmentMapper.toAppointmentDTO(appointment);
   }
 
   async getAppointmentById(appointmentId: string): Promise<AppointmentDTO> {
-    const appointment = await this._appointmentRepository.findById(appointmentId);
+    const appointment = await this._appointmentRepository.findByIdPopulated(appointmentId);
     if (!appointment) {
       throw new NotFoundError('Appointment not found');
     }
@@ -569,5 +504,118 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     }
 
     return true;
+  }
+
+  private async generatePrescriptionPDF(data: {
+    patientName: string;
+    doctorName: string;
+    doctorQualification: string;
+    date: string;
+    diagnosis?: string;
+    age?: string;
+    weight?: string;
+    bp?: string;
+    gender?: string;
+    contact?: string;
+    address?: string;
+    medications: Array<{
+      name: string;
+      dosage: string;
+      frequency: string;
+      duration: string;
+    }>;
+    notes?: string;
+  }): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      const doc = new PDFKit({ size: 'A4', margin: 0 });
+      const buffers: Buffer[] = [];
+
+      doc.on('data', (buffer) => buffers.push(buffer));
+      doc.on('end', () => resolve(Buffer.concat(buffers)));
+      doc.on('error', reject);
+
+      // Colors from app design
+      const primaryColor = '#0F828C';
+
+      // Fonts
+      doc.registerFont('Arial', 'Helvetica');
+
+      // Header
+      doc.rect(0, 0, 595, 150).fill(primaryColor);
+      doc.font('Arial').fontSize(36).fillColor('#FFFFFF').text('DOCit', 50, 40);
+      doc.fontSize(24).text('+', 150, 45);
+      doc.fontSize(16).fillColor('#FFFFFF').text(`Dr. ${data.doctorName}`, 50, 90);
+      doc.text(data.doctorQualification || 'MD', 50, 110);
+
+      // Patient Information Table
+      doc.fillColor('#000000').fontSize(12);
+      let y = 170;
+      const tableWidth = 495;
+      const labelWidth = 100;
+      const valueWidth = 150;
+      const cellPadding = 5;
+
+      // Draw table background
+      doc.rect(50, y, tableWidth, 100).fill('#F5F5F5');
+
+      // Row 1: Name and Age
+      doc
+        .fillColor('#333333')
+        .font('Arial')
+        .fontSize(12)
+        .text('Name:', 50 + cellPadding, y + cellPadding, { width: labelWidth });
+      doc.text(data.patientName || 'Unknown Patient', 50 + labelWidth + cellPadding, y + cellPadding, {
+        width: valueWidth,
+      });
+      doc.text('Age:', 50 + labelWidth + valueWidth + cellPadding, y + cellPadding, { width: labelWidth });
+      doc.text(data.age || 'N/A', 50 + 2 * labelWidth + valueWidth + cellPadding, y + cellPadding, {
+        width: valueWidth,
+      });
+      y += 25;
+
+      // Row 2: Gender and Contact
+      doc.text('Gender:', 50 + cellPadding, y + cellPadding, { width: labelWidth });
+      doc.text(data.gender || 'N/A', 50 + labelWidth + cellPadding, y + cellPadding, { width: valueWidth });
+      doc.text('Contact:', 50 + labelWidth + valueWidth + cellPadding, y + cellPadding, { width: labelWidth });
+      doc.text(data.contact || 'N/A', 50 + 2 * labelWidth + valueWidth + cellPadding, y + cellPadding, {
+        width: valueWidth,
+      });
+      y += 25;
+
+      // Row 3: Address
+      doc.text('Address:', 50 + cellPadding, y + cellPadding, { width: labelWidth });
+      doc.text(data.address || 'N/A', 50 + labelWidth + cellPadding, y + cellPadding, {
+        width: tableWidth - labelWidth - 2 * cellPadding,
+      });
+      y += 40;
+
+      // Prescription Area
+      doc.fillColor('#000000').fontSize(14).text('Prescription', 50, y, { underline: true });
+      y += 30;
+
+      // Medications
+      doc.text('Medications:', 50, y, { width: labelWidth });
+      y += 20;
+      data.medications.forEach((med, index) => {
+        const medText = `${index + 1}. ${med.name} - ${med.dosage}, ${med.frequency}, ${med.duration}`;
+        doc.text(medText, 50 + cellPadding, y, { width: tableWidth - 2 * cellPadding });
+        y += 20;
+      });
+
+      // Notes (Instructions)
+      if (data.notes) {
+        doc.text('Instructions:', 50, y, { width: labelWidth });
+        doc.text(data.notes, 50 + labelWidth + cellPadding, y, { width: tableWidth - labelWidth - 2 * cellPadding });
+        y += 40;
+      }
+
+      // Footer
+      const footerY = 842 - 60; // A4 height - footer height
+      doc.rect(0, footerY, 595, 60).fill(primaryColor);
+      doc.fillColor('#FFFFFF').fontSize(12);
+      doc.text('DOCit Clinic', 50, footerY + 10);
+      doc.text('docit.site', 50, footerY + 30);
+      doc.end();
+    });
   }
 }

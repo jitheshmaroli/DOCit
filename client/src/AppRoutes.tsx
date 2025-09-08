@@ -11,7 +11,6 @@ import DoctorDashboard from './pages/doctor/DoctorDashboard';
 import NotFoundPage from './pages/public/NotFoundPage';
 import AdminLayout from './layouts/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
-import ProfilePage from './pages/patient/ProfilePage';
 import AdminLoginPage from './pages/admin/AdminLoginPage';
 import ProtectedRoute from './components/layout/ProtectionRoute';
 import DoctorProfilePage from './pages/doctor/DoctorProfilePage';
@@ -32,6 +31,11 @@ import { clearUser } from './redux/slices/authSlice';
 import DoctorAppointmentDetails from './pages/doctor/DoctorAppointmentDetails';
 import PlanDetails from './pages/doctor/PlanDetails';
 import PatientAppointments from './pages/doctor/PatientAppointments';
+import Subscriptions from './pages/patient/Profile/Subscriptions';
+import PersonalInformation from './pages/patient/Profile/PersonalInformation';
+import PatientMessages from './pages/patient/Profile/Messages';
+import DoctorPatients from './pages/doctor/DoctorPatients';
+
 
 const AppRoutes = () => {
   const navigate = useNavigate();
@@ -64,7 +68,9 @@ const AppRoutes = () => {
       <Route element={<ProtectedRoute roles={['patient']} />}>
         <Route path="/patient" element={<PatientLayout />}>
           <Route path="find-doctor" element={<FindDoctor />} />
-          <Route path="profile" element={<ProfilePage />} />
+          <Route path="subscriptions" element={<Subscriptions />} />
+          <Route path="messages" element={<PatientMessages />} />
+          <Route path="profile" element={<PersonalInformation />} />
           <Route path="doctors/:doctorId" element={<DoctorDetails />} />
           <Route
             path="appointment/:appointmentId"
@@ -83,6 +89,7 @@ const AppRoutes = () => {
           <Route path="messages" element={<Messages />} />
           <Route path="plans" element={<DoctorPlans />} />
           <Route path="plan-details/:planId" element={<PlanDetails />} />
+          <Route path="patients" element={<DoctorPatients />} />
           <Route path="patient/:patientId" element={<PatientDetails />} />
           <Route
             path="patient/:patientId/appointments"

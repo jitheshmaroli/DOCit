@@ -15,7 +15,7 @@ export class BaseRepository<T> {
 
   async findById(id: string): Promise<T | null> {
     try {
-      // if (!mongoose.Types.ObjectId.isValid(id)) return null;
+      if (!mongoose.Types.ObjectId.isValid(id)) return null;
       const entity = await this.model.findById(id).exec();
       return entity ? (entity.toObject() as T) : null;
     } catch (error) {

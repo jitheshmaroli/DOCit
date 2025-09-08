@@ -10,4 +10,5 @@ export interface IPatientUseCase {
   getPatientSubscriptions(patientId: string): Promise<PatientSubscriptionDTO[]>;
   getPatientActiveSubscription(patientId: string, doctorId: string): Promise<PatientSubscriptionDTO | null>;
   getSubscribedPatients(doctorId: string): Promise<PatientDTO[] | null>;
+  getAppointedPatients(doctorId: string, params: QueryParams): Promise<PaginatedPatientResponseDTO>;
 }

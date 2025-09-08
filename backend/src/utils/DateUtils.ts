@@ -1,6 +1,5 @@
 import moment from 'moment';
 import { ValidationError } from './errors';
-import logger from './logger';
 
 export class DateUtils {
   // Parse a date string to UTC Date object
@@ -52,7 +51,6 @@ export class DateUtils {
     return moment.utc(date).format('h:mm A');
   }
 
-  // Validate time slot (startTime and endTime in HH:mm format)
   static validateTimeSlot(startTime: string, endTime: string, date: Date): void {
     if (!startTime || !endTime) {
       throw new ValidationError('Start time and end time are required');
@@ -75,7 +73,6 @@ export class DateUtils {
     }
   }
 
-  // Check for overlapping slots
   static checkOverlappingSlots(slots: { startTime: string; endTime: string }[], date: Date): void {
     const slotMoments = slots
       .map((slot) => ({
@@ -97,23 +94,15 @@ export class DateUtils {
         const slot2 = slotMoments[j];
         if (
           (slot1.start.isSameOrAfter(slot2.start) && slot1.start.isBefore(slot2.end)) ||
-          (slot1.end.isAfter(slot2.start) && slot1.end.isSameOrBefore(slot2.end)) ||
-          (slot1.start.isSameOrBefore(slot2.start) && slot1.end.isSameOrAfter(slot2.end))
+          (slot1.end.isAfter(slot2.start) && (slot1.end.isSame(slot2.end) || slot1.end.isBefore(slot2.end))) ||
+          ((slot1.start.isSame(slot2.start) || slot1.start.isBefore(slot2.start)) && slot1.end.isSameOrAfter(slot2.end))
         ) {
           throw new ValidationError('Time slots cannot overlap');
         }
       }
     }
-    logger.info(
-      'Checked slots for overlaps:',
-      slotMoments.map((slot) => ({
-        start: slot.start.format('HH:mm'),
-        end: slot.end.format('HH:mm'),
-      }))
-    );
   }
 
-  // Generate recurring dates based on start date, end date, and selected days of the week
   static generateRecurringDates(startDate: Date, endDate: Date, recurringDays: number[]): Date[] {
     if (!recurringDays || recurringDays.length === 0) {
       throw new ValidationError('At least one recurring day is required');
@@ -129,10 +118,6 @@ export class DateUtils {
       currentDate = currentDate.add(1, 'day');
     }
 
-    logger.debug(
-      'Generated recurring dates:',
-      dates.map((d) => moment.utc(d).format('YYYY-MM-DD'))
-    );
     return dates;
   }
 }

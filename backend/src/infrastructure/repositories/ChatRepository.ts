@@ -1,4 +1,4 @@
-import mongoose, { PipelineStage, UpdateQuery } from 'mongoose';
+import mongoose, { PipelineStage } from 'mongoose';
 import { QueryParams } from '../../types/authTypes';
 import { ChatMessageModel } from '../database/models/ChatMessageModel';
 import { IChatRepository } from '../../core/interfaces/repositories/IChatRepository';
@@ -11,7 +11,7 @@ export class ChatRepository extends BaseRepository<ChatMessage> implements IChat
     super(ChatMessageModel);
   }
 
-  async create(message: ChatMessage): Promise<ChatMessage> {
+  async saveMessage(message: ChatMessage): Promise<ChatMessage> {
     const newMessage = new this.model({
       ...message,
       unreadBy: [message.receiverId],
@@ -19,12 +19,6 @@ export class ChatRepository extends BaseRepository<ChatMessage> implements IChat
     });
     const savedMessage = await newMessage.save();
     return savedMessage.toObject() as ChatMessage;
-  }
-
-  async findById(messageId: string): Promise<ChatMessage | null> {
-    if (!mongoose.Types.ObjectId.isValid(messageId)) return null;
-    const message = await this.model.findById(messageId).exec();
-    return message ? (message.toObject() as ChatMessage) : null;
   }
 
   async findByParticipants(senderId: string, receiverId: string): Promise<ChatMessage[]> {
@@ -48,12 +42,6 @@ export class ChatRepository extends BaseRepository<ChatMessage> implements IChat
   async markAsRead(messageId: string, userId: string): Promise<void> {
     if (!mongoose.Types.ObjectId.isValid(messageId)) return;
     await this.model.findByIdAndUpdate(messageId, { $pull: { unreadBy: userId } }).exec();
-  }
-
-  async update(messageId: string, update: UpdateQuery<ChatMessage>): Promise<ChatMessage | null> {
-    if (!mongoose.Types.ObjectId.isValid(messageId)) return null;
-    const updatedMessage = await this.model.findByIdAndUpdate(messageId, update, { new: true }).exec();
-    return updatedMessage ? (updatedMessage.toObject() as ChatMessage) : null;
   }
 
   async getChatHistory(userId: string, params: QueryParams): Promise<ChatMessage[]> {

@@ -162,6 +162,7 @@ export const loginThunk = createAsyncThunk(
             email: userResponse.email,
             name: userResponse.name,
             role: userResponse.role || payload.role,
+            profilePicture: userResponse.profilePicture,
           };
 
           thunkAPI.dispatch(setUser(user));
@@ -219,6 +220,7 @@ export const checkAuthThunk = createAsyncThunk(
         email: response.email,
         role: response.role || expectedRole,
         phone: response.phone,
+        profilePicture: response.profilePicture,
       };
 
       thunkAPI.dispatch(setUser(user));

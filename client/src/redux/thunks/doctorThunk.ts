@@ -17,6 +17,7 @@ import {
   getSubscribedPatients,
   getPlanSubscriptionCounts,
   getPatientAppointments,
+  cancelAppointment,
 } from '../../services/doctorService';
 import {
   confirmSubscription,
@@ -31,6 +32,7 @@ import {
   QueryParams,
   Appointment,
   SubscriptionPlan,
+  UpdateSlotPayload,
 } from '../../types/authTypes';
 import { DateUtils } from '../../utils/DateUtils';
 
@@ -101,7 +103,7 @@ export const setAvailabilityThunk = createAsyncThunk(
 export const removeSlotThunk = createAsyncThunk(
   'doctors/removeSlot',
   async (
-    payload: { availabilityId: string; slotIndex: number },
+    payload: { availabilityId: string; slotIndex: number; reason?: string },
     { rejectWithValue }
   ) => {
     try {
@@ -114,15 +116,7 @@ export const removeSlotThunk = createAsyncThunk(
 
 export const updateSlotThunk = createAsyncThunk(
   'doctors/updateSlot',
-  async (
-    payload: {
-      availabilityId: string;
-      slotIndex: number;
-      startTime: string;
-      endTime: string;
-    },
-    { rejectWithValue }
-  ) => {
+  async (payload: UpdateSlotPayload, { rejectWithValue }) => {
     try {
       return await updateSlot(payload);
     } catch (error: any) {
@@ -171,6 +165,21 @@ export const completeAppointmentThunk = createAsyncThunk<
       return response;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to complete appointment');
+    }
+  }
+);
+
+export const cancelAppointmentThunk = createAsyncThunk<
+  void,
+  { appointmentId: string; cancellationReason?: string },
+  { rejectValue: string }
+>(
+  'doctors/cancelAppointment',
+  async ({ appointmentId, cancellationReason }, { rejectWithValue }) => {
+    try {
+      await cancelAppointment(appointmentId, cancellationReason);
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to cancel appointment');
     }
   }
 );

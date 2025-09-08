@@ -39,6 +39,7 @@ router.get(
   doctorController.getPatientAppointments.bind(doctorController)
 );
 router.post('/appointments/complete', doctorAuth, doctorController.completeAppointment.bind(doctorController));
+router.post('/appointments/cancel', doctorAuth, doctorController.cancelAppointment.bind(doctorController));
 
 // Subscription plan routes
 router.get('/subscription-plans', doctorAuth, doctorController.getSubscriptionPlans.bind(doctorController));
@@ -58,6 +59,7 @@ router.get('/dashboard/stats', doctorAuth, doctorController.getDashboardStats.bi
 router.get('/dashboard/reports', doctorAuth, doctorController.getReports.bind(doctorController));
 
 router.get('/patients/subscribed', doctorAuth, doctorController.getSubscribedPatients.bind(doctorController));
+router.get('/patients/appointed', doctorAuth, doctorController.getAppointedPatients.bind(doctorController));
 router.get(
   '/subscription-plans/:planId/counts',
   doctorAuth,

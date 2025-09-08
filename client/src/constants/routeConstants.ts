@@ -21,7 +21,7 @@ export const ROUTES = {
     PROFILE: '/patient/profile',
     DOCTOR_DETAILS: '/patient/doctors/:doctorId',
     APPOINTMENT_DETAILS: '/patient/appointment/:appointmentId',
-    MESSAGES: '/patient/profile?tab=messages',
+    MESSAGES: '/patient/messages',
   },
 
   // Doctor Routes
@@ -104,7 +104,11 @@ export const ROUTES = {
       DASHBOARD_STATS: apiPath('/doctors/dashboard/stats'),
       REPORTS: apiPath('/doctors/dashboard/reports'),
       SUBSCRIBED_PATIENTS: apiPath('/doctors/patients/subscribed'),
-      SUBSCRIPTION_PLAN_COUNTS: apiPath('/doctors/subscription-plans/:planId/counts'),
+      SUBSCRIPTION_PLAN_COUNTS: apiPath(
+        '/doctors/subscription-plans/:planId/counts'
+      ),
+      APPOINTED_PATIENTS: apiPath('/doctors/patients/appointed'),
+      CANCEL_APPOINTMENT: apiPath('/doctors/appointments/cancel'),
     },
 
     PATIENT: {

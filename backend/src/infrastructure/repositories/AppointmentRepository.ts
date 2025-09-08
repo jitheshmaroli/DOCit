@@ -6,14 +6,17 @@ import { DateUtils } from '../../utils/DateUtils';
 import { AppointmentModel } from '../database/models/AppointmentModel';
 import { PatientModel } from '../database/models/PatientModel';
 import { DoctorModel } from '../database/models/DoctorModel';
-import { Prescription } from '../../core/entities/Prescription';
+import { BaseRepository } from './BaseRepository';
+import { AppointmentStatus } from '../../application/dtos/AppointmentDTOs';
 import { PrescriptionModel } from '../database/models/PrescriptionModel';
 
-export class AppointmentRepository implements IAppointmentRepository {
-  private _model = AppointmentModel;
+export class AppointmentRepository extends BaseRepository<Appointment> implements IAppointmentRepository {
+  constructor() {
+    super(AppointmentModel);
+  }
 
   async create(appointment: Appointment): Promise<Appointment> {
-    const newAppointment = new this._model({
+    const newAppointment = new this.model({
       ...appointment,
       date: DateUtils.startOfDayUTC(appointment.date),
     });
@@ -21,22 +24,26 @@ export class AppointmentRepository implements IAppointmentRepository {
     return savedAppointment.toObject() as Appointment;
   }
 
-  async findById(appointmentId: string): Promise<Appointment | null> {
+  async findByIdPopulated(appointmentId: string): Promise<Appointment | null> {
     if (!mongoose.Types.ObjectId.isValid(appointmentId)) return null;
-    const appointment = await this._model
+    const appointment = await this.model
       .findById(appointmentId)
       .populate('patientId')
       .populate('doctorId')
-      .populate('prescriptionId')
+      .populate({
+        path: 'prescriptionId',
+        model: PrescriptionModel,
+        select: '_id appointmentId patientId doctorId medications notes pdfUrl createdAt updatedAt',
+      })
       .exec();
-    return appointment ? (appointment.toObject() as Appointment) : null;
+    return (appointment as Appointment) ?? null;
   }
 
   async findUpcomingAppointments(start: Date, end: Date): Promise<Appointment[]> {
     const startOfDay = DateUtils.startOfDayUTC(start);
     const endOfDay = DateUtils.endOfDayUTC(end);
 
-    const appointments = await this._model
+    const appointments = await this.model
       .find({
         date: { $gte: startOfDay, $lte: endOfDay },
         status: 'pending',
@@ -65,7 +72,7 @@ export class AppointmentRepository implements IAppointmentRepository {
     endTime: string
   ): Promise<Appointment | null> {
     const normalizedDate = DateUtils.startOfDayUTC(date);
-    const appointment = await this._model
+    const appointment = await this.model
       .findOne({
         doctorId,
         date: normalizedDate,
@@ -80,7 +87,7 @@ export class AppointmentRepository implements IAppointmentRepository {
   }
 
   async countByPatientAndDoctor(patientId: string, doctorId: string): Promise<number> {
-    return this._model
+    return this.model
       .countDocuments({
         patientId,
         doctorId,
@@ -90,7 +97,7 @@ export class AppointmentRepository implements IAppointmentRepository {
   }
 
   async countByPatientAndDoctorWithFreeBooking(patientId: string, doctorId: string): Promise<number> {
-    return this._model
+    return this.model
       .countDocuments({
         patientId,
         doctorId,
@@ -100,23 +107,22 @@ export class AppointmentRepository implements IAppointmentRepository {
       .exec();
   }
 
-  async update(appointmentId: string, updates: Partial<Appointment>): Promise<void> {
-    if (!mongoose.Types.ObjectId.isValid(appointmentId)) return;
-    await this._model.findByIdAndUpdate(appointmentId, updates).exec();
-  }
-
-  async deleteById(appointmentId: string): Promise<void> {
-    if (!mongoose.Types.ObjectId.isValid(appointmentId)) return;
-    await this._model.findByIdAndDelete(appointmentId).exec();
-  }
-
   async findByPatient(patientId: string): Promise<Appointment[]> {
-    const appointments = await this._model
+    const appointments = await this.model
       .find({ patientId })
       .populate('patientId', 'name')
       .populate('doctorId', 'name')
       .exec();
     return appointments.map((appt) => appt.toObject() as Appointment);
+  }
+
+  async getDistinctPatientIdsByDoctor(doctorId: string): Promise<string[]> {
+    const results = await this.model.aggregate([
+      { $match: { doctorId } },
+      { $group: { _id: '$patientId' } },
+      { $project: { _id: 1 } },
+    ]);
+    return results.map((r) => r._id.toString());
   }
 
   async findByPatientAndDoctorWithQuery(
@@ -134,7 +140,7 @@ export class AppointmentRepository implements IAppointmentRepository {
       query.status = status;
     }
 
-    const appointments = await this._model
+    const appointments = await this.model
       .find(query)
       .populate('patientId', 'name')
       .populate('doctorId', 'name')
@@ -143,7 +149,7 @@ export class AppointmentRepository implements IAppointmentRepository {
       .limit(limit)
       .exec();
 
-    const totalItems = await this._model.countDocuments(query).exec();
+    const totalItems = await this.model.countDocuments(query).exec();
 
     return {
       data: appointments.map((appt) => appt.toObject() as Appointment),
@@ -152,7 +158,7 @@ export class AppointmentRepository implements IAppointmentRepository {
   }
 
   async findByDoctor(doctorId: string): Promise<Appointment[]> {
-    const appointments = await this._model
+    const appointments = await this.model
       .find({ doctorId })
       .populate({ path: 'patientId', select: '-refreshToken -password' })
       .populate('doctorId', 'name')
@@ -201,7 +207,7 @@ export class AppointmentRepository implements IAppointmentRepository {
       query.status = status;
     }
 
-    const appointments = await this._model
+    const appointments = await this.model
       .find(query)
       .populate('patientId', 'name')
       .populate('doctorId', 'name')
@@ -211,19 +217,16 @@ export class AppointmentRepository implements IAppointmentRepository {
       .limit(limit)
       .exec();
 
-    const totalItems = await this._model.countDocuments(query).exec();
+    const totalItems = await this.model.countDocuments(query).exec();
 
     return { data: appointments.map((appt) => appt.toObject() as Appointment), totalItems };
   }
 
-  async completeAppointmentAndCreatePrescription(
-    appointmentId: string,
-    prescription: Omit<Prescription, '_id' | 'appointmentId' | 'patientId' | 'doctorId' | 'createdAt' | 'updatedAt'>
-  ): Promise<Appointment> {
+  async completeAppointment(appointmentId: string, prescriptionId: string): Promise<Appointment> {
     if (!mongoose.Types.ObjectId.isValid(appointmentId)) {
       throw new Error('Invalid appointment ID');
     }
-    const appointment = await this._model
+    const appointment = await this.model
       .findById(appointmentId)
       .populate('patientId', 'name')
       .populate('doctorId', 'name')
@@ -237,17 +240,8 @@ export class AppointmentRepository implements IAppointmentRepository {
       throw new Error('Only pending appointments can be marked as completed');
     }
 
-    const newPrescription = new PrescriptionModel({
-      appointmentId,
-      patientId: appointment.patientId,
-      doctorId: appointment.doctorId,
-      ...prescription,
-    });
-
-    const savedPrescription = await newPrescription.save();
-
-    appointment.status = 'completed';
-    appointment.prescriptionId = savedPrescription._id.toString();
+    appointment.status = AppointmentStatus.COMPLETED;
+    appointment.prescriptionId = prescriptionId;
     await appointment.save();
 
     return appointment.toObject() as Appointment;
