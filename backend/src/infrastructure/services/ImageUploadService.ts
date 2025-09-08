@@ -1,7 +1,6 @@
 import { v2 as cloudinary } from 'cloudinary';
 import { env } from '../../config/env';
 import { IImageUploadService } from '../../core/interfaces/services/IImageUploadService';
-import logger from '../../utils/logger';
 
 export class ImageUploadService implements IImageUploadService {
   constructor() {
@@ -9,7 +8,7 @@ export class ImageUploadService implements IImageUploadService {
       cloud_name: env.CLOUDINARY_CLOUD_NAME,
       api_key: env.CLOUDINARY_API_KEY,
       api_secret: env.CLOUDINARY_API_SECRET,
-      signature_algorithm: 'sha256', // Ensure SHA-256 if required
+      signature_algorithm: 'sha256',
     });
   }
 
@@ -45,7 +44,7 @@ export class ImageUploadService implements IImageUploadService {
         throw new Error('Invalid file type. Allowed types: images (JPEG, PNG, GIF), PDF, DOC, DOCX');
       }
 
-      // Validate file size (e.g., 10MB limit)
+      // Validate file size
       const maxSizeBytes = Number(env.MAX_FILE_SIZE_BYTES) || 10 * 1024 * 1024; // Default to 10MB
       if (file.size > maxSizeBytes) {
         throw new Error(`File size exceeds limit of ${maxSizeBytes / (1024 * 1024)}MB`);
@@ -62,8 +61,6 @@ export class ImageUploadService implements IImageUploadService {
         allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'doc', 'docx'],
         access_mode: accessMode,
       });
-
-      logger.info('result image upload file:', result);
 
       // Generate signed URL for authenticated resources
       // let url = result.secure_url;
@@ -84,7 +81,7 @@ export class ImageUploadService implements IImageUploadService {
       // }
 
       return {
-        url: result.secure_url, // Return base URL without query parameters
+        url: result.secure_url,
         publicId: result.public_id,
       };
     } catch (error) {
@@ -106,5 +103,30 @@ export class ImageUploadService implements IImageUploadService {
     } catch (error) {
       throw new Error(`Failed to delete file: ${(error as Error).message}`);
     }
+  }
+
+  async uploadPDF(buffer: Buffer, folder: string): Promise<{ url: string; publicId: string }> {
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder,
+          resource_type: 'raw',
+          format: 'pdf',
+          access_mode: 'public',
+        },
+        (error, result) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve({
+              url: result!.secure_url,
+              publicId: result!.public_id,
+            });
+          }
+        }
+      );
+
+      uploadStream.end(buffer);
+    });
   }
 }

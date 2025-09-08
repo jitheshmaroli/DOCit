@@ -10,7 +10,6 @@ export interface SetAvailabilityRequestDTO {
   isRecurring: boolean;
   recurringEndDate?: Date;
   recurringDays?: number[];
-  forceCreate: boolean;
 }
 
 export interface UpdateSlotRequestDTO {

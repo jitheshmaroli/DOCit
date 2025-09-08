@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { Appointment, Doctor, SubscriptionPlan } from '../../types/authTypes';
+import { Appointment, Doctor, Patient, SubscriptionPlan } from '../../types/authTypes';
 import {
   createSubscriptionPlanThunk,
   fetchVerifiedDoctorsThunk,
@@ -16,6 +16,7 @@ import {
   removeSlotThunk,
   updateSlotThunk,
   getPlanSubscriptionCountsThunk,
+  getSubscribedPatientsThunk,
 } from '../thunks/doctorThunk';
 
 interface DoctorState {
@@ -33,6 +34,7 @@ interface DoctorState {
   planSubscriptionCounts: {
     [planId: string]: { active: number; expired: number; cancelled: number };
   };
+  subscribedPatients: Patient[];
 }
 
 const initialState: DoctorState = {
@@ -47,6 +49,7 @@ const initialState: DoctorState = {
   subscriptionStatus: 'idle',
   totalItems: 0,
   planSubscriptionCounts: {},
+  subscribedPatients: [],
 };
 
 const doctorSlice = createSlice({
@@ -172,6 +175,22 @@ const doctorSlice = createSlice({
         state.loading = false;
         state.error = action.payload as string;
         state.subscriptionStatus = 'failed';
+      })
+      .addCase(getSubscribedPatientsThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(
+        getSubscribedPatientsThunk.fulfilled,
+        (state, action: PayloadAction<Patient[]>) => {
+          state.loading = false;
+          state.subscribedPatients = action.payload;
+          state.totalItems = action.payload.length;
+        }
+      )
+      .addCase(getSubscribedPatientsThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
       })
       .addCase(getAppointmentsThunk.pending, (state) => {
         state.loading = true;

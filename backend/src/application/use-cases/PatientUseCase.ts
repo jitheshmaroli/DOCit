@@ -8,6 +8,7 @@ import logger from '../../utils/logger';
 import { PatientDTO, PatientSubscriptionDTO, PaginatedPatientResponseDTO } from '../dtos/PatientDTOs';
 import { PatientMapper } from '../mappers/PatientMapper';
 import { PatientSubscriptionMapper } from '../mappers/PatientSubscriptionMapper';
+import { IAppointmentRepository } from '../../core/interfaces/repositories/IAppointmentRepository';
 
 interface PopulatedPlan {
   _id: string;
@@ -25,7 +26,8 @@ interface PopulatedPlan {
 export class PatientUseCase implements IPatientUseCase {
   constructor(
     private _patientRepository: IPatientRepository,
-    private _patientSubscriptionRepository: IPatientSubscriptionRepository
+    private _patientSubscriptionRepository: IPatientSubscriptionRepository,
+    private _appointmentRepository: IAppointmentRepository
   ) {}
 
   async createPatient(dto: Partial<PatientDTO>): Promise<PatientDTO> {
@@ -143,6 +145,13 @@ export class PatientUseCase implements IPatientUseCase {
 
     const subscriptions = await this._patientSubscriptionRepository.findByPatient(patientId);
     return subscriptions.map(PatientSubscriptionMapper.toDTO);
+  }
+
+  async getAppointedPatients(doctorId: string, params: QueryParams): Promise<PaginatedPatientResponseDTO> {
+    const distinctPatientIds = await this._appointmentRepository.getDistinctPatientIdsByDoctor(doctorId);
+    const extendedParams = { ...params, ids: distinctPatientIds };
+    const result = await this._patientRepository.findAllWithQuery(extendedParams);
+    return PatientMapper.toPaginatedResponseDTO(result.data.map(PatientMapper.toDTO), result.totalItems, params);
   }
 
   async getPatientActiveSubscription(patientId: string, doctorId: string): Promise<PatientSubscriptionDTO | null> {

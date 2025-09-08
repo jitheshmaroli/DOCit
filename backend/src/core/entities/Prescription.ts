@@ -10,6 +10,7 @@ export interface Prescription {
     duration: string;
   }>;
   notes?: string;
+  pdfUrl?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }

@@ -314,7 +314,7 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
                         className="p-1 rounded-full hover:bg-red-600/50"
                         title="Delete Message"
                       >
-                        <Trash2 className="w-4 h-4 text-red"></Trash2>
+                        <Trash2 className="w-4 h-4 text-red-400"></Trash2>
                       </button>
                     </div>
                   )}

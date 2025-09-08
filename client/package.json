@@ -44,6 +44,7 @@
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.4.0",
     "react-slick": "^0.31.0",
+    "react-swipeable": "^7.0.2",
     "react-toastify": "^11.0.5",
     "recharts": "^2.15.4",
     "redux-persist": "^6.0.0",

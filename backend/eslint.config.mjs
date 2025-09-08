@@ -34,8 +34,7 @@ export default tseslint.config(
   {
     files: ['**/*.ts'],
     rules: {
-      '@typescript-eslint/no-unused-vars': ['error'], // Example: Enforce no unused variables
-      // Add other TypeScript-specific rules as needed
+      '@typescript-eslint/no-unused-vars': ['error'], // Enforce no unused variables
     },
   }
 );

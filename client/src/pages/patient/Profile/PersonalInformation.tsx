@@ -9,6 +9,9 @@ import {
 import api from '../../../services/api';
 import ROUTES from '../../../constants/routeConstants';
 import { getImageUrl } from '../../../utils/config';
+import { useAppSelector } from '../../../redux/hooks';
+import { RootState } from '../../../redux/store';
+import { useNavigate } from 'react-router-dom';
 
 interface FormData {
   name: string;
@@ -20,7 +23,7 @@ interface FormData {
   pincode: string;
 }
 
-const PersonalInformation = ({ patientId }: { patientId: string }) => {
+const PersonalInformation = () => {
   const [formData, setFormData] = useState<FormData>({
     name: '',
     email: '',
@@ -36,12 +39,24 @@ const PersonalInformation = ({ patientId }: { patientId: string }) => {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
+  const { user } = useAppSelector((state: RootState) => state.auth);
+  const patientId = user?._id;
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!patientId) {
+      navigate(ROUTES.PUBLIC.LOGIN);
+    }
+  }, [patientId, navigate]);
 
   useEffect(() => {
     const fetchProfile = async () => {
       try {
         const response = await api.get(
-          ROUTES.API.PATIENT.PATIENT_BY_ID.replace(':patientId', patientId),
+          ROUTES.API.PATIENT.PATIENT_BY_ID.replace(
+            ':patientId',
+            patientId as string
+          ),
           { withCredentials: true }
         );
         const data = response.data;
@@ -220,7 +235,7 @@ const PersonalInformation = ({ patientId }: { patientId: string }) => {
                 const response = await api.patch(
                   ROUTES.API.PATIENT.PATIENT_BY_ID.replace(
                     ':patientId',
-                    patientId
+                    patientId as string
                   ),
                   formDataToSend,
                   {
@@ -256,7 +271,7 @@ const PersonalInformation = ({ patientId }: { patientId: string }) => {
               }
               closeToast();
             }}
-            className="bg-green-500 text-white px-2 py-1 rounded mr-2"
+            className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-lg mr-2 hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
           >
             Yes
           </button>
@@ -266,7 +281,7 @@ const PersonalInformation = ({ patientId }: { patientId: string }) => {
               setFile(null);
               closeToast();
             }}
-            className="bg-red-500 text-white px-2 py-1 rounded"
+            className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-lg mr-2 hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
           >
             No
           </button>
@@ -277,24 +292,30 @@ const PersonalInformation = ({ patientId }: { patientId: string }) => {
         autoClose: false,
         closeOnClick: false,
         draggable: false,
+        className:
+          'bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl',
       }
     );
   };
 
+  if (!user) {
+    return <div>Loading...</div>;
+  }
+
   return (
-    <div className="p-6">
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 py-8 px-4 sm:px-6 lg:px-8">
       <ToastContainer position="bottom-right" />
-      <div className="max-w-4xl mx-auto">
-        <div className="w-full h-[72px] bg-white/10 backdrop-blur-lg flex items-center px-6 mb-8 border border-white/20 rounded-lg shadow-sm">
-          <h1 className="text-[24px] font-bold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent">
-            Profile
+      <div className="container mx-auto">
+        <div className="bg-white/10 backdrop-blur-lg py-8 rounded-2xl border border-white/20 mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent mb-6 text-center">
+            Personal Information
           </h1>
         </div>
 
-        <div className="bg-white/20 backdrop-blur-lg border border-white/20 p-6 rounded-lg shadow-xl">
+        <div className="bg-white/10 backdrop-blur-lg border border-white/20 p-6 rounded-2xl shadow-xl">
           <div className="flex flex-col md:flex-row gap-6">
             <div className="flex flex-col items-center gap-4">
-              <div className="w-[126.67px] h-[121.87px] bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center rounded-lg shadow-md overflow-hidden">
+              <div className="w-32 h-32 bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center rounded-full shadow-lg overflow-hidden border-4 border-white/20">
                 {previewImage ? (
                   <img
                     src={previewImage}
@@ -305,10 +326,10 @@ const PersonalInformation = ({ patientId }: { patientId: string }) => {
                     }}
                   />
                 ) : (
-                  <span className="text-[24px] font-bold text-white">PT</span>
+                  <span className="text-4xl font-bold text-white">PT</span>
                 )}
               </div>
-              <label className="w-[190px] h-[45.7px] bg-purple-500/20 text-purple-300 text-[12px] rounded-lg hover:bg-purple-500/30 transition-colors flex items-center justify-center cursor-pointer">
+              <label className="bg-gradient-to-r from-purple-600 to-blue-600 text-white py-2 px-4 rounded-full hover:from-purple-700 hover:to-blue-700 transition-all duration-300 shadow-md hover:shadow-lg cursor-pointer text-sm font-medium">
                 Change Photo
                 <input
                   type="file"
@@ -320,18 +341,10 @@ const PersonalInformation = ({ patientId }: { patientId: string }) => {
             </div>
 
             <div className="flex-1">
-              <h2 className="text-[18px] font-bold text-white mb-2">
-                {formData.name}
-              </h2>
-
-              <h3 className="text-[16px] font-bold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent mb-4">
-                Personal Information
-              </h3>
-
               <form onSubmit={handleSubmit}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[12px] text-gray-200 mb-1">
+                    <label className="block text-sm text-gray-200 mb-2">
                       Name <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -340,24 +353,22 @@ const PersonalInformation = ({ patientId }: { patientId: string }) => {
                       value={formData.name}
                       onChange={handleChange}
                       maxLength={50}
-                      className="w-full h-[60.93px] bg-white/10 border border-white/20 rounded-lg px-4 mt-1 text-[14px] text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
+                      className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
                     />
                     {errors.name && (
-                      <p className="text-red-500 text-[12px]">{errors.name}</p>
+                      <p className="text-red-500 text-xs mt-1">{errors.name}</p>
                     )}
                   </div>
                   <div>
-                    <label className="block text-[12px] text-gray-200 mb-1">
+                    <label className="block text-sm text-gray-200 mb-2">
                       Email Address <span className="text-red-500">*</span>
                     </label>
-                    <div className="w-full h-[60.93px] bg-white/10 border border-white/20 rounded-lg flex items-center px-4 mt-1">
-                      <span className="text-[14px] text-white">
-                        {formData.email}
-                      </span>
+                    <div className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white">
+                      {formData.email}
                     </div>
                   </div>
                   <div>
-                    <label className="block text-[12px] text-gray-200 mb-1">
+                    <label className="block text-sm text-gray-200 mb-2">
                       Phone Number <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -366,14 +377,16 @@ const PersonalInformation = ({ patientId }: { patientId: string }) => {
                       value={formData.phone}
                       onChange={handleChange}
                       maxLength={10}
-                      className="w-full h-[60.93px] bg-white/10 border border-white/20 rounded-lg px-4 mt-1 text-[14px] text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
+                      className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
                     />
                     {errors.phone && (
-                      <p className="text-red-500 text-[12px]">{errors.phone}</p>
+                      <p className="text-red-500 text-xs mt-1">
+                        {errors.phone}
+                      </p>
                     )}
                   </div>
                   <div>
-                    <label className="block text-[12px] text-gray-200 mb-1">
+                    <label className="block text-sm text-gray-200 mb-2">
                       Age <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -382,21 +395,21 @@ const PersonalInformation = ({ patientId }: { patientId: string }) => {
                       value={formData.age}
                       onChange={handleChange}
                       maxLength={2}
-                      className="w-full h-[60.93px] bg-white/10 border border-white/20 rounded-lg px-4 mt-1 text-[14px] text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
+                      className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
                     />
                     {errors.age && (
-                      <p className="text-red-500 text-[12px]">{errors.age}</p>
+                      <p className="text-red-500 text-xs mt-1">{errors.age}</p>
                     )}
                   </div>
                   <div>
-                    <label className="block text-[12px] text-gray-200 mb-1">
+                    <label className="block text-sm text-gray-200 mb-2">
                       Gender <span className="text-red-500">*</span>
                     </label>
                     <select
                       name="gender"
                       value={formData.gender}
                       onChange={handleChange}
-                      className="w-full h-[60.93px] bg-white/10 border border-white/20 rounded-lg px-4 mt-1 text-[14px] text-white focus:outline-none focus:ring-2 focus:ring-purple-400 appearance-none"
+                      className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-400 appearance-none"
                       style={{
                         backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23ffffff' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`,
                         backgroundPosition: 'right 0.75rem center',
@@ -404,27 +417,27 @@ const PersonalInformation = ({ patientId }: { patientId: string }) => {
                         backgroundRepeat: 'no-repeat',
                       }}
                     >
-                      <option value="" className="text-gray-400 bg-gray-800">
+                      <option value="" className="bg-gray-800 text-gray-400">
                         Select Gender
                       </option>
-                      <option value="Male" className="bg-gray-800">
+                      <option value="Male" className="bg-gray-800 text-white">
                         Male
                       </option>
-                      <option value="Female" className="bg-gray-800">
+                      <option value="Female" className="bg-gray-800 text-white">
                         Female
                       </option>
-                      <option value="Other" className="bg-gray-800">
+                      <option value="Other" className="bg-gray-800 text-white">
                         Other
                       </option>
                     </select>
                     {errors.gender && (
-                      <p className="text-red-500 text-[12px]">
+                      <p className="text-red-500 text-xs mt-1">
                         {errors.gender}
                       </p>
                     )}
                   </div>
                   <div>
-                    <label className="block text-[12px] text-gray-200 mb-1">
+                    <label className="block text-sm text-gray-200 mb-2">
                       Address <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -433,16 +446,16 @@ const PersonalInformation = ({ patientId }: { patientId: string }) => {
                       value={formData.address}
                       onChange={handleChange}
                       maxLength={100}
-                      className="w-full h-[60.93px] bg-white/10 border border-white/20 rounded-lg px-4 mt-1 text-[14px] text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
+                      className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
                     />
                     {errors.address && (
-                      <p className="text-red-500 text-[12px]">
+                      <p className="text-red-500 text-xs mt-1">
                         {errors.address}
                       </p>
                     )}
                   </div>
                   <div>
-                    <label className="block text-[12px] text-gray-200 mb-1">
+                    <label className="block text-sm text-gray-200 mb-2">
                       Pincode <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -451,23 +464,23 @@ const PersonalInformation = ({ patientId }: { patientId: string }) => {
                       value={formData.pincode}
                       onChange={handleChange}
                       maxLength={6}
-                      className="w-full h-[60.93px] bg-white/10 border border-white/20 rounded-lg px-4 mt-1 text-[14px] text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
+                      className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
                     />
                     {errors.pincode && (
-                      <p className="text-red-500 text-[12px]">
+                      <p className="text-red-500 text-xs mt-1">
                         {errors.pincode}
                       </p>
                     )}
                   </div>
                 </div>
-                <div className="mt-6">
+                <div className="mt-6 flex justify-end">
                   <button
                     type="submit"
                     disabled={!hasChanges}
-                    className={`w-[190px] h-[60.93px] text-white text-[14px] font-bold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl ${
+                    className={`py-3 px-6 text-white font-bold rounded-lg transition-all duration-300 shadow-md hover:shadow-lg ${
                       hasChanges
                         ? 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700'
-                        : 'bg-gray-500 cursor-not-allowed'
+                        : 'bg-gray-600 cursor-not-allowed'
                     }`}
                   >
                     Update Profile

@@ -34,10 +34,10 @@ interface AppointmentDoctor {
 }
 
 interface Prescription {
-  _id: string;
-  appointmentId: string;
-  patientId: string | { _id: string; name: string };
-  doctorId: string | { _id: string; name: string };
+  _id?: string;
+  appointmentId?: string;
+  patientId?: string | { _id: string; name: string };
+  doctorId?: string | { _id: string; name: string };
   medications: Array<{
     name: string;
     dosage: string;
@@ -46,8 +46,9 @@ interface Prescription {
     _id?: string;
   }>;
   notes?: string;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
+  pdfUrl?: string;
 }
 
 interface Appointment {
@@ -71,6 +72,7 @@ interface Appointment {
       duration: string;
     }>;
     notes?: string;
+    pdfUrl?: string;
   };
 }
 
@@ -125,6 +127,7 @@ const DoctorAppointmentDetails: React.FC = () => {
               })
             ),
             notes: appointmentData.prescriptionId.notes,
+            pdfUrl: appointmentData.prescriptionId.pdfUrl,
           };
         }
         setAppointment(appointmentData);
@@ -325,6 +328,7 @@ const DoctorAppointmentDetails: React.FC = () => {
             })
           ),
           notes: appointmentData.prescriptionId.notes,
+          pdfUrl: appointmentData.prescriptionId.pdfUrl,
         };
       }
       setAppointment(appointmentData);
@@ -489,25 +493,27 @@ const DoctorAppointmentDetails: React.FC = () => {
                   <div className="space-y-4">
                     <div>
                       <h4 className="text-sm text-gray-300">Medications</h4>
-                      {appointment.prescription.medications.map((med, index) => (
-                        <div
-                          key={index}
-                          className="border-b border-white/20 py-2"
-                        >
-                          <p className="text-white">
-                            <strong>Name:</strong> {med.name}
-                          </p>
-                          <p className="text-white">
-                            <strong>Dosage:</strong> {med.dosage}
-                          </p>
-                          <p className="text-white">
-                            <strong>Frequency:</strong> {med.frequency}
-                          </p>
-                          <p className="text-white">
-                            <strong>Duration:</strong> {med.duration}
-                          </p>
-                        </div>
-                      ))}
+                      {appointment.prescription.medications.map(
+                        (med, index) => (
+                          <div
+                            key={index}
+                            className="border-b border-white/20 py-2"
+                          >
+                            <p className="text-white">
+                              <strong>Name:</strong> {med.name}
+                            </p>
+                            <p className="text-white">
+                              <strong>Dosage:</strong> {med.dosage}
+                            </p>
+                            <p className="text-white">
+                              <strong>Frequency:</strong> {med.frequency}
+                            </p>
+                            <p className="text-white">
+                              <strong>Duration:</strong> {med.duration}
+                            </p>
+                          </div>
+                        )
+                      )}
                     </div>
                     {appointment.prescription.notes && (
                       <div>
@@ -519,6 +525,20 @@ const DoctorAppointmentDetails: React.FC = () => {
                         </p>
                       </div>
                     )}
+                    {appointment.prescription.pdfUrl && (
+                      <div>
+                        <h4 className="text-sm text-gray-300">
+                          Prescription PDF
+                        </h4>
+                        <a
+                          href={appointment.prescription.pdfUrl}
+                          download
+                          className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-2 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 inline-block"
+                        >
+                          Download Prescription PDF
+                        </a>
+                      </div>
+                    )}
                   </div>
                 ) : appointment.status === 'completed' ? (
                   <p className="text-gray-200">
@@ -527,7 +547,9 @@ const DoctorAppointmentDetails: React.FC = () => {
                 ) : (
                   <div className="space-y-6">
                     <div>
-                      <h4 className="text-sm text-gray-300 mb-2">Medications</h4>
+                      <h4 className="text-sm text-gray-300 mb-2">
+                        Medications
+                      </h4>
                       {medications.map((medication, index) => (
                         <div
                           key={index}

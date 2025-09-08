@@ -143,13 +143,16 @@ export const setAvailability = async ({
 export const removeSlot = async ({
   availabilityId,
   slotIndex,
+  reason,
 }: {
   availabilityId: string;
   slotIndex: number;
+  reason?: string;
 }) => {
   const response = await api.post(ROUTES.API.DOCTOR.REMOVE_SLOT, {
     availabilityId,
     slotIndex,
+    reason,
   });
   return response.data;
 };
@@ -159,17 +162,20 @@ export const updateSlot = async ({
   slotIndex,
   startTime,
   endTime,
+  reason,
 }: {
   availabilityId: string;
   slotIndex: number;
   startTime: string;
   endTime: string;
+  reason?: string;
 }) => {
   const response = await api.patch(ROUTES.API.DOCTOR.UPDATE_SLOT, {
     availabilityId,
     slotIndex,
     startTime,
     endTime,
+    reason,
   });
   return response.data;
 };
@@ -275,6 +281,13 @@ export const getReports = async (filter: {
 
 export const getSubscribedPatients = async () => {
   const response = await api.get(ROUTES.API.DOCTOR.SUBSCRIBED_PATIENTS);
+  return response.data;
+};
+
+export const getAppointedPatients = async (page: number, limit: number) => {
+  const response = await api.get(ROUTES.API.DOCTOR.APPOINTED_PATIENTS, {
+    params: { page, limit },
+  });
   return response.data;
 };
 

@@ -17,28 +17,24 @@ const PlanDetails: React.FC = () => {
   const { planId } = useParams<{ planId: string }>();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const { plans, planSubscriptionCounts, loading } = useAppSelector(
-    (state) => state.doctors
-  );
+  const {
+    plans,
+    planSubscriptionCounts,
+    loading,
+    subscribedPatients,
+    totalItems,
+  } = useAppSelector((state) => state.doctors);
   const [activeTab, setActiveTab] = useState<'details' | 'patients'>('details');
-  const [subscribedPatients, setSubscribedPatients] = useState<Patient[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalItems, setTotalItems] = useState(0);
 
   const plan = plans.find((p) => p._id === planId);
 
   useEffect(() => {
     if (planId) {
       dispatch(getPlanSubscriptionCountsThunk(planId));
-      dispatch(getSubscribedPatientsThunk()).then((result) => {
-        if (getSubscribedPatientsThunk.fulfilled.match(result)) {
-          const patients = result.payload || [];
-          setSubscribedPatients(patients);
-          setTotalItems(patients.length || 0);
-        }
-      });
+      dispatch(getSubscribedPatientsThunk());
     }
-  }, [dispatch, planId, currentPage]);
+  }, [dispatch, planId]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -70,7 +66,7 @@ const PlanDetails: React.FC = () => {
       header: 'No. of Days Left',
       accessor: (patient) => {
         const subscription = getSubscriptionForPlan(patient, planId);
-        return subscription?.remainingDays;
+        return subscription?.remainingDays ?? 'N/A';
       },
     },
     {
@@ -134,6 +130,12 @@ const PlanDetails: React.FC = () => {
       </div>
     );
   }
+
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedPatients = subscribedPatients.slice(
+    startIndex,
+    startIndex + ITEMS_PER_PAGE
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 py-8">
@@ -247,7 +249,7 @@ const PlanDetails: React.FC = () => {
           {activeTab === 'patients' && (
             <div className="space-y-6">
               <DataTable
-                data={subscribedPatients}
+                data={paginatedPatients}
                 columns={patientColumns}
                 isLoading={loading}
                 emptyMessage="No subscribed patients found."

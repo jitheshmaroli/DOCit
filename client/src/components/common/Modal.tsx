@@ -19,10 +19,10 @@ const Modal = React.memo(
     if (!isOpen) return null;
 
     return (
-      <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
         <div
           ref={modalRef}
-          className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 w-full max-w-md max-h-[calc(100vh-8rem)] overflow-y-auto"
+          className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 w-full max-w-md max-h-[80vh] overflow-y-auto my-auto"
         >
           <h3 className="text-lg font-semibold text-white mb-4">{title}</h3>
           <div className="mb-4">{children}</div>

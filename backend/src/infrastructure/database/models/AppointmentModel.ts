@@ -1,5 +1,6 @@
 import mongoose, { Schema } from 'mongoose';
 import { Appointment } from '../../../core/entities/Appointment';
+import { AppointmentStatus } from '../../../application/dtos/AppointmentDTOs';
 
 const AppointmentSchema = new Schema<Appointment>(
   {
@@ -11,8 +12,8 @@ const AppointmentSchema = new Schema<Appointment>(
     endTime: { type: String, required: true },
     status: {
       type: String,
-      enum: ['pending', 'completed', 'cancelled'],
-      default: 'pending',
+      enum: Object.values(AppointmentStatus),
+      default: AppointmentStatus.PENDING,
     },
     isFreeBooking: { type: Boolean, default: false },
     bookingTime: { type: Date, default: Date.now },

@@ -508,7 +508,8 @@ const DoctorDashboard: React.FC = () => {
             <tbody>
               {data.appointments.map((appt) => (
                 <tr key={appt._id} className="border-b border-gray-600">
-                  <td className="p-2">{appt.patientId.name}</td>
+                  {/* <td className="p-2">{appt.patientId.name}</td> */}
+                  <td className="p-2"></td>
                   <td className="p-2 text-right">
                     {format(new Date(appt.date), 'MMM d, yyyy')}
                   </td>

@@ -14,11 +14,17 @@ export interface IAvailabilityUseCase {
     endDate: Date,
     filterBooked: boolean
   ): Promise<AvailabilityResponseDTO[]>;
-  removeSlot(availabilityId: string, slotIndex: number, doctorId: string): Promise<AvailabilityResponseDTO | null>;
+  removeSlot(
+    availabilityId: string,
+    slotIndex: number,
+    doctorId: string,
+    reason?: string
+  ): Promise<AvailabilityResponseDTO | null>;
   updateSlot(
     availabilityId: string,
     slotIndex: number,
     newSlot: UpdateSlotRequestDTO,
-    doctorId: string
+    doctorId: string,
+    reason?: string
   ): Promise<AvailabilityResponseDTO | null>;
 }
