@@ -180,7 +180,7 @@ const ForgotPasswordPage: React.FC = () => {
                 value={email}
                 onChange={handleChange}
                 onBlur={handleBlur}
-                className={`w-full p-3 bg-[#0F828C]/10 border border-[#78B9B5]/20 rounded-lg text-[#0F828C] placeholder-[#78B9B5] focus:outline-none focus:ring-2 ${
+                className={`w-full p-3 bg-[#0F828C]/10 border border-[#78B9B5]/20 rounded-lg text-[#ffffff] placeholder-[#78B9B5] focus:outline-none focus:ring-2 ${
                   touchedFields.email && fieldErrors.email ? 'focus:ring-red-400' : 'focus:ring-[#0F828C]'
                 }`}
               />
@@ -234,7 +234,7 @@ const ForgotPasswordPage: React.FC = () => {
                 value={otp}
                 onChange={handleChange}
                 onBlur={handleBlur}
-                className={`w-full p-3 bg-[#0F828C]/10 border border-[#78B9B5]/20 rounded-lg text-[#0F828C] placeholder-[#78B9B5] focus:outline-none ${
+                className={`w-full p-3 bg-[#0F828C]/10 border border-[#78B9B5]/20 rounded-lg text-[#ffffff] placeholder-[#78B9B5] focus:outline-none ${
                   touchedFields.otp && fieldErrors.otp ? 'focus:ring-red-400' : 'focus:ring-[#0F828C]'
                 }`}
               />
@@ -249,7 +249,7 @@ const ForgotPasswordPage: React.FC = () => {
                 value={newPassword}
                 onChange={handleChange}
                 onBlur={handleBlur}
-                className={`w-full p-3 bg-[#0F828C]/10 border border-[#78B9B5]/20 rounded-lg text-[#0F828C] placeholder-[#78B9B5] focus:outline-none ${
+                className={`w-full p-3 bg-[#0F828C]/10 border border-[#78B9B5]/20 rounded-lg text-[#ffffff] placeholder-[#78B9B5] focus:outline-none ${
                   touchedFields.newPassword && fieldErrors.newPassword ? 'focus:ring-red-400' : 'focus:ring-[#0F828C]'
                 }`}
               />
@@ -264,7 +264,7 @@ const ForgotPasswordPage: React.FC = () => {
                 value={confirmPassword}
                 onChange={handleChange}
                 onBlur={handleBlur}
-                className={`w-full p-3 bg-[#0F828C]/10 border border-[#78B9B5]/20 rounded-lg text-[#0F828C] placeholder-[#78B9B5] focus:outline-none ${
+                className={`w-full p-3 bg-[#0F828C]/10 border border-[#78B9B5]/20 rounded-lg text-[#ffffff] placeholder-[#78B9B5] focus:outline-none ${
                   touchedFields.confirmPassword && fieldErrors.confirmPassword ? 'focus:ring-red-400' : 'focus:ring-[#0F828C]'
                 }`}
               />

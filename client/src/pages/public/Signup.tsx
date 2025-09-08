@@ -54,7 +54,7 @@ const InputField: React.FC<InputFieldProps> = ({
       value={value}
       onChange={onChange}
       onBlur={onBlur}
-      className={`w-full p-3 bg-[#0F828C]/10 border border-[#78B9B5]/20 rounded-lg text-[#0F828C] placeholder-[#78B9B5] focus:outline-none focus:ring-2 ${
+      className={`w-full p-3 bg-[#0F828C]/10 border border-[#78B9B5]/20 rounded-lg text-[#ffffff] placeholder-[#78B9B5] focus:outline-none focus:ring-2 ${
         touchedFields[name] && fieldErrors[name]
           ? 'focus:ring-red-400'
           : 'focus:ring-[#0F828C]'
@@ -380,7 +380,7 @@ const SignupPage: React.FC = () => {
                   className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
                     signupType === type
                       ? 'bg-gradient-to-r from-[#0F828C] to-[#78B9B5] text-white shadow-lg'
-                      : 'bg-white/20 text-[#78B9B5] hover:bg-white/30'
+                      : 'bg-white/20 text-[#ffffff] hover:bg-white/30'
                   }`}
                 >
                   {type.charAt(0).toUpperCase() + type.slice(1)}
