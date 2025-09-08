@@ -17,6 +17,7 @@ import {
   getSubscribedPatients,
   getPlanSubscriptionCounts,
   getPatientAppointments,
+  cancelAppointment,
 } from '../../services/doctorService';
 import {
   confirmSubscription,
@@ -164,6 +165,21 @@ export const completeAppointmentThunk = createAsyncThunk<
       return response;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to complete appointment');
+    }
+  }
+);
+
+export const cancelAppointmentThunk = createAsyncThunk<
+  void,
+  { appointmentId: string; cancellationReason?: string },
+  { rejectValue: string }
+>(
+  'doctors/cancelAppointment',
+  async ({ appointmentId, cancellationReason }, { rejectWithValue }) => {
+    try {
+      await cancelAppointment(appointmentId, cancellationReason);
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to cancel appointment');
     }
   }
 );

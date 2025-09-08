@@ -33,6 +33,7 @@ import {
   CompleteAppointmentResponseDTO,
   GetAppointmentsResponseDTO,
   CompleteAppointmentRequestDTO,
+  CancelAppointmentRequestDTO,
 } from '../../../application/dtos/AppointmentDTOs';
 import { SpecialityResponseDTO } from '../../../application/dtos/SpecialityDTOs';
 import { PatientDTO } from '../../../application/dtos/PatientDTOs';
@@ -374,6 +375,28 @@ export class DoctorController {
       const dto: CompleteAppointmentRequestDTO = { doctorId, appointmentId, prescription };
       const appointment: CompleteAppointmentResponseDTO = await this._appointmentUseCase.completeAppointment(dto);
       res.status(HttpStatusCode.OK).json(appointment);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async cancelAppointment(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const doctorId = req.user?.id;
+      if (!doctorId) {
+        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
+      }
+      const { appointmentId, cancellationReason } = req.body;
+      if (!appointmentId) {
+        throw new ValidationError(ResponseMessages.BAD_REQUEST);
+      }
+      const dto: CancelAppointmentRequestDTO = {
+        appointmentId,
+        doctorId,
+        cancellationReason,
+      };
+      await this._appointmentUseCase.cancelAppointment(dto);
+      res.status(HttpStatusCode.OK).json({ message: ResponseMessages.APPOINTMENT_CANCELLED });
     } catch (error) {
       next(error);
     }

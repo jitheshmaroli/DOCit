@@ -31,7 +31,8 @@ export interface BookAppointmentResponseDTO {
 
 export interface CancelAppointmentRequestDTO {
   appointmentId: string;
-  patientId: string;
+  patientId?: string;
+  doctorId?: string;
   cancellationReason?: string;
 }
 

@@ -71,6 +71,7 @@ interface PlanWiseRevenue {
 
 interface DashboardData {
   stats: DashboardStats | null;
+
   appointments: Appointment[];
   plans: Plan[];
   reportData:
@@ -216,6 +217,17 @@ export const completeAppointment = async (
   const response = await api.post(ROUTES.API.DOCTOR.COMPLETE_APPOINTMENT, {
     appointmentId,
     prescription,
+  });
+  return response.data;
+};
+
+export const cancelAppointment = async (
+  appointmentId: string,
+  cancellationReason?: string
+) => {
+  const response = await api.post(ROUTES.API.DOCTOR.CANCEL_APPOINTMENT, {
+    appointmentId,
+    cancellationReason,
   });
   return response.data;
 };

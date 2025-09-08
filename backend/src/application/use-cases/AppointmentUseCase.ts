@@ -148,73 +148,90 @@ export class AppointmentUseCase implements IAppointmentUseCase {
   }
 
   async cancelAppointment(dto: CancelAppointmentRequestDTO): Promise<void> {
-    if (!dto.patientId) {
-      throw new ValidationError('Patient ID is required');
-    }
-
     const appointment = await this._appointmentRepository.findById(dto.appointmentId);
-    if (!appointment) {
-      throw new NotFoundError('Appointment not found');
-    }
+    if (!appointment) throw new NotFoundError('Appointment not found');
 
-    if (appointment.status === 'cancelled') {
+    if (appointment.status === AppointmentStatus.CANCELLED) {
       throw new ValidationError('Appointment is already cancelled');
     }
 
-    if (appointment.patientId.toString() !== dto.patientId.toString()) {
-      throw new ValidationError('Unauthorized to cancel this appointment');
+    // Validate that either patientId or doctorId is provided and matches the appointment
+    if (!dto.patientId && !dto.doctorId) {
+      throw new ValidationError('Either patientId or doctorId must be provided');
+    }
+    if (dto.patientId && appointment.patientId.toString() !== dto.patientId) {
+      throw new ValidationError('Unauthorized: Patient ID does not match appointment');
+    }
+    if (dto.doctorId && appointment.doctorId.toString() !== dto.doctorId) {
+      throw new ValidationError('Unauthorized: Doctor ID does not match appointment');
     }
 
-    const doctor = await this._doctorRepository.findById(appointment.doctorId);
-    if (!doctor) throw new NotFoundError('Doctor not found');
+    // Ensure the appointment is in the future
+    const appointmentDateTime = new Date(
+      `${new Date(appointment.date).toISOString().split('T')[0]}T${appointment.startTime}:00Z`
+    );
+    const now = new Date();
+    if (appointmentDateTime <= now) {
+      throw new ValidationError('Cannot cancel past or ongoing appointments');
+    }
 
-    const patient = await this._patientRepository.findById(appointment.patientId);
-    if (!patient) throw new NotFoundError('Patient not found');
-
+    // Update appointment status
     await this._appointmentRepository.update(dto.appointmentId, {
       status: AppointmentStatus.CANCELLED,
       cancellationReason: dto.cancellationReason,
     });
 
-    const startOfDay = DateUtils.startOfDayUTC(appointment.date);
-
+    // Free the availability slot
+    const startOfDay = DateUtils.startOfDayUTC(new Date(appointment.date));
     await this._availabilityRepository.updateSlotBookingStatus(
-      appointment.doctorId,
+      appointment.doctorId.toString(),
       startOfDay,
       appointment.startTime,
       false
     );
 
+    // If not a free booking, increment appointmentsLeft in subscription
     if (!appointment.isFreeBooking && appointment.planId) {
       const subscription = await this._patientSubscriptionRepository.findActiveByPatientAndDoctor(
-        appointment.patientId,
-        appointment.doctorId
+        appointment.patientId.toString(),
+        appointment.doctorId.toString()
       );
       if (subscription && subscription.planId === appointment.planId) {
         await this._patientSubscriptionRepository.decrementAppointmentCount(subscription._id!);
       }
     }
 
+    // Fetch doctor and patient for notifications
+    const doctor = await this._doctorRepository.findById(appointment.doctorId.toString());
+    if (!doctor) throw new NotFoundError('Doctor not found');
+    const patient = await this._patientRepository.findById(appointment.patientId.toString());
+    if (!patient) throw new NotFoundError('Patient not found');
+
+    // Determine who cancelled the appointment
+    const canceller = dto.patientId ? patient.name : `Dr. ${doctor.name}`;
+
+    // Send notifications
     const patientNotification: Notification = {
-      userId: appointment.patientId,
+      userId: appointment.patientId.toString(),
       type: NotificationType.APPOINTMENT_CANCELLED,
-      message: `Your appointment with Dr. ${doctor.name} for ${appointment.startTime} on ${appointment.date.toLocaleDateString()} has been cancelled.${dto.cancellationReason ? ` Reason: ${dto.cancellationReason}` : ''}`,
+      message: `Your appointment with Dr. ${doctor.name} on ${startOfDay.toLocaleDateString()} at ${appointment.startTime} has been cancelled by ${canceller}.${dto.cancellationReason ? ` Reason: ${dto.cancellationReason}` : ''}`,
       isRead: false,
       createdAt: new Date(),
     };
 
     const doctorNotification: Notification = {
-      userId: appointment.doctorId,
+      userId: appointment.doctorId.toString(),
       type: NotificationType.APPOINTMENT_CANCELLED,
-      message: `An appointment with ${patient.name} for ${appointment.startTime} on ${appointment.date.toLocaleDateString()} has been cancelled.${dto.cancellationReason ? ` Reason: ${dto.cancellationReason}` : ''}`,
+      message: `The appointment with ${patient.name} on ${startOfDay.toLocaleDateString()} at ${appointment.startTime} has been cancelled by ${canceller}.${dto.cancellationReason ? ` Reason: ${dto.cancellationReason}` : ''}`,
       isRead: false,
       createdAt: new Date(),
     };
 
+    // Send emails
     const patientEmailSubject = 'Appointment Cancellation';
-    const patientEmailText = `Dear ${patient.name},\n\nYour appointment with Dr. ${doctor.name} for ${appointment.startTime} on ${appointment.date.toLocaleDateString()} has been cancelled.${dto.cancellationReason ? ` Reason: ${dto.cancellationReason}` : ''}\n\nBest regards,\nDOCit Team`;
+    const patientEmailText = `Dear ${patient.name},\n\nYour appointment with Dr. ${doctor.name} on ${startOfDay.toLocaleDateString()} at ${appointment.startTime} has been cancelled by ${canceller}.${dto.cancellationReason ? ` Reason: ${dto.cancellationReason}` : ''}\n\nBest regards,\nDOCit Team`;
     const doctorEmailSubject = 'Appointment Cancellation';
-    const doctorEmailText = `Dear Dr. ${doctor.name},\n\nAn appointment with ${patient.name} for ${appointment.startTime} on ${appointment.date.toLocaleDateString()} has been cancelled.${dto.cancellationReason ? ` Reason: ${dto.cancellationReason}` : ''}\n\nBest regards,\nDOCit Team`;
+    const doctorEmailText = `Dear Dr. ${doctor.name},\n\nThe appointment with ${patient.name} on ${startOfDay.toLocaleDateString()} at ${appointment.startTime} has been cancelled by ${canceller}.${dto.cancellationReason ? ` Reason: ${dto.cancellationReason}` : ''}\n\nBest regards,\nDOCit Team`;
 
     await Promise.all([
       this._notificationService.sendNotification(patientNotification),
@@ -222,6 +239,8 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       this._emailService.sendEmail(patient.email, patientEmailSubject, patientEmailText),
       this._emailService.sendEmail(doctor.email, doctorEmailSubject, doctorEmailText),
     ]);
+
+    logger.info(`Appointment ${dto.appointmentId} cancelled successfully by ${canceller}`);
   }
 
   async adminCancelAppointment(appointmentId: string): Promise<void> {
@@ -234,30 +253,26 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       throw new ValidationError('Appointment is already cancelled');
     }
 
-    const doctor = await this._doctorRepository.findById(appointment.doctorId);
+    const doctor = await this._doctorRepository.findById(appointment.doctorId.toString());
     if (!doctor) throw new NotFoundError('Doctor not found');
 
-    const patient = await this._patientRepository.findById(appointment.patientId);
+    const patient = await this._patientRepository.findById(appointment.patientId.toString());
     if (!patient) throw new NotFoundError('Patient not found');
 
-    await this._appointmentRepository.update(appointmentId, { status: 'cancelled' });
+    await this._appointmentRepository.update(appointmentId, { status: AppointmentStatus.CANCELLED });
 
-    const startOfDay = DateUtils.startOfDayUTC(appointment.date);
-    try {
-      await this._availabilityRepository.updateSlotBookingStatus(
-        appointment.doctorId,
-        startOfDay,
-        appointment.startTime,
-        false
-      );
-    } catch (error) {
-      throw new Error(`Failed to update availability: ${(error as Error).message}`);
-    }
+    const startOfDay = DateUtils.startOfDayUTC(new Date(appointment.date));
+    await this._availabilityRepository.updateSlotBookingStatus(
+      appointment.doctorId.toString(),
+      startOfDay,
+      appointment.startTime,
+      false
+    );
 
     if (!appointment.isFreeBooking && appointment.planId) {
       const subscription = await this._patientSubscriptionRepository.findActiveByPatientAndDoctor(
-        appointment.patientId,
-        appointment.doctorId
+        appointment.patientId.toString(),
+        appointment.doctorId.toString()
       );
       if (subscription && subscription.planId === appointment.planId) {
         await this._patientSubscriptionRepository.decrementAppointmentCount(subscription._id!);
@@ -265,25 +280,25 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     }
 
     const patientNotification: Notification = {
-      userId: appointment.patientId,
+      userId: appointment.patientId.toString(),
       type: NotificationType.APPOINTMENT_CANCELLED,
-      message: `Your appointment with Dr. ${doctor.name} for ${appointment.startTime} on ${appointment.date.toLocaleDateString()} has been cancelled by an admin.`,
+      message: `Your appointment with Dr. ${doctor.name} for ${appointment.startTime} on ${startOfDay.toLocaleDateString()} has been cancelled by an admin.`,
       isRead: false,
       createdAt: new Date(),
     };
 
     const doctorNotification: Notification = {
-      userId: appointment.doctorId,
+      userId: appointment.doctorId.toString(),
       type: NotificationType.APPOINTMENT_CANCELLED,
-      message: `An appointment with ${patient.name} for ${appointment.startTime} on ${appointment.date.toLocaleDateString()} has been cancelled by an admin.`,
+      message: `An appointment with ${patient.name} for ${appointment.startTime} on ${startOfDay.toLocaleDateString()} has been cancelled by an admin.`,
       isRead: false,
       createdAt: new Date(),
     };
 
     const patientEmailSubject = 'Appointment Cancellation';
-    const patientEmailText = `Dear ${patient.name},\n\nYour appointment with Dr. ${doctor.name} for ${appointment.startTime} on ${appointment.date.toLocaleDateString()} has been cancelled by an admin.\n\nBest regards,\nDOCit Team`;
+    const patientEmailText = `Dear ${patient.name},\n\nYour appointment with Dr. ${doctor.name} for ${appointment.startTime} on ${startOfDay.toLocaleDateString()} has been cancelled by an admin.\n\nBest regards,\nDOCit Team`;
     const doctorEmailSubject = 'Appointment Cancellation';
-    const doctorEmailText = `Dear Dr. ${doctor.name},\n\nAn appointment with ${patient.name} for ${appointment.startTime} on ${appointment.date.toLocaleDateString()} has been cancelled by an admin.\n\nBest regards,\nDOCit Team`;
+    const doctorEmailText = `Dear Dr. ${doctor.name},\n\nAn appointment with ${patient.name} for ${appointment.startTime} on ${startOfDay.toLocaleDateString()} has been cancelled by an admin.\n\nBest regards,\nDOCit Team`;
 
     await Promise.all([
       this._notificationService.sendNotification(patientNotification),
@@ -307,20 +322,20 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       throw new ValidationError('Unauthorized to complete this appointment');
     }
 
-    const doctor = await this._doctorRepository.findById(appointment.doctorId);
+    const doctor = await this._doctorRepository.findById(appointment.doctorId.toString());
     if (!doctor) {
       throw new NotFoundError('Doctor not found');
     }
 
-    const patient = await this._patientRepository.findById(appointment.patientId);
+    const patient = await this._patientRepository.findById(appointment.patientId.toString());
     if (!patient) {
       throw new NotFoundError('Patient not found');
     }
 
     const prescription = await this._prescriptionRepository.createPrescription(
       dto.appointmentId,
-      appointment.patientId,
-      appointment.doctorId,
+      appointment.patientId.toString(),
+      appointment.doctorId.toString(),
       AppointmentMapper.toPrescriptionEntity(dto.prescription)
     );
 
@@ -328,7 +343,7 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       patientName: patient.name || 'Unknown',
       doctorName: doctor.name || 'Unknown',
       doctorQualification: doctor.qualifications?.join(', ') || '',
-      date: appointment.date.toLocaleDateString(),
+      date: appointment.date instanceof Date ? appointment.date.toISOString() : appointment.date,
       age: patient.age?.toString() || 'N/A',
       gender: patient.gender || 'N/A',
       contact: patient.phone || 'N/A',
@@ -353,38 +368,36 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     const updatedAppointmentDTO = AppointmentMapper.toAppointmentDTO(updatedAppointment);
 
     const patientNotification: Notification = {
-      userId: appointment.patientId,
+      userId: appointment.patientId.toString(),
       type: NotificationType.PRESCRIPTION_ISSUED,
-      message: `A new prescription has been issued by Dr. ${doctor.name} for your appointment on ${appointment.date.toLocaleDateString()} at ${appointment.startTime}.`,
+      message: `A new prescription has been issued by Dr. ${doctor.name} for your appointment on ${new Date(appointment.date).toLocaleDateString()} at ${appointment.startTime}.`,
       isRead: false,
       createdAt: new Date(),
     };
 
     const doctorNotification: Notification = {
-      userId: appointment.doctorId,
+      userId: appointment.doctorId.toString(),
       type: NotificationType.PRESCRIPTION_ISSUED,
-      message: `You have issued a new prescription for ${patient.name} for the appointment on ${appointment.date.toLocaleDateString()} at ${appointment.startTime}.`,
+      message: `You have issued a new prescription for ${patient.name} for the appointment on ${new Date(appointment.date).toLocaleDateString()} at ${appointment.startTime}.`,
       isRead: false,
       createdAt: new Date(),
     };
 
     const patientEmailSubject = 'New Prescription Issued';
-    const patientEmailText = `Dear ${patient.name},\n\nDr. ${doctor.name} has issued a new prescription for your appointment on ${appointment.date.toLocaleDateString()} at ${appointment.startTime}. Please check your account for details.\n\nBest regards,\nDOCit Team`;
+    const patientEmailText = `Dear ${patient.name},\n\nDr. ${doctor.name} has issued a new prescription for your appointment on ${new Date(appointment.date).toLocaleDateString()} at ${appointment.startTime}. Please check your account for details.\n\nBest regards,\nDOCit Team`;
     const doctorEmailSubject = 'Prescription Issued Confirmation';
-    const doctorEmailText = `Dear Dr. ${doctor.name},\n\nYou have successfully issued a prescription for ${patient.name} for the appointment on ${appointment.date.toLocaleDateString()} at ${appointment.startTime}.\n\nBest regards,\nDOCit Team`;
+    const doctorEmailText = `Dear Dr. ${doctor.name},\n\nYou have successfully issued a prescription for ${patient.name} for the appointment on ${new Date(appointment.date).toLocaleDateString()} at ${appointment.startTime}.\n\nBest regards,\nDOCit Team`;
 
-    try {
-      await Promise.all([
-        this._notificationService.sendNotification(patientNotification),
-        this._notificationService.sendNotification(doctorNotification),
-        this._emailService.sendEmail(patient.email, patientEmailSubject, patientEmailText),
-        this._emailService.sendEmail(doctor.email, doctorEmailSubject, doctorEmailText),
-      ]);
-    } catch (error) {
+    await Promise.all([
+      this._notificationService.sendNotification(patientNotification),
+      this._notificationService.sendNotification(doctorNotification),
+      this._emailService.sendEmail(patient.email, patientEmailSubject, patientEmailText),
+      this._emailService.sendEmail(doctor.email, doctorEmailSubject, doctorEmailText),
+    ]).catch((error) => {
       logger.error(
-        `Failed to send notifications or emails for prescription of appointment ${dto.appointmentId}: ${(error as Error).message}`
+        `Failed to send notifications or emails for prescription of appointment ${dto.appointmentId}: ${error.message}`
       );
-    }
+    });
 
     return {
       appointment: updatedAppointmentDTO,
@@ -527,7 +540,7 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       // Fonts
       doc.registerFont('Arial', 'Helvetica');
 
-      // Header (simulating gradient with solid color)
+      // Header
       doc.rect(0, 0, 595, 150).fill(primaryColor);
       doc.font('Arial').fontSize(36).fillColor('#FFFFFF').text('DOCit', 50, 40);
       doc.fontSize(24).text('+', 150, 45);
@@ -560,7 +573,7 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       });
       y += 25;
 
-      // Row 3: Gender and Contact
+      // Row 2: Gender and Contact
       doc.text('Gender:', 50 + cellPadding, y + cellPadding, { width: labelWidth });
       doc.text(data.gender || 'N/A', 50 + labelWidth + cellPadding, y + cellPadding, { width: valueWidth });
       doc.text('Contact:', 50 + labelWidth + valueWidth + cellPadding, y + cellPadding, { width: labelWidth });
@@ -569,7 +582,7 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       });
       y += 25;
 
-      // Row 4: Address
+      // Row 3: Address
       doc.text('Address:', 50 + cellPadding, y + cellPadding, { width: labelWidth });
       doc.text(data.address || 'N/A', 50 + labelWidth + cellPadding, y + cellPadding, {
         width: tableWidth - labelWidth - 2 * cellPadding,

@@ -206,9 +206,9 @@ const AppointmentDetails: React.FC = () => {
     if (!appointment) return false;
     const now = new Date();
     const startTime = new Date(
-      `${appointment.date.split('T')[0]}T${appointment.startTime}:00Z`
+      `${appointment.date.split('T')[0]}T${appointment.startTime}`
     );
-    return startTime > now;
+    return now < startTime && appointment.status === 'pending';
   }, [appointment]);
 
   const handleCancelAppointment = async (cancellationReason: string) => {
@@ -410,7 +410,7 @@ const AppointmentDetails: React.FC = () => {
               </p>
               {appointment.status === 'cancelled' &&
                 appointment.cancellationReason && (
-                  <p className="text-sm text-gray-200">
+                  <p className="text-sm text-gray-200 break-words max-w-full">
                     <span className="font-medium">Cancellation Reason:</span>{' '}
                     {appointment.cancellationReason}
                   </p>

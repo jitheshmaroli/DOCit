@@ -97,13 +97,13 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
     document.getElementById('notifications-portal') || document.body;
 
   const dropdownContent = (
-    <div className="fixed top-20 right-4 w-80 bg-gray-800 backdrop-blur-lg rounded-lg shadow-xl border border-white/20 z-[10000] max-h-96 overflow-y-auto">
-      <div className="p-4 border-b border-white/20 flex justify-between items-center">
-        <h3 className="text-white font-semibold">Notifications</h3>
+    <div className="fixed top-20 right-4 w-80 sm:w-96 bg-gray-900/95 backdrop-blur-lg rounded-xl shadow-2xl border border-white/10 z-[10000] max-h-[70vh] overflow-y-auto">
+      <div className="p-4 border-b border-white/10 flex justify-between items-center">
+        <h3 className="text-lg font-semibold text-white">Notifications</h3>
         {notifications.length > 0 && (
           <button
             onClick={handleClearAllNotifications}
-            className="text-gray-200 hover:text-red-300 flex items-center gap-1 text-sm"
+            className="text-gray-300 hover:text-red-400 flex items-center gap-1 text-sm transition-colors duration-200"
           >
             <Trash2 className="w-4 h-4" />
             Clear All
@@ -111,22 +111,24 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
         )}
       </div>
       {notifications.length === 0 ? (
-        <p className="p-4 text-gray-200 text-center">No notifications</p>
+        <p className="p-4 text-gray-300 text-center text-sm">
+          No notifications
+        </p>
       ) : (
-        <ul className="divide-y divide-white/20">
+        <ul className="divide-y divide-white/10">
           {notifications.map((notification) => (
             <li
               key={notification._id}
-              className={`p-4 flex justify-between items-start hover:bg-white/30 transition-all duration-300 cursor-pointer ${
-                notification.isRead
-                  ? 'opacity-70 bg-gray-800'
-                  : 'bg-purple-500/20'
+              className={`p-4 flex justify-between items-start hover:bg-gray-800/80 transition-all duration-200 cursor-pointer ${
+                notification.isRead ? 'opacity-80' : 'bg-purple-600/10'
               }`}
               onClick={() => handleNotificationClick(notification)}
             >
-              <div className="flex-1">
-                <p className="text-sm text-white">{notification.message}</p>
-                <p className="text-xs text-gray-300">
+              <div className="flex-1 max-w-[calc(100%-2rem)]">
+                <p className="text-sm text-white break-words">
+                  {notification.message}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
                   {DateUtils.formatToLocal(notification.createdAt)}
                 </p>
               </div>
@@ -135,7 +137,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                   e.stopPropagation();
                   handleDeleteNotification(notification._id);
                 }}
-                className="p-1 text-gray-200 hover:text-red-300"
+                className="p-1 text-gray-300 hover:text-red-400 transition-colors duration-200"
                 aria-label="Delete notification"
               >
                 <X className="w-4 h-4" />
@@ -151,12 +153,12 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
     <div className="relative z-[10000]">
       <button
         onClick={handleToggleDropdown}
-        className="relative p-2 text-gray-200 hover:text-purple-300 focus:outline-none"
+        className="relative p-2 text-gray-200 hover:text-purple-400 focus:outline-none transition-colors duration-200"
         aria-label="Notifications"
       >
         <Bell className="w-6 h-6" />
         {unreadCount > 0 && (
-          <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-[10px] text-white z-[10001]">
+          <span className="absolute top-0 right-0 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-xs text-white font-medium z-[10001]">
             {unreadCount}
           </span>
         )}
