@@ -34,7 +34,6 @@ router.get(
   patientAuth,
   patientController.getActiveSubscription.bind(patientController)
 );
-router.get('/doctors/:doctorId/reviews', patientAuth, patientController.getDoctorReviews.bind(patientController));
 
 // Speciality route
 router.get('/specialities', patientAuth, patientController.getAllSpecialities.bind(patientController));
@@ -53,7 +52,7 @@ router.delete(
   '/subscriptions/:subscriptionId',
   patientAuth,
   patientController.cancelSubscription.bind(patientController)
-); // New route
+);
 
 // Profile routes
 router.get('/:id', patientAuth, patientProfileController.viewProfile.bind(patientProfileController));
@@ -66,5 +65,6 @@ router.patch(
 
 // Review routes
 router.post('/review', patientAuth, patientController.createReview.bind(patientController));
+router.get('/doctors/:doctorId/reviews', patientAuth, patientController.getDoctorReviews.bind(patientController));
 
 export default router;

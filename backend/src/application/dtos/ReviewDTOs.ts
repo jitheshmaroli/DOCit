@@ -1,4 +1,5 @@
 export interface CreateReviewRequestDTO {
+  patientId: string;
   appointmentId: string;
   doctorId: string;
   rating: number;
@@ -13,5 +14,4 @@ export interface ReviewResponseDTO {
   rating: number;
   comment: string;
   createdAt: string;
-  updatedAt: string;
 }

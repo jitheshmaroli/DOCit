@@ -8,12 +8,10 @@ export class ReviewRepository extends BaseRepository<Review> implements IReviewR
     super(ReviewModel);
   }
   async findByAppointmentId(appointmentId: string): Promise<Review | null> {
-    const review = await this.model.findOne({ appointmentId }).exec();
-    return review ? (review.toObject() as Review) : null;
+    return await this.model.findOne({ appointmentId }).lean().exec();
   }
 
   async findByDoctorId(doctorId: string): Promise<Review[]> {
-    const reviews = await this.model.find({ doctorId }).populate('patientId', 'name').exec();
-    return reviews as Review[];
+    return await this.model.find({ doctorId }).populate('patientId', 'name').lean().exec();
   }
 }

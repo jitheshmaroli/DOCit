@@ -1,8 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Server as HttpServer } from 'http';
 import { Server as SocketIOServer, Socket } from 'socket.io';
-import { IChatService } from '../../core/interfaces/services/IChatService';
-import { INotificationService } from '../../core/interfaces/services/INotificationService';
 import { ITokenService } from '../../core/interfaces/services/ITokenService';
 import { env } from '../../config/env';
 import { ChatMessage } from '../../core/entities/ChatMessage';
@@ -13,23 +11,21 @@ import * as cookie from 'cookie';
 import { IPatientRepository } from '../../core/interfaces/repositories/IPatientRepository';
 import { IDoctorRepository } from '../../core/interfaces/repositories/IDoctorRepository';
 import { UserRole } from '../../types';
+import { IChatRepository } from '../../core/interfaces/repositories/IChatRepository';
+import { INotificationRepository } from '../../core/interfaces/repositories/INotificationRepository';
 
 export class SocketService {
   private _io: SocketIOServer | null = null;
   private _connectedUsers: Map<string, Set<string>> = new Map();
   private _messageQueue: Map<string, ChatMessage[]> = new Map();
-  private _notificationService: INotificationService | null = null;
 
   constructor(
-    private _chatService: IChatService,
+    private _chatRepository: IChatRepository,
     private _tokenService: ITokenService,
     private _patientRepository: IPatientRepository,
-    private _doctorRepository: IDoctorRepository
+    private _doctorRepository: IDoctorRepository,
+    private _notificationRepository: INotificationRepository
   ) {}
-
-  setNotificationService(notificationService: INotificationService): void {
-    this._notificationService = notificationService;
-  }
 
   initialize(server: HttpServer): void {
     this._io = new SocketIOServer(server, {
@@ -204,8 +200,8 @@ export class SocketService {
             userId: data.userId,
           };
 
-          const message = await this._chatService
-            .getMessages(data.userId, '', {})
+          const message = await this._chatRepository
+            .findByParticipants(data.userId, '')
             .then((messages) => messages.find((m) => m._id === data.messageId));
           if (!message) {
             throw new Error('Message not found');
@@ -240,13 +236,8 @@ export class SocketService {
       });
 
       socket.on('sendNotification', async (notification: Notification) => {
-        if (!this._notificationService) {
-          logger.error('Notification service not available');
-          socket.emit('error', { message: 'Notification service not available' });
-          return;
-        }
         try {
-          await this._notificationService.sendNotification(notification);
+          await this._notificationRepository.create(notification);
           const receiverSocketIds = this._connectedUsers.get(notification.userId);
           if (receiverSocketIds && receiverSocketIds.size > 0) {
             receiverSocketIds.forEach((socketId) => {

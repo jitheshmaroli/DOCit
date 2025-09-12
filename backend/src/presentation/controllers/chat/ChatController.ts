@@ -7,14 +7,6 @@ import { SocketService } from '../../../infrastructure/services/SocketService';
 import { QueryParams } from '../../../types/authTypes';
 import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
-import {
-  SendMessageRequestDTO,
-  AddReactionRequestDTO,
-  ChatMessageResponseDTO,
-  InboxResponseDTO,
-} from '../../../application/dtos/ChatDTOs';
-import { ChatMessage } from '../../../core/entities/ChatMessage';
-import { ChatMapper } from '../../../application/mappers/ChatMapper';
 
 export class ChatController {
   private _chatUseCase: IChatUseCase;
@@ -36,14 +28,12 @@ export class ChatController {
       if (!receiverId || !message || !senderName) {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
-      const dto: SendMessageRequestDTO = {
+      const sendMessageData = {
         receiverId,
         message,
         senderName,
       };
-      const chatMessage: ChatMessageResponseDTO = await this._chatUseCase.sendMessage(dto);
-      const chatMessageEntity: ChatMessage = ChatMapper.toChatMessageEntityFromResponse(chatMessage);
-      await this._socketService.sendMessageToUsers(chatMessageEntity);
+      const chatMessage = await this._chatUseCase.sendMessage(sendMessageData);
       res.status(HttpStatusCode.CREATED).json(chatMessage);
     } catch (error) {
       next(error);
@@ -62,14 +52,12 @@ export class ChatController {
       if (!receiverId || !senderName || !file) {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
-      const dto: SendMessageRequestDTO = {
+      const sendAttachmentData = {
         receiverId,
         message: '',
         senderName,
       };
-      const chatMessage: ChatMessageResponseDTO = await this._chatUseCase.sendMessage(dto, file);
-      const chatMessageEntity: ChatMessage = ChatMapper.toChatMessageEntityFromResponse(chatMessage);
-      await this._socketService.sendMessageToUsers(chatMessageEntity);
+      const chatMessage = await this._chatUseCase.sendMessage(sendAttachmentData, file);
       res.status(HttpStatusCode.CREATED).json(chatMessage);
     } catch (error) {
       next(error);
@@ -86,7 +74,7 @@ export class ChatController {
       if (!receiverId) {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
-      const messages: ChatMessageResponseDTO[] = await this._chatUseCase.getMessages(userId, receiverId);
+      const messages = await this._chatUseCase.getMessages(userId, receiverId);
       res.status(HttpStatusCode.OK).json(messages);
     } catch (error) {
       next(error);
@@ -138,10 +126,8 @@ export class ChatController {
       if (!messageId || !emoji || replace === undefined) {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
-      const dto: AddReactionRequestDTO = { emoji, replace };
-      const updatedMessage: ChatMessageResponseDTO = await this._chatUseCase.addReaction(messageId, userId, dto);
-      const receiverId = updatedMessage.senderId === userId ? updatedMessage.receiverId : updatedMessage.senderId;
-      await this._socketService.sendReactionToUsers(messageId, emoji, userId, receiverId);
+      const addReactionData = { emoji, replace };
+      const updatedMessage = await this._chatUseCase.addReaction(messageId, userId, addReactionData);
       res.status(HttpStatusCode.OK).json(updatedMessage);
     } catch (error) {
       next(error);
@@ -155,7 +141,7 @@ export class ChatController {
         throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const params = req.query as QueryParams;
-      const history: ChatMessageResponseDTO[] = await this._chatUseCase.getChatHistory(userId, params);
+      const history = await this._chatUseCase.getChatHistory(userId, params);
       res.status(HttpStatusCode.OK).json(history);
     } catch (error) {
       next(error);
@@ -170,11 +156,7 @@ export class ChatController {
         throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const params = req.query as QueryParams;
-      const inbox: InboxResponseDTO[] = await this._chatUseCase.getInbox(
-        userId,
-        role as UserRole.Patient | UserRole.Doctor,
-        params
-      );
+      const inbox = await this._chatUseCase.getInbox(userId, role as UserRole.Patient | UserRole.Doctor, params);
       res.status(HttpStatusCode.OK).json(inbox);
     } catch (error) {
       next(error);

@@ -14,8 +14,8 @@ export class ReviewUseCase implements IReviewUseCase {
     private _doctorRepository: IDoctorRepository
   ) {}
 
-  async createReview(patientId: string, dto: CreateReviewRequestDTO): Promise<ReviewResponseDTO> {
-    if (!patientId || !dto.doctorId || !dto.appointmentId || !dto.rating) {
+  async createReview(dto: CreateReviewRequestDTO): Promise<ReviewResponseDTO> {
+    if (!dto.patientId || !dto.doctorId || !dto.appointmentId || !dto.rating) {
       logger.error('Missing required fields for creating review');
       throw new ValidationError('Patient ID, doctor ID, appointment ID, and rating are required');
     }
@@ -48,7 +48,7 @@ export class ReviewUseCase implements IReviewUseCase {
       throw new ValidationError('A review already exists for this appointment');
     }
 
-    const review = ReviewMapper.toReviewEntity(dto, patientId);
+    const review = ReviewMapper.toReviewEntity(dto);
 
     try {
       const savedReview = await this._reviewRepository.create(review);
@@ -79,6 +79,7 @@ export class ReviewUseCase implements IReviewUseCase {
     }
 
     const reviews = await this._reviewRepository.findByDoctorId(doctorId);
+    logger.info('usecase reviews:', reviews);
     return reviews.map(ReviewMapper.toReviewResponseDTO);
   }
 

@@ -1,4 +1,3 @@
-import { IChatUseCase } from '../../core/interfaces/use-cases/IChatUseCase';
 import { AppointmentUseCase } from '../../application/use-cases/AppointmentUseCase';
 import { NotificationUseCase } from '../../application/use-cases/NotificationUseCase';
 import { AvailabilityUseCase } from '../../application/use-cases/AvailabilityUseCase';
@@ -26,16 +25,11 @@ import { NotificationRepository } from '../repositories/NotificationRepository';
 import { SocketService } from '../services/SocketService';
 import { NotificationService } from '../services/NotificationService';
 import { ReviewRepository } from '../repositories/ReviewRepository';
-import { IChatService } from '../../core/interfaces/services/IChatService';
-import { ChatMessage } from '../../core/entities/ChatMessage';
-import { QueryParams } from '../../types/authTypes';
 import { AuthenticationUseCase } from '../../application/use-cases/AuthenticationUseCase';
 import { PatientSubscriptionRepository } from '../repositories/PatientSubscriptionRepositroy';
 import { ReportUseCase } from '../../application/use-cases/ReportUseCase';
 import { SpecialityUseCase } from '../../application/use-cases/SpecialityUseCase';
 import { UserUseCase } from '../../application/use-cases/UserUseCase';
-import { ChatMapper } from '../../application/mappers/ChatMapper';
-import { SendMessageRequestDTO, ChatMessageResponseDTO } from '../../application/dtos/ChatDTOs';
 import { PrescriptionRepository } from '../repositories/PrescriptionRepository';
 
 export class Container {
@@ -64,38 +58,14 @@ export class Container {
     const otpService = new OTPService(otpRepository, emailService);
     const stripeService = new StripeService();
     const imageUploadService = new ImageUploadService();
-    const chatService = new (class implements IChatService {
-      constructor(private container: Container) {}
-      async sendMessage(message: ChatMessage, file?: Express.Multer.File): Promise<ChatMessage> {
-        const dto: SendMessageRequestDTO = {
-          receiverId: message.receiverId,
-          message: message.message,
-          senderName: message.senderName ?? 'Unknown',
-        };
-        const chatMessageDTO: ChatMessageResponseDTO = await this.container
-          .get<IChatUseCase>('IChatUseCase')
-          .sendMessage(dto, file);
-        return ChatMapper.toChatMessageEntityFromResponse(chatMessageDTO);
-      }
-      async getMessages(senderId: string, receiverId: string): Promise<ChatMessage[]> {
-        const messagesDTO: ChatMessageResponseDTO[] = await this.container
-          .get<IChatUseCase>('IChatUseCase')
-          .getMessages(senderId, receiverId);
-        return messagesDTO.map(ChatMapper.toChatMessageEntityFromResponse);
-      }
-      async deleteMessage(messageId: string, userId: string): Promise<void> {
-        await this.container.get<IChatUseCase>('IChatUseCase').deleteMessage(messageId, userId);
-      }
-      async getChatHistory(userId: string, params: QueryParams): Promise<ChatMessage[]> {
-        const historyDTO: ChatMessageResponseDTO[] = await this.container
-          .get<IChatUseCase>('IChatUseCase')
-          .getChatHistory(userId, params);
-        return historyDTO.map(ChatMapper.toChatMessageEntityFromResponse);
-      }
-    })(this);
-    const socketService = new SocketService(chatService, tokenService, patientRepository, doctorRepository);
+    const socketService = new SocketService(
+      chatRepository,
+      tokenService,
+      patientRepository,
+      doctorRepository,
+      notificationRepository
+    );
     const notificationService = new NotificationService(notificationRepository, socketService);
-    socketService.setNotificationService(notificationService);
 
     // Register services
     this.dependencies.set('IEmailService', emailService);

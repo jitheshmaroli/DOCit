@@ -4,10 +4,8 @@ import { ValidationError } from '../../../utils/errors';
 import { IProfileUseCase } from '../../../core/interfaces/use-cases/IProfileUseCase';
 import { ISpecialityUseCase } from '../../../core/interfaces/use-cases/ISpecialityUseCase';
 import fs from 'fs';
-import logger from '../../../utils/logger';
 import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
-import { DoctorDTO } from '../../../application/dtos/DoctorDTOs';
-import { SpecialityResponseDTO } from '../../../application/dtos/SpecialityDTOs';
+import logger from '../../../utils/logger';
 
 export class DoctorProfileController {
   private _profileUseCase: IProfileUseCase;
@@ -20,14 +18,13 @@ export class DoctorProfileController {
 
   async viewProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { id } = req.params;
-      const doctor: DoctorDTO = await this._profileUseCase.viewDoctorProfile(id);
+      const { doctorId } = req.params;
+      const doctor = await this._profileUseCase.viewDoctorProfile(doctorId);
       if (!doctor) {
         throw new ValidationError('Doctor not found');
       }
       res.status(HttpStatusCode.OK).json(doctor);
     } catch (error) {
-      logger.error(`Error in viewProfile: ${(error as Error).message}`);
       next(error);
     }
   }
@@ -35,7 +32,7 @@ export class DoctorProfileController {
   async updateProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const doctorId = req.params.id;
-      const updates: Partial<DoctorDTO> = { ...req.body };
+      const updates = { ...req.body };
 
       // Parse allowFreeBooking from string to boolean
       if (req.body.allowFreeBooking !== undefined) {
@@ -44,7 +41,6 @@ export class DoctorProfileController {
         } else if (req.body.allowFreeBooking === 'false') {
           updates.allowFreeBooking = false;
         } else {
-          logger.error(`Invalid allowFreeBooking value: ${req.body.allowFreeBooking}`);
           throw new ValidationError('allowFreeBooking must be "true" or "false"');
         }
       }
@@ -59,7 +55,6 @@ export class DoctorProfileController {
         } else if (Array.isArray(req.body.qualifications)) {
           qualifications = req.body.qualifications;
         } else {
-          logger.error('Invalid qualifications format: must be a string or array');
           throw new ValidationError('Qualifications must be a comma-separated string or an array');
         }
         updates.qualifications = qualifications;
@@ -70,14 +65,12 @@ export class DoctorProfileController {
         if (typeof req.body.experiences === 'string') {
           try {
             experiences = JSON.parse(req.body.experiences);
-          } catch (error) {
-            logger.error(`Failed to parse experiences: ${(error as Error).message}`);
+          } catch {
             throw new ValidationError('Invalid experiences format: must be valid JSON');
           }
         } else if (Array.isArray(req.body.experiences)) {
           experiences = req.body.experiences;
         } else {
-          logger.error('Invalid experiences format: must be a string or array');
           throw new ValidationError('Experiences must be a JSON string or an array');
         }
 
@@ -92,7 +85,6 @@ export class DoctorProfileController {
             typeof exp.years !== 'number' ||
             exp.years < 0
           ) {
-            logger.error(`Invalid experience entry at index ${index}:`, exp);
             throw new ValidationError(
               `Invalid experience at index ${index}: must include valid hospitalName, department, and non-negative years`
             );
@@ -102,7 +94,7 @@ export class DoctorProfileController {
       }
 
       if (req.body.speciality) {
-        const specialities: SpecialityResponseDTO[] = await this._specialityUseCase.getAllSpecialities();
+        const specialities = await this._specialityUseCase.getAllSpecialities();
         const validSpeciality = specialities.find((s) => s.name === req.body.speciality);
         if (!validSpeciality) {
           throw new ValidationError(`Speciality "${req.body.speciality}" not found`);
@@ -125,7 +117,7 @@ export class DoctorProfileController {
       const profilePictureFile: Express.Multer.File | undefined = files?.['profilePicture']?.[0];
       const licenseProofFile: Express.Multer.File | undefined = files?.['licenseProof']?.[0];
 
-      const doctor: DoctorDTO | null = await this._profileUseCase.updateDoctorProfile(
+      const doctor = await this._profileUseCase.updateDoctorProfile(
         doctorId,
         updates,
         profilePictureFile,

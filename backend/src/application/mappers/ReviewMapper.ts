@@ -11,13 +11,12 @@ export class ReviewMapper {
       rating: entity.rating,
       comment: entity.comment,
       createdAt: entity.createdAt?.toISOString() ?? new Date().toISOString(),
-      updatedAt: entity.updatedAt?.toISOString() ?? new Date().toISOString(),
     };
   }
 
-  static toReviewEntity(dto: CreateReviewRequestDTO, patientId: string): Review {
+  static toReviewEntity(dto: CreateReviewRequestDTO): Review {
     return {
-      patientId,
+      patientId: dto.patientId,
       doctorId: dto.doctorId,
       appointmentId: dto.appointmentId,
       rating: dto.rating,
