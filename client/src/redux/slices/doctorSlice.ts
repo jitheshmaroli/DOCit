@@ -10,7 +10,6 @@ import {
   setAvailabilityThunk,
   updateSubscriptionPlanThunk,
   deleteSubscriptionPlanThunk,
-  withdrawSubscriptionPlanThunk,
   subscribeToPlanThunk,
   fetchDoctorPlansThunk,
   removeSlotThunk,
@@ -276,20 +275,6 @@ const doctorSlice = createSlice({
         );
       })
       .addCase(deleteSubscriptionPlanThunk.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload as string;
-      })
-      .addCase(withdrawSubscriptionPlanThunk.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(withdrawSubscriptionPlanThunk.fulfilled, (state, action) => {
-        state.loading = false;
-        state.plans = state.plans.filter(
-          (plan) => plan._id !== action.payload.id
-        );
-      })
-      .addCase(withdrawSubscriptionPlanThunk.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })

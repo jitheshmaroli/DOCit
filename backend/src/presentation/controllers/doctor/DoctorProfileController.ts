@@ -31,7 +31,7 @@ export class DoctorProfileController {
 
   async updateProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const doctorId = req.params.id;
+      const { doctorId } = req.params;
       const updates = { ...req.body };
 
       // Parse allowFreeBooking from string to boolean

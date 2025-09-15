@@ -262,14 +262,6 @@ export const deleteSubscriptionPlan = async (id: string) => {
   return { id };
 };
 
-export const withdrawSubscriptionPlan = async (id: string) => {
-  await api.patch(
-    ROUTES.API.DOCTOR.WITHDRAW_SUBSCRIPTION_PLAN.replace(':id', id),
-    {}
-  );
-  return { id };
-};
-
 export const fetchSpecialities = async () => {
   const response = await api.get(ROUTES.API.DOCTOR.SPECIALITIES);
   return response.data;

@@ -2,6 +2,16 @@ import React, { useMemo, useCallback } from 'react';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { Loader2 } from 'lucide-react';
+import {
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Block as BlockIcon,
+  Visibility as ViewDetailsIcon,
+  PersonAdd as AddUserIcon,
+  Verified as VerifyIcon,
+  CheckCircle as ApproveIcon,
+  Cancel as CancelIcon,
+} from '@mui/icons-material';
 
 export interface Column<T> {
   header: string;
@@ -22,7 +32,7 @@ interface DataTableProps<T> {
   error?: string | null;
   onRetry?: () => void;
   emptyMessage?: string;
-  enableHorizontalScroll?: boolean; // New prop to control scrolling behavior
+  enableHorizontalScroll?: boolean;
 }
 
 const DataTable = React.memo(
@@ -34,7 +44,7 @@ const DataTable = React.memo(
     error,
     onRetry,
     emptyMessage = 'No data found.',
-    enableHorizontalScroll = true, // Default to true for horizontal scrolling
+    enableHorizontalScroll = true,
   }: DataTableProps<T>) => {
     const renderCell = useCallback((item: T, column: Column<T>) => {
       if (typeof column.accessor === 'function') {
@@ -43,6 +53,33 @@ const DataTable = React.memo(
       const value = item[column.accessor];
       return value != null ? String(value) : 'N/A';
     }, []);
+
+    const getIconForAction = (label: string) => {
+      switch (label) {
+        case 'Edit':
+          return <EditIcon className="text-2xl" style={{ color: '#1976d2' }} />;
+        case 'Delete':
+          return <DeleteIcon className="text-2xl" style={{ color: '#d32f2f' }} />;
+        case 'Block':
+          return <BlockIcon className="text-2xl" style={{ color: '#ed6c02' }} />;
+        case 'Unblock':
+          return <BlockIcon className="text-2xl" style={{ color: '#2e7d32' }} />;
+        case 'View Details':
+          return <ViewDetailsIcon className="text-2xl" style={{ color: '#2e7d32' }} />;
+        case 'Add User':
+          return <AddUserIcon className="text-2xl" style={{ color: '#1976d2' }} />;
+        case 'Verify':
+          return <VerifyIcon className="text-2xl" style={{ color: '#2e7d32' }} />;
+        case 'Approve':
+          return <ApproveIcon className="text-2xl" style={{ color: '#2e7d32' }} />;
+        case 'Reject':
+          return <CancelIcon className="text-2xl" style={{ color: '#d32f2f' }} />;
+        case 'Cancel':
+          return <CancelIcon className="text-2xl" style={{ color: '#d32f2f' }} />;
+        default:
+          return null;
+      }
+    };
 
     const tableContent = useMemo(() => {
       if (isLoading) {
@@ -127,10 +164,11 @@ const DataTable = React.memo(
                     <button
                       key={idx}
                       onClick={() => action.onClick(item)}
-                      className={`px-3 py-1 rounded-lg text-white text-sm font-medium transition-all duration-300 focus:ring-2 focus:ring-purple-400 focus:outline-none ${action.className || 'bg-purple-600 hover:bg-purple-700'}`}
+                      className="flex items-center justify-center p-2 bg-white/10 backdrop-blur-lg border border-white/20 rounded-lg hover:bg-white/20 transition-all duration-300 focus:ring-2 focus:ring-purple-400 focus:outline-none"
                       aria-label={action.label}
+                      title={action.label}
                     >
-                      {action.label}
+                      {getIconForAction(action.label)}
                     </button>
                   ))}
               </div>

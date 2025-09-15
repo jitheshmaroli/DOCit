@@ -10,6 +10,7 @@ import {
 import { Patient, PatientSubscription } from '../../types/authTypes';
 import DataTable, { Column } from '../../components/common/DataTable';
 import Pagination from '../../components/common/Pagination';
+import BackButton from '../../components/common/BackButton';
 
 const ITEMS_PER_PAGE = 5;
 
@@ -52,14 +53,7 @@ const PlanDetails: React.FC = () => {
   const patientColumns: Column<Patient>[] = [
     {
       header: 'Name',
-      accessor: (patient) => (
-        <button
-          onClick={() => navigate(`/doctor/patient/${patient._id}`)}
-          className="hover:underline hover:text-blue-300 focus:outline-none"
-        >
-          {patient.name || 'N/A'}
-        </button>
-      ),
+      accessor: (patient) => patient.name || 'N/A',
     },
     { header: 'Email', accessor: 'email' },
     {
@@ -98,18 +92,15 @@ const PlanDetails: React.FC = () => {
         );
       },
     },
+  ];
+
+  const actions = [
     {
-      header: 'View Appointments',
-      accessor: (patient) => (
-        <button
-          onClick={() =>
-            navigate(`/doctor/patient/${patient._id}/appointments`)
-          }
-          className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-1 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-300"
-        >
-          View
-        </button>
-      ),
+      label: 'View Details',
+      onClick: (patient: Patient) =>
+        navigate(`/doctor/patient/${patient._id}`, {
+          state: { from: 'plans' },
+        }),
     },
   ];
 
@@ -120,12 +111,7 @@ const PlanDetails: React.FC = () => {
       <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 flex items-center justify-center">
         <div className="text-white text-center">
           <h2 className="text-2xl font-bold mb-4">Plan not found</h2>
-          <button
-            onClick={() => navigate('/doctor/plans')}
-            className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-2 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-300"
-          >
-            Back to Plans
-          </button>
+          <BackButton />
         </div>
       </div>
     );
@@ -251,6 +237,7 @@ const PlanDetails: React.FC = () => {
               <DataTable
                 data={paginatedPatients}
                 columns={patientColumns}
+                actions={actions}
                 isLoading={loading}
                 emptyMessage="No subscribed patients found."
               />

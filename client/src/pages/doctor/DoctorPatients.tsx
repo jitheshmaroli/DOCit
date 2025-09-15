@@ -107,7 +107,10 @@ const DoctorPatients: React.FC = () => {
   const actions = [
     {
       label: 'View Details',
-      onClick: (patient: Patient) => navigate(`/doctor/patient/${patient._id}`),
+      onClick: (patient: Patient) =>
+        navigate(`/doctor/patient/${patient._id}`, {
+          state: { from: 'patients' },
+        }),
       className: 'bg-purple-600 hover:bg-purple-700',
     },
   ];

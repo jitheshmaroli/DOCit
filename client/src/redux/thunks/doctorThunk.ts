@@ -12,7 +12,6 @@ import {
   createSubscriptionPlan,
   updateSubscriptionPlan,
   deleteSubscriptionPlan,
-  withdrawSubscriptionPlan,
   completeAppointment,
   getSubscribedPatients,
   getPlanSubscriptionCounts,
@@ -276,19 +275,6 @@ export const deleteSubscriptionPlanThunk = createAsyncThunk(
     } catch (error: any) {
       return rejectWithValue(
         error.message || 'Failed to delete subscription plan'
-      );
-    }
-  }
-);
-
-export const withdrawSubscriptionPlanThunk = createAsyncThunk(
-  'doctors/withdrawSubscriptionPlan',
-  async (id: string, { rejectWithValue }) => {
-    try {
-      return await withdrawSubscriptionPlan(id);
-    } catch (error: any) {
-      return rejectWithValue(
-        error.message || 'Failed to withdraw subscription plan'
       );
     }
   }

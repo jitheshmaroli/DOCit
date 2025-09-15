@@ -51,8 +51,13 @@ router.delete('/subscription-plans/:id', doctorAuth, doctorController.deleteSubs
 router.get('/specialities', doctorAuth, doctorController.getAllSpecialities.bind(doctorController));
 
 // Profile routes
-router.get('/:id', doctorAuth, doctorProfileController.viewProfile.bind(doctorProfileController));
-router.patch('/:id', doctorAuth, profileUpload, doctorProfileController.updateProfile.bind(doctorProfileController));
+router.get('/:doctorId', doctorAuth, doctorProfileController.viewProfile.bind(doctorProfileController));
+router.patch(
+  '/:doctorId',
+  doctorAuth,
+  profileUpload,
+  doctorProfileController.updateProfile.bind(doctorProfileController)
+);
 
 // Dashboard Statistics routes
 router.get('/dashboard/stats', doctorAuth, doctorController.getDashboardStats.bind(doctorController));
