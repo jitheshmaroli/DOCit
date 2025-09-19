@@ -5,24 +5,36 @@ import { QueryParams } from '../../types/authTypes';
 import { NotFoundError, ValidationError } from '../../utils/errors';
 import { DoctorDTO, PaginatedDoctorResponseDTO } from '../dtos/DoctorDTOs';
 import { DoctorMapper } from '../mappers/DoctorMapper';
+import { IValidatorService } from '../../core/interfaces/services/IValidatorService';
 
 export class DoctorUseCase implements IDoctorUseCase {
   constructor(
     private _doctorRepository: IDoctorRepository,
-    private _specialityRepository: ISpecialityRepository
+    private _specialityRepository: ISpecialityRepository,
+    private _validatorService: IValidatorService
   ) {}
 
   async createDoctor(dto: Partial<DoctorDTO>): Promise<DoctorDTO> {
-    if (!dto.email || !dto.name || !dto.speciality || !dto.password) {
-      throw new ValidationError('Email, name, speciality, and password are required');
-    }
+    // Validate required fields
+    this._validatorService.validateRequiredFields({
+      email: dto.email,
+      name: dto.name,
+      speciality: dto.speciality,
+      password: dto.password,
+    });
 
-    const existingDoctor = await this._doctorRepository.findByEmail(dto.email);
+    // Validate email, name, password, and speciality
+    this._validatorService.validateEmailFormat(dto.email!);
+    this._validatorService.validateName(dto.name!);
+    this._validatorService.validatePassword(dto.password!);
+    this._validatorService.validateIdFormat(dto.speciality!);
+
+    const existingDoctor = await this._doctorRepository.findByEmail(dto.email!);
     if (existingDoctor) {
       throw new ValidationError('Doctor with this email already exists');
     }
 
-    const speciality = await this._specialityRepository.findById(dto.speciality);
+    const speciality = await this._specialityRepository.findById(dto.speciality!);
     if (!speciality) {
       throw new NotFoundError('Speciality not found');
     }
@@ -44,8 +56,22 @@ export class DoctorUseCase implements IDoctorUseCase {
   }
 
   async updateDoctor(doctorId: string, updates: Partial<DoctorDTO>): Promise<DoctorDTO> {
-    if (!doctorId) {
-      throw new ValidationError('Doctor ID is required');
+    // Validate doctorId
+    this._validatorService.validateRequiredFields({ doctorId });
+    this._validatorService.validateIdFormat(doctorId);
+
+    // Validate optional fields if provided
+    if (updates.email) {
+      this._validatorService.validateEmailFormat(updates.email);
+    }
+    if (updates.name) {
+      this._validatorService.validateName(updates.name);
+    }
+    if (updates.password) {
+      this._validatorService.validatePassword(updates.password);
+    }
+    if (updates.speciality) {
+      this._validatorService.validateIdFormat(updates.speciality);
     }
 
     const doctor = await this._doctorRepository.findById(doctorId);
@@ -82,9 +108,9 @@ export class DoctorUseCase implements IDoctorUseCase {
   }
 
   async deleteDoctor(doctorId: string): Promise<void> {
-    if (!doctorId) {
-      throw new ValidationError('Doctor ID is required');
-    }
+    // Validate doctorId
+    this._validatorService.validateRequiredFields({ doctorId });
+    this._validatorService.validateIdFormat(doctorId);
 
     const doctor = await this._doctorRepository.findById(doctorId);
     if (!doctor) {
@@ -95,9 +121,10 @@ export class DoctorUseCase implements IDoctorUseCase {
   }
 
   async blockDoctor(doctorId: string, isBlocked: boolean): Promise<DoctorDTO> {
-    if (!doctorId) {
-      throw new ValidationError('Doctor ID is required');
-    }
+    // Validate doctorId and isBlocked
+    this._validatorService.validateRequiredFields({ doctorId, isBlocked });
+    this._validatorService.validateIdFormat(doctorId);
+    this._validatorService.validateBoolean(isBlocked);
 
     const doctor = await this._doctorRepository.findById(doctorId);
     if (!doctor) {
@@ -123,9 +150,9 @@ export class DoctorUseCase implements IDoctorUseCase {
   }
 
   async verifyDoctor(doctorId: string): Promise<DoctorDTO> {
-    if (!doctorId) {
-      throw new ValidationError('Doctor ID is required');
-    }
+    // Validate doctorId
+    this._validatorService.validateRequiredFields({ doctorId });
+    this._validatorService.validateIdFormat(doctorId);
 
     const doctor = await this._doctorRepository.findById(doctorId);
     if (!doctor) {
@@ -151,15 +178,16 @@ export class DoctorUseCase implements IDoctorUseCase {
   }
 
   async listDoctors(params: QueryParams): Promise<PaginatedDoctorResponseDTO> {
+    // No specific validation for QueryParams, as it's typically flexible
     const { data, totalItems } = await this._doctorRepository.findAllWithQuery(params);
     const doctorDTOs = data.map(DoctorMapper.toDTO);
     return DoctorMapper.toPaginatedResponseDTO(doctorDTOs, totalItems, params);
   }
 
   async getDoctor(doctorId: string): Promise<DoctorDTO | null> {
-    if (!doctorId) {
-      throw new ValidationError('Doctor ID is required');
-    }
+    // Validate doctorId
+    this._validatorService.validateRequiredFields({ doctorId });
+    this._validatorService.validateIdFormat(doctorId);
 
     const doctor = await this._doctorRepository.getDoctorDetails(doctorId);
     if (!doctor) {
@@ -169,6 +197,7 @@ export class DoctorUseCase implements IDoctorUseCase {
   }
 
   async getVerifiedDoctors(params: QueryParams): Promise<PaginatedDoctorResponseDTO> {
+    // No specific validation for QueryParams, as it's typically flexible
     const { data, totalItems } = await this._doctorRepository.findVerified(params);
     const doctorDTOs = data.map(DoctorMapper.toDTO);
     return DoctorMapper.toPaginatedResponseDTO(doctorDTOs, totalItems, params);

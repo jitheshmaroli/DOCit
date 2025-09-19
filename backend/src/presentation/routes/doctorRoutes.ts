@@ -51,9 +51,9 @@ router.delete('/subscription-plans/:id', doctorAuth, doctorController.deleteSubs
 router.get('/specialities', doctorAuth, doctorController.getAllSpecialities.bind(doctorController));
 
 // Profile routes
-router.get('/:doctorId', doctorAuth, doctorProfileController.viewProfile.bind(doctorProfileController));
+router.get('/profile', doctorAuth, doctorProfileController.viewProfile.bind(doctorProfileController));
 router.patch(
-  '/:doctorId',
+  '/profile',
   doctorAuth,
   profileUpload,
   doctorProfileController.updateProfile.bind(doctorProfileController)

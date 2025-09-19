@@ -29,6 +29,7 @@ import { AppointmentMapper } from '../mappers/AppointmentMapper';
 import { IImageUploadService } from '../../core/interfaces/services/IImageUploadService';
 import PDFKit from 'pdfkit';
 import { IPrescriptionRepository } from '../../core/interfaces/repositories/IPrescriptionRepository';
+import { IValidatorService } from '../../core/interfaces/services/IValidatorService';
 
 export class AppointmentUseCase implements IAppointmentUseCase {
   constructor(
@@ -40,10 +41,25 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     private _doctorRepository: IDoctorRepository,
     private _patientRepository: IPatientRepository,
     private _imageUploadService: IImageUploadService,
-    private _prescriptionRepository: IPrescriptionRepository
+    private _prescriptionRepository: IPrescriptionRepository,
+    private _validatorService: IValidatorService
   ) {}
 
   async bookAppointment(dto: BookAppointmentRequestDTO): Promise<BookAppointmentResponseDTO> {
+    // Validate required fields
+    this._validatorService.validateRequiredFields(dto);
+
+    // Validate IDs
+    this._validatorService.validateIdFormat(dto.patientId);
+    this._validatorService.validateIdFormat(dto.doctorId);
+
+    // Validate date and time slot
+    this._validatorService.validateDateFormat(dto.date);
+    this._validatorService.validateTimeSlot(dto.startTime, dto.endTime);
+
+    // Validate isFreeBooking
+    this._validatorService.validateBoolean(dto.isFreeBooking);
+
     const doctor = await this._doctorRepository.findById(dto.doctorId);
     if (!doctor) throw new NotFoundError('Doctor not found');
 
@@ -130,7 +146,7 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     };
 
     const patientEmailSubject = 'Appointment Confirmation';
-    const patientEmailText = `Dear ${patient.name},\n\nYour appointment with Dr. ${doctor.name} has been successfully booked for ${dto.startTime} on ${startOfDay.toLocaleDateString()}. Please ensure you arrive on time.\n\nBest regards,\nDOCit Team`;
+    const patientEmailText = `Dear ${patient.name},\n\nYour appointment with Dr. ${doctor.name} has been successfully booked for ${dto.startTime} on ${startOfDay.toLocaleDateString()}. Please ensure you are on time.\n\nBest regards,\nDOCit Team`;
     const doctorEmailSubject = 'New Appointment Scheduled';
     const doctorEmailText = `Dear Dr. ${doctor.name},\n\nA new appointment with ${patient.name} has been scheduled for ${dto.startTime} on ${startOfDay.toLocaleDateString()}.\n\nBest regards,\nDOCit Team`;
 
@@ -148,6 +164,21 @@ export class AppointmentUseCase implements IAppointmentUseCase {
   }
 
   async cancelAppointment(dto: CancelAppointmentRequestDTO): Promise<void> {
+    // Validate required fields
+    this._validatorService.validateRequiredFields({ appointmentId: dto.appointmentId });
+
+    // Validate appointmentId
+    this._validatorService.validateIdFormat(dto.appointmentId);
+
+    // Validate optional patientId or doctorId if provided
+    if (dto.patientId) this._validatorService.validateIdFormat(dto.patientId);
+    if (dto.doctorId) this._validatorService.validateIdFormat(dto.doctorId);
+
+    // Validate cancellationReason if provided
+    if (dto.cancellationReason) {
+      this._validatorService.validateLength(dto.cancellationReason, 1, 500);
+    }
+
     const appointment = await this._appointmentRepository.findById(dto.appointmentId);
     if (!appointment) throw new NotFoundError('Appointment not found');
 
@@ -159,10 +190,10 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     if (!dto.patientId && !dto.doctorId) {
       throw new ValidationError('Either patientId or doctorId must be provided');
     }
-    if (dto.patientId && appointment.patientId.toString() !== dto.patientId) {
+    if (dto.patientId && appointment.patientId!.toString() !== dto.patientId) {
       throw new ValidationError('Unauthorized: Patient ID does not match appointment');
     }
-    if (dto.doctorId && appointment.doctorId.toString() !== dto.doctorId) {
+    if (dto.doctorId && appointment.doctorId!.toString() !== dto.doctorId) {
       throw new ValidationError('Unauthorized: Doctor ID does not match appointment');
     }
 
@@ -184,7 +215,7 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     // Free the availability slot
     const startOfDay = DateUtils.startOfDayUTC(new Date(appointment.date));
     await this._availabilityRepository.updateSlotBookingStatus(
-      appointment.doctorId.toString(),
+      appointment.doctorId!.toString(),
       startOfDay,
       appointment.startTime,
       false
@@ -193,8 +224,8 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     // If not a free booking, increment appointmentsLeft in subscription
     if (!appointment.isFreeBooking && appointment.planId) {
       const subscription = await this._patientSubscriptionRepository.findActiveByPatientAndDoctor(
-        appointment.patientId.toString(),
-        appointment.doctorId.toString()
+        appointment.patientId!.toString(),
+        appointment.doctorId!.toString()
       );
       if (subscription && subscription.planId === appointment.planId) {
         await this._patientSubscriptionRepository.decrementAppointmentCount(subscription._id!);
@@ -202,9 +233,9 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     }
 
     // Fetch doctor and patient for notifications
-    const doctor = await this._doctorRepository.findById(appointment.doctorId.toString());
+    const doctor = await this._doctorRepository.findById(appointment.doctorId!.toString());
     if (!doctor) throw new NotFoundError('Doctor not found');
-    const patient = await this._patientRepository.findById(appointment.patientId.toString());
+    const patient = await this._patientRepository.findById(appointment.patientId!.toString());
     if (!patient) throw new NotFoundError('Patient not found');
 
     // Determine who cancelled the appointment
@@ -212,7 +243,7 @@ export class AppointmentUseCase implements IAppointmentUseCase {
 
     // Send notifications
     const patientNotification: Notification = {
-      userId: appointment.patientId.toString(),
+      userId: appointment.patientId!.toString(),
       type: NotificationType.APPOINTMENT_CANCELLED,
       message: `Your appointment with Dr. ${doctor.name} on ${startOfDay.toLocaleDateString()} at ${appointment.startTime} has been cancelled by ${canceller}.${dto.cancellationReason ? ` Reason: ${dto.cancellationReason}` : ''}`,
       isRead: false,
@@ -220,7 +251,7 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     };
 
     const doctorNotification: Notification = {
-      userId: appointment.doctorId.toString(),
+      userId: appointment.doctorId!.toString(),
       type: NotificationType.APPOINTMENT_CANCELLED,
       message: `The appointment with ${patient.name} on ${startOfDay.toLocaleDateString()} at ${appointment.startTime} has been cancelled by ${canceller}.${dto.cancellationReason ? ` Reason: ${dto.cancellationReason}` : ''}`,
       isRead: false,
@@ -244,6 +275,9 @@ export class AppointmentUseCase implements IAppointmentUseCase {
   }
 
   async adminCancelAppointment(appointmentId: string): Promise<void> {
+    // Validate appointmentId
+    this._validatorService.validateIdFormat(appointmentId);
+
     const appointment = await this._appointmentRepository.findById(appointmentId);
     if (!appointment) {
       throw new NotFoundError('Appointment not found');
@@ -253,17 +287,17 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       throw new ValidationError('Appointment is already cancelled');
     }
 
-    const doctor = await this._doctorRepository.findById(appointment.doctorId.toString());
+    const doctor = await this._doctorRepository.findById(appointment.doctorId!.toString());
     if (!doctor) throw new NotFoundError('Doctor not found');
 
-    const patient = await this._patientRepository.findById(appointment.patientId.toString());
+    const patient = await this._patientRepository.findById(appointment.patientId!.toString());
     if (!patient) throw new NotFoundError('Patient not found');
 
     await this._appointmentRepository.update(appointmentId, { status: AppointmentStatus.CANCELLED });
 
     const startOfDay = DateUtils.startOfDayUTC(new Date(appointment.date));
     await this._availabilityRepository.updateSlotBookingStatus(
-      appointment.doctorId.toString(),
+      appointment.doctorId!.toString(),
       startOfDay,
       appointment.startTime,
       false
@@ -271,8 +305,8 @@ export class AppointmentUseCase implements IAppointmentUseCase {
 
     if (!appointment.isFreeBooking && appointment.planId) {
       const subscription = await this._patientSubscriptionRepository.findActiveByPatientAndDoctor(
-        appointment.patientId.toString(),
-        appointment.doctorId.toString()
+        appointment.patientId!.toString(),
+        appointment.doctorId!.toString()
       );
       if (subscription && subscription.planId === appointment.planId) {
         await this._patientSubscriptionRepository.decrementAppointmentCount(subscription._id!);
@@ -280,7 +314,7 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     }
 
     const patientNotification: Notification = {
-      userId: appointment.patientId.toString(),
+      userId: appointment.patientId!.toString(),
       type: NotificationType.APPOINTMENT_CANCELLED,
       message: `Your appointment with Dr. ${doctor.name} for ${appointment.startTime} on ${startOfDay.toLocaleDateString()} has been cancelled by an admin.`,
       isRead: false,
@@ -288,7 +322,7 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     };
 
     const doctorNotification: Notification = {
-      userId: appointment.doctorId.toString(),
+      userId: appointment.doctorId!.toString(),
       type: NotificationType.APPOINTMENT_CANCELLED,
       message: `An appointment with ${patient.name} for ${appointment.startTime} on ${startOfDay.toLocaleDateString()} has been cancelled by an admin.`,
       isRead: false,
@@ -309,6 +343,37 @@ export class AppointmentUseCase implements IAppointmentUseCase {
   }
 
   async completeAppointment(dto: CompleteAppointmentRequestDTO): Promise<CompleteAppointmentResponseDTO> {
+    // Validate required fields
+    this._validatorService.validateRequiredFields({
+      doctorId: dto.doctorId,
+      appointmentId: dto.appointmentId,
+      prescription: dto.prescription,
+    });
+
+    // Validate IDs
+    this._validatorService.validateIdFormat(dto.doctorId);
+    this._validatorService.validateIdFormat(dto.appointmentId);
+
+    // Validate prescription fields
+    this._validatorService.validateRequiredFields({
+      medications: dto.prescription.medications,
+    });
+    dto.prescription.medications.forEach((med, index) => {
+      this._validatorService.validateRequiredFields({
+        [`medication_${index}_name`]: med.name,
+        [`medication_${index}_dosage`]: med.dosage,
+        [`medication_${index}_frequency`]: med.frequency,
+        [`medication_${index}_duration`]: med.duration,
+      });
+      this._validatorService.validateLength(med.name, 1, 100);
+      this._validatorService.validateLength(med.dosage, 1, 50);
+      this._validatorService.validateLength(med.frequency, 1, 50);
+      this._validatorService.validateLength(med.duration, 1, 50);
+    });
+    if (dto.prescription.notes) {
+      this._validatorService.validateLength(dto.prescription.notes, 1, 1000);
+    }
+
     const appointment = await this._appointmentRepository.findById(dto.appointmentId);
     if (!appointment) {
       throw new NotFoundError('Appointment not found');
@@ -318,24 +383,24 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       throw new ValidationError('Only pending appointments can be marked as completed');
     }
 
-    if (appointment.doctorId.toString() !== dto.doctorId.toString()) {
+    if (appointment.doctorId!.toString() !== dto.doctorId.toString()) {
       throw new ValidationError('Unauthorized to complete this appointment');
     }
 
-    const doctor = await this._doctorRepository.findById(appointment.doctorId.toString());
+    const doctor = await this._doctorRepository.findById(appointment.doctorId!.toString());
     if (!doctor) {
       throw new NotFoundError('Doctor not found');
     }
 
-    const patient = await this._patientRepository.findById(appointment.patientId.toString());
+    const patient = await this._patientRepository.findById(appointment.patientId!.toString());
     if (!patient) {
       throw new NotFoundError('Patient not found');
     }
 
     const prescription = await this._prescriptionRepository.createPrescription(
       dto.appointmentId,
-      appointment.patientId.toString(),
-      appointment.doctorId.toString(),
+      appointment.patientId!.toString(),
+      appointment.doctorId!.toString(),
       AppointmentMapper.toPrescriptionEntity(dto.prescription)
     );
 
@@ -368,7 +433,7 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     const updatedAppointmentDTO = AppointmentMapper.toAppointmentDTO(updatedAppointment);
 
     const patientNotification: Notification = {
-      userId: appointment.patientId.toString(),
+      userId: appointment.patientId!.toString(),
       type: NotificationType.PRESCRIPTION_ISSUED,
       message: `A new prescription has been issued by Dr. ${doctor.name} for your appointment on ${new Date(appointment.date).toLocaleDateString()} at ${appointment.startTime}.`,
       isRead: false,
@@ -376,7 +441,7 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     };
 
     const doctorNotification: Notification = {
-      userId: appointment.doctorId.toString(),
+      userId: appointment.doctorId!.toString(),
       type: NotificationType.PRESCRIPTION_ISSUED,
       message: `You have issued a new prescription for ${patient.name} for the appointment on ${new Date(appointment.date).toLocaleDateString()} at ${appointment.startTime}.`,
       isRead: false,
@@ -406,6 +471,7 @@ export class AppointmentUseCase implements IAppointmentUseCase {
   }
 
   async getAllAppointments(params: QueryParams): Promise<GetAppointmentsResponseDTO> {
+    // No specific validations needed for QueryParams as it's flexible
     const result = await this._appointmentRepository.findAllWithQuery(params);
     return {
       data: result.data.map((appointment) => AppointmentMapper.toAppointmentDTO(appointment)),
@@ -414,6 +480,9 @@ export class AppointmentUseCase implements IAppointmentUseCase {
   }
 
   async getDoctorAppointments(doctorId: string, params: QueryParams): Promise<GetAppointmentsResponseDTO> {
+    // Validate doctorId
+    this._validatorService.validateIdFormat(doctorId);
+
     const result = await this._appointmentRepository.findByDoctorWithQuery(doctorId, params);
     return {
       data: result.data.map((appointment) => AppointmentMapper.toAppointmentDTO(appointment)),
@@ -424,6 +493,17 @@ export class AppointmentUseCase implements IAppointmentUseCase {
   async getDoctorAndPatientAppointmentsWithQuery(
     dto: GetDoctorAndPatientAppointmentsRequestDTO
   ): Promise<GetAppointmentsResponseDTO> {
+    // Validate required fields
+    this._validatorService.validateRequiredFields({
+      doctorId: dto.doctorId,
+      patientId: dto.patientId,
+      queryParams: dto.queryParams,
+    });
+
+    // Validate IDs
+    this._validatorService.validateIdFormat(dto.doctorId);
+    this._validatorService.validateIdFormat(dto.patientId);
+
     const result = await this._appointmentRepository.findByPatientAndDoctorWithQuery(
       dto.patientId,
       dto.doctorId,
@@ -439,6 +519,9 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     patientId: string,
     queryParams: QueryParams
   ): Promise<GetPatientAppointmentsResponseDTO> {
+    // Validate patientId
+    this._validatorService.validateIdFormat(patientId);
+
     const result = await this._appointmentRepository.findAllWithQuery({ ...queryParams, patientId });
     return {
       appointments: result.data.map((appointment) => AppointmentMapper.toAppointmentDTO(appointment)),
@@ -449,6 +532,17 @@ export class AppointmentUseCase implements IAppointmentUseCase {
   async getPatientAppointmentsForDoctor(
     dto: GetPatientAppointmentsForDoctorRequestDTO
   ): Promise<GetPatientAppointmentsResponseDTO> {
+    // Validate required fields
+    this._validatorService.validateRequiredFields({
+      patientId: dto.patientId,
+      doctorId: dto.doctorId,
+      queryParams: dto.queryParams,
+    });
+
+    // Validate IDs
+    this._validatorService.validateIdFormat(dto.patientId);
+    this._validatorService.validateIdFormat(dto.doctorId);
+
     const result = await this._appointmentRepository.findByPatientAndDoctorWithQuery(
       dto.patientId,
       dto.doctorId,
@@ -461,9 +555,8 @@ export class AppointmentUseCase implements IAppointmentUseCase {
   }
 
   async getSingleAppointment(appointmentId: string): Promise<AppointmentDTO> {
-    if (!appointmentId) {
-      throw new ValidationError('Appointment ID is required');
-    }
+    // Validate appointmentId
+    this._validatorService.validateIdFormat(appointmentId);
 
     const appointment = await this._appointmentRepository.findByIdPopulated(appointmentId);
     if (!appointment) {
@@ -474,6 +567,9 @@ export class AppointmentUseCase implements IAppointmentUseCase {
   }
 
   async getAppointmentById(appointmentId: string): Promise<AppointmentDTO> {
+    // Validate appointmentId
+    this._validatorService.validateIdFormat(appointmentId);
+
     const appointment = await this._appointmentRepository.findByIdPopulated(appointmentId);
     if (!appointment) {
       throw new NotFoundError('Appointment not found');
@@ -482,6 +578,16 @@ export class AppointmentUseCase implements IAppointmentUseCase {
   }
 
   async checkFreeBooking(dto: CheckFreeBookingRequestDTO): Promise<boolean> {
+    // Validate required fields
+    this._validatorService.validateRequiredFields({
+      patientId: dto.patientId,
+      doctorId: dto.doctorId,
+    });
+
+    // Validate IDs
+    this._validatorService.validateIdFormat(dto.patientId);
+    this._validatorService.validateIdFormat(dto.doctorId);
+
     const doctor = await this._doctorRepository.findById(dto.doctorId);
     if (!doctor || !doctor.allowFreeBooking) {
       return false;
@@ -526,6 +632,39 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     }>;
     notes?: string;
   }): Promise<Buffer> {
+    // Validate required fields for PDF generation
+    this._validatorService.validateRequiredFields({
+      patientName: data.patientName,
+      doctorName: data.doctorName,
+      date: data.date,
+      medications: data.medications,
+    });
+
+    // Validate date format
+    this._validatorService.validateDateFormat(data.date);
+
+    // Validate medications
+    data.medications.forEach((med, index) => {
+      this._validatorService.validateRequiredFields({
+        [`medication_${index}_name`]: med.name,
+        [`medication_${index}_dosage`]: med.dosage,
+        [`medication_${index}_frequency`]: med.frequency,
+        [`medication_${index}_duration`]: med.duration,
+      });
+      this._validatorService.validateLength(med.name, 1, 100);
+      this._validatorService.validateLength(med.dosage, 1, 50);
+      this._validatorService.validateLength(med.frequency, 1, 50);
+      this._validatorService.validateLength(med.duration, 1, 50);
+    });
+
+    // Validate optional fields
+    if (data.notes) this._validatorService.validateLength(data.notes, 1, 1000);
+    if (data.diagnosis) this._validatorService.validateLength(data.diagnosis, 1, 500);
+    if (data.age) this._validatorService.validatePositiveInteger(Number(data.age));
+    if (data.contact) this._validatorService.validatePhoneNumber(data.contact);
+    if (data.address) this._validatorService.validateLength(data.address, 1, 200);
+    if (data.gender) this._validatorService.validateEnum(data.gender, ['Male', 'Female', 'Other']);
+
     return new Promise((resolve, reject) => {
       const doc = new PDFKit({ size: 'A4', margin: 0 });
       const buffers: Buffer[] = [];

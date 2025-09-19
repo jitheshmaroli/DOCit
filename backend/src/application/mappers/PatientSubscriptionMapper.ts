@@ -5,8 +5,8 @@ export class PatientSubscriptionMapper {
   static toDTO(entity: PatientSubscription): PatientSubscriptionDTO {
     return {
       _id: entity._id,
-      patientId: entity.patientId,
-      planId: entity.planId,
+      patientId: entity.patientId?.toString() ?? '',
+      planId: entity.planId?.toString() ?? '',
       planDetails: entity.planDetails,
       startDate: entity.startDate?.toISOString(),
       endDate: entity.endDate?.toISOString(),

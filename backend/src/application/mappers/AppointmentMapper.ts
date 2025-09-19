@@ -6,8 +6,8 @@ export class AppointmentMapper {
   static toAppointmentDTO(appointment: Appointment): AppointmentDTO {
     const dto: AppointmentDTO = {
       _id: appointment._id?.toString(),
-      patientId: appointment.patientId,
-      doctorId: appointment.doctorId,
+      patientId: appointment.patientId ?? '',
+      doctorId: appointment.doctorId ?? '',
       date: appointment.date.toISOString(),
       startTime: appointment.startTime,
       endTime: appointment.endTime,

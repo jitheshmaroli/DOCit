@@ -149,7 +149,7 @@ export class AdminController {
 
   async addSpeciality(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { specialityName } = req.body;
+      const specialityName = req.body.name;
       if (!specialityName) throw new ValidationError(ResponseMessages.BAD_REQUEST);
       const speciality = await this._specialityUseCase.addSpeciality({ name: specialityName });
       res.status(HttpStatusCode.CREATED).json(speciality);

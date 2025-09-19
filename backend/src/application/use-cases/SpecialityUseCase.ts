@@ -1,6 +1,7 @@
 import { ISpecialityUseCase } from '../../core/interfaces/use-cases/ISpecialityUseCase';
 import { ISpecialityRepository } from '../../core/interfaces/repositories/ISpecialityRepository';
 import { IDoctorRepository } from '../../core/interfaces/repositories/IDoctorRepository';
+import { IValidatorService } from '../../core/interfaces/services/IValidatorService';
 import { QueryParams } from '../../types/authTypes';
 import { ValidationError, NotFoundError } from '../../utils/errors';
 import logger from '../../utils/logger';
@@ -15,14 +16,16 @@ import { SpecialityMapper } from '../mappers/SpecialityMapper';
 export class SpecialityUseCase implements ISpecialityUseCase {
   constructor(
     private _specialityRepository: ISpecialityRepository,
-    private doctorRepository: IDoctorRepository
+    private doctorRepository: IDoctorRepository,
+    private _validatorService: IValidatorService
   ) {}
 
   async addSpeciality(dto: AddSpecialityRequestDTO): Promise<SpecialityResponseDTO> {
-    if (!dto.name) {
-      logger.error('Speciality name is required');
-      throw new ValidationError('Speciality name is required');
-    }
+    // Validate required fields
+    this._validatorService.validateRequiredFields({ name: dto.name });
+
+    // Validate name length
+    this._validatorService.validateLength(dto.name, 1, 100);
 
     const existingSpeciality = await this._specialityRepository.findByName(dto.name);
     if (existingSpeciality) {
@@ -42,9 +45,13 @@ export class SpecialityUseCase implements ISpecialityUseCase {
   }
 
   async updateSpeciality(specialityId: string, updates: UpdateSpecialityRequestDTO): Promise<SpecialityResponseDTO> {
-    if (!specialityId) {
-      logger.error('Speciality ID is required for updating speciality');
-      throw new ValidationError('Speciality ID is required');
+    // Validate specialityId
+    this._validatorService.validateRequiredFields({ specialityId });
+    this._validatorService.validateIdFormat(specialityId);
+
+    // Validate name if provided
+    if (updates.name) {
+      this._validatorService.validateLength(updates.name, 1, 100);
     }
 
     const speciality = await this._specialityRepository.findById(specialityId);
@@ -78,10 +85,9 @@ export class SpecialityUseCase implements ISpecialityUseCase {
   }
 
   async deleteSpeciality(specialityId: string): Promise<void> {
-    if (!specialityId) {
-      logger.error('Speciality ID is required for deletion');
-      throw new ValidationError('Speciality ID is required');
-    }
+    // Validate specialityId
+    this._validatorService.validateRequiredFields({ specialityId });
+    this._validatorService.validateIdFormat(specialityId);
 
     const speciality = await this._specialityRepository.findById(specialityId);
     if (!speciality) {
@@ -109,6 +115,7 @@ export class SpecialityUseCase implements ISpecialityUseCase {
   }
 
   async getSpecialitiesWithQuery(params: QueryParams): Promise<PaginatedSpecialityResponseDTO> {
+    // No specific validation for QueryParams, as it's typically flexible
     const { data, totalItems } = await this._specialityRepository.findAllWithQuery(params);
     return SpecialityMapper.toPaginatedResponseDTO(data, totalItems, params);
   }

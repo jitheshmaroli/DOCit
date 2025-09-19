@@ -52,15 +52,11 @@ export class NotificationController {
 
   async deleteNotification(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = req.user?.id;
-      if (!userId) {
-        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
-      }
       const { notificationId } = req.params;
       if (!notificationId) {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
-      await this._notificationUseCase.deleteNotification(notificationId, userId);
+      await this._notificationUseCase.deleteNotification(notificationId);
       res.status(HttpStatusCode.NO_CONTENT).send();
     } catch (error) {
       next(error);

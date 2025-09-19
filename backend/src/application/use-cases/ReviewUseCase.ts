@@ -2,6 +2,7 @@ import { IReviewUseCase } from '../../core/interfaces/use-cases/IReviewUseCase';
 import { IReviewRepository } from '../../core/interfaces/repositories/IReviewRepository';
 import { IAppointmentRepository } from '../../core/interfaces/repositories/IAppointmentRepository';
 import { IDoctorRepository } from '../../core/interfaces/repositories/IDoctorRepository';
+import { IValidatorService } from '../../core/interfaces/services/IValidatorService';
 import { ValidationError, NotFoundError } from '../../utils/errors';
 import logger from '../../utils/logger';
 import { CreateReviewRequestDTO, ReviewResponseDTO } from '../dtos/ReviewDTOs';
@@ -11,18 +12,33 @@ export class ReviewUseCase implements IReviewUseCase {
   constructor(
     private _reviewRepository: IReviewRepository,
     private _appointmentRepository: IAppointmentRepository,
-    private _doctorRepository: IDoctorRepository
+    private _doctorRepository: IDoctorRepository,
+    private _validatorService: IValidatorService
   ) {}
 
   async createReview(dto: CreateReviewRequestDTO): Promise<ReviewResponseDTO> {
-    if (!dto.patientId || !dto.doctorId || !dto.appointmentId || !dto.rating) {
-      logger.error('Missing required fields for creating review');
-      throw new ValidationError('Patient ID, doctor ID, appointment ID, and rating are required');
-    }
+    // Validate required fields
+    this._validatorService.validateRequiredFields({
+      patientId: dto.patientId,
+      doctorId: dto.doctorId,
+      appointmentId: dto.appointmentId,
+      rating: dto.rating,
+    });
 
+    // Validate IDs
+    this._validatorService.validateIdFormat(dto.patientId);
+    this._validatorService.validateIdFormat(dto.doctorId);
+    this._validatorService.validateIdFormat(dto.appointmentId);
+
+    // Validate rating
     if (dto.rating < 1 || dto.rating > 5) {
       logger.error(`Invalid rating value: ${dto.rating}`);
       throw new ValidationError('Rating must be between 1 and 5');
+    }
+
+    // Validate comment if provided
+    if (dto.comment) {
+      this._validatorService.validateLength(dto.comment, 1, 1000);
     }
 
     const appointment = await this._appointmentRepository.findById(dto.appointmentId);
@@ -31,10 +47,8 @@ export class ReviewUseCase implements IReviewUseCase {
       throw new NotFoundError('Appointment not found');
     }
 
-    if (appointment.status !== 'completed') {
-      logger.error(`Appointment ${dto.appointmentId} is not completed`);
-      throw new ValidationError('Reviews can only be created for completed appointments');
-    }
+    // Validate appointment status
+    this._validatorService.validateEnum(appointment.status, ['completed']);
 
     const doctor = await this._doctorRepository.findById(dto.doctorId);
     if (!doctor) {
@@ -67,10 +81,9 @@ export class ReviewUseCase implements IReviewUseCase {
   }
 
   async getDoctorReviews(doctorId: string): Promise<ReviewResponseDTO[]> {
-    if (!doctorId) {
-      logger.error('Doctor ID is required for fetching reviews');
-      throw new ValidationError('Doctor ID is required');
-    }
+    // Validate doctorId
+    this._validatorService.validateRequiredFields({ doctorId });
+    this._validatorService.validateIdFormat(doctorId);
 
     const doctor = await this._doctorRepository.findById(doctorId);
     if (!doctor) {
@@ -84,6 +97,9 @@ export class ReviewUseCase implements IReviewUseCase {
   }
 
   private async updateDoctorAverageRating(doctorId: string): Promise<void> {
+    // Validate doctorId
+    this._validatorService.validateIdFormat(doctorId);
+
     const reviews = await this._reviewRepository.findByDoctorId(doctorId);
     if (reviews.length === 0) {
       await this._doctorRepository.update(doctorId, { averageRating: 0 });

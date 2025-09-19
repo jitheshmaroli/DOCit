@@ -6,9 +6,10 @@ import { SubscriptionPlan } from './SubscriptionPlan';
 
 export interface Appointment {
   _id?: string;
-  patientId: string;
-  doctorId: string;
+  patientId?: string;
+  doctorId?: string;
   planId?: string;
+  slotId?: string;
   date: Date;
   startTime: string;
   endTime: string;

@@ -4,10 +4,11 @@ import { AppointmentStatus } from '../../../application/dtos/AppointmentDTOs';
 
 const AppointmentSchema = new Schema<Appointment>(
   {
-    patientId: { type: String, required: true, ref: 'Patient' },
-    doctorId: { type: String, required: true, ref: 'Doctor' },
-    planId: { type: String, ref: 'SubscriptionPlan', required: false },
+    patientId: { type: Schema.Types.ObjectId, required: true, ref: 'Patient' },
+    doctorId: { type: Schema.Types.ObjectId, required: true, ref: 'Doctor' },
+    planId: { type: Schema.Types.ObjectId, ref: 'SubscriptionPlan' },
     date: { type: Date, required: true },
+    slotId: { type: Schema.Types.ObjectId },
     startTime: { type: String, required: true },
     endTime: { type: String, required: true },
     status: {
@@ -18,7 +19,7 @@ const AppointmentSchema = new Schema<Appointment>(
     isFreeBooking: { type: Boolean, default: false },
     bookingTime: { type: Date, default: Date.now },
     cancellationReason: { type: String, required: false },
-    prescriptionId: { type: String, ref: 'Prescription', required: false },
+    prescriptionId: { type: Schema.Types.ObjectId, ref: 'Prescription', required: false },
     hasReview: { type: Boolean, default: false },
   },
   { timestamps: true }

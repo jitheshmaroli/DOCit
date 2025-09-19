@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Response, NextFunction } from 'express';
 import { Container } from '../../../infrastructure/di/container';
 import { ValidationError } from '../../../utils/errors';
 import { IProfileUseCase } from '../../../core/interfaces/use-cases/IProfileUseCase';
@@ -6,6 +6,7 @@ import { ISpecialityUseCase } from '../../../core/interfaces/use-cases/ISpeciali
 import fs from 'fs';
 import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import logger from '../../../utils/logger';
+import { CustomRequest } from '../../../types';
 
 export class DoctorProfileController {
   private _profileUseCase: IProfileUseCase;
@@ -16,10 +17,10 @@ export class DoctorProfileController {
     this._specialityUseCase = container.get<ISpecialityUseCase>('ISpecialityUseCase');
   }
 
-  async viewProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async viewProfile(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { doctorId } = req.params;
-      const doctor = await this._profileUseCase.viewDoctorProfile(doctorId);
+      const doctorId = req.user?.id;
+      const doctor = await this._profileUseCase.viewDoctorProfile(doctorId!);
       if (!doctor) {
         throw new ValidationError('Doctor not found');
       }
@@ -29,9 +30,9 @@ export class DoctorProfileController {
     }
   }
 
-  async updateProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async updateProfile(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { doctorId } = req.params;
+      const doctorId = req.user?.id;
       const updates = { ...req.body };
 
       // Parse allowFreeBooking from string to boolean
@@ -118,7 +119,7 @@ export class DoctorProfileController {
       const licenseProofFile: Express.Multer.File | undefined = files?.['licenseProof']?.[0];
 
       const doctor = await this._profileUseCase.updateDoctorProfile(
-        doctorId,
+        doctorId!,
         updates,
         profilePictureFile,
         licenseProofFile

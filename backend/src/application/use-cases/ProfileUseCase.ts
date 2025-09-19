@@ -11,13 +11,15 @@ import { DoctorDTO } from '../dtos/DoctorDTOs';
 import { PatientDTO } from '../dtos/PatientDTOs';
 import { DoctorMapper } from '../mappers/DoctorMapper';
 import { PatientMapper } from '../mappers/PatientMapper';
+import { IValidatorService } from '../../core/interfaces/services/IValidatorService';
 
 export class ProfileUseCase implements IProfileUseCase {
   constructor(
     private _doctorRepository: IDoctorRepository,
     private _patientRepository: IPatientRepository,
     private _specialityRepository: ISpecialityRepository,
-    private _imageUploadService: IImageUploadService
+    private _imageUploadService: IImageUploadService,
+    private _validatorService: IValidatorService
   ) {
     cloudinary.config({
       cloud_name: env.CLOUDINARY_CLOUD_NAME,
@@ -28,10 +30,9 @@ export class ProfileUseCase implements IProfileUseCase {
   }
 
   async viewDoctorProfile(doctorId: string): Promise<DoctorDTO> {
-    if (!doctorId) {
-      logger.error('Doctor ID is required for viewing profile');
-      throw new ValidationError('Doctor ID is required');
-    }
+    // Validate doctorId
+    this._validatorService.validateRequiredFields({ doctorId });
+    this._validatorService.validateIdFormat(doctorId);
 
     const doctor = await this._doctorRepository.findById(doctorId);
     if (!doctor) {
@@ -48,9 +49,53 @@ export class ProfileUseCase implements IProfileUseCase {
     profilePictureFile?: Express.Multer.File,
     licenseProofFile?: Express.Multer.File
   ): Promise<DoctorDTO | null> {
-    if (!doctorId) {
-      logger.error('Doctor ID is required for updating profile');
-      throw new ValidationError('Doctor ID is required');
+    // Validate doctorId
+    this._validatorService.validateRequiredFields({ doctorId });
+    this._validatorService.validateIdFormat(doctorId);
+
+    // Validate optional fields if provided
+    if (updates.email) {
+      this._validatorService.validateEmailFormat(updates.email);
+    }
+    if (updates.name) {
+      this._validatorService.validateName(updates.name);
+    }
+    if (updates.speciality) {
+      this._validatorService.validateIdFormat(updates.speciality);
+    }
+    if (updates.experiences) {
+      updates.experiences.forEach((exp, index) => {
+        this._validatorService.validateRequiredFields({
+          hospitalName: exp.hospitalName,
+          department: exp.department,
+          years: exp.years,
+        });
+        this._validatorService.validateLength(exp.hospitalName!, 1, 100);
+        this._validatorService.validateLength(exp.department!, 1, 100);
+        if (exp.years == null || exp.years < 0 || exp.years > 99) {
+          throw new ValidationError(`Invalid years in experience entry at index ${index}`);
+        }
+      });
+    }
+
+    // Validate file uploads
+    if (profilePictureFile) {
+      if (!['image/jpeg', 'image/png'].includes(profilePictureFile.mimetype)) {
+        throw new ValidationError('Profile picture must be JPEG or PNG');
+      }
+      if (profilePictureFile.size > 2 * 1024 * 1024) {
+        // 2MB limit
+        throw new ValidationError('Profile picture size exceeds 2MB limit');
+      }
+    }
+    if (licenseProofFile) {
+      if (!['image/jpeg', 'image/png', 'application/pdf'].includes(licenseProofFile.mimetype)) {
+        throw new ValidationError('License proof must be JPEG, PNG, or PDF');
+      }
+      if (licenseProofFile.size > 5 * 1024 * 1024) {
+        // 5MB limit
+        throw new ValidationError('License proof size exceeds 5MB limit');
+      }
     }
 
     const doctor = await this._doctorRepository.findById(doctorId);
@@ -72,14 +117,6 @@ export class ProfileUseCase implements IProfileUseCase {
       if (!speciality) {
         throw new NotFoundError('Speciality not found');
       }
-    }
-
-    if (updates.experiences) {
-      updates.experiences.forEach((exp, index) => {
-        if (!exp.hospitalName || !exp.department || exp.years == null || exp.years < 0 || exp.years > 99) {
-          throw new ValidationError(`Invalid experience entry at index ${index}`);
-        }
-      });
     }
 
     let profilePicture: string | undefined;
@@ -125,10 +162,9 @@ export class ProfileUseCase implements IProfileUseCase {
   }
 
   async viewPatientProfile(patientId: string): Promise<PatientDTO> {
-    if (!patientId) {
-      logger.error('Patient ID is required for viewing profile');
-      throw new ValidationError('Patient ID is required');
-    }
+    // Validate patientId
+    this._validatorService.validateRequiredFields({ patientId });
+    this._validatorService.validateIdFormat(patientId);
 
     const patient = await this._patientRepository.findById(patientId);
     if (!patient) {
@@ -144,8 +180,27 @@ export class ProfileUseCase implements IProfileUseCase {
     updates: Partial<PatientDTO>,
     file?: Express.Multer.File
   ): Promise<PatientDTO | null> {
-    if (!patientId) {
-      throw new ValidationError('Patient ID is required');
+    // Validate patientId
+    this._validatorService.validateRequiredFields({ patientId });
+    this._validatorService.validateIdFormat(patientId);
+
+    // Validate optional fields if provided
+    if (updates.email) {
+      this._validatorService.validateEmailFormat(updates.email);
+    }
+    if (updates.name) {
+      this._validatorService.validateName(updates.name);
+    }
+
+    // Validate file upload
+    if (file) {
+      if (!['image/jpeg', 'image/png'].includes(file.mimetype)) {
+        throw new ValidationError('Profile picture must be JPEG or PNG');
+      }
+      if (file.size > 2 * 1024 * 1024) {
+        // 2MB limit
+        throw new ValidationError('Profile picture size exceeds 2MB limit');
+      }
     }
 
     const patient = await this._patientRepository.findById(patientId);

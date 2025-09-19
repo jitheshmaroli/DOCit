@@ -43,13 +43,13 @@ export class DoctorController {
       if (isRecurring && (!recurringEndDate || !recurringDays || !Array.isArray(recurringDays))) {
         throw new ValidationError('Recurring end date and days are required for recurring slots');
       }
-      const utcDate = DateUtils.parseToUTC(date);
-      const utcRecurringEndDate = recurringEndDate ? DateUtils.parseToUTC(recurringEndDate) : undefined;
+      // const utcDate = DateUtils.parseToUTC(date);
+      // const utcRecurringEndDate = recurringEndDate ? DateUtils.parseToUTC(recurringEndDate) : undefined;
       const setAvailabilityData = {
-        date: utcDate,
+        date,
         timeSlots,
         isRecurring,
-        recurringEndDate: utcRecurringEndDate,
+        recurringEndDate,
         recurringDays,
       };
       const responseData = await this._availabilityUseCase.setAvailability(doctorId, setAvailabilityData);

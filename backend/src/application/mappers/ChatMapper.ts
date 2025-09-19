@@ -6,8 +6,8 @@ export class ChatMapper {
     return {
       _id: message._id?.toString() ?? '',
       message: message.message,
-      senderId: message.senderId,
-      receiverId: message.receiverId,
+      senderId: message.senderId?.toString() ?? '',
+      receiverId: message.receiverId?.toString() ?? '',
       createdAt: message.createdAt?.toISOString() ?? new Date().toISOString(),
       attachment: message.attachment,
       isRead: message.isRead ?? false,

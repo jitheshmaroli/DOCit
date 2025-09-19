@@ -1,8 +1,8 @@
 export interface Prescription {
   _id?: string;
-  appointmentId: string;
-  patientId: string;
-  doctorId: string;
+  appointmentId?: string;
+  patientId?: string;
+  doctorId?: string;
   medications: Array<{
     name: string;
     dosage: string;

@@ -5,7 +5,7 @@ export class NotificationMapper {
   static toNotificationResponseDTO(entity: Notification): NotificationResponseDTO {
     return {
       _id: entity._id?.toString() ?? '',
-      userId: entity.userId,
+      userId: entity.userId?.toString() ?? '',
       type: entity.type,
       message: entity.message,
       isRead: entity.isRead ?? false,

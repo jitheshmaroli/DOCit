@@ -157,10 +157,10 @@ export class SocketService {
             receiverId: message.receiverId,
             attachment: message.attachment,
             reactions: message.reactions || [],
-            unreadBy: message.unreadBy || [message.receiverId],
+            unreadBy: message.unreadBy,
           };
 
-          const receiverSocketIds = this._connectedUsers.get(message.receiverId);
+          const receiverSocketIds = this._connectedUsers.get(message.receiverId!);
           if (receiverSocketIds && receiverSocketIds.size > 0) {
             receiverSocketIds.forEach((socketId) => {
               logger.info(`Emitting receiveMessage to: ${message.receiverId}, socketId: ${socketId}`, {
@@ -171,10 +171,10 @@ export class SocketService {
             logger.info(`Message sent to receiver: ${message.receiverId}`);
           } else {
             logger.warn(`Receiver not connected: ${message.receiverId}, queuing message`);
-            this.queueMessage(message.receiverId, messagePayload);
+            this.queueMessage(message.receiverId!, messagePayload);
           }
 
-          const senderSocketIds = this._connectedUsers.get(message.senderId);
+          const senderSocketIds = this._connectedUsers.get(message.senderId!);
           if (senderSocketIds && senderSocketIds.size > 0) {
             const senderPayload = { ...messagePayload, isSender: true };
             senderSocketIds.forEach((socketId) => {
@@ -208,7 +208,7 @@ export class SocketService {
           }
 
           const receiverId = message.senderId === data.userId ? message.receiverId : message.senderId;
-          const receiverSocketIds = this._connectedUsers.get(receiverId);
+          const receiverSocketIds = this._connectedUsers.get(receiverId!);
           if (receiverSocketIds && receiverSocketIds.size > 0) {
             receiverSocketIds.forEach((socketId) => {
               logger.info(`Emitting receiveReaction to: ${receiverId}, socketId: ${socketId}`, {
@@ -238,7 +238,7 @@ export class SocketService {
       socket.on('sendNotification', async (notification: Notification) => {
         try {
           await this._notificationRepository.create(notification);
-          const receiverSocketIds = this._connectedUsers.get(notification.userId);
+          const receiverSocketIds = this._connectedUsers.get(notification.userId!);
           if (receiverSocketIds && receiverSocketIds.size > 0) {
             receiverSocketIds.forEach((socketId) => {
               this._io!.to(socketId).emit('receiveNotification', notification);
@@ -453,10 +453,10 @@ export class SocketService {
       receiverId: message.receiverId,
       attachment: message.attachment,
       reactions: message.reactions || [],
-      unreadBy: message.unreadBy || [message.receiverId],
+      unreadBy: message.unreadBy,
     };
 
-    const receiverSocketIds = this._connectedUsers.get(message.receiverId);
+    const receiverSocketIds = this._connectedUsers.get(message.receiverId!);
     if (receiverSocketIds && receiverSocketIds.size > 0) {
       receiverSocketIds.forEach((socketId) => {
         logger.info(`Emitting receiveMessage to: ${message.receiverId}, socketId: ${socketId}`, {
@@ -467,10 +467,10 @@ export class SocketService {
       logger.info(`Message sent to receiver: ${message.receiverId}`);
     } else {
       logger.warn(`Receiver not connected: ${message.receiverId}, queuing message`);
-      this.queueMessage(message.receiverId, messagePayload);
+      this.queueMessage(message.receiverId!, messagePayload);
     }
 
-    const senderSocketIds = this._connectedUsers.get(message.senderId);
+    const senderSocketIds = this._connectedUsers.get(message.senderId!);
     if (senderSocketIds && senderSocketIds.size > 0) {
       const senderPayload = { ...messagePayload, isSender: true };
       senderSocketIds.forEach((socketId) => {

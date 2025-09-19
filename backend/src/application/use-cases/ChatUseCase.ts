@@ -16,6 +16,7 @@ import {
   AddReactionRequestDTO,
 } from '../dtos/ChatDTOs';
 import { ChatMapper } from '../mappers/ChatMapper';
+import { IValidatorService } from '../../core/interfaces/services/IValidatorService';
 
 export class ChatUseCase implements IChatUseCase {
   constructor(
@@ -23,10 +24,25 @@ export class ChatUseCase implements IChatUseCase {
     private _patientRepository: IPatientRepository,
     private _doctorRepository: IDoctorRepository,
     private _socketService: SocketService,
-    private _imageUploadService: IImageUploadService
+    private _imageUploadService: IImageUploadService,
+    private _validatorService: IValidatorService
   ) {}
 
   async sendMessage(message: SendMessageRequestDTO, file?: Express.Multer.File): Promise<ChatMessageResponseDTO> {
+    // Validate required fields
+    this._validatorService.validateRequiredFields({
+      senderName: message.senderName,
+      receiverId: message.receiverId,
+      message: message.message,
+    });
+
+    // Validate IDs
+    this._validatorService.validateIdFormat(message.senderName);
+    this._validatorService.validateIdFormat(message.receiverId);
+
+    // Validate message content
+    this._validatorService.validateLength(message.message, 1, 2000);
+
     const sender =
       (await this._patientRepository.findById(message.senderName)) ||
       (await this._doctorRepository.findById(message.senderName));
@@ -45,6 +61,15 @@ export class ChatUseCase implements IChatUseCase {
 
     let attachment: ChatMessage['attachment'] | undefined;
     if (file && this._imageUploadService) {
+      // Validate file (basic check for mimetype and size)
+      if (!['image/jpeg', 'image/png', 'application/pdf'].includes(file.mimetype)) {
+        throw new ValidationError('Invalid file type. Only JPEG, PNG, or PDF allowed.');
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        // 5MB limit
+        throw new ValidationError('File size exceeds 5MB limit.');
+      }
+
       try {
         const { url } = await this._imageUploadService.uploadFile(file, 'chat_attachments');
         attachment = {
@@ -71,20 +96,24 @@ export class ChatUseCase implements IChatUseCase {
   }
 
   async getMessages(senderId: string, receiverId: string): Promise<ChatMessageResponseDTO[]> {
-    if (!senderId || !receiverId) {
-      logger.error('Sender ID and receiver ID are required for fetching messages');
-      throw new ValidationError('Sender ID and receiver ID are required');
-    }
+    // Validate required fields
+    this._validatorService.validateRequiredFields({ senderId, receiverId });
+
+    // Validate IDs
+    this._validatorService.validateIdFormat(senderId);
+    this._validatorService.validateIdFormat(receiverId);
 
     const messages = await this._chatRepository.findByParticipants(senderId, receiverId);
     return messages.map((message) => ChatMapper.toChatMessageResponseDTO(message));
   }
 
   async deleteMessage(messageId: string, userId: string): Promise<void> {
-    if (!messageId || !userId) {
-      logger.error('Message ID and user ID are required for deleting message');
-      throw new ValidationError('Message ID and user ID are required');
-    }
+    // Validate required fields
+    this._validatorService.validateRequiredFields({ messageId, userId });
+
+    // Validate IDs
+    this._validatorService.validateIdFormat(messageId);
+    this._validatorService.validateIdFormat(userId);
 
     const message = await this._chatRepository.findById(messageId);
     if (!message) {
@@ -106,10 +135,11 @@ export class ChatUseCase implements IChatUseCase {
   }
 
   async getChatHistory(userId: string, params: QueryParams): Promise<ChatMessageResponseDTO[]> {
-    if (!userId) {
-      logger.error('User ID is required for fetching chat history');
-      throw new ValidationError('User ID is required');
-    }
+    // Validate required fields
+    this._validatorService.validateRequiredFields({ userId });
+
+    // Validate userId
+    this._validatorService.validateIdFormat(userId);
 
     const messages = await this._chatRepository.getChatHistory(userId, params);
     return messages.map((message) => ChatMapper.toChatMessageResponseDTO(message));
@@ -120,16 +150,20 @@ export class ChatUseCase implements IChatUseCase {
     role: UserRole.Patient | UserRole.Doctor,
     params: QueryParams
   ): Promise<InboxResponseDTO[]> {
-    if (!userId || !role) {
-      logger.error('User ID and role are required for fetching inbox');
-      throw new ValidationError('User ID and role are required');
-    }
+    // Validate required fields
+    this._validatorService.validateRequiredFields({ userId, role });
+
+    // Validate userId and role
+    this._validatorService.validateIdFormat(userId);
+    this._validatorService.validateEnum(role, [UserRole.Patient, UserRole.Doctor]);
 
     const inboxEntries = await this._chatRepository.getInbox(userId, params);
 
     const inboxResponses: InboxResponseDTO[] = await Promise.all(
       inboxEntries.map(async (entry) => {
         const partnerId = entry.partnerId;
+        this._validatorService.validateIdFormat(partnerId); // Validate partnerId
+
         let partnerName: string;
         let partnerProfilePicture: string | undefined;
         let lastSeen: Date | undefined;
@@ -178,10 +212,12 @@ export class ChatUseCase implements IChatUseCase {
   }
 
   async markMessageAsRead(messageId: string, userId: string): Promise<void> {
-    if (!messageId || !userId) {
-      logger.error('Message ID and user ID are required for marking message as read');
-      throw new ValidationError('Message ID and user ID are required');
-    }
+    // Validate required fields
+    this._validatorService.validateRequiredFields({ messageId, userId });
+
+    // Validate IDs
+    this._validatorService.validateIdFormat(messageId);
+    this._validatorService.validateIdFormat(userId);
 
     const message = await this._chatRepository.findById(messageId);
     if (!message) {
@@ -203,10 +239,18 @@ export class ChatUseCase implements IChatUseCase {
   }
 
   async addReaction(messageId: string, userId: string, dto: AddReactionRequestDTO): Promise<ChatMessageResponseDTO> {
-    if (!messageId || !userId || !dto.emoji) {
-      logger.error('Message ID, user ID, and emoji are required for adding reaction');
-      throw new ValidationError('Message ID, user ID, and emoji are required');
-    }
+    // Validate required fields
+    this._validatorService.validateRequiredFields({ messageId, userId, emoji: dto.emoji });
+
+    // Validate IDs
+    this._validatorService.validateIdFormat(messageId);
+    this._validatorService.validateIdFormat(userId);
+
+    // Validate emoji (basic length check, assuming single emoji or short string)
+    this._validatorService.validateLength(dto.emoji, 1, 10);
+
+    // Validate replace flag
+    this._validatorService.validateBoolean(dto.replace);
 
     const message = await this._chatRepository.findById(messageId);
     if (!message) {

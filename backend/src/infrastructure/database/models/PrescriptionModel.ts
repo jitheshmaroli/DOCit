@@ -3,9 +3,9 @@ import { Prescription } from '../../../core/entities/Prescription';
 
 const PrescriptionSchema = new Schema<Prescription>(
   {
-    appointmentId: { type: String, required: true, ref: 'Appointment' },
-    patientId: { type: String, required: true, ref: 'Patient' },
-    doctorId: { type: String, required: true, ref: 'Doctor' },
+    appointmentId: { type: Schema.Types.ObjectId, required: true, ref: 'Appointment' },
+    patientId: { type: Schema.Types.ObjectId, required: true, ref: 'Patient' },
+    doctorId: { type: Schema.Types.ObjectId, required: true, ref: 'Doctor' },
     medications: [
       {
         name: { type: String, required: true },

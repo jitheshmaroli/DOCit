@@ -31,6 +31,7 @@ import { ReportUseCase } from '../../application/use-cases/ReportUseCase';
 import { SpecialityUseCase } from '../../application/use-cases/SpecialityUseCase';
 import { UserUseCase } from '../../application/use-cases/UserUseCase';
 import { PrescriptionRepository } from '../repositories/PrescriptionRepository';
+import JoiService from '../services/JOIService';
 
 export class Container {
   private static instance: Container;
@@ -66,6 +67,7 @@ export class Container {
       notificationRepository
     );
     const notificationService = new NotificationService(notificationRepository, socketService);
+    const validatorService = new JoiService();
 
     // Register services
     this.dependencies.set('IEmailService', emailService);
@@ -75,6 +77,7 @@ export class Container {
     this.dependencies.set('IImageUploadService', imageUploadService);
     this.dependencies.set('SocketService', socketService);
     this.dependencies.set('INotificationService', notificationService);
+    this.dependencies.set('IValidatorService', validatorService);
 
     // Register repositories
     this.dependencies.set('IPatientRepository', patientRepository);
@@ -94,7 +97,14 @@ export class Container {
     // Register use cases
     this.dependencies.set(
       'IAuthenticationUseCase',
-      new AuthenticationUseCase(patientRepository, doctorRepository, adminRepository, otpService, tokenService)
+      new AuthenticationUseCase(
+        patientRepository,
+        doctorRepository,
+        adminRepository,
+        otpService,
+        tokenService,
+        validatorService
+      )
     );
     this.dependencies.set(
       'IAppointmentUseCase',
@@ -107,10 +117,11 @@ export class Container {
         doctorRepository,
         patientRepository,
         imageUploadService,
-        prescriptionRepository
+        prescriptionRepository,
+        validatorService
       )
     );
-    this.dependencies.set('INotificationUseCase', new NotificationUseCase(notificationRepository));
+    this.dependencies.set('INotificationUseCase', new NotificationUseCase(notificationRepository, validatorService));
     this.dependencies.set(
       'IAvailabilityUseCase',
       new AvailabilityUseCase(
@@ -118,7 +129,8 @@ export class Container {
         availabilityRepository,
         appointmentRepository,
         emailService,
-        patientRepository
+        patientRepository,
+        validatorService
       )
     );
     this.dependencies.set(
@@ -130,25 +142,42 @@ export class Container {
         doctorRepository,
         stripeService,
         notificationService,
-        emailService
+        emailService,
+        validatorService
       )
     );
-    this.dependencies.set('IDoctorUseCase', new DoctorUseCase(doctorRepository, specialityRepository));
+    this.dependencies.set(
+      'IDoctorUseCase',
+      new DoctorUseCase(doctorRepository, specialityRepository, validatorService)
+    );
     this.dependencies.set(
       'IPatientUseCase',
-      new PatientUseCase(patientRepository, patientSubscriptionRepository, appointmentRepository)
+      new PatientUseCase(patientRepository, patientSubscriptionRepository, appointmentRepository, validatorService)
     );
     this.dependencies.set(
       'IChatUseCase',
-      new ChatUseCase(chatRepository, patientRepository, doctorRepository, socketService, imageUploadService)
+      new ChatUseCase(
+        chatRepository,
+        patientRepository,
+        doctorRepository,
+        socketService,
+        imageUploadService,
+        validatorService
+      )
     );
     this.dependencies.set(
       'IReviewUseCase',
-      new ReviewUseCase(reviewRepository, appointmentRepository, doctorRepository)
+      new ReviewUseCase(reviewRepository, appointmentRepository, doctorRepository, validatorService)
     );
     this.dependencies.set(
       'IProfileUseCase',
-      new ProfileUseCase(doctorRepository, patientRepository, specialityRepository, imageUploadService)
+      new ProfileUseCase(
+        doctorRepository,
+        patientRepository,
+        specialityRepository,
+        imageUploadService,
+        validatorService
+      )
     );
     this.dependencies.set(
       'IReportUseCase',
@@ -160,8 +189,14 @@ export class Container {
         patientRepository
       )
     );
-    this.dependencies.set('ISpecialityUseCase', new SpecialityUseCase(specialityRepository, doctorRepository));
-    this.dependencies.set('IUserUseCase', new UserUseCase(patientRepository, doctorRepository, adminRepository));
+    this.dependencies.set(
+      'ISpecialityUseCase',
+      new SpecialityUseCase(specialityRepository, doctorRepository, validatorService)
+    );
+    this.dependencies.set(
+      'IUserUseCase',
+      new UserUseCase(patientRepository, doctorRepository, adminRepository, validatorService)
+    );
   }
 
   static getInstance(): Container {

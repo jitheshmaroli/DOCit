@@ -26,6 +26,7 @@ import {
   LoginRequestDTO,
 } from '../dtos/AuthDtos';
 import { AuthMapper } from '../mappers/AuthMapper';
+import { IValidatorService } from '../../core/interfaces/services/IValidatorService';
 
 export class AuthenticationUseCase implements IAuthenticationUseCase {
   constructor(
@@ -33,14 +34,22 @@ export class AuthenticationUseCase implements IAuthenticationUseCase {
     private _doctorRepository: IDoctorRepository,
     private _adminRepository: IAdminRepository,
     private _otpService: IOTPService,
-    private _tokenService: ITokenService
+    private _tokenService: ITokenService,
+    private _validatorService: IValidatorService
   ) {}
 
   async loginAdmin(dto: LoginRequestDTO): Promise<LoginResponseDTO> {
-    if (!dto.email || !dto.password) {
-      logger.error('Email and password are required for admin login');
-      throw new ValidationError('Email and password are required');
-    }
+    // Validate required fields
+    this._validatorService.validateRequiredFields({
+      email: dto.email,
+      password: dto.password,
+    });
+
+    // Validate email format
+    this._validatorService.validateEmailFormat(dto.email);
+
+    // Validate password format
+    this._validatorService.validatePassword(dto.password);
 
     const admin = await this._adminRepository.findByEmail(dto.email);
     if (!admin) {
@@ -65,10 +74,17 @@ export class AuthenticationUseCase implements IAuthenticationUseCase {
   }
 
   async loginDoctor(dto: LoginRequestDTO): Promise<LoginResponseDTO> {
-    if (!dto.email || !dto.password) {
-      logger.error('Email and password are required for doctor login');
-      throw new ValidationError('Email and password are required');
-    }
+    // Validate required fields
+    this._validatorService.validateRequiredFields({
+      email: dto.email,
+      password: dto.password,
+    });
+
+    // Validate email format
+    this._validatorService.validateEmailFormat(dto.email);
+
+    // Validate password format
+    this._validatorService.validatePassword(dto.password);
 
     const doctor = await this._doctorRepository.findByEmail(dto.email);
     if (!doctor) {
@@ -100,10 +116,17 @@ export class AuthenticationUseCase implements IAuthenticationUseCase {
   }
 
   async loginPatient(dto: LoginRequestDTO): Promise<LoginResponseDTO> {
-    if (!dto.email || !dto.password) {
-      logger.error('Email and password are required for patient login');
-      throw new ValidationError('Email and password are required');
-    }
+    // Validate required fields
+    this._validatorService.validateRequiredFields({
+      email: dto.email,
+      password: dto.password,
+    });
+
+    // Validate email format
+    this._validatorService.validateEmailFormat(dto.email);
+
+    // Validate password format
+    this._validatorService.validatePassword(dto.password);
 
     const patient = await this._patientRepository.findByEmail(dto.email);
     logger.info('patient:', patient);
@@ -134,12 +157,18 @@ export class AuthenticationUseCase implements IAuthenticationUseCase {
   }
 
   async googleSignInDoctor(token: string): Promise<GoogleSignInResponseDTO> {
-    if (!token) {
-      logger.error('Google token is required for doctor sign-in');
-      throw new ValidationError('Google token is required');
-    }
+    // Validate token
+    this._validatorService.validateRequiredFields({ token });
+
+    // Validate token length (assuming it should be non-empty and reasonable length)
+    this._validatorService.validateLength(token, 1, 2000);
 
     const { googleId, email, name } = await verifyGoogleToken(token);
+
+    // Validate extracted fields
+    this._validatorService.validateRequiredFields({ googleId, email, name });
+    this._validatorService.validateEmailFormat(email);
+    this._validatorService.validateName(name);
 
     // Check if email is already registered as a patient
     const existingPatient = await this._patientRepository.findByEmail(email);
@@ -177,12 +206,18 @@ export class AuthenticationUseCase implements IAuthenticationUseCase {
   }
 
   async googleSignInPatient(token: string): Promise<GoogleSignInResponseDTO> {
-    if (!token) {
-      logger.error('Google token is required for patient sign-in');
-      throw new ValidationError('Google token is required');
-    }
+    // Validate token
+    this._validatorService.validateRequiredFields({ token });
+
+    // Validate token length
+    this._validatorService.validateLength(token, 1, 2000);
 
     const { googleId, email, name } = await verifyGoogleToken(token);
+
+    // Validate extracted fields
+    this._validatorService.validateRequiredFields({ googleId, email, name });
+    this._validatorService.validateEmailFormat(email);
+    this._validatorService.validateName(name);
 
     // Check if email is already registered as a doctor
     const existingDoctor = await this._doctorRepository.findByEmail(email);
@@ -214,9 +249,19 @@ export class AuthenticationUseCase implements IAuthenticationUseCase {
   }
 
   async signupDoctor(dto: SignupRequestDTO): Promise<SignupResponseDTO> {
-    if (!dto.email || !dto.name || !dto.password || !dto.licenseNumber) {
-      throw new ValidationError('Email, name, password, and license number are required');
-    }
+    // Validate required fields
+    this._validatorService.validateRequiredFields({
+      email: dto.email,
+      name: dto.name,
+      password: dto.password,
+      licenseNumber: dto.licenseNumber,
+    });
+
+    // Validate email, name, password, and license number
+    this._validatorService.validateEmailFormat(dto.email);
+    this._validatorService.validateName(dto.name);
+    this._validatorService.validatePassword(dto.password);
+    this._validatorService.validateLicenseNumber(dto.licenseNumber!);
 
     // Check if email is already registered as a doctor or patient
     const existingDoctor = await this._doctorRepository.findByEmail(dto.email);
@@ -244,10 +289,17 @@ export class AuthenticationUseCase implements IAuthenticationUseCase {
   }
 
   async signupPatient(dto: SignupRequestDTO): Promise<SignupResponseDTO> {
-    if (!dto.email || !dto.name || !dto.password) {
-      logger.error('Missing required fields for patient signup');
-      throw new ValidationError('Email, name, and password are required');
-    }
+    // Validate required fields
+    this._validatorService.validateRequiredFields({
+      email: dto.email,
+      name: dto.name,
+      password: dto.password,
+    });
+
+    // Validate email, name, and password
+    this._validatorService.validateEmailFormat(dto.email);
+    this._validatorService.validateName(dto.name);
+    this._validatorService.validatePassword(dto.password);
 
     // Check if email is already registered as a doctor or patient
     const existingPatient = await this._patientRepository.findByEmail(dto.email);
@@ -275,10 +327,9 @@ export class AuthenticationUseCase implements IAuthenticationUseCase {
   }
 
   async forgotPassword(email: string): Promise<ForgotPasswordResponseDTO> {
-    if (!email) {
-      logger.error('Email is required for password reset');
-      throw new ValidationError('Email is required');
-    }
+    // Validate email
+    this._validatorService.validateRequiredFields({ email });
+    this._validatorService.validateEmailFormat(email);
 
     const user =
       (await this._patientRepository.findByEmail(email)) ||
@@ -300,10 +351,13 @@ export class AuthenticationUseCase implements IAuthenticationUseCase {
   }
 
   async resetPassword(email: string, otp: string, newPassword: string): Promise<ResetPasswordResponseDTO> {
-    if (!email || !otp || !newPassword) {
-      logger.error('Email, OTP, and new password are required for password reset');
-      throw new ValidationError('Email, OTP, and new password are required');
-    }
+    // Validate required fields
+    this._validatorService.validateRequiredFields({ email, otp, newPassword });
+
+    // Validate email, OTP, and password
+    this._validatorService.validateEmailFormat(email);
+    this._validatorService.validateOtp(otp);
+    this._validatorService.validatePassword(newPassword);
 
     const isValidOTP = await this._otpService.verifyOTP(email, otp);
     if (!isValidOTP) {
@@ -359,9 +413,19 @@ export class AuthenticationUseCase implements IAuthenticationUseCase {
   }
 
   async verifySignUpOTP(dto: VerifySignupOTPRequestDTO): Promise<VerifySignupOTPResponseDTO> {
-    if (!dto.email || !dto.otp || !dto._id || !dto.role) {
-      throw new ValidationError('Email, OTP, entity ID, and role are required');
-    }
+    // Validate required fields
+    this._validatorService.validateRequiredFields({
+      email: dto.email,
+      otp: dto.otp,
+      _id: dto._id,
+      role: dto.role,
+    });
+
+    // Validate email, OTP, ID, and role
+    this._validatorService.validateEmailFormat(dto.email);
+    this._validatorService.validateOtp(dto.otp);
+    this._validatorService.validateIdFormat(dto._id);
+    this._validatorService.validateEnum(dto.role, [UserRole.Doctor, UserRole.Patient]);
 
     const isValidOTP = await this._otpService.verifyOTP(dto.email, dto.otp);
     if (!isValidOTP) {
@@ -417,9 +481,11 @@ export class AuthenticationUseCase implements IAuthenticationUseCase {
   }
 
   async refreshToken(refreshToken: string): Promise<RefreshTokenResponseDTO> {
-    if (!refreshToken) {
-      throw new ValidationError('Refresh token is required');
-    }
+    // Validate token
+    this._validatorService.validateRequiredFields({ refreshToken });
+
+    // Validate token length
+    this._validatorService.validateLength(refreshToken, 1, 2000);
 
     try {
       const payload = this._tokenService.verifyRefreshToken(refreshToken);
@@ -432,10 +498,12 @@ export class AuthenticationUseCase implements IAuthenticationUseCase {
   }
 
   async logout(userId: string, role: UserRole): Promise<LogoutResponseDTO> {
-    if (!userId || !role) {
-      logger.error('User ID and role are required for logout');
-      throw new ValidationError('User ID and role are required');
-    }
+    // Validate required fields
+    this._validatorService.validateRequiredFields({ userId, role });
+
+    // Validate ID and role
+    this._validatorService.validateIdFormat(userId);
+    this._validatorService.validateEnum(role, [UserRole.Patient, UserRole.Doctor, UserRole.Admin]);
 
     try {
       if (role === UserRole.Patient) {
@@ -453,9 +521,12 @@ export class AuthenticationUseCase implements IAuthenticationUseCase {
   }
 
   async resendSignupOTP(email: string, role: UserRole): Promise<ResendSignupOTPResponseDTO> {
-    if (!email || !role) {
-      throw new ValidationError('Email and role are required');
-    }
+    // Validate required fields
+    this._validatorService.validateRequiredFields({ email, role });
+
+    // Validate email and role
+    this._validatorService.validateEmailFormat(email);
+    this._validatorService.validateEnum(role, [UserRole.Patient, UserRole.Doctor]);
 
     let user: Patient | Doctor | null = null;
     if (role === UserRole.Patient) {

@@ -3,10 +3,12 @@ import { AvailabilityResponseDTO, TimeSlotDTO, SetAvailabilityRequestDTO } from 
 
 export class AvailabilityMapper {
   static toAvailabilityResponseDTO(availability: Availability): AvailabilityResponseDTO {
+    const dateIso = availability.date.toISOString();
     return {
       _id: availability._id?.toString() ?? '',
-      doctorId: availability.doctorId,
-      date: availability.date.toISOString(),
+      doctorId: availability.doctorId?.toString() ?? '',
+      date: dateIso,
+      dateKey: new Date(dateIso).toISOString().split('T')[0], // 'YYYY-MM-DD'
       timeSlots: availability.timeSlots.map((slot) => ({
         startTime: slot.startTime,
         endTime: slot.endTime,

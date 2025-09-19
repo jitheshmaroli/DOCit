@@ -10,7 +10,7 @@ export class SubscriptionPlanMapper {
   static toSubscriptionPlanResponseDTO(entity: SubscriptionPlan): SubscriptionPlanResponseDTO {
     return {
       _id: entity._id?.toString() ?? '',
-      doctorId: entity.doctorId,
+      doctorId: entity.doctorId?.toString() ?? '',
       name: entity.name,
       description: entity.description,
       price: entity.price,
