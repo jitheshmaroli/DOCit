@@ -53,6 +53,11 @@ interface Review {
   patientName?: string;
 }
 
+interface PaymentDetails {
+  paymentIntentId: string;
+  amount: number;
+}
+
 const ITEMS_PER_PAGE = 5;
 
 const DoctorDetails: React.FC = () => {
@@ -83,11 +88,13 @@ const DoctorDetails: React.FC = () => {
   const [availability, setAvailability] = useState<Availability[]>([]);
   const [currentTimeSlots, setCurrentTimeSlots] = useState<TimeSlot[]>([]);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<null | {
     id: string;
     price: number;
   }>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [paymentDetails, setPaymentDetails] = useState<PaymentDetails | null>(null);
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [isCancelSubscriptionModalOpen, setIsCancelSubscriptionModalOpen] =
@@ -247,6 +254,15 @@ const DoctorDetails: React.FC = () => {
     }
   };
 
+  const handlePaymentSuccess = (details: PaymentDetails) => {
+    setPaymentDetails(details);
+    setIsPaymentModalOpen(false);
+    setIsSuccessModalOpen(true);
+    setSelectedPlan(null);
+    setClientSecret(null);
+    dispatch(getPatientSubscriptionsThunk());
+  };
+
   const debouncedCancelSubscription = debounce(async () => {
     if (!doctorId || !activeSubscription?._id) {
       toast.error('No active subscription to cancel');
@@ -287,6 +303,17 @@ const DoctorDetails: React.FC = () => {
     setCancellationReason('');
     setModalMode('cancel');
     dispatch(clearRefundDetails());
+  };
+
+  const handleCloseSuccessModal = () => {
+    setIsSuccessModalOpen(false);
+    setPaymentDetails(null);
+  };
+
+  const handleViewInvoice = () => {
+    if (paymentDetails) {
+      navigate(`/patient/invoice/${paymentDetails.paymentIntentId}`);
+    }
   };
 
   const handleDateChange = (date: string) => {
@@ -520,6 +547,34 @@ const DoctorDetails: React.FC = () => {
               {lastRefundDetails?.amount.toFixed(2) || '0.00'}
             </p>
           )}
+        </div>
+      </Modal>
+      <Modal
+        isOpen={isSuccessModalOpen}
+        onClose={handleCloseSuccessModal}
+        title="Payment Successful"
+        footer={
+          <div className="flex gap-4">
+            <button
+              onClick={handleViewInvoice}
+              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-300"
+            >
+              View Invoice
+            </button>
+            <button
+              onClick={handleCloseSuccessModal}
+              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
+            >
+              Close
+            </button>
+          </div>
+        }
+      >
+        <div className="text-gray-200 mb-4">
+          <p>Thank you for your subscription!</p>
+          <p>Payment Details:</p>
+          <p>Amount: ₹{paymentDetails?.amount.toFixed(2) || 'N/A'}</p>
+          <p>Payment ID: {paymentDetails?.paymentIntentId || 'N/A'}</p>
         </div>
       </Modal>
       <div className="container mx-auto px-4">
@@ -827,12 +882,7 @@ const DoctorDetails: React.FC = () => {
                 <PaymentForm
                   planId={selectedPlan.id}
                   price={selectedPlan.price}
-                  onSuccess={() => {
-                    setIsPaymentModalOpen(false);
-                    setSelectedPlan(null);
-                    setClientSecret(null);
-                    dispatch(getPatientSubscriptionsThunk());
-                  }}
+                  onSuccess={handlePaymentSuccess}
                   onError={(error) => {
                     toast.error(error);
                   }}

@@ -103,7 +103,9 @@ export const listDoctors = async (
   }
 };
 
-export const createDoctor = async (doctor: Partial<Doctor>): Promise<Doctor> => {
+export const createDoctor = async (
+  doctor: Partial<Doctor>
+): Promise<Doctor> => {
   try {
     const response = await api.post<Doctor>(ROUTES.API.ADMIN.DOCTORS, doctor);
     return response.data;
@@ -195,9 +197,14 @@ export const listPatients = async (
   }
 };
 
-export const createPatient = async (patient: Partial<Patient>): Promise<Patient> => {
+export const createPatient = async (
+  patient: Partial<Patient>
+): Promise<Patient> => {
   try {
-    const response = await api.post<Patient>(ROUTES.API.ADMIN.PATIENTS, patient);
+    const response = await api.post<Patient>(
+      ROUTES.API.ADMIN.PATIENTS,
+      patient
+    );
     return response.data;
   } catch (error) {
     const axiosError = error as AxiosError<ApiError>;
@@ -363,6 +370,7 @@ export const getAllSpecialities = async (
 
 export const createSpeciality = async (name: string): Promise<Speciality> => {
   try {
+    console.log('specialityname:', name);
     const response = await api.post<Speciality>(ROUTES.API.ADMIN.SPECIALITIES, {
       name,
     });
@@ -423,7 +431,10 @@ export const getDashboardStats = async (): Promise<DashboardStats> => {
 // Reports
 export const getReports = async (filter: ReportFilter): Promise<ReportData> => {
   try {
-    const response = await api.post<ReportData>(ROUTES.API.ADMIN.REPORTS, filter);
+    const response = await api.post<ReportData>(
+      ROUTES.API.ADMIN.REPORTS,
+      filter
+    );
     return response.data;
   } catch (error) {
     const axiosError = error as AxiosError<ApiError>;
