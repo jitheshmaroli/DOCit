@@ -127,6 +127,7 @@ export const ROUTES = {
       DOCTOR_REVIEWS: apiPath('/patients/doctors/:doctorId/reviews'),
       SUBSCRIPTION_LIST: apiPath('/patients/subscriptions'),
       PATIENT_BY_ID: apiPath('/patients/:patientId'),
+      INVOICE_DETAILS: '/patient/invoice/:paymentIntentId',
     },
 
     MESSAGE: {

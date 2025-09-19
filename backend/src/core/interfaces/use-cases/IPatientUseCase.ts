@@ -11,4 +11,18 @@ export interface IPatientUseCase {
   getPatientActiveSubscription(patientId: string, doctorId: string): Promise<PatientSubscriptionDTO | null>;
   getSubscribedPatients(doctorId: string): Promise<PatientDTO[] | null>;
   getAppointedPatients(doctorId: string, params: QueryParams): Promise<PaginatedPatientResponseDTO>;
+  getInvoiceDetails(
+    patientId: string,
+    paymentIntentId: string
+  ): Promise<{
+    paymentIntentId: string;
+    amount: number;
+    cardLast4?: string;
+    date: string;
+    planName?: string;
+    doctorName?: string;
+    status: string;
+    cancellationReason?: string;
+    remainingDays?: number;
+  }>;
 }

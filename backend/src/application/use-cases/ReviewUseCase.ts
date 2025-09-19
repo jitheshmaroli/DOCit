@@ -92,7 +92,6 @@ export class ReviewUseCase implements IReviewUseCase {
     }
 
     const reviews = await this._reviewRepository.findByDoctorId(doctorId);
-    logger.info('usecase reviews:', reviews);
     return reviews.map(ReviewMapper.toReviewResponseDTO);
   }
 

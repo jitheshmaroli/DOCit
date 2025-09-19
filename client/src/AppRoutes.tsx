@@ -34,6 +34,7 @@ import Subscriptions from './pages/patient/Profile/Subscriptions';
 import PersonalInformation from './pages/patient/Profile/PersonalInformation';
 import PatientMessages from './pages/patient/Profile/Messages';
 import DoctorPatients from './pages/doctor/DoctorPatients';
+import InvoiceDetails from './pages/patient/InvoiceDetails';
 
 const AppRoutes = () => {
   const navigate = useNavigate();
@@ -74,6 +75,7 @@ const AppRoutes = () => {
             path="appointment/:appointmentId"
             element={<AppointmentDetails />}
           />
+          <Route path="/patient/invoice/:paymentIntentId" element={<InvoiceDetails />} />
         </Route>
       </Route>
 

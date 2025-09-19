@@ -175,22 +175,22 @@ export class PatientController {
         throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const subscriptions = await this._patientUseCase.getPatientSubscriptions(patientId);
-      const enhancedSubscriptions = await Promise.all(
-        subscriptions.map(async (sub) => {
-          if (sub.planDetails?.doctorId) {
-            const doctor = await this._doctorUseCase.getDoctor(sub.planDetails.doctorId);
-            return {
-              ...sub,
-              planDetails: {
-                ...sub.planDetails,
-                doctorName: doctor?.name || 'Unknown Doctor',
-              },
-            };
-          }
-          return sub;
-        })
-      );
-      res.status(HttpStatusCode.OK).json(enhancedSubscriptions);
+      // const enhancedSubscriptions = await Promise.all(
+      //   subscriptions.map(async (sub) => {
+      //     if (sub.planDetails?.doctorId) {
+      //       const doctor = await this._doctorUseCase.getDoctor(sub.planDetails.doctorId);
+      //       return {
+      //         ...sub,
+      //         planDetails: {
+      //           ...sub.planDetails,
+      //           doctorName: doctor?.name || 'Unknown Doctor',
+      //         },
+      //       };
+      //     }
+      //     return sub;
+      //   })
+      // );
+      res.status(HttpStatusCode.OK).json(subscriptions);
     } catch (error) {
       next(error);
     }
@@ -394,8 +394,21 @@ export class PatientController {
       }
 
       const reviews = await this._reviewUseCase.getDoctorReviews(doctorId);
-      console.log('reviews:', reviews);
       res.status(HttpStatusCode.OK).json(reviews);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getInvoiceDetails(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const patientId = req.user?.id;
+      const { paymentIntentId } = req.params;
+      if (!patientId || !paymentIntentId) {
+        throw new ValidationError(ResponseMessages.BAD_REQUEST);
+      }
+      const invoiceDetails = await this._patientUseCase.getInvoiceDetails(patientId, paymentIntentId);
+      res.status(HttpStatusCode.OK).json(invoiceDetails);
     } catch (error) {
       next(error);
     }

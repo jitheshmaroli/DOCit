@@ -135,17 +135,43 @@ export const getPatientSubscriptionsThunk = createAsyncThunk(
       const subscriptions = await getPatientSubscriptions();
       const formattedSubscriptions = await Promise.all(
         subscriptions.map(async (subscription: PatientSubscription) => {
-          const doctor = await getDoctor(subscription.planId.doctorId);
+          if (!subscription.planId || !subscription?.planDetails?.doctorId) {
+            console.warn(
+              `Skipping doctor fetch for subscription ${subscription._id}: missing planId or doctorId`
+            );
+            return {
+              _id: subscription._id,
+              plan: {
+                _id: subscription.planDetails?._id || '',
+                name: subscription.planDetails?.name || 'Unknown Plan',
+                description: subscription.planDetails?.description || '',
+                price: subscription.planDetails?.price || 0,
+                validityDays: subscription.planDetails?.validityDays || 0,
+                appointmentCount: subscription.planDetails?.appointmentCount || 0,
+                doctorId: subscription.planDetails?.doctorId || '',
+              },
+              daysUntilExpiration: subscription.remainingDays,
+              isExpired:
+                subscription.status !== 'active' ||
+                DateUtils.parseToUTC(subscription.expiryDate) < new Date(),
+              appointmentsLeft: subscription.appointmentsLeft,
+              status: subscription.status,
+              createdAt: subscription.createdAt,
+              expiryDate: subscription.expiryDate,
+            };
+          }
+
+          const doctor = await getDoctor(subscription.planDetails.doctorId);
           return {
             _id: subscription._id,
             plan: {
-              _id: subscription.planId._id,
-              name: subscription.planId.name,
-              description: subscription.planId.description,
-              price: subscription.planId.price,
-              validityDays: subscription.planId.validityDays,
-              appointmentCount: subscription.planId.appointmentCount,
-              doctorId: subscription.planId.doctorId,
+              _id: subscription.planDetails._id,
+              name: subscription.planDetails.name,
+              description: subscription.planDetails.description,
+              price: subscription.planDetails.price,
+              validityDays: subscription.planDetails.validityDays,
+              appointmentCount: subscription.planDetails.appointmentCount,
+              doctorId: subscription.planDetails.doctorId,
               doctorName: doctor?.name || 'Unknown Doctor',
             },
             daysUntilExpiration: subscription.remainingDays,

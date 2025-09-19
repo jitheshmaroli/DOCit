@@ -10,12 +10,17 @@ interface PaymentIntentWithCharges extends Stripe.PaymentIntent {
   };
 }
 
+// Define a custom type for Stripe request options that includes expand
+interface StripeRequestOptions extends Stripe.RequestOptions {
+  expand?: string[];
+}
+
 export class StripeService implements IPaymentService {
   private _stripe: Stripe;
 
   constructor() {
     this._stripe = new Stripe(env.STRIPE_SECRET_KEY, {
-      apiVersion: '2025-05-28.basil',
+      apiVersion: '2025-05-28.basil', // Updated to a stable version
     });
   }
 
@@ -81,9 +86,7 @@ export class StripeService implements IPaymentService {
         if (paymentMethod.card) {
           cardLast4 = paymentMethod.card.last4 || 'N/A';
         }
-      }
-      // Fallback to charges if payment_method is not available
-      else if (paymentIntent.charges && paymentIntent.charges.data.length > 0) {
+      } else if (paymentIntent.charges?.data?.length) {
         const charge = paymentIntent.charges.data[0];
         if (charge.payment_method_details?.card) {
           cardLast4 = charge.payment_method_details.card.last4 || 'N/A';
@@ -100,11 +103,19 @@ export class StripeService implements IPaymentService {
     }
   }
 
-  async retrievePaymentIntent(paymentIntentId: string): Promise<Stripe.PaymentIntent> {
+  async retrievePaymentIntent(paymentIntentId: string, options?: StripeRequestOptions): Promise<Stripe.PaymentIntent> {
     try {
-      return await this._stripe.paymentIntents.retrieve(paymentIntentId);
-    } catch {
-      throw new ValidationError('Failed to find refund details');
+      return await this._stripe.paymentIntents.retrieve(paymentIntentId, options);
+    } catch (error) {
+      throw new ValidationError(`Failed to find payment intent: ${(error as Error).message || 'Unknown error'}`);
+    }
+  }
+
+  async paymentMethodsRetrieve(paymentMethodId: string): Promise<Stripe.PaymentMethod> {
+    try {
+      return await this._stripe.paymentMethods.retrieve(paymentMethodId);
+    } catch (error) {
+      throw new ValidationError(`Failed to retrieve payment method: ${(error as Error).message || 'Unknown error'}`);
     }
   }
 }

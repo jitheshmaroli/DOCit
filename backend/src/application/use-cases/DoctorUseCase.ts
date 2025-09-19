@@ -197,7 +197,6 @@ export class DoctorUseCase implements IDoctorUseCase {
   }
 
   async getVerifiedDoctors(params: QueryParams): Promise<PaginatedDoctorResponseDTO> {
-    // No specific validation for QueryParams, as it's typically flexible
     const { data, totalItems } = await this._doctorRepository.findVerified(params);
     const doctorDTOs = data.map(DoctorMapper.toDTO);
     return DoctorMapper.toPaginatedResponseDTO(doctorDTOs, totalItems, params);

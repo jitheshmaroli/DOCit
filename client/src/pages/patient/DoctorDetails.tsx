@@ -33,6 +33,7 @@ import Pagination from '../../components/common/Pagination';
 import Modal from '../../components/common/Modal';
 import { getDoctorReviews } from '../../services/patientService';
 import { debounce } from 'lodash';
+import RefreshIcon from '@mui/icons-material/Refresh';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);
 
@@ -94,7 +95,9 @@ const DoctorDetails: React.FC = () => {
     price: number;
   }>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [paymentDetails, setPaymentDetails] = useState<PaymentDetails | null>(null);
+  const [paymentDetails, setPaymentDetails] = useState<PaymentDetails | null>(
+    null
+  );
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [isCancelSubscriptionModalOpen, setIsCancelSubscriptionModalOpen] =
@@ -115,10 +118,19 @@ const DoctorDetails: React.FC = () => {
         : null,
     [doctorId, activeSubscriptions]
   );
+
   const plans = useMemo(
-    () => (doctorId ? doctorPlans[doctorId] || [] : []),
-    [doctorId, doctorPlans]
+    () =>
+      doctorId
+        ? (doctorPlans[doctorId] || []).filter(
+            (plan) =>
+              plan._id !== activeSubscription?.plan._id ||
+              activeSubscription?.status !== 'expired'
+          )
+        : [],
+    [doctorId, doctorPlans, activeSubscription]
   );
+
   const canBookFreeAppointment = doctorId ? canBookFree : false;
   const doctorAppointments = useMemo(
     () => (doctorId ? appointments[doctorId] || [] : []),
@@ -128,7 +140,6 @@ const DoctorDetails: React.FC = () => {
   useEffect(() => {
     if (doctorId) {
       setSubscriptionsLoaded(false);
-
       dispatch(getPatientSubscriptionsThunk())
         .unwrap()
         .then(() => {
@@ -340,6 +351,13 @@ const DoctorDetails: React.FC = () => {
     }
   };
 
+  const handleResetSelection = () => {
+    setSelectedDate('');
+    setSelectedSlot(null);
+    setCurrentTimeSlots([]);
+    setBookingConfirmed(false);
+  };
+
   const handleBookAppointment = async (isFreeBooking: boolean = false) => {
     if (!selectedSlot || !selectedDate || !doctorId) {
       toast.error('Please select a date and time slot');
@@ -347,11 +365,9 @@ const DoctorDetails: React.FC = () => {
     }
     if (
       !isFreeBooking &&
-      (!activeSubscription ||
-        activeSubscription.isExpired ||
-        activeSubscription.appointmentsLeft <= 0)
+      (!activeSubscription || activeSubscription.status !== 'active')
     ) {
-      if (!canBookFree) {
+      if (!canBookFreeAppointment) {
         toast.error(
           'Please subscribe to a plan or check free booking eligibility'
         );
@@ -375,6 +391,7 @@ const DoctorDetails: React.FC = () => {
         theme: 'dark',
       });
       setBookingConfirmed(true);
+      setSelectedSlot(null);
       dispatch(
         getPatientAppointmentsForDoctorThunk({
           doctorId,
@@ -383,9 +400,6 @@ const DoctorDetails: React.FC = () => {
         })
       );
       dispatch(getPatientSubscriptionsThunk());
-      setSelectedDate('');
-      setSelectedSlot(null);
-      setCurrentTimeSlots([]);
       dispatch(
         getDoctorAvailabilityThunk({ doctorId, startDate: new Date() })
       ).then((result) => {
@@ -421,17 +435,42 @@ const DoctorDetails: React.FC = () => {
               .filter((date): date is string => date !== null);
             const uniqueDates = [...new Set(dates)];
             setAvailableDates(uniqueDates);
+            if (selectedDate) {
+              const selectedAvail = validAvailability.find(
+                (avail) => avail.date === selectedDate
+              );
+              const slots = selectedAvail
+                ? selectedAvail.timeSlots.filter((slot) => {
+                    if (!slot.startTime || !slot.endTime || slot.isBooked)
+                      return false;
+                    const now = new Date();
+                    const slotDate = new Date(selectedDate);
+                    const endTime = new Date(`${selectedDate}T${slot.endTime}`);
+                    if (slotDate.toDateString() === now.toDateString()) {
+                      return endTime > now;
+                    }
+                    return slotDate >= now;
+                  })
+                : [];
+              setCurrentTimeSlots(slots);
+            }
           } else {
             setAvailableDates([]);
             setAvailability([]);
+            setCurrentTimeSlots([]);
             toast.warn('No available dates found for this doctor');
           }
+        } else {
+          toast.error(
+            (result.payload as string) || 'Failed to load available dates'
+          );
+          setAvailableDates([]);
+          setAvailability([]);
+          setCurrentTimeSlots([]);
         }
       });
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-      toast.error(`Failed to book appointment: ${errorMessage}`);
+      toast.error(`Failed to book appointment: ${error}`);
     }
   };
 
@@ -461,10 +500,8 @@ const DoctorDetails: React.FC = () => {
 
   const canCancelSubscription =
     activeSubscription &&
-    !activeSubscription.isExpired &&
-    activeSubscription.plan.appointmentCount -
-      activeSubscription.appointmentsLeft ===
-      0 &&
+    activeSubscription.status === 'active' &&
+    activeSubscription.appointmentsLeft === 0 &&
     activeSubscription.createdAt &&
     (new Date().getTime() - new Date(activeSubscription.createdAt).getTime()) /
       (1000 * 60) <=
@@ -541,10 +578,10 @@ const DoctorDetails: React.FC = () => {
             </>
           ) : (
             <p>
-              Your subscription is cancelled on your request and the refund is
-              initiated to the card no XXXX-XXXX-XXXX-
-              {lastRefundDetails?.cardLast4 || 'N/A'} of amount ₹
-              {lastRefundDetails?.amount.toFixed(2) || '0.00'}
+              Your subscription has been cancelled, and a refund has been
+              initiated to the card ending in{' '}
+              {lastRefundDetails?.cardLast4 || 'N/A'} for ₹
+              {lastRefundDetails?.amount.toFixed(2) || '0.00'}.
             </p>
           )}
         </div>
@@ -657,11 +694,7 @@ const DoctorDetails: React.FC = () => {
                       {[1, 2, 3, 4, 5].map((star) => (
                         <span
                           key={star}
-                          className={`text-lg ${
-                            star <= review.rating
-                              ? 'text-yellow-400'
-                              : 'text-gray-400'
-                          }`}
+                          className={`text-lg ${star <= review.rating ? 'text-yellow-400' : 'text-gray-400'}`}
                         >
                           ★
                         </span>
@@ -694,12 +727,17 @@ const DoctorDetails: React.FC = () => {
           </h2>
           {patientLoading ? (
             <p className="text-gray-300 text-center">Loading subscription...</p>
-          ) : activeSubscription &&
-            activeSubscription.plan &&
-            !activeSubscription.isExpired ? (
-            <div className="bg-blue-500/20 border border-blue-500 rounded-lg p-4">
+          ) : activeSubscription ? (
+            <div
+              className={`${
+                activeSubscription.status === 'active'
+                  ? 'bg-blue-500/20 border-blue-500'
+                  : 'bg-red-500/20 border-red-500'
+              } border rounded-lg p-4`}
+            >
               <h4 className="text-lg font-semibold text-white">
-                Active Plan: {activeSubscription.plan.name}
+                {activeSubscription.status === 'active' ? 'Active' : 'Expired'}{' '}
+                Plan: {activeSubscription.plan.name}
               </h4>
               <p className="text-sm text-gray-200 mt-2">
                 Description: {activeSubscription.plan.description || 'N/A'}
@@ -708,82 +746,114 @@ const DoctorDetails: React.FC = () => {
                 Price: ₹{activeSubscription.plan.price.toFixed(2)}
               </p>
               <p className="text-sm text-gray-200 mt-2">
-                Validity: {activeSubscription.daysUntilExpiration} days
-                remaining
+                Validity:{' '}
+                {activeSubscription.daysUntilExpiration ||
+                  activeSubscription.plan.validityDays}{' '}
+                days
               </p>
               <p className="text-sm text-gray-200 mt-2">
-                Appointments Left: {activeSubscription.appointmentsLeft} /{' '}
+                Appointments: {activeSubscription.appointmentsLeft} /{' '}
                 {activeSubscription.plan.appointmentCount}
               </p>
               <p className="text-sm text-gray-200 mt-2">
                 Status: {activeSubscription.status}
               </p>
-              {canCancelSubscription && (
-                <button
-                  onClick={() => setIsCancelSubscriptionModalOpen(true)}
-                  className="mt-4 w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-2 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300"
-                >
-                  Cancel Subscription
-                </button>
+              {activeSubscription.status === 'active' &&
+                canCancelSubscription && (
+                  <button
+                    onClick={() => setIsCancelSubscriptionModalOpen(true)}
+                    className="mt-4 w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-2 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300"
+                  >
+                    Cancel Subscription
+                  </button>
+                )}
+              {activeSubscription.status === 'expired' && (
+                <>
+                  <p className="text-sm text-gray-200 mt-2">
+                    This plan has expired
+                    {activeSubscription.appointmentsLeft <= 0
+                      ? ' because you have used all available appointments.'
+                      : ' because the validity period has ended.'}
+                  </p>
+                  <button
+                    onClick={() => setSelectedPlan(null)}
+                    className="mt-4 w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-2 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
+                  >
+                    Renew Plan
+                  </button>
+                </>
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {plans.length > 0 ? (
-                plans.map((plan) => (
-                  <div
-                    key={plan._id}
-                    className="bg-white/20 backdrop-blur-lg p-4 rounded-lg border border-white/20 shadow-lg hover:shadow-xl transition-all duration-300"
-                  >
-                    <h3 className="text-lg font-semibold text-white">
-                      {plan.name || 'Unnamed Plan'}
-                    </h3>
-                    <p className="text-sm text-gray-200 mt-2">
-                      {plan.description || 'No description'}
-                    </p>
-                    <p className="text-sm text-gray-200 mt-2">
-                      Price: ₹{plan.price.toFixed(2)}
-                    </p>
-                    <p className="text-sm text-gray-200 mt-2">
-                      Validity: {plan.validityDays} days
-                    </p>
-                    <p className="text-sm text-gray-200 mt-2">
-                      Appointments: {plan.appointmentCount}
-                    </p>
-                    <p
-                      className={`text-xs mt-2 inline-flex px-2 py-1 rounded-full ${
-                        plan.status === 'approved'
-                          ? 'bg-green-500/20 text-green-300'
-                          : 'bg-gray-500/20 text-gray-300'
-                      }`}
-                    >
-                      {plan.status}
-                    </p>
-                    {plan.status === 'approved' && (
-                      <button
-                        onClick={() => handleSubscribe(plan._id, plan.price)}
-                        className="mt-4 w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-2 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
-                      >
-                        Subscribe
-                      </button>
-                    )}
-                  </div>
-                ))
-              ) : (
-                <p className="col-span-full text-center text-gray-200">
-                  No subscription plans available.
-                </p>
-              )}
-            </div>
+            <p className="text-gray-300 text-center">No subscription found.</p>
           )}
+          {plans.length > 0 &&
+            (!activeSubscription ||
+              activeSubscription.status === 'expired') && (
+              <div className="mt-6">
+                <h3 className="text-xl font-bold text-white mb-4">
+                  Available Plans
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {plans.map((plan) => (
+                    <div
+                      key={plan._id}
+                      className="bg-white/20 backdrop-blur-lg p-4 rounded-lg border border-white/20 shadow-lg hover:shadow-xl transition-all duration-300"
+                    >
+                      <h3 className="text-lg font-semibold text-white">
+                        {plan.name || 'Unnamed Plan'}
+                      </h3>
+                      <p className="text-sm text-gray-200 mt-2">
+                        {plan.description || 'No description'}
+                      </p>
+                      <p className="text-sm text-gray-200 mt-2">
+                        Price: ₹{plan.price.toFixed(2)}
+                      </p>
+                      <p className="text-sm text-gray-200 mt-2">
+                        Validity: {plan.validityDays} days
+                      </p>
+                      <p className="text-sm text-gray-200 mt-2">
+                        Appointments: {plan.appointmentCount}
+                      </p>
+                      <p
+                        className={`text-xs mt-2 inline-flex px-2 py-1 rounded-full ${
+                          plan.status === 'approved'
+                            ? 'bg-green-500/20 text-green-300'
+                            : 'bg-gray-500/20 text-gray-300'
+                        }`}
+                      >
+                        {plan.status}
+                      </p>
+                      {plan.status === 'approved' && (
+                        <button
+                          onClick={() => handleSubscribe(plan._id, plan.price)}
+                          className="mt-4 w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-2 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
+                        >
+                          Subscribe
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
         </div>
 
-        {(activeSubscription && !activeSubscription.isExpired) ||
+        {(activeSubscription && activeSubscription.status === 'active') ||
         canBookFreeAppointment ? (
           <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">
-            <h2 className="text-2xl font-bold text-white mb-6">
-              Book an Appointment
-            </h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-white">
+                Book an Appointment
+              </h2>
+              <button
+                onClick={handleResetSelection}
+                className="text-white hover:text-purple-300 transition-colors duration-200"
+                title="Reset date and slot selection"
+              >
+                <RefreshIcon />
+              </button>
+            </div>
             {bookingConfirmed && (
               <div className="bg-green-500/20 border border-green-500 rounded-lg p-4 mb-6">
                 <p className="text-green-300 text-sm">
@@ -803,22 +873,25 @@ const DoctorDetails: React.FC = () => {
             />
             {selectedSlot && (
               <div className="flex gap-4 mt-4">
-                {activeSubscription && !activeSubscription.isExpired && (
-                  <button
-                    onClick={() => handleBookAppointment(false)}
-                    className="w-full bg-gradient-to-r from-green-600 to-teal-600 text-white py-2 rounded-lg hover:from-green-700 hover:to-teal-700 transition-all duration-300"
-                  >
-                    Confirm Appointment (Subscribed)
-                  </button>
-                )}
-                {canBookFreeAppointment && (
-                  <button
-                    onClick={() => handleBookAppointment(true)}
-                    className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-2 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-300"
-                  >
-                    Book Free Appointment
-                  </button>
-                )}
+                {activeSubscription &&
+                  activeSubscription.status === 'active' && (
+                    <button
+                      onClick={() => handleBookAppointment(false)}
+                      className="w-full bg-gradient-to-r from-green-600 to-teal-600 text-white py-2 rounded-lg hover:from-green-700 hover:to-teal-700 transition-all duration-300"
+                    >
+                      Confirm Appointment (Subscribed)
+                    </button>
+                  )}
+                {(!activeSubscription ||
+                  activeSubscription.status === 'expired') &&
+                  canBookFreeAppointment && (
+                    <button
+                      onClick={() => handleBookAppointment(true)}
+                      className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-2 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-300"
+                    >
+                      Book Free Appointment
+                    </button>
+                  )}
               </div>
             )}
           </div>

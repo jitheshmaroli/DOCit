@@ -8,6 +8,7 @@ import {
 } from '../types/authTypes';
 import { DateUtils } from '../utils/DateUtils';
 import { ROUTES } from '../constants/routeConstants';
+import InvoiceDetails from '../pages/patient/InvoiceDetails';
 
 interface PatientApiError {
   message: string;
@@ -56,6 +57,8 @@ export const getDoctors = async () => {
 
 export const getDoctor = async (doctorId: string): Promise<Doctor | null> => {
   try {
+    console.log('doctorid thunk:', doctorId);
+
     const response = await api.get(
       ROUTES.API.PATIENT.DOCTOR_BY_ID.replace(':doctorId', doctorId)
     );
@@ -202,7 +205,7 @@ export const bookAppointment = async ({
   } catch (error) {
     const axiosError = error as AxiosError<PatientApiError>;
     throw new Error(
-      axiosError.response?.data.message || 'Failed to book appointment'
+      axiosError.message || 'Failed to book appointment'
     );
   }
 };
@@ -334,6 +337,25 @@ export const getDoctorReviews = async (doctorId: string): Promise<Review[]> => {
     const axiosError = error as AxiosError<PatientApiError>;
     throw new Error(
       axiosError.response?.data.message || 'Failed to fetch doctor reviews'
+    );
+  }
+};
+
+export const fetchInvoiceDetails = async (
+  paymentIntentId: string
+): Promise<InvoiceDetails> => {
+  try {
+    const response = await api.get(
+      ROUTES.API.PATIENT.INVOICE_DETAILS.replace(
+        ':paymentIntentId',
+        paymentIntentId
+      )
+    );
+    return response.data;
+  } catch (error) {
+    const axiosError = error as AxiosError<PatientApiError>;
+    throw new Error(
+      axiosError.response?.data.message || 'Failed to fetch invoice details'
     );
   }
 };

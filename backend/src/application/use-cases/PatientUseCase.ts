@@ -2,6 +2,9 @@ import { IPatientUseCase } from '../../core/interfaces/use-cases/IPatientUseCase
 import { PatientSubscription } from '../../core/entities/PatientSubscription';
 import { IPatientRepository } from '../../core/interfaces/repositories/IPatientRepository';
 import { IPatientSubscriptionRepository } from '../../core/interfaces/repositories/IPatientSubscriptionRepository';
+import { ISubscriptionPlanRepository } from '../../core/interfaces/repositories/ISubscriptionPlanRepository';
+import { IDoctorRepository } from '../../core/interfaces/repositories/IDoctorRepository';
+import { StripeService } from '../../infrastructure/services/StripeService';
 import { QueryParams } from '../../types/authTypes';
 import { NotFoundError, ValidationError } from '../../utils/errors';
 import logger from '../../utils/logger';
@@ -10,6 +13,7 @@ import { PatientMapper } from '../mappers/PatientMapper';
 import { PatientSubscriptionMapper } from '../mappers/PatientSubscriptionMapper';
 import { IAppointmentRepository } from '../../core/interfaces/repositories/IAppointmentRepository';
 import { IValidatorService } from '../../core/interfaces/services/IValidatorService';
+import Stripe from 'stripe';
 
 interface PopulatedPlan {
   _id: string;
@@ -24,12 +28,21 @@ interface PopulatedPlan {
   updatedAt: Date;
 }
 
+interface PaymentIntentWithCharges extends Stripe.PaymentIntent {
+  charges?: {
+    data: Stripe.Charge[];
+  };
+}
+
 export class PatientUseCase implements IPatientUseCase {
   constructor(
     private _patientRepository: IPatientRepository,
     private _patientSubscriptionRepository: IPatientSubscriptionRepository,
     private _appointmentRepository: IAppointmentRepository,
-    private _validatorService: IValidatorService
+    private _validatorService: IValidatorService,
+    private _subscriptionPlanRepository: ISubscriptionPlanRepository,
+    private _doctorRepository: IDoctorRepository,
+    private _stripeService: StripeService
   ) {}
 
   async createPatient(dto: Partial<PatientDTO>): Promise<PatientDTO> {
@@ -167,6 +180,7 @@ export class PatientUseCase implements IPatientUseCase {
     this._validatorService.validateIdFormat(patientId);
 
     const subscriptions = await this._patientSubscriptionRepository.findByPatient(patientId);
+    logger.info('sub::', subscriptions);
     return subscriptions.map(PatientSubscriptionMapper.toDTO);
   }
 
@@ -268,5 +282,63 @@ export class PatientUseCase implements IPatientUseCase {
     }
 
     return subscribedPatients.length > 0 ? subscribedPatients : null;
+  }
+
+  async getInvoiceDetails(
+    patientId: string,
+    paymentIntentId: string
+  ): Promise<{
+    paymentIntentId: string;
+    amount: number;
+    cardLast4?: string;
+    date: string;
+    planName?: string;
+    doctorName?: string;
+    status: string;
+    cancellationReason?: string;
+    remainingDays?: number;
+  }> {
+    // Validate inputs
+    this._validatorService.validateRequiredFields({ patientId, paymentIntentId });
+    this._validatorService.validateIdFormat(patientId);
+    this._validatorService.validateLength(paymentIntentId, 1, 100);
+
+    const subscription = await this._patientSubscriptionRepository.findByStripePaymentId(paymentIntentId);
+    if (!subscription) {
+      throw new NotFoundError('Invoice not found');
+    }
+    if (subscription.patientId !== patientId) {
+      throw new ValidationError('Unauthorized to view this invoice');
+    }
+
+    const plan = await this._subscriptionPlanRepository.findById(subscription.planId as string);
+    const doctor = await this._doctorRepository.findById(plan?.doctorId || '');
+    const paymentIntent = (await this._stripeService.retrievePaymentIntent(paymentIntentId, {
+      expand: ['charges'],
+    })) as PaymentIntentWithCharges;
+    let cardLast4: string | undefined = 'N/A';
+    if (paymentIntent.payment_method && typeof paymentIntent.payment_method === 'string') {
+      const paymentMethod = await this._stripeService.paymentMethodsRetrieve(paymentIntent.payment_method);
+      if (paymentMethod.card) {
+        cardLast4 = paymentMethod.card.last4 || 'N/A';
+      }
+    } else if (paymentIntent.charges?.data?.length) {
+      const charge = paymentIntent.charges.data[0];
+      if (charge.payment_method_details?.card) {
+        cardLast4 = charge.payment_method_details.card.last4 || 'N/A';
+      }
+    }
+
+    return {
+      paymentIntentId,
+      amount: subscription.price,
+      cardLast4,
+      date: subscription.createdAt?.toISOString() || new Date().toISOString(),
+      planName: plan?.name || 'N/A',
+      doctorName: doctor?.name || 'N/A',
+      status: subscription.status,
+      cancellationReason: subscription.cancellationReason,
+      remainingDays: subscription.remainingDays || 0,
+    };
   }
 }

@@ -307,7 +307,7 @@ export interface AppNotification {
 export interface PatientSubscription {
   _id: string;
   patientId: string;
-  planId: SubscriptionPlan;
+  planId: string;
   planDetails?: {
     _id: string;
     name: string;

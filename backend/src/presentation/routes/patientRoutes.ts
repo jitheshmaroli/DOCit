@@ -54,6 +54,9 @@ router.delete(
   patientController.cancelSubscription.bind(patientController)
 );
 
+//invoice route
+router.get('/invoice/:paymentIntentId', patientAuth, patientController.getInvoiceDetails.bind(patientController));
+
 // Profile routes
 router.get('/:id', patientAuth, patientProfileController.viewProfile.bind(patientProfileController));
 router.patch(

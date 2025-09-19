@@ -37,14 +37,8 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
       {
         $lookup: {
           from: 'reviews',
-          let: { doctorId: { $toString: '$_id' } },
-          pipeline: [
-            {
-              $match: {
-                $expr: { $eq: ['$doctorId', '$$doctorId'] },
-              },
-            },
-          ],
+          localField: '_id',
+          foreignField: 'doctorId',
           as: 'reviews',
         },
       },
@@ -282,14 +276,8 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
       {
         $lookup: {
           from: 'reviews',
-          let: { doctorId: { $toString: '$_id' } },
-          pipeline: [
-            {
-              $match: {
-                $expr: { $eq: ['$doctorId', '$$doctorId'] },
-              },
-            },
-          ],
+          localField: '_id',
+          foreignField: 'doctorId',
           as: 'reviews',
         },
       },

@@ -44,7 +44,6 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
     doctorId: string,
     plan: CreateSubscriptionPlanRequestDTO
   ): Promise<SubscriptionPlanResponseDTO> {
-    // Validate required fields
     this._validatorService.validateRequiredFields({
       doctorId,
       name: plan.name,
@@ -53,14 +52,12 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
       appointmentCount: plan.appointmentCount,
     });
 
-    // Validate IDs and fields
     this._validatorService.validateIdFormat(doctorId);
     this._validatorService.validateLength(plan.name, 1, 100);
     this._validatorService.validatePositiveNumber(plan.price);
     this._validatorService.validatePositiveInteger(plan.validityDays);
     this._validatorService.validatePositiveInteger(plan.appointmentCount);
 
-    // Validate minimum constraints
     if (plan.price < 100) {
       throw new ValidationError('Plan price must be at least ₹1');
     }
@@ -99,14 +96,10 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
     doctorId: string,
     planData: UpdateSubscriptionPlanRequestDTO
   ): Promise<SubscriptionPlanResponseDTO> {
-    // Validate required fields
     this._validatorService.validateRequiredFields({ subscriptionPlanId, doctorId });
-
-    // Validate IDs
     this._validatorService.validateIdFormat(subscriptionPlanId);
     this._validatorService.validateIdFormat(doctorId);
 
-    // Validate optional fields if provided
     if (planData.name) {
       this._validatorService.validateLength(planData.name, 1, 100);
     }
@@ -147,7 +140,6 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
     doctorId: string,
     params?: QueryParams
   ): Promise<PaginatedSubscriptionPlanResponseDTO> {
-    // Validate doctorId
     this._validatorService.validateRequiredFields({ doctorId });
     this._validatorService.validateIdFormat(doctorId);
 
@@ -156,7 +148,6 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
   }
 
   async getDoctorApprovedPlans(doctorId: string): Promise<SubscriptionPlanResponseDTO[]> {
-    // Validate doctorId
     this._validatorService.validateRequiredFields({ doctorId });
     this._validatorService.validateIdFormat(doctorId);
 
@@ -165,13 +156,11 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
   }
 
   async manageSubscriptionPlanGetAll(params: QueryParams): Promise<PaginatedSubscriptionPlanResponseDTO> {
-    // No specific validation for QueryParams, as it's typically flexible
     const { data, totalItems } = await this._subscriptionPlanRepository.findAllWithQuery(params);
     return SubscriptionPlanMapper.toPaginatedResponseDTO(data, totalItems, params);
   }
 
   async approveSubscriptionPlan(planId: string): Promise<SubscriptionPlanResponseDTO> {
-    // Validate planId
     this._validatorService.validateRequiredFields({ planId });
     this._validatorService.validateIdFormat(planId);
 
@@ -187,7 +176,6 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
   }
 
   async rejectSubscriptionPlan(planId: string): Promise<SubscriptionPlanResponseDTO> {
-    // Validate planId
     this._validatorService.validateRequiredFields({ planId });
     this._validatorService.validateIdFormat(planId);
 
@@ -203,7 +191,6 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
   }
 
   async deleteSubscriptionPlan(planId: string): Promise<void> {
-    // Validate planId
     this._validatorService.validateRequiredFields({ planId });
     this._validatorService.validateIdFormat(planId);
 
@@ -234,10 +221,7 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
     patientId: string,
     dto: SubscribeToPlanRequestDTO
   ): Promise<{ clientSecret: string; paymentIntentId: string }> {
-    // Validate required fields
     this._validatorService.validateRequiredFields({ patientId, planId: dto.planId, price: dto.price });
-
-    // Validate IDs and price
     this._validatorService.validateIdFormat(patientId);
     this._validatorService.validateIdFormat(dto.planId);
     this._validatorService.validatePositiveNumber(dto.price);
@@ -269,17 +253,15 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
     patientId: string,
     dto: ConfirmSubscriptionRequestDTO
   ): Promise<PatientSubscriptionResponseDTO> {
-    // Validate required fields
     this._validatorService.validateRequiredFields({
       patientId,
       planId: dto.planId,
       paymentIntentId: dto.paymentIntentId,
     });
 
-    // Validate IDs
     this._validatorService.validateIdFormat(patientId);
     this._validatorService.validateIdFormat(dto.planId);
-    this._validatorService.validateLength(dto.paymentIntentId, 1, 100); // Assuming paymentIntentId is a string
+    this._validatorService.validateLength(dto.paymentIntentId, 1, 100);
 
     const plan = await this._subscriptionPlanRepository.findById(dto.planId);
     if (!plan) {
@@ -313,7 +295,6 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
       updatedAt: new Date(),
     };
 
-    // Validate subscription fields
     this._validatorService.validateRequiredFields({
       patientId: subscription.patientId,
       planId: subscription.planId,
@@ -326,8 +307,6 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
     });
     this._validatorService.validateEnum(subscription.status, ['active', 'expired', 'cancelled']);
     this._validatorService.validatePositiveNumber(Number(subscription.price));
-    // this._validatorService.validatePositiveInteger(Number(subscription.appointmentsUsed));
-    // this._validatorService.validatePositiveInteger(Number(subscription.appointmentsLeft));
 
     const savedSubscription = await this._patientSubscriptionRepository.create(subscription);
 
@@ -353,7 +332,6 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
       createdAt: new Date(),
     };
 
-    // Validate notifications
     this._validatorService.validateRequiredFields({
       patientNotificationUserId: patientNotification.userId,
       patientNotificationMessage: patientNotification.message,
@@ -374,7 +352,6 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
     const doctorEmailSubject = 'New Subscription';
     const doctorEmailText = `Dear Dr. ${doctor.name},\n\n${patient.name} has subscribed to your plan "${plan.name}". The subscription is valid until ${endDate.toLocaleDateString()}.\n\nBest regards,\nDOCit Team`;
 
-    // Validate email fields
     this._validatorService.validateEmailFormat(patient.email);
     this._validatorService.validateEmailFormat(doctor.email);
     this._validatorService.validateLength(patientEmailSubject, 1, 100);
@@ -390,9 +367,11 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
     ]);
 
     const activeSubscriptions = await this._patientSubscriptionRepository.findActiveSubscriptions();
-    const hasActiveSubscriptions = activeSubscriptions.some((sub) => sub.patientId === patientId);
+    const hasActiveSubscriptions = activeSubscriptions.some((sub) => sub.patientId?.toString() === patientId);
     await this._patientRepository.updateSubscriptionStatus(patientId, hasActiveSubscriptions);
 
+    logger.info('active subscription:', activeSubscriptions);
+    logger.info('saved subscription:', savedSubscription);
     return PatientSubscriptionMapper.toDTO(savedSubscription);
   }
 
@@ -400,14 +379,10 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
     patientId: string,
     dto: CancelSubscriptionRequestDTO
   ): Promise<CancelSubscriptionResponseDTO> {
-    // Validate required fields
     this._validatorService.validateRequiredFields({ patientId, subscriptionId: dto.subscriptionId });
-
-    // Validate IDs
     this._validatorService.validateIdFormat(patientId);
     this._validatorService.validateIdFormat(dto.subscriptionId);
 
-    // Validate cancellationReason if provided
     if (dto.cancellationReason) {
       this._validatorService.validateLength(dto.cancellationReason, 1, 500);
     }
@@ -469,7 +444,6 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
           createdAt: new Date(),
         };
 
-        // Validate notification
         this._validatorService.validateRequiredFields({
           userId: notification.userId,
           type: notification.type,
@@ -479,7 +453,6 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
         this._validatorService.validateEnum(notification.type, ['SUBSCRIPTION_CONFIRMED', 'SUBSCRIPTION_CANCELLED']);
         this._validatorService.validateLength(notification.message, 1, 1000);
 
-        // Validate email
         this._validatorService.validateEmailFormat(patient.email);
         const emailSubject = 'Subscription Cancelled';
         const emailText = `Your subscription to ${plan.name} has been cancelled. A refund has been issued.`;
@@ -502,7 +475,6 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
   }
 
   async getPatientSubscriptions(patientId: string): Promise<PatientSubscriptionResponseDTO[]> {
-    // Validate patientId
     this._validatorService.validateRequiredFields({ patientId });
     this._validatorService.validateIdFormat(patientId);
 
@@ -511,7 +483,6 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
   }
 
   async getPlanSubscriptionCounts(planId: string): Promise<PlanSubscriptionCountsResponseDTO> {
-    // Validate planId
     this._validatorService.validateRequiredFields({ planId });
     this._validatorService.validateIdFormat(planId);
 
@@ -530,5 +501,54 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
     });
 
     return counts;
+  }
+
+  async notifySubscriptionExpiration(subscriptionId: string): Promise<void> {
+    const subscription = await this._patientSubscriptionRepository.findById(subscriptionId);
+    if (!subscription) {
+      throw new NotFoundError('Subscription not found');
+    }
+    if (subscription.status !== 'expired') {
+      throw new ValidationError('Subscription is not expired');
+    }
+
+    const planId = typeof subscription.planId === 'string' ? subscription.planId : subscription.planId;
+    if (!planId) {
+      throw new NotFoundError('Plan ID not found');
+    }
+    this._validatorService.validateIdFormat(planId);
+
+    const plan = await this._subscriptionPlanRepository.findById(planId);
+    const patient = await this._patientRepository.findById(subscription.patientId!);
+    if (patient && plan) {
+      const notification: Notification = {
+        userId: subscription.patientId,
+        type: NotificationType.SUBSCRIPTION_EXPIRED,
+        message: `Your subscription to ${plan.name} has expired due to no remaining appointments or end date reached.`,
+        createdAt: new Date(),
+      };
+
+      this._validatorService.validateRequiredFields({
+        userId: notification.userId,
+        type: notification.type,
+        message: notification.message,
+      });
+      this._validatorService.validateIdFormat(notification.userId!);
+      this._validatorService.validateEnum(notification.type, [
+        'SUBSCRIPTION_CONFIRMED',
+        'SUBSCRIPTION_CANCELLED',
+        'SUBSCRIPTION_EXPIRED',
+      ]);
+      this._validatorService.validateLength(notification.message, 1, 1000);
+
+      this._validatorService.validateEmailFormat(patient.email);
+      const emailSubject = 'Subscription Expired';
+      const emailText = `Dear ${patient.name},\n\nYour subscription to ${plan.name} has expired. Please renew your plan to continue booking appointments.\n\nBest regards,\nDOCit Team`;
+      this._validatorService.validateLength(emailSubject, 1, 100);
+      this._validatorService.validateLength(emailText, 1, 1000);
+
+      await this._notificationService.sendNotification(notification);
+      await this._emailService.sendEmail(patient.email, emailSubject, emailText);
+    }
   }
 }

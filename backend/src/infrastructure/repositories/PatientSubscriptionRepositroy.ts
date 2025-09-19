@@ -1,10 +1,9 @@
-import mongoose from 'mongoose';
 import moment from 'moment';
 import { IPatientSubscriptionRepository } from '../../core/interfaces/repositories/IPatientSubscriptionRepository';
 import { BaseRepository } from './BaseRepository';
 import { PatientSubscriptionModel } from '../database/models/PatientSubscriptionModel';
 import { PatientSubscription } from '../../core/entities/PatientSubscription';
-import logger from '../../utils/logger';
+import { ObjectId } from 'mongodb';
 
 export class PatientSubscriptionRepository
   extends BaseRepository<PatientSubscription>
@@ -29,8 +28,60 @@ export class PatientSubscriptionRepository
   }
 
   async findByPatient(patientId: string): Promise<PatientSubscription[]> {
-    const subscriptions = await this.model.find({ patientId }).populate('planId').lean().exec();
-    logger.info('subscriptions:', subscriptions);
+    const subscriptions = await this.model
+      .aggregate([
+        {
+          $match: {
+            patientId: new ObjectId(patientId),
+          },
+        },
+        {
+          $lookup: {
+            from: 'subscriptionplans',
+            localField: 'planId',
+            foreignField: '_id',
+            as: 'planDetails',
+          },
+        },
+        {
+          $unwind: {
+            path: '$planDetails',
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            patientId: 1,
+            planId: 1,
+            planDetails: {
+              _id: '$planDetails._id',
+              doctorId: '$planDetails.doctorId',
+              name: '$planDetails.name',
+              description: '$planDetails.description',
+              price: '$planDetails.price',
+              validityDays: '$planDetails.validityDays',
+              appointmentCount: '$planDetails.appointmentCount',
+              status: '$planDetails.status',
+              createdAt: '$planDetails.createdAt',
+              updatedAt: '$planDetails.updatedAt',
+            },
+            startDate: 1,
+            endDate: 1,
+            status: 1,
+            price: 1,
+            appointmentsUsed: 1,
+            appointmentsLeft: 1,
+            stripePaymentId: 1,
+            createdAt: 1,
+            updatedAt: 1,
+            remainingDays: 1,
+            cancellationReason: 1,
+          },
+        },
+      ])
+      .exec();
+
     return subscriptions.map((sub) => this.calculateSubscriptionDetails(sub));
   }
 
@@ -40,19 +91,50 @@ export class PatientSubscriptionRepository
   }
 
   async incrementAppointmentCount(subscriptionId: string): Promise<PatientSubscription | null> {
-    if (!mongoose.Types.ObjectId.isValid(subscriptionId)) return null;
     const subscription = await this.model
-      .findByIdAndUpdate(subscriptionId, { $inc: { appointmentsUsed: 1, appointmentsLeft: -1 } }, { new: true })
+      .findByIdAndUpdate(
+        subscriptionId,
+        {
+          $inc: { appointmentsUsed: 1, appointmentsLeft: -1 },
+          $set: { updatedAt: new Date() },
+        },
+        { new: true }
+      )
       .populate('planId')
       .lean()
       .exec();
-    return subscription ? this.calculateSubscriptionDetails(subscription) : null;
+
+    if (!subscription) return null;
+
+    // Update status to expired if appointmentsLeft becomes 0
+    const updatedSubscription = this.calculateSubscriptionDetails(subscription);
+    if (updatedSubscription.appointmentsLeft <= 0 && updatedSubscription.status === 'active') {
+      await this.model
+        .findByIdAndUpdate(
+          subscriptionId,
+          {
+            status: 'expired',
+            updatedAt: new Date(),
+          },
+          { new: true }
+        )
+        .exec();
+      updatedSubscription.status = 'expired';
+    }
+
+    return updatedSubscription;
   }
 
   async decrementAppointmentCount(subscriptionId: string): Promise<PatientSubscription | null> {
-    if (!mongoose.Types.ObjectId.isValid(subscriptionId)) return null;
     const subscription = await this.model
-      .findByIdAndUpdate(subscriptionId, { $inc: { appointmentsUsed: -1, appointmentsLeft: 1 } }, { new: true })
+      .findByIdAndUpdate(
+        subscriptionId,
+        {
+          $inc: { appointmentsUsed: -1, appointmentsLeft: 1 },
+          $set: { updatedAt: new Date() },
+        },
+        { new: true }
+      )
       .populate('planId')
       .lean()
       .exec();
@@ -85,6 +167,7 @@ export class PatientSubscriptionRepository
       .find({
         status: 'active',
         endDate: { $gte: new Date() },
+        appointmentsLeft: { $gt: 0 }, // Only include subscriptions with appointments left
       })
       .populate('planId')
       .lean()
@@ -102,6 +185,12 @@ export class PatientSubscriptionRepository
     const endDate = moment(subscription.endDate);
     const now = moment();
     subscription.remainingDays = Math.max(0, endDate.diff(now, 'days'));
+
+    // Mark as expired if appointmentsLeft is 0 or endDate has passed
+    if (subscription.appointmentsLeft <= 0 || endDate.isBefore(now)) {
+      subscription.status = 'expired';
+    }
+
     subscription.appointmentsLeft = Math.max(0, subscription.appointmentsLeft);
     return subscription;
   }
