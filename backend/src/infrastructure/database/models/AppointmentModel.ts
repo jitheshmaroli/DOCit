@@ -6,7 +6,7 @@ const AppointmentSchema = new Schema<Appointment>(
   {
     patientId: { type: Schema.Types.ObjectId, required: true, ref: 'Patient' },
     doctorId: { type: Schema.Types.ObjectId, required: true, ref: 'Doctor' },
-    planId: { type: Schema.Types.ObjectId, ref: 'SubscriptionPlan' },
+    patientSubscriptionId: { type: Schema.Types.ObjectId, ref: 'PatientSubscription' },
     date: { type: Date, required: true },
     slotId: { type: Schema.Types.ObjectId },
     startTime: { type: String, required: true },

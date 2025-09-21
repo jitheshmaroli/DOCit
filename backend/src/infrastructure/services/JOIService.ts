@@ -1,6 +1,7 @@
 import Joi from 'joi';
 import { ValidationError } from '../../utils/errors';
 import { IValidatorService } from '../../core/interfaces/services/IValidatorService';
+import logger from '../../utils/logger';
 
 export default class JoiService implements IValidatorService {
   public validateRequiredFields(input: Record<string, unknown>): void {
@@ -38,6 +39,7 @@ export default class JoiService implements IValidatorService {
   public validateIdFormat(id: string): boolean {
     const schema = Joi.string().pattern(new RegExp('^[a-fA-F0-9]{24}$'));
     const { error } = schema.validate(id);
+    logger.info('id:::', id);
     if (error) {
       throw new ValidationError('Invalid ID format (must be a valid MongoDB ObjectId)');
     }

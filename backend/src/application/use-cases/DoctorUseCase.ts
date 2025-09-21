@@ -197,6 +197,29 @@ export class DoctorUseCase implements IDoctorUseCase {
   }
 
   async getVerifiedDoctors(params: QueryParams): Promise<PaginatedDoctorResponseDTO> {
+    // Validate query params if necessary
+    if (params.page) {
+      this._validatorService.validatePositiveInteger(params.page);
+    }
+    if (params.limit) {
+      this._validatorService.validatePositiveInteger(params.limit);
+    }
+    if (params.speciality) {
+      this._validatorService.validateName(params.speciality);
+    }
+    if (params.minRating) {
+      this._validatorService.validateRating(params.minRating);
+    }
+    if (params.availabilityStart) {
+      this._validatorService.validateDateFormat(params.availabilityStart);
+    }
+    if (params.availabilityEnd) {
+      this._validatorService.validateDateFormat(params.availabilityEnd);
+    }
+    if (params.gender) {
+      this._validatorService.validateEnum(params.gender, ['Male', 'Female', 'Other']);
+    }
+
     const { data, totalItems } = await this._doctorRepository.findVerified(params);
     const doctorDTOs = data.map(DoctorMapper.toDTO);
     return DoctorMapper.toPaginatedResponseDTO(doctorDTOs, totalItems, params);

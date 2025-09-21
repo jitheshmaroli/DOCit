@@ -11,4 +11,5 @@ export interface IPatientSubscriptionRepository extends IBaseRepository<PatientS
   findExpiringSoon(days: number): Promise<PatientSubscription[]>;
   findAll(): Promise<PatientSubscription[]>;
   findByPlan(planId: string): Promise<PatientSubscription[]>;
+  findByPatientAndPlan(patientId: string, planId: string): Promise<PatientSubscription | null>;
 }

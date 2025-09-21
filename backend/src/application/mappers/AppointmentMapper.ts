@@ -14,9 +14,10 @@ export class AppointmentMapper {
       status: appointment.status,
       isFreeBooking: appointment.isFreeBooking,
       bookingTime: appointment.bookingTime.toISOString(),
-      planId: appointment.planId,
+      patientSubscriptionId: appointment.patientSubscriptionId,
       cancellationReason: appointment.cancellationReason,
       prescriptionId: appointment.prescriptionId,
+      prescription: appointment.prescription,
       hasReview: appointment.hasReview,
     };
 
@@ -46,7 +47,7 @@ export class AppointmentMapper {
       status: dto.status,
       isFreeBooking: dto.isFreeBooking,
       bookingTime: new Date(dto.bookingTime),
-      planId: dto.planId,
+      patientSubscriptionId: dto.patientSubscriptionId,
       cancellationReason: dto.cancellationReason,
       prescriptionId: dto.prescriptionId,
       hasReview: dto.hasReview,

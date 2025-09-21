@@ -114,7 +114,7 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       status: AppointmentStatus.PENDING,
       isFreeBooking: dto.isFreeBooking,
       bookingTime: new Date().toISOString(),
-      planId: dto.isFreeBooking ? undefined : activeSubscription?.planId,
+      patientSubscriptionId: dto.isFreeBooking ? undefined : activeSubscription?._id,
     };
 
     const appointment = AppointmentMapper.toAppointmentEntity(appointmentDTO);
@@ -222,12 +222,9 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     );
 
     // If not a free booking, increment appointmentsLeft in subscription
-    if (!appointment.isFreeBooking && appointment.planId) {
-      const subscription = await this._patientSubscriptionRepository.findActiveByPatientAndDoctor(
-        appointment.patientId!.toString(),
-        appointment.doctorId!.toString()
-      );
-      if (subscription && subscription.planId === appointment.planId) {
+    if (!appointment.isFreeBooking && appointment.patientSubscriptionId) {
+      const subscription = await this._patientSubscriptionRepository.findById(appointment.patientSubscriptionId);
+      if (subscription) {
         await this._patientSubscriptionRepository.decrementAppointmentCount(subscription._id!);
       }
     }
@@ -303,12 +300,9 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       false
     );
 
-    if (!appointment.isFreeBooking && appointment.planId) {
-      const subscription = await this._patientSubscriptionRepository.findActiveByPatientAndDoctor(
-        appointment.patientId!.toString(),
-        appointment.doctorId!.toString()
-      );
-      if (subscription && subscription.planId === appointment.planId) {
+    if (!appointment.isFreeBooking && appointment.patientSubscriptionId) {
+      const subscription = await this._patientSubscriptionRepository.findById(appointment.patientSubscriptionId);
+      if (subscription) {
         await this._patientSubscriptionRepository.decrementAppointmentCount(subscription._id!);
       }
     }
@@ -509,6 +503,7 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       dto.doctorId,
       dto.queryParams
     );
+
     return {
       data: result.data.map((appointment) => AppointmentMapper.toAppointmentDTO(appointment)),
       totalItems: result.totalItems,
@@ -548,6 +543,20 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       dto.doctorId,
       dto.queryParams
     );
+    return {
+      appointments: result.data.map((appointment) => AppointmentMapper.toAppointmentDTO(appointment)),
+      totalItems: result.totalItems,
+    };
+  }
+
+  async getAppointmentsBySubscription(
+    subscriptionId: string,
+    queryParams: QueryParams
+  ): Promise<GetPatientAppointmentsResponseDTO> {
+    // Validate subscriptionId
+    this._validatorService.validateIdFormat(subscriptionId);
+
+    const result = await this._appointmentRepository.findBySubscriptionWithQuery(subscriptionId, queryParams);
     return {
       appointments: result.data.map((appointment) => AppointmentMapper.toAppointmentDTO(appointment)),
       totalItems: result.totalItems,

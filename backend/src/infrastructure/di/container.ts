@@ -155,11 +155,11 @@ export class Container {
       new PatientUseCase(
         patientRepository,
         patientSubscriptionRepository,
-        appointmentRepository,
         validatorService,
+        stripeService,
+        appointmentRepository,
         subscriptionPlanRepository,
-        doctorRepository,
-        stripeService
+        doctorRepository
       )
     );
     this.dependencies.set(

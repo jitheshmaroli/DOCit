@@ -2,31 +2,31 @@ import { IPatientUseCase } from '../../core/interfaces/use-cases/IPatientUseCase
 import { PatientSubscription } from '../../core/entities/PatientSubscription';
 import { IPatientRepository } from '../../core/interfaces/repositories/IPatientRepository';
 import { IPatientSubscriptionRepository } from '../../core/interfaces/repositories/IPatientSubscriptionRepository';
-import { ISubscriptionPlanRepository } from '../../core/interfaces/repositories/ISubscriptionPlanRepository';
-import { IDoctorRepository } from '../../core/interfaces/repositories/IDoctorRepository';
-import { StripeService } from '../../infrastructure/services/StripeService';
 import { QueryParams } from '../../types/authTypes';
 import { NotFoundError, ValidationError } from '../../utils/errors';
 import logger from '../../utils/logger';
 import { PatientDTO, PatientSubscriptionDTO, PaginatedPatientResponseDTO } from '../dtos/PatientDTOs';
 import { PatientMapper } from '../mappers/PatientMapper';
 import { PatientSubscriptionMapper } from '../mappers/PatientSubscriptionMapper';
-import { IAppointmentRepository } from '../../core/interfaces/repositories/IAppointmentRepository';
 import { IValidatorService } from '../../core/interfaces/services/IValidatorService';
 import Stripe from 'stripe';
+import { StripeService } from '../../infrastructure/services/StripeService';
+import { IAppointmentRepository } from '../../core/interfaces/repositories/IAppointmentRepository';
+import { ISubscriptionPlanRepository } from '../../core/interfaces/repositories/ISubscriptionPlanRepository';
+import { IDoctorRepository } from '../../core/interfaces/repositories/IDoctorRepository';
 
-interface PopulatedPlan {
-  _id: string;
-  name: string;
-  description: string;
-  doctorId: string;
-  price: number;
-  validityDays: number;
-  appointmentCount: number;
-  status: 'pending' | 'approved' | 'rejected';
-  createdAt: Date;
-  updatedAt: Date;
-}
+// interface PopulatedPlan {
+//   _id: string;
+//   name: string;
+//   description: string;
+//   doctorId: string;
+//   price: number;
+//   validityDays: number;
+//   appointmentCount: number;
+//   status: 'pending' | 'approved' | 'rejected';
+//   createdAt: Date;
+//   updatedAt: Date;
+// }
 
 interface PaymentIntentWithCharges extends Stripe.PaymentIntent {
   charges?: {
@@ -38,11 +38,11 @@ export class PatientUseCase implements IPatientUseCase {
   constructor(
     private _patientRepository: IPatientRepository,
     private _patientSubscriptionRepository: IPatientSubscriptionRepository,
-    private _appointmentRepository: IAppointmentRepository,
     private _validatorService: IValidatorService,
+    private _stripeService: StripeService,
+    private _appointmentRepository: IAppointmentRepository,
     private _subscriptionPlanRepository: ISubscriptionPlanRepository,
-    private _doctorRepository: IDoctorRepository,
-    private _stripeService: StripeService
+    private _doctorRepository: IDoctorRepository
   ) {}
 
   async createPatient(dto: Partial<PatientDTO>): Promise<PatientDTO> {
@@ -221,7 +221,7 @@ export class PatientUseCase implements IPatientUseCase {
 
     // Filter subscriptions by doctorId and collect patient IDs
     for (const sub of activeSubscriptions) {
-      const plan = sub.planId as unknown as PopulatedPlan;
+      const plan = sub.planDetails;
       if (plan) {
         // Validate plan fields
         this._validatorService.validateRequiredFields({
@@ -233,18 +233,20 @@ export class PatientUseCase implements IPatientUseCase {
           appointmentCount: plan.appointmentCount,
           status: plan.status,
         });
-        this._validatorService.validateIdFormat(plan._id);
-        this._validatorService.validateIdFormat(plan.doctorId);
+        this._validatorService.validateIdFormat(plan._id!.toString());
+        this._validatorService.validateIdFormat(plan.doctorId!.toString());
         this._validatorService.validateEnum(plan.status, ['pending', 'approved', 'rejected']);
         this._validatorService.validatePositiveNumber(plan.price);
         this._validatorService.validatePositiveInteger(plan.validityDays);
         this._validatorService.validatePositiveInteger(plan.appointmentCount);
 
-        if (plan.doctorId === doctorId) {
+        if (plan.doctorId?.toString() === doctorId) {
+          logger.info('yes');
           if (!patientSubscriptions[sub.patientId!]) {
             patientIds.push(sub.patientId!);
             patientSubscriptions[sub.patientId!] = [];
           }
+          logger.debug(`patientIds: ${patientIds}`);
           patientSubscriptions[sub.patientId!].push({
             ...sub,
             planId: sub.planId as string,
@@ -267,7 +269,7 @@ export class PatientUseCase implements IPatientUseCase {
 
     // Validate patientIds
     for (const patientId of patientIds) {
-      this._validatorService.validateIdFormat(patientId);
+      this._validatorService.validateIdFormat(patientId.toString());
     }
 
     // Fetch patient details
@@ -281,6 +283,7 @@ export class PatientUseCase implements IPatientUseCase {
       }
     }
 
+    logger.debug(`sub patients:, ${subscribedPatients}`);
     return subscribedPatients.length > 0 ? subscribedPatients : null;
   }
 

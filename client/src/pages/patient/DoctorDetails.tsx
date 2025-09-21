@@ -95,40 +95,33 @@ const DoctorDetails: React.FC = () => {
     price: number;
   }>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [paymentDetails, setPaymentDetails] = useState<PaymentDetails | null>(
-    null
-  );
+  const [paymentDetails, setPaymentDetails] = useState<PaymentDetails | null>(null);
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [isCancelSubscriptionModalOpen, setIsCancelSubscriptionModalOpen] =
-    useState(false);
+  const [isCancelSubscriptionModalOpen, setIsCancelSubscriptionModalOpen] = useState(false);
   const [cancellationReason, setCancellationReason] = useState<string>('');
   const [modalMode, setModalMode] = useState<'cancel' | 'refund'>('cancel');
   const [reviews, setReviews] = useState<Review[]>([]);
   const [subscriptionsLoaded, setSubscriptionsLoaded] = useState(false);
 
-  const specialityFromState = (location.state as { speciality?: string[] })
-    ?.speciality;
+  const specialityFromState = (location.state as { speciality?: string[] })?.speciality;
 
-  const activeSubscription = useMemo(
-    () =>
-      doctorId
-        ? activeSubscriptions.find((sub) => sub.plan.doctorId === doctorId) ||
-          null
-        : null,
-    [doctorId, activeSubscriptions]
-  );
+  const activeSubscription = useMemo(() => {
+    if (!doctorId) return null;
+    const subsForDoctor = activeSubscriptions.filter(
+      (sub) => sub.plan.doctorId === doctorId && sub.createdAt
+    );
+    return subsForDoctor
+      .sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA;
+      })[0] || null;
+  }, [activeSubscriptions, doctorId]);
 
   const plans = useMemo(
-    () =>
-      doctorId
-        ? (doctorPlans[doctorId] || []).filter(
-            (plan) =>
-              plan._id !== activeSubscription?.plan._id ||
-              activeSubscription?.status !== 'expired'
-          )
-        : [],
-    [doctorId, doctorPlans, activeSubscription]
+    () => (doctorId ? doctorPlans[doctorId] || [] : []),
+    [doctorId, doctorPlans]
   );
 
   const canBookFreeAppointment = doctorId ? canBookFree : false;
@@ -136,6 +129,14 @@ const DoctorDetails: React.FC = () => {
     () => (doctorId ? appointments[doctorId] || [] : []),
     [doctorId, appointments]
   );
+
+  const canCancelSubscription = useMemo(() => {
+    if (!activeSubscription || activeSubscription.status !== 'active' || !activeSubscription.createdAt) {
+      return false;
+    }
+    const timeDiffMinutes = (new Date().getTime() - new Date(activeSubscription.createdAt).getTime()) / (1000 * 60);
+    return timeDiffMinutes <= 30;
+  }, [activeSubscription]);
 
   useEffect(() => {
     if (doctorId) {
@@ -498,15 +499,6 @@ const DoctorDetails: React.FC = () => {
 
   const displaySpeciality = specialityFromState || selectedDoctor.speciality;
 
-  const canCancelSubscription =
-    activeSubscription &&
-    activeSubscription.status === 'active' &&
-    activeSubscription.appointmentsLeft === 0 &&
-    activeSubscription.createdAt &&
-    (new Date().getTime() - new Date(activeSubscription.createdAt).getTime()) /
-      (1000 * 60) <=
-      30;
-
   return (
     <div
       className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 py-8"
@@ -758,30 +750,21 @@ const DoctorDetails: React.FC = () => {
               <p className="text-sm text-gray-200 mt-2">
                 Status: {activeSubscription.status}
               </p>
-              {activeSubscription.status === 'active' &&
-                canCancelSubscription && (
-                  <button
-                    onClick={() => setIsCancelSubscriptionModalOpen(true)}
-                    className="mt-4 w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-2 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300"
-                  >
-                    Cancel Subscription
-                  </button>
-                )}
+              {activeSubscription.status === 'active' && canCancelSubscription && (
+                <button
+                  onClick={() => setIsCancelSubscriptionModalOpen(true)}
+                  className="mt-4 w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-2 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300"
+                >
+                  Cancel Subscription
+                </button>
+              )}
               {activeSubscription.status === 'expired' && (
-                <>
-                  <p className="text-sm text-gray-200 mt-2">
-                    This plan has expired
-                    {activeSubscription.appointmentsLeft <= 0
-                      ? ' because you have used all available appointments.'
-                      : ' because the validity period has ended.'}
-                  </p>
-                  <button
-                    onClick={() => setSelectedPlan(null)}
-                    className="mt-4 w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-2 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
-                  >
-                    Renew Plan
-                  </button>
-                </>
+                <p className="text-sm text-gray-200 mt-2">
+                  This plan has expired
+                  {activeSubscription.appointmentsLeft <= 0
+                    ? ' because you have used all available appointments.'
+                    : ' because the validity period has ended.'}
+                </p>
               )}
             </div>
           ) : (
@@ -789,7 +772,7 @@ const DoctorDetails: React.FC = () => {
           )}
           {plans.length > 0 &&
             (!activeSubscription ||
-              activeSubscription.status === 'expired') && (
+              activeSubscription.status !== 'active') && (
               <div className="mt-6">
                 <h3 className="text-xl font-bold text-white mb-4">
                   Available Plans
@@ -829,7 +812,10 @@ const DoctorDetails: React.FC = () => {
                           onClick={() => handleSubscribe(plan._id, plan.price)}
                           className="mt-4 w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-2 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
                         >
-                          Subscribe
+                          {activeSubscription?.plan._id === plan._id &&
+                          activeSubscription?.status === 'expired'
+                            ? 'Renew'
+                            : 'Subscribe'}
                         </button>
                       )}
                     </div>
@@ -883,7 +869,7 @@ const DoctorDetails: React.FC = () => {
                     </button>
                   )}
                 {(!activeSubscription ||
-                  activeSubscription.status === 'expired') &&
+                  activeSubscription.status !== 'active') &&
                   canBookFreeAppointment && (
                     <button
                       onClick={() => handleBookAppointment(true)}

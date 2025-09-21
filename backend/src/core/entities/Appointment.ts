@@ -8,7 +8,7 @@ export interface Appointment {
   _id?: string;
   patientId?: string;
   doctorId?: string;
-  planId?: string;
+  patientSubscriptionId?: string;
   slotId?: string;
   date: Date;
   startTime: string;
@@ -21,6 +21,7 @@ export interface Appointment {
   reminderSent?: boolean;
   cancellationReason?: string;
   prescriptionId?: string;
+  prescription?: Prescription;
   hasReview?: boolean;
 }
 

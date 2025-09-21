@@ -24,6 +24,10 @@ export interface IAppointmentUseCase {
     dto: GetDoctorAndPatientAppointmentsRequestDTO
   ): Promise<GetAppointmentsResponseDTO>;
   getPatientAppointments(patientId: string, queryParams: QueryParams): Promise<GetPatientAppointmentsResponseDTO>;
+  getAppointmentsBySubscription(
+    subscriptionId: string,
+    queryParams: QueryParams
+  ): Promise<GetPatientAppointmentsResponseDTO>;
   getSingleAppointment(appointmentId: string): Promise<AppointmentDTO>;
   getPatientAppointmentsForDoctor(
     dto: GetPatientAppointmentsForDoctorRequestDTO

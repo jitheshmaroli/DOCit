@@ -92,7 +92,7 @@ export interface AppointmentDTO {
   status: AppointmentStatus;
   isFreeBooking: boolean;
   bookingTime: string;
-  planId?: string;
+  patientSubscriptionId?: string;
   cancellationReason?: string;
   prescriptionId?: string;
   prescription?: PrescriptionDTO;

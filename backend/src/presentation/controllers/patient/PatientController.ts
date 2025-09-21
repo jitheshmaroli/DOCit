@@ -175,21 +175,6 @@ export class PatientController {
         throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
       const subscriptions = await this._patientUseCase.getPatientSubscriptions(patientId);
-      // const enhancedSubscriptions = await Promise.all(
-      //   subscriptions.map(async (sub) => {
-      //     if (sub.planDetails?.doctorId) {
-      //       const doctor = await this._doctorUseCase.getDoctor(sub.planDetails.doctorId);
-      //       return {
-      //         ...sub,
-      //         planDetails: {
-      //           ...sub.planDetails,
-      //           doctorName: doctor?.name || 'Unknown Doctor',
-      //         },
-      //       };
-      //     }
-      //     return sub;
-      //   })
-      // );
       res.status(HttpStatusCode.OK).json(subscriptions);
     } catch (error) {
       next(error);
@@ -297,15 +282,34 @@ export class PatientController {
           queryParams,
         };
         responseData = await this._appointmentUseCase.getPatientAppointmentsForDoctor(patientsAppointmentRequestData);
-        // const canBookFree = await this._appointmentUseCase.checkFreeBooking({
-        //   patientId,
-        //   doctorId: doctorId as string,
-        // });
-        // response.canBookFree = canBookFree;
       } else {
         responseData = await this._appointmentUseCase.getPatientAppointments(patientId, queryParams);
       }
 
+      res.status(HttpStatusCode.OK).json(responseData);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getAppointmentsBySubscription(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const patientId = req.user?.id;
+      if (!patientId) {
+        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
+      }
+      const { subscriptionId } = req.params;
+      const { page = 1, limit = 5, status } = req.query;
+      if (!subscriptionId) {
+        throw new ValidationError(ResponseMessages.BAD_REQUEST);
+      }
+      const queryParams: QueryParams = {
+        page: parseInt(String(page)),
+        limit: parseInt(String(limit)),
+        status: status as string | undefined,
+        patientId,
+      };
+      const responseData = await this._appointmentUseCase.getAppointmentsBySubscription(subscriptionId, queryParams);
       res.status(HttpStatusCode.OK).json(responseData);
     } catch (error) {
       next(error);

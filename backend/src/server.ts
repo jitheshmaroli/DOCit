@@ -107,7 +107,7 @@ const startServer = async () => {
     await connectMongoDB(MONGO_URI);
     setupCronJobs(container);
     server.listen(PORT, '0.0.0.0', () => {
-      logger.info(`Server running on http://localhost:${PORT}`);
+      logger.info(`Server running on http://localhost:${PORT} env: ${env.NODE_ENV}`);
     });
   } catch (error) {
     logger.error('Failed to start server:', error);

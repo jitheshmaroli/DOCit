@@ -391,7 +391,7 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
     if (!subscription) {
       throw new NotFoundError('Subscription not found');
     }
-    if (subscription.patientId !== patientId) {
+    if (subscription.patientId?.toString() !== patientId) {
       throw new ValidationError('Unauthorized to cancel this subscription');
     }
     if (subscription.status !== 'active') {
@@ -421,57 +421,54 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
       }
     }
 
-    try {
-      await this._patientSubscriptionRepository.update(dto.subscriptionId, {
-        status: 'cancelled',
-        cancellationReason: dto.cancellationReason || 'Patient requested cancellation',
-        updatedAt: new Date(),
-      });
+    await this._patientSubscriptionRepository.update(dto.subscriptionId, {
+      status: 'cancelled',
+      cancellationReason: dto.cancellationReason || 'Patient requested cancellation',
+      refundId: refundDetails?.refundId || 'N/A',
+      refundAmount: refundDetails?.amount || 0,
+      updatedAt: new Date(),
+    });
 
-      const planId = typeof subscription.planId === 'string' ? subscription.planId : subscription.planId;
-      if (!planId) {
-        throw new NotFoundError('Plan ID not found');
-      }
-      this._validatorService.validateIdFormat(planId);
-
-      const plan = await this._subscriptionPlanRepository.findById(planId);
-      const patient = await this._patientRepository.findById(patientId);
-      if (patient && plan) {
-        const notification: Notification = {
-          userId: patientId,
-          type: NotificationType.SUBSCRIPTION_CANCELLED,
-          message: `Subscription to ${plan.name} has been cancelled`,
-          createdAt: new Date(),
-        };
-
-        this._validatorService.validateRequiredFields({
-          userId: notification.userId,
-          type: notification.type,
-          message: notification.message,
-        });
-        this._validatorService.validateIdFormat(notification.userId!);
-        this._validatorService.validateEnum(notification.type, ['SUBSCRIPTION_CONFIRMED', 'SUBSCRIPTION_CANCELLED']);
-        this._validatorService.validateLength(notification.message, 1, 1000);
-
-        this._validatorService.validateEmailFormat(patient.email);
-        const emailSubject = 'Subscription Cancelled';
-        const emailText = `Your subscription to ${plan.name} has been cancelled. A refund has been issued.`;
-        this._validatorService.validateLength(emailSubject, 1, 100);
-        this._validatorService.validateLength(emailText, 1, 1000);
-
-        await this._notificationService.sendNotification(notification);
-        await this._emailService.sendEmail(patient.email, emailSubject, emailText);
-      }
-      return {
-        message: `Subscription ${dto.subscriptionId} cancelled successfully`,
-        refundId: refundDetails?.refundId || 'N/A',
-        cardLast4: refundDetails?.cardLast4 || 'N/A',
-        amount: refundDetails?.amount || 0,
-      };
-    } catch (error) {
-      logger.error(`Error cancelling subscription ${dto.subscriptionId}: ${(error as Error).message}`);
-      throw new Error('Failed to cancel subscription');
+    const planId = typeof subscription.planId === 'string' ? subscription.planId : subscription.planId;
+    if (!planId) {
+      throw new NotFoundError('Plan ID not found');
     }
+    this._validatorService.validateIdFormat(planId);
+
+    const plan = await this._subscriptionPlanRepository.findById(planId);
+    const patient = await this._patientRepository.findById(patientId);
+    if (patient && plan) {
+      const notification: Notification = {
+        userId: patientId,
+        type: NotificationType.SUBSCRIPTION_CANCELLED,
+        message: `Subscription to ${plan.name} has been cancelled`,
+        createdAt: new Date(),
+      };
+
+      this._validatorService.validateRequiredFields({
+        userId: notification.userId,
+        type: notification.type,
+        message: notification.message,
+      });
+      this._validatorService.validateIdFormat(notification.userId!);
+      this._validatorService.validateEnum(notification.type, ['SUBSCRIPTION_CONFIRMED', 'SUBSCRIPTION_CANCELLED']);
+      this._validatorService.validateLength(notification.message, 1, 1000);
+
+      this._validatorService.validateEmailFormat(patient.email);
+      const emailSubject = 'Subscription Cancelled';
+      const emailText = `Dear ${patient.name},\n\nYour subscription to ${plan.name} has been cancelled. A refund has been issued.\n\nBest regards,\nDOCit Team`;
+      this._validatorService.validateLength(emailSubject, 1, 100);
+      this._validatorService.validateLength(emailText, 1, 1000);
+
+      await this._notificationService.sendNotification(notification);
+      await this._emailService.sendEmail(patient.email, emailSubject, emailText);
+    }
+    return {
+      message: `Subscription ${dto.subscriptionId} cancelled successfully`,
+      refundId: refundDetails?.refundId || 'N/A',
+      cardLast4: refundDetails?.cardLast4 || 'N/A',
+      amount: refundDetails?.amount || 0,
+    };
   }
 
   async getPatientSubscriptions(patientId: string): Promise<PatientSubscriptionResponseDTO[]> {

@@ -2,6 +2,7 @@ import Stripe from 'stripe';
 import { env } from '../../config/env';
 import { ValidationError } from '../../utils/errors';
 import { IPaymentService } from '../../core/interfaces/services/IPaymentService';
+import logger from '../../utils/logger';
 
 // Extend the PaymentIntent interface to include charges
 interface PaymentIntentWithCharges extends Stripe.PaymentIntent {
@@ -20,7 +21,7 @@ export class StripeService implements IPaymentService {
 
   constructor() {
     this._stripe = new Stripe(env.STRIPE_SECRET_KEY, {
-      apiVersion: '2025-05-28.basil', // Updated to a stable version
+      apiVersion: '2025-05-28.basil',
     });
   }
 
@@ -40,7 +41,7 @@ export class StripeService implements IPaymentService {
       }
 
       return paymentIntent.client_secret;
-    } catch (error: unknown) {
+    } catch (error) {
       if (error instanceof Stripe.errors.StripeError) {
         throw new ValidationError(`PaymentIntent creation error: ${error.message}`);
       }
@@ -57,7 +58,7 @@ export class StripeService implements IPaymentService {
       if (paymentIntent.status !== 'succeeded') {
         throw new ValidationError('Payment not completed');
       }
-    } catch (error: unknown) {
+    } catch (error) {
       if (error instanceof Stripe.errors.StripeError) {
         throw new ValidationError(`Payment confirmation error: ${error.message}`);
       }
@@ -72,6 +73,8 @@ export class StripeService implements IPaymentService {
       const refund = await this._stripe.refunds.create({
         payment_intent: paymentIntentId,
       });
+
+      logger.debug(`refund: ${refund}`);
 
       // Retrieve the PaymentIntent with expanded charges
       const paymentIntent = (await this._stripe.paymentIntents.retrieve(paymentIntentId, {

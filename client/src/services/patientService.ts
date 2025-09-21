@@ -5,6 +5,7 @@ import {
   GetDoctorAvailabilityPayload,
   SubscriptionPlan,
   Doctor,
+  QueryParams,
 } from '../types/authTypes';
 import { DateUtils } from '../utils/DateUtils';
 import { ROUTES } from '../constants/routeConstants';
@@ -41,6 +42,8 @@ export interface PatientSubscription {
   createdAt?: string;
   updatedAt?: string;
   cancellationReason?: string;
+  refundId?: string;
+  refundAmount?: number;
 }
 
 export const getDoctors = async () => {
@@ -204,9 +207,7 @@ export const bookAppointment = async ({
     return response.data;
   } catch (error) {
     const axiosError = error as AxiosError<PatientApiError>;
-    throw new Error(
-      axiosError.message || 'Failed to book appointment'
-    );
+    throw new Error(axiosError.message || 'Failed to book appointment');
   }
 };
 
@@ -358,4 +359,17 @@ export const fetchInvoiceDetails = async (
       axiosError.response?.data.message || 'Failed to fetch invoice details'
     );
   }
+};
+
+export const getAppointmentsBySubscription = async (
+  subscriptionId: string,
+  params: QueryParams
+) => {
+  return await api.get(
+    ROUTES.API.PATIENT.APPOINTMENTS_BY_SUBSCRIPTION.replace(
+      ':subscriptionId',
+      subscriptionId
+    ),
+    { params }
+  );
 };

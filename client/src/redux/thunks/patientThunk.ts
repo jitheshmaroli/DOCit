@@ -10,6 +10,7 @@ import {
   cancelSubscription,
   getPatientSubscriptions,
   getDoctor,
+  getAppointmentsBySubscription,
 } from '../../services/patientService';
 import {
   GetDoctorAvailabilityPayload,
@@ -147,17 +148,20 @@ export const getPatientSubscriptionsThunk = createAsyncThunk(
                 description: subscription.planDetails?.description || '',
                 price: subscription.planDetails?.price || 0,
                 validityDays: subscription.planDetails?.validityDays || 0,
-                appointmentCount: subscription.planDetails?.appointmentCount || 0,
+                appointmentCount:
+                  subscription.planDetails?.appointmentCount || 0,
                 doctorId: subscription.planDetails?.doctorId || '',
               },
               daysUntilExpiration: subscription.remainingDays,
               isExpired:
                 subscription.status !== 'active' ||
-                DateUtils.parseToUTC(subscription.expiryDate) < new Date(),
+                DateUtils.parseToUTC(subscription.endDate) < new Date(),
               appointmentsLeft: subscription.appointmentsLeft,
               status: subscription.status,
               createdAt: subscription.createdAt,
-              expiryDate: subscription.expiryDate,
+              expiryDate: subscription.endDate,
+              refundId: subscription.refundId,
+              refundAmount: subscription.refundAmount,
             };
           }
 
@@ -177,11 +181,13 @@ export const getPatientSubscriptionsThunk = createAsyncThunk(
             daysUntilExpiration: subscription.remainingDays,
             isExpired:
               subscription.status !== 'active' ||
-              DateUtils.parseToUTC(subscription.expiryDate) < new Date(),
+              DateUtils.parseToUTC(subscription.endDate) < new Date(),
             appointmentsLeft: subscription.appointmentsLeft,
             status: subscription.status,
             createdAt: subscription.createdAt,
-            expiryDate: subscription.expiryDate,
+            expiryDate: subscription.endDate,
+            refundId: subscription.refundId,
+            refundAmount: subscription.refundAmount,
           };
         })
       );
@@ -210,6 +216,27 @@ export const getPatientAppointmentsForDoctorThunk = createAsyncThunk<
         limit
       );
       return response;
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to fetch appointments';
+      return rejectWithValue(errorMessage);
+    }
+  }
+);
+
+export const getAppointmentsBySubscriptionThunk = createAsyncThunk<
+  { appointments: Appointment[]; totalItems: number },
+  { subscriptionId: string; page?: number; limit?: number },
+  { rejectValue: string }
+>(
+  'patient/getAppointmentsBySubscription',
+  async ({ subscriptionId, page = 1, limit = 5 }, { rejectWithValue }) => {
+    try {
+      const response = await getAppointmentsBySubscription(subscriptionId, {
+        page,
+        limit,
+      });
+      return response.data;
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to fetch appointments';

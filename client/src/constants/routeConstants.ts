@@ -22,6 +22,7 @@ export const ROUTES = {
     DOCTOR_DETAILS: '/patient/doctors/:doctorId',
     APPOINTMENT_DETAILS: '/patient/appointment/:appointmentId',
     MESSAGES: '/patient/messages',
+    INVOICE_DETAILS: '/patient/invoice/:paymentIntentId',
   },
 
   // Doctor Routes
@@ -128,6 +129,9 @@ export const ROUTES = {
       SUBSCRIPTION_LIST: apiPath('/patients/subscriptions'),
       PATIENT_BY_ID: apiPath('/patients/:patientId'),
       INVOICE_DETAILS: '/patient/invoice/:paymentIntentId',
+      APPOINTMENTS_BY_SUBSCRIPTION: apiPath(
+        '/patients/subscriptions/:subscriptionId/appointments'
+      ),
     },
 
     MESSAGE: {

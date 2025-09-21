@@ -9,6 +9,10 @@ export interface IAppointmentRepository extends IBaseRepository<Appointment> {
   countByPatientAndDoctor(patientId: string, doctorId: string): Promise<number>;
   countByPatientAndDoctorWithFreeBooking(patientId: string, doctorId: string): Promise<number>;
   findByPatient(patientId: string): Promise<Appointment[]>;
+  findBySubscriptionWithQuery(
+    subscriptionId: string,
+    params: QueryParams
+  ): Promise<{ data: Appointment[]; totalItems: number }>;
   findByPatientAndDoctorWithQuery(
     patientId: string,
     doctorId: string,

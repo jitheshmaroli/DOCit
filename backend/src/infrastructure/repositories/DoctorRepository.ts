@@ -462,6 +462,7 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
       const totalItems = countResult[0]?.totalItems || 0;
       const totalPages = Math.ceil(totalItems / validatedLimit);
 
+      console.log('dododo', doctors[0]._id);
       return {
         data: doctors as Doctor[],
         totalPages,

@@ -43,6 +43,11 @@ router.post('/appointments', patientAuth, patientController.bookAppointment.bind
 router.get('/appointments', patientAuth, patientController.getAppointments.bind(patientController));
 router.get('/appointments/:appointmentId', patientAuth, patientController.getAppointment.bind(patientController));
 router.delete('/appointments/:appointmentId', patientAuth, patientController.cancelAppointment.bind(patientController));
+router.get(
+  '/subscriptions/:subscriptionId/appointments',
+  patientAuth,
+  patientController.getAppointmentsBySubscription.bind(patientController)
+);
 
 // Subscription routes
 router.post('/subscriptions', patientAuth, patientController.subscribeToPlan.bind(patientController));

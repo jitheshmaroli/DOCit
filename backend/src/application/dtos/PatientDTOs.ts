@@ -1,4 +1,5 @@
 import { SubscriptionPlan } from '../../core/entities/SubscriptionPlan';
+import { AppointmentDTO } from './AppointmentDTOs'; // Import AppointmentDTO
 
 export interface PatientDTO {
   _id?: string;
@@ -37,6 +38,7 @@ export interface PatientSubscriptionDTO {
   createdAt?: string;
   updatedAt?: string;
   cancellationReason?: string;
+  appointments?: AppointmentDTO[];
 }
 
 export interface PaginatedPatientResponseDTO {
