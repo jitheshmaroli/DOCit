@@ -1,15 +1,16 @@
 import express from 'express';
-import { Container } from '../../infrastructure/di/container';
-import { UserController } from '../controllers/user/UserController';
-import { authMiddleware } from '../middlewares/authMiddleware';
+import createControllers from '../../infrastructure/di/controllers';
+import createMiddlewares from '../../infrastructure/di/middlewares';
 
 const router = express.Router();
-const container = Container.getInstance();
 
-const userController = new UserController(container);
+const { userController } = createControllers();
+const { authMiddleware } = createMiddlewares();
+
+const userAuth = [authMiddleware.exec];
 
 // User routes
-router.get('/me', authMiddleware(container), userController.getCurrentUser.bind(userController));
-router.get('/:userId', authMiddleware(container), userController.getUser.bind(userController));
+router.get('/me', userAuth, userController.getCurrentUser.bind(userController));
+router.get('/:userId', userAuth, userController.getUser.bind(userController));
 
 export default router;

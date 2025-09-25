@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
 import { ISubscriptionPlanUseCase } from '../../../core/interfaces/use-cases/ISubscriptionPlanUseCase';
-import { Container } from '../../../infrastructure/di/container';
 import { IAppointmentUseCase } from '../../../core/interfaces/use-cases/IAppointmentUseCase';
 import { ISpecialityUseCase } from '../../../core/interfaces/use-cases/ISpecialityUseCase';
 import { IReportUseCase } from '../../../core/interfaces/use-cases/IReportUseCase';
@@ -9,37 +8,19 @@ import { ValidationError } from '../../../utils/errors';
 import { QueryParams } from '../../../types/authTypes';
 import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
-import {
-  AdminDashboardStatsResponseDTO,
-  ReportDataResponseDTO,
-  ReportFilterDTO,
-} from '../../../application/dtos/ReportDTOs';
-import {
-  PaginatedSubscriptionPlanResponseDTO,
-  SubscriptionPlanResponseDTO,
-} from '../../../application/dtos/SubscriptionPlanDTOs';
-import { AppointmentDTO, GetAppointmentsResponseDTO } from '../../../application/dtos/AppointmentDTOs';
-import { PatientSubscriptionDTO } from '../../../application/dtos/PatientDTOs';
-import { PaginatedSpecialityResponseDTO, SpecialityResponseDTO } from '../../../application/dtos/SpecialityDTOs';
 
 export class AdminController {
-  private _subscriptionPlanUseCase: ISubscriptionPlanUseCase;
-  private _appointmentUseCase: IAppointmentUseCase;
-  private _specialityUseCase: ISpecialityUseCase;
-  private _reportUseCase: IReportUseCase;
-  private _patientUseCase: IPatientUseCase;
-
-  constructor(container: Container) {
-    this._subscriptionPlanUseCase = container.get<ISubscriptionPlanUseCase>('ISubscriptionPlanUseCase');
-    this._appointmentUseCase = container.get<IAppointmentUseCase>('IAppointmentUseCase');
-    this._specialityUseCase = container.get<ISpecialityUseCase>('ISpecialityUseCase');
-    this._reportUseCase = container.get<IReportUseCase>('IReportUseCase');
-    this._patientUseCase = container.get<IPatientUseCase>('IPatientUseCase');
-  }
+  constructor(
+    private _subscriptionPlanUseCase: ISubscriptionPlanUseCase,
+    private _appointmentUseCase: IAppointmentUseCase,
+    private _specialityUseCase: ISpecialityUseCase,
+    private _reportUseCase: IReportUseCase,
+    private _patientUseCase: IPatientUseCase
+  ) {}
 
   async getDashboardStats(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const stats: AdminDashboardStatsResponseDTO = await this._reportUseCase.getAdminDashboardStats();
+      const stats = await this._reportUseCase.getAdminDashboardStats();
       res.status(HttpStatusCode.OK).json(stats);
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
@@ -49,14 +30,14 @@ export class AdminController {
 
   async getReports(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { type, startDate, endDate } = req.body as ReportFilterDTO;
+      const { type, startDate, endDate } = req.body;
       if (!type || !['daily', 'monthly', 'yearly'].includes(type)) {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
       if (type === 'daily' && (!startDate || !endDate)) {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
-      const reportData: ReportDataResponseDTO = await this._reportUseCase.getAdminReports({
+      const reportData = await this._reportUseCase.getAdminReports({
         type,
         startDate,
         endDate,
@@ -70,8 +51,7 @@ export class AdminController {
   async getAllPlans(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const params = req.query as QueryParams;
-      const response: PaginatedSubscriptionPlanResponseDTO =
-        await this._subscriptionPlanUseCase.manageSubscriptionPlanGetAll(params);
+      const response = await this._subscriptionPlanUseCase.manageSubscriptionPlanGetAll(params);
       res.status(HttpStatusCode.OK).json(response);
     } catch (error) {
       next(error);
@@ -81,8 +61,7 @@ export class AdminController {
   async approvePlan(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { planId } = req.params;
-      const updatedPlan: SubscriptionPlanResponseDTO =
-        await this._subscriptionPlanUseCase.approveSubscriptionPlan(planId);
+      const updatedPlan = await this._subscriptionPlanUseCase.approveSubscriptionPlan(planId);
       res.status(HttpStatusCode.OK).json({ data: updatedPlan, message: ResponseMessages.PLAN_APPROVED });
     } catch (error) {
       next(error);
@@ -92,8 +71,7 @@ export class AdminController {
   async rejectPlan(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { planId } = req.params;
-      const updatedPlan: SubscriptionPlanResponseDTO =
-        await this._subscriptionPlanUseCase.rejectSubscriptionPlan(planId);
+      const updatedPlan = await this._subscriptionPlanUseCase.rejectSubscriptionPlan(planId);
       res.status(HttpStatusCode.OK).json({ data: updatedPlan, message: ResponseMessages.PLAN_REJECTED });
     } catch (error) {
       next(error);
@@ -113,9 +91,8 @@ export class AdminController {
   async getAllAppointments(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const params = req.query as QueryParams;
-      const { data, totalItems }: GetAppointmentsResponseDTO =
-        await this._appointmentUseCase.getAllAppointments(params);
-      const appointmentDTOs: AppointmentDTO[] = data;
+      const { data, totalItems } = await this._appointmentUseCase.getAllAppointments(params);
+      const appointmentDTOs = data;
       const { page = 1, limit = 10 } = params;
       const totalPages = Math.ceil(totalItems / limit);
 
@@ -146,7 +123,7 @@ export class AdminController {
       if (!patientId) {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
-      const subscriptions: PatientSubscriptionDTO[] = await this._patientUseCase.getPatientSubscriptions(patientId);
+      const subscriptions = await this._patientUseCase.getPatientSubscriptions(patientId);
       res.status(HttpStatusCode.OK).json({ data: subscriptions });
     } catch (error) {
       next(error);
@@ -156,7 +133,7 @@ export class AdminController {
   async getSpecialities(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const params = req.query as QueryParams;
-      const response: PaginatedSpecialityResponseDTO = await this._specialityUseCase.getSpecialitiesWithQuery(params);
+      const response = await this._specialityUseCase.getSpecialitiesWithQuery(params);
       res.status(HttpStatusCode.OK).json(response);
     } catch (error) {
       next(error);
@@ -165,9 +142,9 @@ export class AdminController {
 
   async addSpeciality(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { name } = req.body;
-      if (!name) throw new ValidationError(ResponseMessages.BAD_REQUEST);
-      const speciality: SpecialityResponseDTO = await this._specialityUseCase.addSpeciality({ name });
+      const specialityName = req.body.name;
+      if (!specialityName) throw new ValidationError(ResponseMessages.BAD_REQUEST);
+      const speciality = await this._specialityUseCase.addSpeciality({ name: specialityName });
       res.status(HttpStatusCode.CREATED).json(speciality);
     } catch (error) {
       next(error);
@@ -177,9 +154,9 @@ export class AdminController {
   async updateSpeciality(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const specialityId = req.params.id;
-      const { name } = req.body;
-      if (!name) throw new ValidationError(ResponseMessages.BAD_REQUEST);
-      const speciality: SpecialityResponseDTO = await this._specialityUseCase.updateSpeciality(specialityId, { name });
+      const { specialityName } = req.body;
+      if (!specialityName) throw new ValidationError(ResponseMessages.BAD_REQUEST);
+      const speciality = await this._specialityUseCase.updateSpeciality(specialityId, { name: specialityName });
       res.status(HttpStatusCode.OK).json(speciality);
     } catch (error) {
       next(error);

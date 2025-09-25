@@ -7,7 +7,6 @@ import { IImageUploadService } from '../../core/interfaces/services/IImageUpload
 import { QueryParams } from '../../types/authTypes';
 import { UserRole } from '../../types';
 import { NotFoundError, ValidationError } from '../../utils/errors';
-import logger from '../../utils/logger';
 import { SocketService } from '../../infrastructure/services/SocketService';
 import {
   SendMessageRequestDTO,
@@ -16,6 +15,8 @@ import {
   AddReactionRequestDTO,
 } from '../dtos/ChatDTOs';
 import { ChatMapper } from '../mappers/ChatMapper';
+import { IValidatorService } from '../../core/interfaces/services/IValidatorService';
+import logger from '../../utils/logger';
 
 export class ChatUseCase implements IChatUseCase {
   constructor(
@@ -23,15 +24,25 @@ export class ChatUseCase implements IChatUseCase {
     private _patientRepository: IPatientRepository,
     private _doctorRepository: IDoctorRepository,
     private _socketService: SocketService,
-    private _imageUploadService: IImageUploadService
+    private _imageUploadService: IImageUploadService,
+    private _validatorService: IValidatorService
   ) {}
 
   async sendMessage(message: SendMessageRequestDTO, file?: Express.Multer.File): Promise<ChatMessageResponseDTO> {
+    // Validations
+    this._validatorService.validateRequiredFields({
+      senderName: message.senderName,
+      receiverId: message.receiverId,
+      message: message.message,
+    });
+    this._validatorService.validateIdFormat(message.senderName);
+    this._validatorService.validateIdFormat(message.receiverId);
+    this._validatorService.validateLength(message.message, 1, 2000);
+
     const sender =
       (await this._patientRepository.findById(message.senderName)) ||
       (await this._doctorRepository.findById(message.senderName));
     if (!sender) {
-      logger.error(`Sender not found: ${message.senderName}`);
       throw new NotFoundError('Sender not found');
     }
 
@@ -39,77 +50,63 @@ export class ChatUseCase implements IChatUseCase {
       (await this._patientRepository.findById(message.receiverId)) ||
       (await this._doctorRepository.findById(message.receiverId));
     if (!receiver) {
-      logger.error(`Receiver not found: ${message.receiverId}`);
       throw new NotFoundError('Receiver not found');
     }
 
     let attachment: ChatMessage['attachment'] | undefined;
     if (file && this._imageUploadService) {
-      try {
-        const { url } = await this._imageUploadService.uploadFile(file, 'chat_attachments');
-        attachment = {
-          url,
-          type: file.mimetype,
-          name: file.originalname,
-        };
-      } catch (error) {
-        logger.error(`Error uploading file: ${(error as Error).message}`);
-        throw new Error('Failed to upload file');
+      // Validate file (basic check for mimetype and size)
+      if (!['image/jpeg', 'image/png', 'application/pdf'].includes(file.mimetype)) {
+        throw new ValidationError('Invalid file type. Only JPEG, PNG, or PDF allowed.');
       }
+      if (file.size > 5 * 1024 * 1024) {
+        // 5MB limit
+        throw new ValidationError('File size exceeds 5MB limit.');
+      }
+
+      const { url } = await this._imageUploadService.uploadFile(file, 'chat_attachments');
+      attachment = {
+        url,
+        type: file.mimetype,
+        name: file.originalname,
+      };
     }
 
     const newMessage = ChatMapper.toChatMessageEntity(message, message.senderName);
     newMessage.attachment = attachment;
 
-    try {
-      const savedMessage = await this._chatRepository.create(newMessage);
-      return ChatMapper.toChatMessageResponseDTO(savedMessage);
-    } catch (error) {
-      logger.error(`Error sending message: ${(error as Error).message}`);
-      throw new Error('Failed to send message');
-    }
+    const savedMessage = await this._chatRepository.create(newMessage);
+    return ChatMapper.toChatMessageResponseDTO(savedMessage);
   }
 
   async getMessages(senderId: string, receiverId: string): Promise<ChatMessageResponseDTO[]> {
-    if (!senderId || !receiverId) {
-      logger.error('Sender ID and receiver ID are required for fetching messages');
-      throw new ValidationError('Sender ID and receiver ID are required');
-    }
+    // Validations
+    this._validatorService.validateRequiredFields({ senderId, receiverId });
+    this._validatorService.validateIdFormat(senderId);
+    this._validatorService.validateIdFormat(receiverId);
 
     const messages = await this._chatRepository.findByParticipants(senderId, receiverId);
     return messages.map((message) => ChatMapper.toChatMessageResponseDTO(message));
   }
 
   async deleteMessage(messageId: string, userId: string): Promise<void> {
-    if (!messageId || !userId) {
-      logger.error('Message ID and user ID are required for deleting message');
-      throw new ValidationError('Message ID and user ID are required');
-    }
+    // Validations
+    this._validatorService.validateRequiredFields({ messageId, userId });
+    this._validatorService.validateIdFormat(messageId);
+    this._validatorService.validateIdFormat(userId);
 
     const message = await this._chatRepository.findById(messageId);
     if (!message) {
-      logger.error(`Message not found: ${messageId}`);
       throw new NotFoundError('Message not found');
     }
 
-    if (message.senderId !== userId) {
-      logger.error(`Unauthorized attempt to delete message ${messageId} by user ${userId}`);
-      throw new ValidationError('You can only delete your own messages');
-    }
-
-    try {
-      await this._chatRepository.delete(messageId);
-    } catch (error) {
-      logger.error(`Error deleting message ${messageId}: ${(error as Error).message}`);
-      throw new Error('Failed to delete message');
-    }
+    await this._chatRepository.delete(messageId);
   }
 
   async getChatHistory(userId: string, params: QueryParams): Promise<ChatMessageResponseDTO[]> {
-    if (!userId) {
-      logger.error('User ID is required for fetching chat history');
-      throw new ValidationError('User ID is required');
-    }
+    // Validations
+    this._validatorService.validateRequiredFields({ userId });
+    this._validatorService.validateIdFormat(userId);
 
     const messages = await this._chatRepository.getChatHistory(userId, params);
     return messages.map((message) => ChatMapper.toChatMessageResponseDTO(message));
@@ -120,57 +117,70 @@ export class ChatUseCase implements IChatUseCase {
     role: UserRole.Patient | UserRole.Doctor,
     params: QueryParams
   ): Promise<InboxResponseDTO[]> {
-    if (!userId || !role) {
-      logger.error('User ID and role are required for fetching inbox');
-      throw new ValidationError('User ID and role are required');
-    }
+    // Validations
+    this._validatorService.validateRequiredFields({ userId, role });
+    this._validatorService.validateIdFormat(userId);
+    this._validatorService.validateEnum(role, [UserRole.Patient, UserRole.Doctor]);
 
     const inboxEntries = await this._chatRepository.getInbox(userId, params);
 
-    const inboxResponses: InboxResponseDTO[] = await Promise.all(
+    const inboxResponses: InboxResponseDTO[] = [];
+    await Promise.all(
       inboxEntries.map(async (entry) => {
-        const partnerId = entry.partnerId;
-        let partnerName: string;
+        const partnerId = entry.partnerId.toString();
+        this._validatorService.validateIdFormat(partnerId);
+
+        let partnerName = 'Unknown';
         let partnerProfilePicture: string | undefined;
         let lastSeen: Date | undefined;
 
         const isOnline = this._socketService.isUserOnline(partnerId);
 
-        if (role === UserRole.Patient) {
-          const doctor = await this._doctorRepository.findById(partnerId);
-          if (!doctor) {
-            throw new ValidationError(`Doctor with ID ${partnerId} not found`);
+        try {
+          if (role === UserRole.Patient) {
+            const doctor = await this._doctorRepository.findById(partnerId);
+            logger.info(`doctorifpatient: ${doctor}`);
+            if (doctor) {
+              partnerName = doctor.name || 'Unknown Doctor';
+              partnerProfilePicture = doctor.profilePicture;
+              lastSeen = doctor.lastSeen;
+            } else {
+              logger.warn(`Doctor with ID ${partnerId} not found, skipping inbox entry`);
+              return;
+            }
+          } else if (role === UserRole.Doctor) {
+            const patient = await this._patientRepository.findById(partnerId);
+            logger.info(`patientifdoctor: ${patient}`);
+            if (patient) {
+              partnerName = patient.name || 'Unknown Patient';
+              partnerProfilePicture = patient.profilePicture;
+              lastSeen = patient.lastSeen;
+            } else {
+              logger.warn(`Patient with ID ${partnerId} not found, skipping inbox entry`);
+              return;
+            }
           }
-          partnerName = doctor.name || 'Unknown Doctor';
-          partnerProfilePicture = doctor.profilePicture;
-          lastSeen = doctor.lastSeen;
-        } else {
-          const patient = await this._patientRepository.findById(partnerId);
-          if (!patient) {
-            throw new ValidationError(`Patient with ID ${partnerId} not found`);
-          }
-          partnerName = patient.name || 'Unknown Patient';
-          partnerProfilePicture = patient.profilePicture;
-          lastSeen = patient.lastSeen;
-        }
 
-        return {
-          _id: partnerId,
-          receiverId: partnerId,
-          senderName: partnerName,
-          subject: 'Conversation',
-          createdAt: entry.latestMessage?.createdAt?.toISOString() || new Date().toISOString(),
-          partnerProfilePicture,
-          latestMessage: entry.latestMessage
-            ? ChatMapper.toChatMessageResponseDTO({
-                ...entry.latestMessage,
-                isRead: entry.latestMessage.isRead ?? false,
-              })
-            : null,
-          unreadCount: entry.unreadCount || 0,
-          isOnline,
-          lastSeen: lastSeen ? lastSeen.toISOString() : undefined,
-        };
+          inboxResponses.push({
+            _id: partnerId,
+            receiverId: partnerId,
+            senderName: partnerName,
+            subject: 'Conversation',
+            createdAt: entry.latestMessage?.createdAt?.toISOString() || new Date().toISOString(),
+            partnerProfilePicture,
+            latestMessage: entry.latestMessage
+              ? ChatMapper.toChatMessageResponseDTO({
+                  ...entry.latestMessage,
+                  isRead: entry.latestMessage.isRead ?? false,
+                })
+              : null,
+            unreadCount: entry.unreadCount || 0,
+            isOnline,
+            lastSeen: lastSeen ? lastSeen.toISOString() : undefined,
+          });
+        } catch (error: unknown) {
+          logger.error(`Error processing inbox entry for partnerId ${partnerId}: ${error}`);
+        }
       })
     );
 
@@ -178,44 +188,37 @@ export class ChatUseCase implements IChatUseCase {
   }
 
   async markMessageAsRead(messageId: string, userId: string): Promise<void> {
-    if (!messageId || !userId) {
-      logger.error('Message ID and user ID are required for marking message as read');
-      throw new ValidationError('Message ID and user ID are required');
-    }
+    // Validations
+    this._validatorService.validateRequiredFields({ messageId, userId });
+    this._validatorService.validateIdFormat(messageId);
+    this._validatorService.validateIdFormat(userId);
 
     const message = await this._chatRepository.findById(messageId);
     if (!message) {
-      logger.error(`Message not found: ${messageId}`);
       throw new NotFoundError('Message not found');
     }
 
     if (message.receiverId !== userId) {
-      logger.error(`Unauthorized attempt to mark message ${messageId} as read by user ${userId}`);
       throw new ValidationError('Unauthorized to mark this message as read');
     }
 
-    try {
-      await this._chatRepository.update(messageId, { isRead: true, unreadBy: [] });
-    } catch (error) {
-      logger.error(`Error marking message ${messageId} as read: ${(error as Error).message}`);
-      throw new Error('Failed to mark message as read');
-    }
+    await this._chatRepository.update(messageId, { isRead: true, unreadBy: [] });
   }
 
   async addReaction(messageId: string, userId: string, dto: AddReactionRequestDTO): Promise<ChatMessageResponseDTO> {
-    if (!messageId || !userId || !dto.emoji) {
-      logger.error('Message ID, user ID, and emoji are required for adding reaction');
-      throw new ValidationError('Message ID, user ID, and emoji are required');
-    }
+    // Validations
+    this._validatorService.validateRequiredFields({ messageId, userId, emoji: dto.emoji });
+    this._validatorService.validateIdFormat(messageId);
+    this._validatorService.validateIdFormat(userId);
+    this._validatorService.validateLength(dto.emoji, 1, 10);
+    this._validatorService.validateBoolean(dto.replace);
 
     const message = await this._chatRepository.findById(messageId);
     if (!message) {
-      logger.error(`Message not found: ${messageId}`);
       throw new NotFoundError('Message not found');
     }
 
-    if (message.senderId !== userId && message.receiverId !== userId) {
-      logger.error(`Unauthorized attempt to add reaction to message ${messageId} by user ${userId}`);
+    if (message.senderId?.toString() !== userId && message.receiverId?.toString() !== userId) {
       throw new ValidationError('Unauthorized to add reaction to this message');
     }
 
@@ -223,16 +226,10 @@ export class ChatUseCase implements IChatUseCase {
       ? [{ userId, emoji: dto.emoji }]
       : [...(message.reactions || []), { userId, emoji: dto.emoji }];
 
-    try {
-      const updatedMessage = await this._chatRepository.update(messageId, { reactions: updatedReactions });
-      if (!updatedMessage) {
-        logger.error(`Failed to add reaction to message ${messageId}`);
-        throw new NotFoundError('Failed to add reaction');
-      }
-      return ChatMapper.toChatMessageResponseDTO(updatedMessage);
-    } catch (error) {
-      logger.error(`Error adding reaction to message ${messageId}: ${(error as Error).message}`);
-      throw new Error('Failed to add reaction');
+    const updatedMessage = await this._chatRepository.update(messageId, { reactions: updatedReactions });
+    if (!updatedMessage) {
+      throw new NotFoundError('Failed to add reaction');
     }
+    return ChatMapper.toChatMessageResponseDTO(updatedMessage);
   }
 }

@@ -1,24 +1,18 @@
 import { Response, NextFunction } from 'express';
-import { Container } from '../../../infrastructure/di/container';
 import { ValidationError } from '../../../utils/errors';
 import { IProfileUseCase } from '../../../core/interfaces/use-cases/IProfileUseCase';
 import fs from 'fs';
 import { CustomRequest } from '../../../types';
 import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
-import { PatientDTO } from '../../../application/dtos/PatientDTOs';
 
 export class PatientProfileController {
-  private _profileUseCase: IProfileUseCase;
-
-  constructor(container: Container) {
-    this._profileUseCase = container.get<IProfileUseCase>('IProfileUseCase');
-  }
+  constructor(private _profileUseCase: IProfileUseCase) {}
 
   async viewProfile(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const patientId = req.params.id;
-      const patient: PatientDTO = await this._profileUseCase.viewPatientProfile(patientId);
+      const patient = await this._profileUseCase.viewPatientProfile(patientId);
       res.status(HttpStatusCode.OK).json(patient);
     } catch (error) {
       next(error);
@@ -34,7 +28,7 @@ export class PatientProfileController {
       }
       const updates = req.body;
 
-      const patient: PatientDTO | null = await this._profileUseCase.updatePatientProfile(patientId, updates, req.file);
+      const patient = await this._profileUseCase.updatePatientProfile(patientId, updates, req.file);
 
       if (req.file) {
         fs.unlinkSync(req.file.path);

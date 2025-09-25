@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { Patient, Prescription } from '../../types/authTypes';
@@ -9,6 +9,7 @@ import { getPatientAppointments } from '../../services/doctorService';
 import { useAppSelector } from '../../redux/hooks';
 import api from '../../services/api';
 import Modal from '../../components/common/Modal';
+import BackButton from '../../components/common/BackButton';
 
 interface Appointment {
   _id: string;
@@ -25,7 +26,7 @@ const ITEMS_PER_PAGE = 4;
 
 const PatientDetails: React.FC = () => {
   const { patientId } = useParams<{ patientId: string }>();
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
   const { user } = useAppSelector((state) => state.auth);
   const [patient, setPatient] = useState<Patient | null>(null);
   const [activeTab, setActiveTab] = useState<'profile' | 'medicalHistory'>(
@@ -157,25 +158,7 @@ const PatientDetails: React.FC = () => {
         )}
       </Modal>
       <div className="bg-white/10 backdrop-blur-lg p-4 sm:p-6 rounded-2xl border border-white/20 shadow-xl">
-        <button
-          onClick={() => navigate('/doctor/appointments')}
-          className="mb-4 text-white hover:text-blue-300 flex items-center"
-        >
-          <svg
-            className="w-5 h-5 mr-2"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M15 19l-7-7 7-7"
-            />
-          </svg>
-          Back to Appointments
-        </button>
+        <BackButton />
         <h2 className="text-xl sm:text-2xl font-semibold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent mb-6">
           Patient Details
         </h2>

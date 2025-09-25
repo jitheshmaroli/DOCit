@@ -7,8 +7,22 @@ export interface IPatientUseCase {
   deletePatient(patientId: string): Promise<void>;
   blockPatient(patientId: string, isBlocked: boolean): Promise<PatientDTO | null>;
   listPatients(params: QueryParams): Promise<PaginatedPatientResponseDTO>;
-  getPatientSubscriptions(patientId: string): Promise<PatientSubscriptionDTO[]>;
+  getPatientSubscriptions(patientId: string, params?: QueryParams): Promise<PatientSubscriptionDTO[]>;
   getPatientActiveSubscription(patientId: string, doctorId: string): Promise<PatientSubscriptionDTO | null>;
   getSubscribedPatients(doctorId: string): Promise<PatientDTO[] | null>;
   getAppointedPatients(doctorId: string, params: QueryParams): Promise<PaginatedPatientResponseDTO>;
+  getInvoiceDetails(
+    patientId: string,
+    paymentIntentId: string
+  ): Promise<{
+    paymentIntentId: string;
+    amount: number;
+    cardLast4?: string;
+    date: string;
+    planName?: string;
+    doctorName?: string;
+    status: string;
+    cancellationReason?: string;
+    remainingDays?: number;
+  }>;
 }

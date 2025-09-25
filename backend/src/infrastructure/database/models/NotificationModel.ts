@@ -3,7 +3,7 @@ import { Notification, NotificationType } from '../../../core/entities/Notificat
 
 const NotificationSchema = new Schema<Notification>(
   {
-    userId: { type: String, required: true },
+    userId: { type: Schema.Types.ObjectId, required: true },
     type: {
       type: String,
       enum: Object.values(NotificationType),

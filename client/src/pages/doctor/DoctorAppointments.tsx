@@ -66,7 +66,11 @@ const DoctorAppointments: React.FC = () => {
       header: 'Patient',
       accessor: (appt) => (
         <button
-          onClick={() => navigate(`/doctor/patient/${appt.patientId._id}`)}
+          onClick={() =>
+            navigate(`/doctor/patient/${appt.patientId._id}`, {
+              state: { from: 'appointments' },
+            })
+          }
           className="hover:underline hover:text-blue-300 focus:outline-none"
         >
           {appt.patientId.name || 'N/A'}

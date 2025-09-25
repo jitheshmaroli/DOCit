@@ -9,7 +9,7 @@ const TimeSlotSchema = new Schema<TimeSlot>({
 
 const AvailabilitySchema = new Schema<Availability>(
   {
-    doctorId: { type: String, required: true, ref: 'Doctor' },
+    doctorId: { type: Schema.Types.ObjectId, required: true, ref: 'Doctor' },
     date: { type: Date, required: true },
     timeSlots: [TimeSlotSchema],
   },

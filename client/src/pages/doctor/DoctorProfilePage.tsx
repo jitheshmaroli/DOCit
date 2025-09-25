@@ -76,7 +76,7 @@ const DoctorProfilePage: React.FC = () => {
         const specialitiesData = specialitiesResponse.data;
         setSpecialities(specialitiesData);
 
-        const response = await api.get(`/api/doctors/${doctorId}`);
+        const response = await api.get(`/api/doctors/profile`);
         const data = response.data;
 
         let specialityName = '';
@@ -442,7 +442,7 @@ const DoctorProfilePage: React.FC = () => {
                 }
 
                 const response = await api.patch(
-                  `/api/doctors/${doctorId}`,
+                  `/api/doctors/profile`,
                   formDataToSend,
                   {
                     headers: { 'Content-Type': 'multipart/form-data' },

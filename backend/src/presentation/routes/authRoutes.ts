@@ -1,18 +1,10 @@
 import express from 'express';
-import { Container } from '../../infrastructure/di/container';
-import { PatientAuthController } from '../controllers/auth/PatientAuthController';
-import { DoctorAuthController } from '../controllers/auth/DoctorAuthController';
-import { AdminAuthController } from '../controllers/auth/AdminAuthController';
-import { SharedAuthController } from '../controllers/auth/SharedAuthController';
+import createControllers from '../../infrastructure/di/controllers';
 
 const router = express.Router();
-const container = Container.getInstance();
 
-// Controller instantiation
-const patientAuthController = new PatientAuthController(container);
-const doctorAuthController = new DoctorAuthController(container);
-const adminAuthController = new AdminAuthController(container);
-const sharedAuthController = new SharedAuthController(container);
+// Controller
+const { sharedAuthController, doctorAuthController, patientAuthController, adminAuthController } = createControllers();
 
 // Patient auth routes
 router.post('/patient/signup', patientAuthController.signup.bind(patientAuthController));

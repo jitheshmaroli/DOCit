@@ -4,11 +4,12 @@ import {
   getDoctorAvailabilityForDateThunk,
   bookAppointmentThunk,
   getPatientSubscriptionThunk,
+  getPatientSubscriptionsThunk,
   getPatientAppointmentsForDoctorThunk,
   getPatientAppointmentsThunk,
   cancelAppointmentThunk,
   cancelSubscriptionThunk,
-  getPatientSubscriptionsThunk,
+  getAppointmentsBySubscriptionThunk,
 } from '../thunks/patientThunk';
 import {
   AvailabilityPayload,
@@ -44,8 +45,9 @@ interface CancelSubscriptionResponse {
 
 interface PatientState {
   activeSubscriptions: PatientSubscription[];
-  appointments: { [doctorId: string]: Appointment[] };
-  totalItems: number;
+  appointments: { [key: string]: Appointment[] }; // Keyed by doctorId or subscriptionId
+  totalItems: number; // For DoctorDetails
+  totalItemsBySubscription: { [subscriptionId: string]: number }; // For Subscriptions
   availability: AvailabilityPayload[];
   timeSlots: TimeSlot[];
   canBookFree: boolean;
@@ -58,6 +60,7 @@ const initialState: PatientState = {
   activeSubscriptions: [],
   appointments: {},
   totalItems: 0,
+  totalItemsBySubscription: {},
   availability: [],
   timeSlots: [],
   canBookFree: true,
@@ -116,10 +119,24 @@ const patientSlice = createSlice({
       .addCase(bookAppointmentThunk.fulfilled, (state, action) => {
         const appointment = action.payload;
         const doctorId = appointment.doctorId;
-        if (!state.appointments[doctorId]) {
-          state.appointments[doctorId] = [];
+        const subscriptionId = appointment.patientSubscriptionId;
+        // Store by doctorId for DoctorDetails
+        if (doctorId) {
+          if (!state.appointments[doctorId]) {
+            state.appointments[doctorId] = [];
+          }
+          state.appointments[doctorId].push(appointment);
+          state.totalItems = (state.totalItems || 0) + 1;
         }
-        state.appointments[doctorId].push(appointment);
+        // Store by subscriptionId for Subscriptions
+        if (subscriptionId) {
+          if (!state.appointments[subscriptionId]) {
+            state.appointments[subscriptionId] = [];
+          }
+          state.appointments[subscriptionId].push(appointment);
+          state.totalItemsBySubscription[subscriptionId] =
+            (state.totalItemsBySubscription[subscriptionId] || 0) + 1;
+        }
         state.loading = false;
       })
       .addCase(bookAppointmentThunk.rejected, (state, action) => {
@@ -204,6 +221,31 @@ const patientSlice = createSlice({
           state.loading = false;
         }
       )
+      .addCase(getAppointmentsBySubscriptionThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(
+        getAppointmentsBySubscriptionThunk.fulfilled,
+        (
+          state,
+          action: PayloadAction<
+            { appointments: Appointment[]; totalItems: number },
+            string,
+            { arg: { subscriptionId: string } }
+          >
+        ) => {
+          const subscriptionId = action.meta.arg.subscriptionId;
+          state.appointments[subscriptionId] = action.payload.appointments;
+          state.totalItemsBySubscription[subscriptionId] =
+            action.payload.totalItems;
+          state.loading = false;
+        }
+      )
+      .addCase(getAppointmentsBySubscriptionThunk.rejected, (state, action) => {
+        state.error = action.payload as string;
+        state.loading = false;
+      })
       .addCase(getPatientAppointmentsThunk.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -211,14 +253,29 @@ const patientSlice = createSlice({
       .addCase(
         getPatientAppointmentsThunk.fulfilled,
         (state, action: PayloadAction<Appointment[]>) => {
-          // Clear existing appointments and group by doctorId
           state.appointments = {};
+          state.totalItems = 0;
+          state.totalItemsBySubscription = {};
           action.payload.forEach((appt) => {
             const doctorId = appt.doctorId._id;
-            if (!state.appointments[doctorId]) {
-              state.appointments[doctorId] = [];
+            const subscriptionId = appt.patientSubscriptionId;
+            // Store by doctorId
+            if (doctorId) {
+              if (!state.appointments[doctorId]) {
+                state.appointments[doctorId] = [];
+              }
+              state.appointments[doctorId].push(appt);
+              state.totalItems = (state.totalItems || 0) + 1;
             }
-            state.appointments[doctorId].push(appt);
+            // Store by subscriptionId
+            if (subscriptionId) {
+              if (!state.appointments[subscriptionId]) {
+                state.appointments[subscriptionId] = [];
+              }
+              state.appointments[subscriptionId].push(appt);
+              state.totalItemsBySubscription[subscriptionId] =
+                (state.totalItemsBySubscription[subscriptionId] || 0) + 1;
+            }
           });
           state.loading = false;
         }
@@ -233,11 +290,16 @@ const patientSlice = createSlice({
       })
       .addCase(cancelAppointmentThunk.fulfilled, (state, action) => {
         const appointmentId = action.meta.arg.appointmentId;
-        Object.keys(state.appointments).forEach((doctorId) => {
-          state.appointments[doctorId] = state.appointments[doctorId].filter(
+        Object.keys(state.appointments).forEach((key) => {
+          state.appointments[key] = state.appointments[key].filter(
             (appt) => appt._id !== appointmentId
           );
+          if (state.totalItemsBySubscription[key]) {
+            state.totalItemsBySubscription[key] =
+              (state.totalItemsBySubscription[key] || 0) - 1;
+          }
         });
+        state.totalItems = (state.totalItems || 0) - 1;
         state.loading = false;
       })
       .addCase(cancelAppointmentThunk.rejected, (state, action) => {

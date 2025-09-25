@@ -1,5 +1,4 @@
 import { Response, NextFunction } from 'express';
-import { Container } from '../../../infrastructure/di/container';
 import { ValidationError } from '../../../utils/errors';
 import { CustomRequest } from '../../../types';
 import { QueryParams } from '../../../types/authTypes';
@@ -13,42 +12,21 @@ import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 import { IAvailabilityUseCase } from '../../../core/interfaces/use-cases/IAvailabilityUseCase';
 import { IDoctorUseCase } from '../../../core/interfaces/use-cases/IDoctorUseCase';
-import { AvailabilityResponseDTO } from '../../../application/dtos/AvailabilityDTOs';
-import {
-  AppointmentDTO,
-  BookAppointmentResponseDTO,
-  CancelAppointmentRequestDTO,
-  GetPatientAppointmentsForDoctorRequestDTO,
-  GetPatientAppointmentsResponseDTO,
-} from '../../../application/dtos/AppointmentDTOs';
-import { PatientSubscriptionDTO } from '../../../application/dtos/PatientDTOs';
-import { SubscriptionPlanResponseDTO } from '../../../application/dtos/SubscriptionPlanDTOs';
-import { DoctorDTO, PaginatedDoctorResponseDTO } from '../../../application/dtos/DoctorDTOs';
-import { SpecialityResponseDTO } from '../../../application/dtos/SpecialityDTOs';
-import { ReviewResponseDTO } from '../../../application/dtos/ReviewDTOs';
 
-export interface ExtendedGetPatientAppointmentsResponseDTO extends GetPatientAppointmentsResponseDTO {
-  canBookFree?: boolean;
-}
+// export interface ExtendedGetPatientAppointmentsResponseDTO extends GetPatientAppointmentsResponseDTO {
+//   canBookFree?: boolean;
+// }
 
 export class PatientController {
-  private _patientUseCase: IPatientUseCase;
-  private _subscriptionPlanUseCase: ISubscriptionPlanUseCase;
-  private _specialityUseCase: ISpecialityUseCase;
-  private _appointmentUseCase: IAppointmentUseCase;
-  private _reviewUseCase: IReviewUseCase;
-  private _availabilityUseCase: IAvailabilityUseCase;
-  private _doctorUseCase: IDoctorUseCase;
-
-  constructor(container: Container) {
-    this._patientUseCase = container.get<IPatientUseCase>('IPatientUseCase');
-    this._subscriptionPlanUseCase = container.get<ISubscriptionPlanUseCase>('ISubscriptionPlanUseCase');
-    this._specialityUseCase = container.get<ISpecialityUseCase>('ISpecialityUseCase');
-    this._appointmentUseCase = container.get<IAppointmentUseCase>('IAppointmentUseCase');
-    this._reviewUseCase = container.get<IReviewUseCase>('IReviewUseCase');
-    this._availabilityUseCase = container.get<IAvailabilityUseCase>('IAvailabilityUseCase');
-    this._doctorUseCase = container.get<IDoctorUseCase>('IDoctorUseCase');
-  }
+  constructor(
+    private _patientUseCase: IPatientUseCase,
+    private _subscriptionPlanUseCase: ISubscriptionPlanUseCase,
+    private _specialityUseCase: ISpecialityUseCase,
+    private _appointmentUseCase: IAppointmentUseCase,
+    private _reviewUseCase: IReviewUseCase,
+    private _availabilityUseCase: IAvailabilityUseCase,
+    private _doctorUseCase: IDoctorUseCase
+  ) {}
 
   async getDoctorAvailability(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -60,12 +38,7 @@ export class PatientController {
       const startDate = new Date(date as string);
       const endDate = new Date(startDate);
       endDate.setDate(startDate.getDate() + 30);
-      const availability: AvailabilityResponseDTO[] = await this._availabilityUseCase.getDoctorAvailability(
-        doctorId,
-        startDate,
-        endDate,
-        true
-      );
+      const availability = await this._availabilityUseCase.getDoctorAvailability(doctorId, startDate, endDate, true);
       res.status(HttpStatusCode.OK).json(availability || []);
     } catch (error) {
       next(error);
@@ -88,7 +61,7 @@ export class PatientController {
           throw new ValidationError('Not eligible for free booking');
         }
       }
-      const appointment: BookAppointmentResponseDTO = await this._appointmentUseCase.bookAppointment({
+      const appointment = await this._appointmentUseCase.bookAppointment({
         patientId,
         doctorId,
         date,
@@ -116,10 +89,7 @@ export class PatientController {
       if (!doctorId) {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
-      const subscription: PatientSubscriptionDTO | null = await this._patientUseCase.getPatientActiveSubscription(
-        patientId,
-        doctorId
-      );
+      const subscription = await this._patientUseCase.getPatientActiveSubscription(patientId, doctorId);
       res.status(HttpStatusCode.OK).json(subscription || null);
     } catch (error) {
       next(error);
@@ -153,7 +123,7 @@ export class PatientController {
       if (!planId || !paymentIntentId) {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
-      const subscription: PatientSubscriptionDTO = await this._subscriptionPlanUseCase.confirmSubscription(patientId, {
+      const subscription = await this._subscriptionPlanUseCase.confirmSubscription(patientId, {
         planId,
         paymentIntentId,
       });
@@ -195,23 +165,8 @@ export class PatientController {
       if (!patientId) {
         throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
-      const subscriptions: PatientSubscriptionDTO[] = await this._patientUseCase.getPatientSubscriptions(patientId);
-      const enhancedSubscriptions = await Promise.all(
-        subscriptions.map(async (sub) => {
-          if (sub.planDetails?.doctorId) {
-            const doctor = await this._doctorUseCase.getDoctor(sub.planDetails.doctorId);
-            return {
-              ...sub,
-              planDetails: {
-                ...sub.planDetails,
-                doctorName: doctor?.name || 'Unknown Doctor',
-              },
-            };
-          }
-          return sub;
-        })
-      );
-      res.status(HttpStatusCode.OK).json(enhancedSubscriptions);
+      const subscriptions = await this._patientUseCase.getPatientSubscriptions(patientId);
+      res.status(HttpStatusCode.OK).json(subscriptions);
     } catch (error) {
       next(error);
     }
@@ -228,12 +183,12 @@ export class PatientController {
       if (!appointmentId) {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
-      const dto: CancelAppointmentRequestDTO = {
+      const cancelAppointmentData = {
         appointmentId,
         patientId,
         cancellationReason,
       };
-      await this._appointmentUseCase.cancelAppointment(dto);
+      await this._appointmentUseCase.cancelAppointment(cancelAppointmentData);
       res.status(HttpStatusCode.OK).json({ message: ResponseMessages.APPOINTMENT_CANCELLED });
     } catch (error) {
       next(error);
@@ -246,7 +201,7 @@ export class PatientController {
       if (!doctorId) {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
-      const plans: SubscriptionPlanResponseDTO[] = await this._subscriptionPlanUseCase.getDoctorApprovedPlans(doctorId);
+      const plans = await this._subscriptionPlanUseCase.getDoctorApprovedPlans(doctorId);
       res.status(HttpStatusCode.OK).json(plans);
     } catch (error) {
       next(error);
@@ -262,7 +217,7 @@ export class PatientController {
         return;
       }
 
-      const doctor: DoctorDTO | null = await this._doctorUseCase.getDoctor(doctorId);
+      const doctor = await this._doctorUseCase.getDoctor(doctorId);
       if (!doctor) {
         res.status(HttpStatusCode.NOT_FOUND).json({ message: ResponseMessages.NOT_FOUND });
         return;
@@ -289,8 +244,8 @@ export class PatientController {
         gender: req.query.gender as string | undefined,
         minRating: req.query.minRating ? parseFloat(String(req.query.minRating)) : undefined,
       };
-      const result: PaginatedDoctorResponseDTO = await this._doctorUseCase.getVerifiedDoctors(params);
-      res.status(HttpStatusCode.OK).json(result);
+      const responseData = await this._doctorUseCase.getVerifiedDoctors(params);
+      res.status(HttpStatusCode.OK).json(responseData);
     } catch (error) {
       next(error);
     }
@@ -310,24 +265,43 @@ export class PatientController {
         patientId,
       };
 
-      let response: ExtendedGetPatientAppointmentsResponseDTO;
+      let responseData;
       if (doctorId) {
-        const dto: GetPatientAppointmentsForDoctorRequestDTO = {
+        const patientsAppointmentRequestData = {
           patientId,
           doctorId: doctorId as string,
           queryParams,
         };
-        response = await this._appointmentUseCase.getPatientAppointmentsForDoctor(dto);
-        const canBookFree = await this._appointmentUseCase.checkFreeBooking({
-          patientId,
-          doctorId: doctorId as string,
-        });
-        response.canBookFree = canBookFree;
+        responseData = await this._appointmentUseCase.getPatientAppointmentsForDoctor(patientsAppointmentRequestData);
       } else {
-        response = await this._appointmentUseCase.getPatientAppointments(patientId, queryParams);
+        responseData = await this._appointmentUseCase.getPatientAppointments(patientId, queryParams);
       }
 
-      res.status(HttpStatusCode.OK).json(response);
+      res.status(HttpStatusCode.OK).json(responseData);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getAppointmentsBySubscription(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const patientId = req.user?.id;
+      if (!patientId) {
+        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
+      }
+      const { subscriptionId } = req.params;
+      const { page = 1, limit = 5, status } = req.query;
+      if (!subscriptionId) {
+        throw new ValidationError(ResponseMessages.BAD_REQUEST);
+      }
+      const queryParams: QueryParams = {
+        page: parseInt(String(page)),
+        limit: parseInt(String(limit)),
+        status: status as string | undefined,
+        patientId,
+      };
+      const responseData = await this._appointmentUseCase.getAppointmentsBySubscription(subscriptionId, queryParams);
+      res.status(HttpStatusCode.OK).json(responseData);
     } catch (error) {
       next(error);
     }
@@ -341,7 +315,7 @@ export class PatientController {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
 
-      const appointment: AppointmentDTO = await this._appointmentUseCase.getAppointmentById(appointmentId);
+      const appointment = await this._appointmentUseCase.getAppointmentById(appointmentId);
       res.status(HttpStatusCode.OK).json(appointment);
     } catch (error) {
       next(error);
@@ -350,7 +324,7 @@ export class PatientController {
 
   async getAllSpecialities(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const specialities: SpecialityResponseDTO[] = await this._specialityUseCase.getAllSpecialities();
+      const specialities = await this._specialityUseCase.getAllSpecialities();
       res.status(HttpStatusCode.OK).json(specialities);
     } catch (error) {
       next(error);
@@ -389,7 +363,8 @@ export class PatientController {
         throw new ValidationError('Invalid comment');
       }
 
-      const review: ReviewResponseDTO = await this._reviewUseCase.createReview(patientId, {
+      const review = await this._reviewUseCase.createReview({
+        patientId,
         appointmentId,
         doctorId,
         rating,
@@ -413,8 +388,22 @@ export class PatientController {
         throw new ValidationError('Invalid doctor ID');
       }
 
-      const reviews: ReviewResponseDTO[] = await this._reviewUseCase.getDoctorReviews(doctorId);
+      const reviews = await this._reviewUseCase.getDoctorReviews(doctorId);
       res.status(HttpStatusCode.OK).json(reviews);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getInvoiceDetails(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const patientId = req.user?.id;
+      const { paymentIntentId } = req.params;
+      if (!patientId || !paymentIntentId) {
+        throw new ValidationError(ResponseMessages.BAD_REQUEST);
+      }
+      const invoiceDetails = await this._patientUseCase.getInvoiceDetails(patientId, paymentIntentId);
+      res.status(HttpStatusCode.OK).json(invoiceDetails);
     } catch (error) {
       next(error);
     }

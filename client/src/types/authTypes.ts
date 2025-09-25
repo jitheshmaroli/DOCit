@@ -227,6 +227,7 @@ export interface Appointment {
   hasReview?: boolean;
   reminderSent?: boolean;
   prescription?: Prescription;
+  patientSubscriptionId: string;
 }
 
 export interface Prescription {
@@ -307,7 +308,7 @@ export interface AppNotification {
 export interface PatientSubscription {
   _id: string;
   patientId: string;
-  planId: SubscriptionPlan;
+  planId: string;
   planDetails?: {
     _id: string;
     name: string;
@@ -322,7 +323,7 @@ export interface PatientSubscription {
     updatedAt: string;
   };
   startDate: string;
-  expiryDate: string;
+  endDate: string;
   status: 'active' | 'expired' | 'cancelled';
   price: number;
   appointmentsUsed: number;
@@ -332,6 +333,8 @@ export interface PatientSubscription {
   createdAt?: string;
   updatedAt?: string;
   cancellationReason?: string;
+  refundId?: string;
+  refundAmount?: string;
 }
 
 export interface UpdateSlotPayload {

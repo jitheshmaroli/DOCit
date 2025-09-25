@@ -8,16 +8,23 @@ import { IAdminRepository } from '../../core/interfaces/repositories/IAdminRepos
 import { IDoctorRepository } from '../../core/interfaces/repositories/IDoctorRepository';
 import { IPatientRepository } from '../../core/interfaces/repositories/IPatientRepository';
 import { IUserUseCase } from '../../core/interfaces/use-cases/IUserUseCase';
+import { IValidatorService } from '../../core/interfaces/services/IValidatorService';
 import { GetUserResponseDTO } from '../dtos/UserDTOs';
 
 export class UserUseCase implements IUserUseCase {
   constructor(
     private _patientRepository: IPatientRepository,
     private _doctorRepository: IDoctorRepository,
-    private _adminRepository: IAdminRepository
+    private _adminRepository: IAdminRepository,
+    private _validatorService: IValidatorService
   ) {}
 
   async getCurrentUser(userId: string, role: UserRole): Promise<GetUserResponseDTO | null> {
+    // Validations
+    this._validatorService.validateRequiredFields({ userId, role });
+    this._validatorService.validateIdFormat(userId);
+    this._validatorService.validateEnum(role, [UserRole.Patient, UserRole.Doctor, UserRole.Admin]);
+
     let entity: Patient | Doctor | Admin | null;
 
     switch (role) {
@@ -39,6 +46,10 @@ export class UserUseCase implements IUserUseCase {
   }
 
   async getUser(userId: string): Promise<GetUserResponseDTO | null> {
+    // Validations
+    this._validatorService.validateRequiredFields({ userId });
+    this._validatorService.validateIdFormat(userId);
+
     const patient = await this._patientRepository.findById(userId);
     if (patient) return UserMapper.toGetUserResponseDTO(patient, UserRole.Patient);
 

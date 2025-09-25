@@ -20,6 +20,7 @@ import {
   validateFrequency,
   validateDuration,
 } from '../../utils/validation';
+import { getAppointmentById } from '../../services/doctorService';
 
 interface AppointmentPatient {
   _id: string;
@@ -118,10 +119,7 @@ const DoctorAppointmentDetails: React.FC = () => {
       if (!appointmentId) return;
       try {
         setLoading(true);
-        const response = await api.get(
-          `/api/doctors/appointments/${appointmentId}`
-        );
-        const appointmentData = response.data;
+        const appointmentData = await getAppointmentById(appointmentId);
         if (appointmentData.prescriptionId) {
           appointmentData.prescription = {
             medications: appointmentData.prescriptionId.medications.map(

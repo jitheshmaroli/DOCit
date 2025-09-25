@@ -1,24 +1,19 @@
 import express from 'express';
-import { Container } from '../../infrastructure/di/container';
-import { PatientController } from '../controllers/patient/PatientController';
-import { PatientProfileController } from '../controllers/patient/PatientProfileController';
+import createControllers from '../../infrastructure/di/controllers';
+import createMiddlewares from '../../infrastructure/di/middlewares';
 import { getMulterUploader } from '../../utils/multerConfig';
-import { authMiddleware } from '../middlewares/authMiddleware';
-import { roleMiddleware } from '../middlewares/roleMiddleware';
-import { UserRole } from '../../types';
 
 const router = express.Router();
-const container = Container.getInstance();
 
-// Controller instantiation
-const patientController = new PatientController(container);
-const patientProfileController = new PatientProfileController(container);
+// Controllers
+const { patientController, patientProfileController } = createControllers();
+const { authMiddleware, patientRoleMiddleware } = createMiddlewares();
 
 // Multer setup
 const upload = getMulterUploader('patient-profiles');
 
 // Middleware
-const patientAuth = [authMiddleware(container), roleMiddleware([UserRole.Patient])];
+const patientAuth = [authMiddleware.exec, patientRoleMiddleware.exec];
 
 // Doctor lookup routes
 router.get('/doctors/verified', patientAuth, patientController.getVerifiedDoctors.bind(patientController));
@@ -34,7 +29,6 @@ router.get(
   patientAuth,
   patientController.getActiveSubscription.bind(patientController)
 );
-router.get('/doctors/:doctorId/reviews', patientAuth, patientController.getDoctorReviews.bind(patientController));
 
 // Speciality route
 router.get('/specialities', patientAuth, patientController.getAllSpecialities.bind(patientController));
@@ -44,6 +38,11 @@ router.post('/appointments', patientAuth, patientController.bookAppointment.bind
 router.get('/appointments', patientAuth, patientController.getAppointments.bind(patientController));
 router.get('/appointments/:appointmentId', patientAuth, patientController.getAppointment.bind(patientController));
 router.delete('/appointments/:appointmentId', patientAuth, patientController.cancelAppointment.bind(patientController));
+router.get(
+  '/subscriptions/:subscriptionId/appointments',
+  patientAuth,
+  patientController.getAppointmentsBySubscription.bind(patientController)
+);
 
 // Subscription routes
 router.post('/subscriptions', patientAuth, patientController.subscribeToPlan.bind(patientController));
@@ -53,7 +52,10 @@ router.delete(
   '/subscriptions/:subscriptionId',
   patientAuth,
   patientController.cancelSubscription.bind(patientController)
-); // New route
+);
+
+//invoice route
+router.get('/invoice/:paymentIntentId', patientAuth, patientController.getInvoiceDetails.bind(patientController));
 
 // Profile routes
 router.get('/:id', patientAuth, patientProfileController.viewProfile.bind(patientProfileController));
@@ -66,5 +68,6 @@ router.patch(
 
 // Review routes
 router.post('/review', patientAuth, patientController.createReview.bind(patientController));
+router.get('/doctors/:doctorId/reviews', patientAuth, patientController.getDoctorReviews.bind(patientController));
 
 export default router;
