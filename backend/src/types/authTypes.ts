@@ -1,3 +1,5 @@
+export type AuthProviderData = { email: string; password: string } | { token: string };
+
 export interface QueryParams {
   page?: number;
   limit?: number;

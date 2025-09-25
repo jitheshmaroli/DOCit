@@ -9,6 +9,8 @@ import { DoctorModel } from '../database/models/DoctorModel';
 import { BaseRepository } from './BaseRepository';
 import { AppointmentStatus } from '../../application/dtos/AppointmentDTOs';
 import { PrescriptionModel } from '../database/models/PrescriptionModel';
+import { ObjectId } from 'mongodb';
+import { PipelineStage } from 'mongoose';
 
 export class AppointmentRepository extends BaseRepository<Appointment> implements IAppointmentRepository {
   constructor() {
@@ -30,6 +32,7 @@ export class AppointmentRepository extends BaseRepository<Appointment> implement
       .findById(appointmentId)
       .populate('patientId')
       .populate('doctorId')
+      .populate('patientSubscriptionId')
       .populate({
         path: 'prescriptionId',
         model: PrescriptionModel,
@@ -107,6 +110,100 @@ export class AppointmentRepository extends BaseRepository<Appointment> implement
       .exec();
   }
 
+  async findBySubscriptionWithQuery(
+    subscriptionId: string,
+    params: QueryParams
+  ): Promise<{ data: Appointment[]; totalItems: number }> {
+    const { page = 1, limit = 10, status } = params;
+
+    if (!mongoose.Types.ObjectId.isValid(subscriptionId)) {
+      return { data: [], totalItems: 0 };
+    }
+
+    const matchStage: Record<string, unknown> = {
+      patientSubscriptionId: new ObjectId(subscriptionId),
+    };
+
+    if (status !== undefined) {
+      matchStage.status = status;
+    }
+
+    const pipeline: PipelineStage[] = [
+      { $match: matchStage },
+      {
+        $lookup: {
+          from: 'prescriptions',
+          localField: 'prescriptionId',
+          foreignField: '_id',
+          as: 'prescription',
+        },
+      },
+      { $unwind: { path: '$prescription', preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: 'patients',
+          localField: 'patientId',
+          foreignField: '_id',
+          as: 'patientId',
+        },
+      },
+      { $unwind: { path: '$patientId', preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: 'doctors',
+          localField: 'doctorId',
+          foreignField: '_id',
+          as: 'doctorId',
+        },
+      },
+      { $unwind: { path: '$doctorId', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          _id: 1,
+          patientId: { _id: '$patientId._id', name: '$patientId.name' },
+          doctorId: { _id: '$doctorId._id', name: '$doctorId.name' },
+          date: 1,
+          startTime: 1,
+          endTime: 1,
+          status: 1,
+          isFreeBooking: 1,
+          bookingTime: 1,
+          patientSubscriptionId: 1,
+          cancellationReason: 1,
+          prescriptionId: 1,
+          prescription: {
+            _id: '$prescription._id',
+            appointmentId: '$prescription.appointmentId',
+            patientId: '$prescription.patientId',
+            doctorId: '$prescription.doctorId',
+            medications: '$prescription.medications',
+            notes: '$prescription.notes',
+            pdfUrl: '$prescription.pdfUrl',
+            createdAt: '$prescription.createdAt',
+            updatedAt: '$prescription.updatedAt',
+          },
+          hasReview: 1,
+        },
+      },
+      {
+        $facet: {
+          data: [{ $sort: { createdAt: -1 } }, { $skip: (page - 1) * limit }, { $limit: limit }],
+          totalItems: [{ $count: 'count' }],
+        },
+      },
+    ];
+
+    const result = await this.model.aggregate(pipeline).exec();
+
+    const data = result[0]?.data || [];
+    const totalItems = result[0]?.totalItems[0]?.count || 0;
+
+    return {
+      data: data as Appointment[],
+      totalItems,
+    };
+  }
+
   async findByPatient(patientId: string): Promise<Appointment[]> {
     const appointments = await this.model
       .find({ patientId })
@@ -131,28 +228,42 @@ export class AppointmentRepository extends BaseRepository<Appointment> implement
     params: QueryParams
   ): Promise<{ data: Appointment[]; totalItems: number }> {
     const { page = 1, limit = 10, status } = params;
-    const query: FilterQuery<Appointment> = {
-      patientId,
-      doctorId,
+
+    const matchStage: Record<string, unknown> = {
+      patientId: new ObjectId(patientId),
+      doctorId: new ObjectId(doctorId),
     };
 
     if (status !== undefined) {
-      query.status = status;
+      matchStage.status = status;
     }
 
-    const appointments = await this.model
-      .find(query)
-      .populate('patientId', 'name')
-      .populate('doctorId', 'name')
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .exec();
+    const pipeline: PipelineStage[] = [
+      { $match: matchStage },
+      {
+        $lookup: {
+          from: 'prescriptions',
+          localField: 'prescriptionId',
+          foreignField: '_id',
+          as: 'prescription',
+        },
+      },
+      { $unwind: { path: '$prescription', preserveNullAndEmptyArrays: true } },
+      {
+        $facet: {
+          data: [{ $sort: { createdAt: -1 } }, { $skip: (page - 1) * limit }, { $limit: limit }],
+          totalItems: [{ $count: 'count' }],
+        },
+      },
+    ];
 
-    const totalItems = await this.model.countDocuments(query).exec();
+    const result = await this.model.aggregate(pipeline).exec();
+
+    const data = result[0]?.data || [];
+    const totalItems = result[0]?.totalItems[0]?.count || 0;
 
     return {
-      data: appointments.map((appt) => appt.toObject() as Appointment),
+      data: data as Appointment[],
       totalItems,
     };
   }

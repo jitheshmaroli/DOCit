@@ -7,7 +7,7 @@ export interface TimeSlot {
 
 export interface Availability {
   _id?: string;
-  doctorId: string;
+  doctorId?: string;
   date: Date;
   timeSlots: TimeSlot[];
   createdAt?: Date;

@@ -14,6 +14,9 @@ import { IAppointmentRepository } from '../../core/interfaces/repositories/IAppo
 import { IEmailService } from '../../core/interfaces/services/IEmailService';
 import { AvailabilityMapper } from '../mappers/AvailabilityMapper';
 import { DateUtils } from '../../utils/DateUtils';
+import { IValidatorService } from '../../core/interfaces/services/IValidatorService';
+import { env } from '../../config/env';
+import moment from 'moment';
 
 export class AvailabilityUseCase implements IAvailabilityUseCase {
   constructor(
@@ -21,41 +24,55 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
     private _availabilityRepository: IAvailabilityRepository,
     private _appointmentRepository: IAppointmentRepository,
     private _emailService: IEmailService,
-    private _patientRepository: IPatientRepository
+    private _patientRepository: IPatientRepository,
+    private _validatorService: IValidatorService
   ) {}
 
-  private async _notifyPatient(appointmentId: string, message: string): Promise<void> {
-    const appointment = await this._appointmentRepository.findById(appointmentId);
-    if (appointment) {
-      const patient = await this._patientRepository.findById(appointment.patientId.toString());
-      if (!patient || !patient.email) {
-        throw new NotFoundError('Patient email not found');
-      }
-      await this._emailService.sendEmail(patient.email, 'Appointment Update', message);
-    } else {
-      throw new NotFoundError('Appointment not found');
-    }
-  }
-
   async setAvailability(doctorId: string, dto: SetAvailabilityRequestDTO): Promise<SetAvailabilityResponseDTO> {
-    if (!doctorId || !dto.date || !dto.timeSlots || dto.timeSlots.length === 0) {
-      throw new ValidationError('Doctor ID, date, and time slots are required');
+    //validations
+    this._validatorService.validateRequiredFields({
+      doctorId,
+      date: dto.date,
+      timeSlots: dto.timeSlots,
+    });
+    this._validatorService.validateIdFormat(doctorId);
+    this._validatorService.validateDateFormat(dto.date);
+
+    if (dto.timeSlots.length === 0) {
+      throw new ValidationError('At least one time slot is required');
+    }
+
+    for (const slot of dto.timeSlots) {
+      this._validatorService.validateRequiredFields({
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+      });
+      this._validatorService.validateTimeSlot(slot.startTime, slot.endTime);
+    }
+
+    if (dto.isRecurring) {
+      this._validatorService.validateRequiredFields({
+        recurringEndDate: dto.recurringEndDate,
+        recurringDays: dto.recurringDays,
+      });
+      this._validatorService.validateDateFormat(dto.recurringEndDate!);
+      if (dto.recurringDays!.length === 0) {
+        throw new ValidationError('At least one recurring day is required');
+      }
+
+      const MAX_RECURRING_DAYS = Number(env.MAX_RECURRING_DAYS);
+      const startMoment = moment.utc(dto.date);
+      const endMoment = moment.utc(dto.recurringEndDate!);
+      const daysDiff = endMoment.diff(startMoment, 'days');
+      if (daysDiff > MAX_RECURRING_DAYS) {
+        throw new ValidationError(`Recurring period cannot exceed ${MAX_RECURRING_DAYS} days`);
+      }
     }
 
     const doctor = await this._doctorRepository.findById(doctorId);
     if (!doctor) {
       throw new NotFoundError('Doctor not found');
     }
-
-    if (dto.isRecurring && (!dto.recurringEndDate || !dto.recurringDays || dto.recurringDays.length === 0)) {
-      throw new ValidationError('Recurring end date and days are required for recurring availability');
-    }
-
-    for (const slot of dto.timeSlots) {
-      DateUtils.validateTimeSlot(slot.startTime, slot.endTime, new Date(dto.date));
-    }
-
-    DateUtils.checkOverlappingSlots(dto.timeSlots, new Date(dto.date));
 
     const conflicts: { date: string; error: string }[] = [];
     const availabilities: AvailabilityResponseDTO[] = [];
@@ -74,6 +91,9 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
         const newTimeSlots = [...existingSlots, ...dto.timeSlots.map((slot) => ({ ...slot, isBooked: false }))];
 
         try {
+          for (const slot of dto.timeSlots) {
+            DateUtils.validateTimeSlot(slot.startTime, slot.endTime, currentDate);
+          }
           DateUtils.checkOverlappingSlots(newTimeSlots, startOfDay);
         } catch (error) {
           conflicts.push({ date: startOfDay.toISOString(), error: (error as Error).message });
@@ -108,6 +128,9 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
       const newTimeSlots = [...existingSlots, ...dto.timeSlots.map((slot) => ({ ...slot, isBooked: false }))];
 
       try {
+        for (const slot of dto.timeSlots) {
+          DateUtils.validateTimeSlot(slot.startTime, slot.endTime, new Date(dto.date));
+        }
         DateUtils.checkOverlappingSlots(newTimeSlots, startOfDay);
       } catch (error) {
         conflicts.push({ date: startOfDay.toISOString(), error: (error as Error).message });
@@ -138,8 +161,14 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
   }
 
   async getAvailability(doctorId: string, startDate: Date, endDate: Date): Promise<AvailabilityResponseDTO[]> {
-    if (!doctorId || !startDate || !endDate) {
-      throw new ValidationError('Doctor ID, start date, and end date are required');
+    //validations
+    this._validatorService.validateRequiredFields({ doctorId, startDate, endDate });
+    this._validatorService.validateIdFormat(doctorId);
+    this._validatorService.validateDateFormat(startDate.toISOString());
+    this._validatorService.validateDateFormat(endDate.toISOString());
+
+    if (startDate > endDate) {
+      throw new ValidationError('Start date must be before end date');
     }
 
     const doctor = await this._doctorRepository.findById(doctorId);
@@ -157,8 +186,15 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
     endDate: Date,
     filterBooked: boolean
   ): Promise<AvailabilityResponseDTO[]> {
-    if (!doctorId || !startDate || !endDate) {
-      throw new ValidationError('Doctor ID, start date, and end date are required');
+    //validations
+    this._validatorService.validateRequiredFields({ doctorId, startDate, endDate });
+    this._validatorService.validateIdFormat(doctorId);
+    this._validatorService.validateDateFormat(startDate.toISOString());
+    this._validatorService.validateDateFormat(endDate.toISOString());
+    this._validatorService.validateBoolean(filterBooked);
+
+    if (startDate > endDate) {
+      throw new ValidationError('Start date must be before end date');
     }
 
     const doctor = await this._doctorRepository.findById(doctorId);
@@ -185,8 +221,12 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
     doctorId: string,
     reason?: string
   ): Promise<AvailabilityResponseDTO | null> {
-    if (!availabilityId || slotIndex < 0 || !doctorId) {
-      throw new ValidationError('Availability ID, slot index, and doctor ID are required');
+    //validations
+    this._validatorService.validateRequiredFields({ availabilityId, slotIndex, doctorId });
+    this._validatorService.validateIdFormat(availabilityId);
+    this._validatorService.validateIdFormat(doctorId);
+    if (reason) {
+      this._validatorService.validateLength(reason, 1, 500);
     }
 
     const availability = await this._availabilityRepository.findById(availabilityId);
@@ -194,7 +234,7 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
       throw new NotFoundError('Availability not found');
     }
 
-    if (availability.doctorId !== doctorId) {
+    if (availability.doctorId?.toString() !== doctorId) {
       throw new ValidationError('Unauthorized to modify this availability');
     }
 
@@ -216,7 +256,7 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
       if (appointment) {
         await this._appointmentRepository.update(appointment._id!, { status: 'cancelled', cancellationReason: reason });
         await this._notifyPatient(
-          appointment._id!,
+          appointment._id!.toString(),
           `Your appointment on ${availability.date.toISOString()} at ${slot.startTime} has been cancelled. Reason: ${reason}`
         );
       }
@@ -241,8 +281,20 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
     doctorId: string,
     reason?: string
   ): Promise<AvailabilityResponseDTO | null> {
-    if (!availabilityId || slotIndex < 0 || !newSlot.startTime || !newSlot.endTime || !doctorId) {
-      throw new ValidationError('Availability ID, slot index, new slot details, and doctor ID are required');
+    //validations
+    this._validatorService.validateRequiredFields({
+      availabilityId,
+      slotIndex,
+      startTime: newSlot.startTime,
+      endTime: newSlot.endTime,
+      doctorId,
+    });
+    this._validatorService.validateIdFormat(availabilityId);
+    this._validatorService.validateIdFormat(doctorId);
+    this._validatorService.validatePositiveInteger(slotIndex);
+    this._validatorService.validateTimeSlot(newSlot.startTime, newSlot.endTime);
+    if (reason) {
+      this._validatorService.validateLength(reason, 1, 500);
     }
 
     const availability = await this._availabilityRepository.findById(availabilityId);
@@ -294,5 +346,25 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
       timeSlots: availability.timeSlots,
     });
     return updatedAvailability ? AvailabilityMapper.toAvailabilityResponseDTO(updatedAvailability) : null;
+  }
+
+  private async _notifyPatient(appointmentId: string, message: string): Promise<void> {
+    //validations
+    this._validatorService.validateRequiredFields({ appointmentId, message });
+    this._validatorService.validateIdFormat(appointmentId);
+    this._validatorService.validateLength(message, 1, 1000);
+
+    const appointment = await this._appointmentRepository.findById(appointmentId);
+    if (appointment) {
+      const patient = await this._patientRepository.findById(appointment.patientId!.toString());
+      if (!patient || !patient.email) {
+        throw new NotFoundError('Patient email not found');
+      }
+      this._validatorService.validateEmailFormat(patient.email);
+
+      await this._emailService.sendEmail(patient.email, 'Appointment Update', message);
+    } else {
+      throw new NotFoundError('Appointment not found');
+    }
   }
 }

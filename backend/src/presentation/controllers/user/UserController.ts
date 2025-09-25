@@ -1,18 +1,12 @@
 import { Response, NextFunction } from 'express';
 import { AuthenticationError } from '../../../utils/errors';
-import { Container } from '../../../infrastructure/di/container';
 import { IUserUseCase } from '../../../core/interfaces/use-cases/IUserUseCase';
 import { CustomRequest, UserRole } from '../../../types';
 import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
-import { GetUserResponseDTO } from '../../../application/dtos/UserDTOs';
 
 export class UserController {
-  private _userUseCase: IUserUseCase;
-
-  constructor(container: Container) {
-    this._userUseCase = container.get<IUserUseCase>('IUserUseCase');
-  }
+  constructor(private _userUseCase: IUserUseCase) {}
 
   async getCurrentUser(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -24,7 +18,7 @@ export class UserController {
       if (typeof userId !== 'string') {
         throw new AuthenticationError(ResponseMessages.BAD_REQUEST);
       }
-      const user: GetUserResponseDTO | null = await this._userUseCase.getCurrentUser(userId, role as UserRole);
+      const user = await this._userUseCase.getCurrentUser(userId, role as UserRole);
       if (!user) {
         throw new AuthenticationError(ResponseMessages.USER_NOT_FOUND);
       }
@@ -40,7 +34,7 @@ export class UserController {
       if (!userId || typeof userId !== 'string') {
         throw new AuthenticationError(ResponseMessages.BAD_REQUEST);
       }
-      const user: GetUserResponseDTO | null = await this._userUseCase.getUser(userId);
+      const user = await this._userUseCase.getUser(userId);
       if (!user) {
         throw new AuthenticationError(ResponseMessages.USER_NOT_FOUND);
       }

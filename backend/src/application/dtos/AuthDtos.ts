@@ -16,7 +16,6 @@ export interface SignupRequestDTO {
   password: string;
   name: string;
   phone: string;
-  role: 'patient' | 'doctor';
   licenseNumber?: string;
 }
 

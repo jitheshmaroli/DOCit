@@ -3,7 +3,7 @@ import { SubscriptionPlan } from '../../../core/entities/SubscriptionPlan';
 
 const SubscriptionPlanSchema = new Schema<SubscriptionPlan>(
   {
-    doctorId: { type: String, required: true, ref: 'Doctor' },
+    doctorId: { type: Schema.Types.ObjectId, required: true, ref: 'Doctor' },
     name: { type: String, required: true },
     description: { type: String, required: true },
     price: { type: Number, required: true, min: 100 },

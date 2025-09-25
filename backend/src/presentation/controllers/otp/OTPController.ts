@@ -1,16 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import { IOTPService } from '../../../core/interfaces/services/IOTPService';
-import { Container } from '../../../infrastructure/di/container';
 import { ValidationError } from '../../../utils/errors';
 import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 
 export class OTPController {
-  private _otpService: IOTPService;
-
-  constructor(container: Container) {
-    this._otpService = container.get<IOTPService>('IOTPService');
-  }
+  constructor(private _otpService: IOTPService) {}
 
   async sendOTP(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {

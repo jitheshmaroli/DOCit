@@ -3,8 +3,8 @@ import { ChatMessage } from '../../../core/entities/ChatMessage';
 
 const ChatMessageSchema = new Schema<ChatMessage>(
   {
-    senderId: { type: String, required: true },
-    receiverId: { type: String, required: true },
+    senderId: { type: Schema.Types.ObjectId, required: true },
+    receiverId: { type: Schema.Types.ObjectId, required: true },
     message: { type: String },
     isDeleted: { type: Boolean, default: false },
     unreadBy: [{ type: String }],

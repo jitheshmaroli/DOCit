@@ -1,11 +1,10 @@
 import express from 'express';
-import { Container } from '../../infrastructure/di/container';
-import { OTPController } from '../controllers/otp/OTPController';
+import createControllers from '../../infrastructure/di/controllers';
 
 const router = express.Router();
-const container = Container.getInstance();
 
-const otpController = new OTPController(container);
+//controller
+const { otpController } = createControllers();
 
 // OTP routes
 router.post('/send-otp', otpController.sendOTP.bind(otpController));

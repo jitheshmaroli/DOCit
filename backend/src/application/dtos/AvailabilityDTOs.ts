@@ -5,11 +5,11 @@ export interface TimeSlotDTO {
 }
 
 export interface SetAvailabilityRequestDTO {
-  date: Date;
+  date: string;
   timeSlots: Array<{ startTime: string; endTime: string }>;
   isRecurring: boolean;
-  recurringEndDate?: Date;
-  recurringDays?: number[];
+  recurringEndDate?: string;
+  recurringDays: number[];
 }
 
 export interface UpdateSlotRequestDTO {
@@ -21,6 +21,7 @@ export interface AvailabilityResponseDTO {
   _id: string;
   doctorId: string;
   date: string;
+  dateKey: string;
   timeSlots: Array<{ startTime: string; endTime: string; isBooked: boolean }>;
 }
 

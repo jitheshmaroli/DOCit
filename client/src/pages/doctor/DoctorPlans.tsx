@@ -8,7 +8,6 @@ import {
   getSubscriptionPlansThunk,
   updateSubscriptionPlanThunk,
   deleteSubscriptionPlanThunk,
-  withdrawSubscriptionPlanThunk,
 } from '../../redux/thunks/doctorThunk';
 import { SubscriptionPlan } from '../../types/authTypes';
 import DataTable, { Column } from '../../components/common/DataTable';
@@ -189,25 +188,6 @@ const DoctorPlans: React.FC = () => {
     }
   };
 
-  const handleWithdrawPlan = async (plan: SubscriptionPlan) => {
-    if (window.confirm('Are you sure you want to withdraw this plan?')) {
-      try {
-        await dispatch(withdrawSubscriptionPlanThunk(plan._id)).unwrap();
-        toast.success('Plan withdrawn successfully');
-        dispatch(
-          getSubscriptionPlansThunk({
-            page: currentPage,
-            limit: ITEMS_PER_PAGE,
-          })
-        );
-      } catch (error: unknown) {
-        const errorMessage =
-          error instanceof Error ? error.message : 'Unknown error';
-        toast.error(`Failed to withdraw plan: ${errorMessage}`);
-      }
-    }
-  };
-
   const handleViewDetails = (plan: SubscriptionPlan) => {
     navigate(`/doctor/plan-details/${plan._id}`);
   };
@@ -249,12 +229,6 @@ const DoctorPlans: React.FC = () => {
       label: 'Delete',
       onClick: handleDeletePlan,
       className: 'bg-red-600 hover:bg-red-700',
-    },
-    {
-      label: 'Withdraw',
-      onClick: handleWithdrawPlan,
-      className: 'bg-yellow-600 hover:bg-yellow-700',
-      condition: (plan: SubscriptionPlan) => plan.status === 'pending',
     },
     {
       label: 'View Details',

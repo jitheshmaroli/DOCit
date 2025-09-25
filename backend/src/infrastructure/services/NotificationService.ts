@@ -12,7 +12,7 @@ export class NotificationService implements INotificationService {
 
   async sendNotification(notification: Notification): Promise<void> {
     const savedNotification = await this._notificationRepository.create(notification);
-    await this._socketService.sendNotificationToUser(notification.userId, savedNotification);
+    await this._socketService.sendNotificationToUser(notification.userId!, savedNotification);
   }
 
   async getNotifications(userId: string, params: QueryParams): Promise<Notification[]> {

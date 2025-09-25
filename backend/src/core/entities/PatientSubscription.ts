@@ -2,8 +2,8 @@ import { SubscriptionPlan } from './SubscriptionPlan';
 
 export interface PatientSubscription {
   _id?: string;
-  patientId: string;
-  planId: string;
+  patientId?: string;
+  planId?: string;
   planDetails?: SubscriptionPlan;
   startDate: Date;
   endDate: Date;

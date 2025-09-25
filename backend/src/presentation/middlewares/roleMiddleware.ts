@@ -7,13 +7,17 @@ interface AuthenticatedRequest extends Request {
   };
 }
 
-export const roleMiddleware = (roles: Array<UserRole>) => {
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
+export default class RoleMiddleware {
+  constructor(private roles: Array<UserRole>) {
+    this.exec = this.exec.bind(this);
+  }
+
+  exec(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
     const userRole = req.user?.role;
-    if (!userRole || !roles.includes(userRole)) {
+    if (!userRole || !this.roles.includes(userRole)) {
       res.status(403).json({ message: 'Forbidden: Insufficient role permissions' });
       return;
     }
     next();
-  };
-};
+  }
+}

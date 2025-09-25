@@ -5,10 +5,15 @@ import { confirmSubscriptionThunk } from '../../redux/thunks/doctorThunk';
 import { PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import useAuth from '../../hooks/useAuth';
 
+interface PaymentDetails {
+  paymentIntentId: string;
+  amount: number;
+}
+
 interface PaymentFormProps {
   planId: string;
   price: number;
-  onSuccess: () => void;
+  onSuccess: (details: PaymentDetails) => void;
   onError: (error: string) => void;
 }
 
@@ -66,7 +71,12 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
 
         sessionStorage.removeItem('planId');
 
-        onSuccess();
+        const paymentDetails: PaymentDetails = {
+          paymentIntentId: paymentIntent.id,
+          amount: paymentIntent.amount / 100, // Convert from cents to INR
+        };
+
+        onSuccess(paymentDetails);
         toast.success('Payment successful! Subscribed to plan.');
       } else {
         throw new Error('Payment not completed');
@@ -91,7 +101,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
             fields: {
               billingDetails: {
                 address: {
-                  country: 'never', 
+                  country: 'never',
                 },
               },
             },
@@ -107,7 +117,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         disabled={!stripe || isProcessing}
         className="w-full bg-gradient-to-r from-green-600 to-teal-600 text-white py-2 rounded-lg hover:from-green-700 hover:to-teal-700 transition-all duration-300 disabled:opacity-50"
       >
-        {isProcessing ? 'Processing...' : `Pay ₹${(price).toFixed(2)}`}
+        {isProcessing ? 'Processing...' : `Pay ₹${price.toFixed(2)}`}
       </button>
     </form>
   );

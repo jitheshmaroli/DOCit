@@ -3,7 +3,10 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { Server as HttpServer } from 'http';
 import { connectMongoDB } from './infrastructure/database/mongoConnection';
-import { errorMiddleware } from './presentation/middlewares/errorMiddleware';
+import createMiddlewares from './infrastructure/di/middlewares';
+import { patientSubscriptionRepository } from './infrastructure/di/repositories';
+import { socketService, notificationService } from './infrastructure/di/services';
+import { appointmentRepository } from './infrastructure/di/repositories';
 import authRoutes from './presentation/routes/authRoutes';
 import adminRoutes from './presentation/routes/adminRoutes';
 import doctorRoutes from './presentation/routes/doctorRoutes';
@@ -14,10 +17,7 @@ import chatRoutes from './presentation/routes/chatRoutes';
 import notificationRoutes from './presentation/routes/notificationRoutes';
 import { env } from './config/env';
 import Stripe from 'stripe';
-import { Container } from './infrastructure/di/container';
 import logger from './utils/logger';
-import { PatientSubscriptionRepository } from './infrastructure/repositories/PatientSubscriptionRepositroy';
-import { SocketService } from './infrastructure/services/SocketService';
 import { CustomRequest } from './types';
 import { setupCronJobs } from './utils/cronJobs';
 
@@ -32,9 +32,6 @@ const STRIPE_WEBHOOK_SECRET = env.STRIPE_WEBHOOK_SECRET;
 const stripe = new Stripe(STRIPE_SECRET_KEY, {
   apiVersion: '2025-05-28.basil',
 });
-const container = Container.getInstance();
-const patientSubscriptionRepository = container.get<PatientSubscriptionRepository>('IPatientSubscriptionRepository');
-const socketService = container.get<SocketService>('SocketService');
 
 // Initialize Socket.IO
 socketService.initialize(server);
@@ -99,15 +96,16 @@ app.get('/', (req: CustomRequest, res: Response) => {
 });
 
 // Error middleware
-app.use(errorMiddleware);
+const { errorHandler } = createMiddlewares();
+app.use(errorHandler.exec.bind(errorHandler));
 
 // Start server
 const startServer = async () => {
   try {
     await connectMongoDB(MONGO_URI);
-    setupCronJobs(container);
+    setupCronJobs(appointmentRepository, notificationService);
     server.listen(PORT, '0.0.0.0', () => {
-      logger.info(`Server running on http://localhost:${PORT}`);
+      logger.info(`Server running on http://localhost:${PORT} env: ${env.NODE_ENV}`);
     });
   } catch (error) {
     logger.error('Failed to start server:', error);

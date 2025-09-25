@@ -6,9 +6,10 @@ import { SubscriptionPlan } from './SubscriptionPlan';
 
 export interface Appointment {
   _id?: string;
-  patientId: string;
-  doctorId: string;
-  planId?: string;
+  patientId?: string;
+  doctorId?: string;
+  patientSubscriptionId?: string;
+  slotId?: string;
   date: Date;
   startTime: string;
   endTime: string;
@@ -20,6 +21,7 @@ export interface Appointment {
   reminderSent?: boolean;
   cancellationReason?: string;
   prescriptionId?: string;
+  prescription?: Prescription;
   hasReview?: boolean;
 }
 

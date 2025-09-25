@@ -30,12 +30,11 @@ import { useEffect } from 'react';
 import { clearUser } from './redux/slices/authSlice';
 import DoctorAppointmentDetails from './pages/doctor/DoctorAppointmentDetails';
 import PlanDetails from './pages/doctor/PlanDetails';
-import PatientAppointments from './pages/doctor/PatientAppointments';
 import Subscriptions from './pages/patient/Profile/Subscriptions';
 import PersonalInformation from './pages/patient/Profile/PersonalInformation';
 import PatientMessages from './pages/patient/Profile/Messages';
 import DoctorPatients from './pages/doctor/DoctorPatients';
-
+import InvoiceDetails from './pages/patient/InvoiceDetails';
 
 const AppRoutes = () => {
   const navigate = useNavigate();
@@ -76,6 +75,7 @@ const AppRoutes = () => {
             path="appointment/:appointmentId"
             element={<AppointmentDetails />}
           />
+          <Route path="/patient/invoice/:paymentIntentId" element={<InvoiceDetails />} />
         </Route>
       </Route>
 
@@ -91,10 +91,6 @@ const AppRoutes = () => {
           <Route path="plan-details/:planId" element={<PlanDetails />} />
           <Route path="patients" element={<DoctorPatients />} />
           <Route path="patient/:patientId" element={<PatientDetails />} />
-          <Route
-            path="patient/:patientId/appointments"
-            element={<PatientAppointments />}
-          />
           <Route
             path="appointment/:appointmentId"
             element={<DoctorAppointmentDetails />}

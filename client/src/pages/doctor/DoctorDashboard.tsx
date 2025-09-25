@@ -534,10 +534,8 @@ const DoctorDashboard: React.FC = () => {
 
       {isLoading && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="animate-spin bg-gray-800 p-4 rounded-lg shadow-lg">
             <span className="text-white">Loading...</span>
           </div>
-        </div>
       )}
     </div>
   );

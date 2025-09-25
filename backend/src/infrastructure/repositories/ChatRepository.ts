@@ -70,8 +70,11 @@ export class ChatRepository extends BaseRepository<ChatMessage> implements IChat
       {
         $match: {
           $or: [
-            { senderId: userId, deletedBy: { $ne: userId } },
-            { receiverId: userId, deletedBy: { $ne: userId } },
+            { senderId: new mongoose.Types.ObjectId(userId), deletedBy: { $ne: new mongoose.Types.ObjectId(userId) } },
+            {
+              receiverId: new mongoose.Types.ObjectId(userId),
+              deletedBy: { $ne: new mongoose.Types.ObjectId(userId) },
+            },
           ],
         },
       },

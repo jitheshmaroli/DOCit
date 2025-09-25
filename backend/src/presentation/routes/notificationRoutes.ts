@@ -1,15 +1,13 @@
 import express from 'express';
-import { Container } from '../../infrastructure/di/container';
-import { NotificationController } from '../controllers/notification/NotificationController';
-import { authMiddleware } from '../middlewares/authMiddleware';
-import { roleMiddleware } from '../middlewares/roleMiddleware';
-import { UserRole } from '../../types';
+import createControllers from '../../infrastructure/di/controllers';
+import createMiddlewares from '../../infrastructure/di/middlewares';
 
 const router = express.Router();
-const container = Container.getInstance();
-const notificationController = new NotificationController(container);
 
-const notificationAuth = [authMiddleware(container), roleMiddleware([UserRole.Doctor, UserRole.Patient])];
+const { notificationController } = createControllers();
+const { authMiddleware, chatRoleMiddleware } = createMiddlewares();
+
+const notificationAuth = [authMiddleware.exec, chatRoleMiddleware.exec];
 
 router.get('/', notificationAuth, notificationController.getNotifications.bind(notificationController));
 router.post('/', notificationAuth, notificationController.sendNotification.bind(notificationController));

@@ -18,7 +18,7 @@ import { AppDispatch, RootState } from '../../../redux/store';
 import {
   getPatientSubscriptionsThunk,
   cancelSubscriptionThunk,
-  getPatientAppointmentsForDoctorThunk,
+  getAppointmentsBySubscriptionThunk,
 } from '../../../redux/thunks/patientThunk';
 import { clearError } from '../../../redux/slices/patientSlice';
 import { PatientSubscription, Appointment } from '../../../types/authTypes';
@@ -28,6 +28,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import dayjs from 'dayjs';
 import { useAppSelector } from '../../../redux/hooks';
 import ROUTES from '../../../constants/routeConstants';
+import Pagination from '../../../components/common/Pagination';
 
 interface ExtendedPatientSubscription extends PatientSubscription {
   plan: {
@@ -54,10 +55,13 @@ const Subscriptions: React.FC = () => {
     loading,
     error,
     lastRefundDetails,
+    totalItemsBySubscription,
   } = useSelector((state: RootState) => state.patient);
   const { user } = useAppSelector((state: RootState) => state.auth);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const limit = 5;
 
   useEffect(() => {
     dispatch(getPatientSubscriptionsThunk()).then((result) => {
@@ -65,7 +69,9 @@ const Subscriptions: React.FC = () => {
         result.meta.requestStatus === 'fulfilled' &&
         Array.isArray(result.payload)
       ) {
-        const doctorIds = (result.payload as ExtendedPatientSubscription[])
+        const subscriptionIds = (
+          result.payload as ExtendedPatientSubscription[]
+        )
           .filter(
             (sub): sub is ExtendedPatientSubscription =>
               sub !== null &&
@@ -76,17 +82,22 @@ const Subscriptions: React.FC = () => {
               typeof sub.plan === 'object' &&
               'doctorId' in sub.plan
           )
-          .map((sub) => sub.plan.doctorId);
-        const uniqueDoctorIds = [...new Set(doctorIds)];
-        uniqueDoctorIds.forEach((doctorId) => {
-          dispatch(getPatientAppointmentsForDoctorThunk({ doctorId }));
+          .map((sub) => sub._id);
+        subscriptionIds.forEach((subscriptionId) => {
+          dispatch(
+            getAppointmentsBySubscriptionThunk({
+              subscriptionId,
+              page: currentPage,
+              limit,
+            })
+          );
         });
       }
     });
     return () => {
       dispatch(clearError());
     };
-  }, [dispatch]);
+  }, [dispatch, currentPage]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -192,12 +203,18 @@ const Subscriptions: React.FC = () => {
     setCurrentCardIndex((prev) =>
       prev === 0 ? filteredSubscriptions.length - 1 : prev - 1
     );
+    setCurrentPage(1); // Reset page when switching subscriptions
   };
 
   const handleNextCard = () => {
     setCurrentCardIndex((prev) =>
       prev === filteredSubscriptions.length - 1 ? 0 : prev + 1
     );
+    setCurrentPage(1); // Reset page when switching subscriptions
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
   };
 
   const filteredSubscriptions = activeSubscriptions.filter((sub) =>
@@ -242,6 +259,13 @@ const Subscriptions: React.FC = () => {
       </div>
     );
   }
+
+  const currentSubscription = filteredSubscriptions[currentCardIndex];
+  const totalPages = currentSubscription
+    ? Math.ceil(
+        (totalItemsBySubscription[currentSubscription._id] || 0) / limit
+      )
+    : 1;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 py-8 px-4 sm:px-6 lg:px-8">
@@ -518,12 +542,20 @@ const Subscriptions: React.FC = () => {
                         <div className="flex items-center gap-3 text-sm text-gray-300">
                           <Clock className="w-5 h-5 text-purple-400" />
                           <span>
-                            {subscription.status === 'active' &&
-                            subscription.daysUntilExpiration !== undefined
-                              ? `Expires: ${dayjs().add(subscription.daysUntilExpiration, 'day').format('MMM D, YYYY')}`
+                            <span>
+                            Ends:{' '}
+                            {subscription.endDate
+                              ? dayjs(subscription.endDate).format(
+                                  'MMM D, YYYY'
+                                )
+                              : 'N/A'}
+                          </span>
+                            {/* {subscription.status === 'active' &&
+                            subscription.remainingDays !== undefined
+                              ? `Expires: ${dayjs().add(subscription.remainingDays!, 'day').format('MMM D, YYYY')}`
                               : subscription.expiryDate
                                 ? `Expired: ${dayjs(subscription.expiryDate).format('MMM D, YYYY')}`
-                                : 'No expiry date'}
+                                : 'No expiry date'} */}
                           </span>
                         </div>
                       </div>
@@ -630,9 +662,9 @@ const Subscriptions: React.FC = () => {
             <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
               <DataTable
                 data={
-                  filteredSubscriptions[currentCardIndex]?.plan?.doctorId
+                  filteredSubscriptions[currentCardIndex]?._id
                     ? appointments[
-                        filteredSubscriptions[currentCardIndex].plan.doctorId
+                        filteredSubscriptions[currentCardIndex]._id
                       ] || []
                     : []
                 }
@@ -641,6 +673,13 @@ const Subscriptions: React.FC = () => {
                 error={error}
                 emptyMessage="No appointments booked for this subscription."
               />
+              {totalPages > 1 && (
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={handlePageChange}
+                />
+              )}
             </div>
           </motion.div>
         )}

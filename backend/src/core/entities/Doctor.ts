@@ -22,8 +22,7 @@ export interface Doctor {
   profilePicturePublicId?: string;
   licenseProof?: string;
   licenseProofPublicId?: string;
-  refreshToken?: string;
-  googleId?: string;
+  socialLogins?: Record<string, string>;
   lastSeen?: Date;
   isOnline?: boolean;
   isOtpVerified?: boolean;

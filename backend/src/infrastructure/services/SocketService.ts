@@ -1,8 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Server as HttpServer } from 'http';
 import { Server as SocketIOServer, Socket } from 'socket.io';
-import { IChatService } from '../../core/interfaces/services/IChatService';
-import { INotificationService } from '../../core/interfaces/services/INotificationService';
 import { ITokenService } from '../../core/interfaces/services/ITokenService';
 import { env } from '../../config/env';
 import { ChatMessage } from '../../core/entities/ChatMessage';
@@ -13,23 +11,21 @@ import * as cookie from 'cookie';
 import { IPatientRepository } from '../../core/interfaces/repositories/IPatientRepository';
 import { IDoctorRepository } from '../../core/interfaces/repositories/IDoctorRepository';
 import { UserRole } from '../../types';
+import { IChatRepository } from '../../core/interfaces/repositories/IChatRepository';
+import { INotificationRepository } from '../../core/interfaces/repositories/INotificationRepository';
 
 export class SocketService {
   private _io: SocketIOServer | null = null;
   private _connectedUsers: Map<string, Set<string>> = new Map();
   private _messageQueue: Map<string, ChatMessage[]> = new Map();
-  private _notificationService: INotificationService | null = null;
 
   constructor(
-    private _chatService: IChatService,
+    private _chatRepository: IChatRepository,
     private _tokenService: ITokenService,
     private _patientRepository: IPatientRepository,
-    private _doctorRepository: IDoctorRepository
+    private _doctorRepository: IDoctorRepository,
+    private _notificationRepository: INotificationRepository
   ) {}
-
-  setNotificationService(notificationService: INotificationService): void {
-    this._notificationService = notificationService;
-  }
 
   initialize(server: HttpServer): void {
     this._io = new SocketIOServer(server, {
@@ -142,7 +138,6 @@ export class SocketService {
         `User connected: ${userId}, socketId=${socket.id}, totalSockets=${this._connectedUsers.get(userId)!.size}`
       );
 
-      // Update last seen and broadcast online status
       await this._updateUserLastSeen(userId, role);
       this._broadcastUserStatus(userId, true);
 
@@ -150,7 +145,6 @@ export class SocketService {
 
       socket.on('sendMessage', async (message: ChatMessage) => {
         try {
-          logger.info('Received sendMessage payload:', { message });
           const messagePayload = {
             _id: message._id,
             message: message.message,
@@ -161,10 +155,10 @@ export class SocketService {
             receiverId: message.receiverId,
             attachment: message.attachment,
             reactions: message.reactions || [],
-            unreadBy: message.unreadBy || [message.receiverId],
+            unreadBy: message.unreadBy,
           };
 
-          const receiverSocketIds = this._connectedUsers.get(message.receiverId);
+          const receiverSocketIds = this._connectedUsers.get(message.receiverId!);
           if (receiverSocketIds && receiverSocketIds.size > 0) {
             receiverSocketIds.forEach((socketId) => {
               logger.info(`Emitting receiveMessage to: ${message.receiverId}, socketId: ${socketId}`, {
@@ -175,10 +169,10 @@ export class SocketService {
             logger.info(`Message sent to receiver: ${message.receiverId}`);
           } else {
             logger.warn(`Receiver not connected: ${message.receiverId}, queuing message`);
-            this.queueMessage(message.receiverId, messagePayload);
+            this.queueMessage(message.receiverId!, messagePayload);
           }
 
-          const senderSocketIds = this._connectedUsers.get(message.senderId);
+          const senderSocketIds = this._connectedUsers.get(message.senderId!);
           if (senderSocketIds && senderSocketIds.size > 0) {
             const senderPayload = { ...messagePayload, isSender: true };
             senderSocketIds.forEach((socketId) => {
@@ -197,22 +191,20 @@ export class SocketService {
 
       socket.on('sendReaction', async (data: { messageId: string; emoji: string; userId: string }) => {
         try {
-          logger.info('Received sendReaction payload:', { data });
           const reactionPayload = {
             messageId: data.messageId,
             emoji: data.emoji,
             userId: data.userId,
           };
 
-          const message = await this._chatService
-            .getMessages(data.userId, '', {})
-            .then((messages) => messages.find((m) => m._id === data.messageId));
+          const message = await this._chatRepository.findById(data.messageId);
           if (!message) {
             throw new Error('Message not found');
           }
 
-          const receiverId = message.senderId === data.userId ? message.receiverId : message.senderId;
-          const receiverSocketIds = this._connectedUsers.get(receiverId);
+          const receiverId =
+            message.senderId?.toString() === data.userId ? message.receiverId?.toString() : message.senderId;
+          const receiverSocketIds = this._connectedUsers.get(receiverId!);
           if (receiverSocketIds && receiverSocketIds.size > 0) {
             receiverSocketIds.forEach((socketId) => {
               logger.info(`Emitting receiveReaction to: ${receiverId}, socketId: ${socketId}`, {
@@ -240,14 +232,9 @@ export class SocketService {
       });
 
       socket.on('sendNotification', async (notification: Notification) => {
-        if (!this._notificationService) {
-          logger.error('Notification service not available');
-          socket.emit('error', { message: 'Notification service not available' });
-          return;
-        }
         try {
-          await this._notificationService.sendNotification(notification);
-          const receiverSocketIds = this._connectedUsers.get(notification.userId);
+          await this._notificationRepository.create(notification);
+          const receiverSocketIds = this._connectedUsers.get(notification.userId!);
           if (receiverSocketIds && receiverSocketIds.size > 0) {
             receiverSocketIds.forEach((socketId) => {
               this._io!.to(socketId).emit('receiveNotification', notification);
@@ -462,10 +449,10 @@ export class SocketService {
       receiverId: message.receiverId,
       attachment: message.attachment,
       reactions: message.reactions || [],
-      unreadBy: message.unreadBy || [message.receiverId],
+      unreadBy: message.unreadBy,
     };
 
-    const receiverSocketIds = this._connectedUsers.get(message.receiverId);
+    const receiverSocketIds = this._connectedUsers.get(message.receiverId!);
     if (receiverSocketIds && receiverSocketIds.size > 0) {
       receiverSocketIds.forEach((socketId) => {
         logger.info(`Emitting receiveMessage to: ${message.receiverId}, socketId: ${socketId}`, {
@@ -476,10 +463,10 @@ export class SocketService {
       logger.info(`Message sent to receiver: ${message.receiverId}`);
     } else {
       logger.warn(`Receiver not connected: ${message.receiverId}, queuing message`);
-      this.queueMessage(message.receiverId, messagePayload);
+      this.queueMessage(message.receiverId!, messagePayload);
     }
 
-    const senderSocketIds = this._connectedUsers.get(message.senderId);
+    const senderSocketIds = this._connectedUsers.get(message.senderId!);
     if (senderSocketIds && senderSocketIds.size > 0) {
       const senderPayload = { ...messagePayload, isSender: true };
       senderSocketIds.forEach((socketId) => {

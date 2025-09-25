@@ -29,9 +29,15 @@ import {
 import dayjs, { Dayjs } from 'dayjs';
 import { DateUtils } from '../../utils/DateUtils';
 import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
 import InfoIcon from '@mui/icons-material/Info';
 import FilterSelect from '../../components/common/FilterSelect';
 import Modal from '../../components/common/Modal';
+import {
+  MAX_RECURRING_DAYS,
+  DEFAULT_TIME_FORMAT,
+  DEFAULT_DATE_FORMAT,
+} from '../../constants/AppConstants';
 
 interface TimeSlot {
   startTime: string;
@@ -43,6 +49,7 @@ interface TimeSlot {
 interface Availability {
   _id?: string;
   date: string;
+  dateKey: string;
   timeSlots: TimeSlot[];
   doctorId?: string;
 }
@@ -90,7 +97,20 @@ const DoctorAvailability: React.FC = () => {
   const [editingReasons, setEditingReasons] = useState<{
     [key: number]: string;
   }>({});
+  const [availabilityMap, setAvailabilityMap] = useState<
+    Map<string, Availability>
+  >(new Map());
   const isMobile = useMediaQuery('(max-width:600px)');
+
+  useEffect(() => {
+    if (availability.length > 0) {
+      const map = new Map<string, Availability>();
+      availability.forEach((avail: Availability) => {
+        map.set(avail.dateKey, avail);
+      });
+      setAvailabilityMap(map);
+    }
+  }, [availability]);
 
   const fetchAvailability = useCallback(() => {
     if (user?.role === 'doctor') {
@@ -129,7 +149,7 @@ const DoctorAvailability: React.FC = () => {
       const current = monthStart.add(i, 'day');
       const currentDate = current.toDate();
       if (DateUtils.isFutureDate(currentDate)) {
-        dates.push(current.format('YYYY-MM-DD'));
+        dates.push(current.format(DEFAULT_DATE_FORMAT));
       }
     }
     return dates;
@@ -144,9 +164,7 @@ const DoctorAvailability: React.FC = () => {
       return;
     }
     setSelectedDate(selected);
-    const existingAvailability = availability.find((avail: Availability) =>
-      dayjs.utc(avail.date).isSame(dayjs.utc(date), 'day')
-    );
+    const existingAvailability = availabilityMap.get(date);
     setSelectedAvailabilityId(existingAvailability?._id || null);
     const existingSlots = existingAvailability
       ? existingAvailability.timeSlots
@@ -168,7 +186,10 @@ const DoctorAvailability: React.FC = () => {
     field: 'startTime' | 'endTime',
     value: string
   ) => {
-    if (value !== '' && !value.match(/^\d{2}:\d{2}$/)) return;
+    const timeRegex = new RegExp(
+      `^${DEFAULT_TIME_FORMAT.replace('HH', '\\d{2}').replace('mm', '\\d{2}')}$`
+    );
+    if (value !== '' && !timeRegex.test(value)) return;
 
     if (
       selectedDate &&
@@ -383,17 +404,15 @@ const DoctorAvailability: React.FC = () => {
     setSelectedSlotIndex(null);
   };
 
-  const validateSlot = (slot: TimeSlot): boolean => {
+  const validateSlot = (slot: TimeSlot, date: Date): boolean => {
     if (!slot.startTime || !slot.endTime) return false;
     const start = dayjs(
-      `${dayjs(selectedDate!).format('YYYY-MM-DD')} ${slot.startTime}`
+      `${dayjs(date).format('YYYY-MM-DD')} ${slot.startTime}`
     );
-    const end = dayjs(
-      `${dayjs(selectedDate!).format('YYYY-MM-DD')} ${slot.endTime}`
-    );
+    const end = dayjs(`${dayjs(date).format('YYYY-MM-DD')} ${slot.endTime}`);
     if (!start.isValid() || !end.isValid() || !start.isBefore(end))
       return false;
-    if (selectedDate && dayjs(selectedDate).isSame(dayjs(), 'day')) {
+    if (dayjs(date).isSame(dayjs(), 'day')) {
       const now = dayjs();
       return start.isAfter(now);
     }
@@ -410,7 +429,9 @@ const DoctorAvailability: React.FC = () => {
       return;
     }
 
-    const validNewSlots = newSlots.filter((slot) => validateSlot(slot));
+    const validNewSlots = newSlots.filter((slot) =>
+      validateSlot(slot, selectedDate)
+    );
     if (validNewSlots.length === 0) {
       toast.error('All new slots must have valid start and end times');
       return;
@@ -458,7 +479,10 @@ const DoctorAvailability: React.FC = () => {
     field: 'startTime' | 'endTime',
     value: string
   ) => {
-    if (value !== '' && !value.match(/^\d{2}:\d{2}$/)) return;
+    const timeRegex = new RegExp(
+      `^${DEFAULT_TIME_FORMAT.replace('HH', '\\d{2}').replace('mm', '\\d{2}')}$`
+    );
+    if (value !== '' && !timeRegex.test(value)) return;
 
     const updatedTimeSlots = [...recurringTimeSlots];
     updatedTimeSlots[index] = { ...updatedTimeSlots[index], [field]: value };
@@ -487,9 +511,25 @@ const DoctorAvailability: React.FC = () => {
       return;
     }
 
+    const daysDiff = recurringEndDate.diff(recurringStartDate, 'day');
+    if (daysDiff > MAX_RECURRING_DAYS) {
+      toast.error(`Recurring period cannot exceed ${MAX_RECURRING_DAYS} days`);
+      return;
+    }
+
+    // Validate all slots
     for (const slot of recurringTimeSlots) {
       if (!slot.startTime || !slot.endTime) {
         toast.error('All slots must have valid start and end times');
+        return;
+      }
+      const timeRegex = new RegExp(
+        `^${DEFAULT_TIME_FORMAT.replace('HH', '\\d{2}').replace('mm', '\\d{2}')}$`
+      );
+      if (!timeRegex.test(slot.startTime) || !timeRegex.test(slot.endTime)) {
+        toast.error(
+          `Invalid time format. Use ${DEFAULT_TIME_FORMAT} (e.g., 09:00)`
+        );
         return;
       }
       const start = dayjs(
@@ -502,17 +542,9 @@ const DoctorAvailability: React.FC = () => {
         toast.error('Invalid slot: Start time must be before end time');
         return;
       }
-      if (recurringStartDate.isSame(dayjs(), 'day')) {
-        const now = dayjs();
-        if (start.isBefore(now)) {
-          toast.error(
-            'Cannot set time slots before current time on current day'
-          );
-          return;
-        }
-      }
     }
 
+    // Check for overlaps on the start date
     if (
       DateUtils.checkOverlappingSlots(
         recurringTimeSlots,
@@ -536,11 +568,12 @@ const DoctorAvailability: React.FC = () => {
       ).unwrap()) as SetAvailabilityResponse;
       toast.success('Recurring availability set successfully');
       if (response.conflicts.length > 0) {
-        response.conflicts.forEach((conflict) => {
-          toast.warn(
-            `Failed to set availability for ${dayjs(conflict.date).format('YYYY-MM-DD')}: ${conflict.error}`
-          );
-        });
+        const errors = response.conflicts.map((conflict, index) => (
+          <div key={index}>
+            {`${index + 1}-Failed to set availability for ${dayjs(conflict.date).format('YYYY-MM-DD')}: ${conflict.error}`}
+          </div>
+        ));
+        toast.warn(<div>{errors}</div>, { autoClose: 5000 });
       }
       setIsRecurringModalOpen(false);
       setRecurringTimeSlots([]);
@@ -578,153 +611,144 @@ const DoctorAvailability: React.FC = () => {
   return (
     <>
       <ToastContainer position="top-right" autoClose={3000} theme="dark" />
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 py-8">
-        <div className="container mx-auto px-4">
-          <div className="bg-white/10 backdrop-blur-lg p-4 md:p-6 rounded-2xl border border-white/20 shadow-xl">
-            <h2 className="text-xl font-bold text-white mb-4">
-              Set Your Availability
-            </h2>
-            <Button
-              variant="contained"
-              onClick={() => setIsRecurringModalOpen(true)}
-              sx={{ mb: 2 }}
-            >
-              Set Recurring Availability
-            </Button>
-            <LocalizationProvider dateAdapter={AdapterDayjs}>
-              <div className="mb-4">
-                <label className="block text-gray-200 text-sm mb-2">
-                  Filter by Month
-                </label>
-                <DatePicker
-                  views={['month']} // Changed to month-only selection
-                  value={dateFilter}
-                  onChange={(newValue) => setDateFilter(newValue)}
-                  slotProps={{
-                    textField: {
-                      fullWidth: true,
-                      sx: {
-                        '& .MuiInputBase-root': {
-                          backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                          border: '1px solid rgba(255, 255, 255, 0.2)',
-                          borderRadius: '8px',
-                          color: 'white',
-                        },
-                        '& .MuiInputLabel-root': {
-                          color: 'rgba(255, 255, 255, 0.7)',
-                        },
-                        '& .Mui-focused': {
-                          borderColor: 'rgba(192, 132, 252, 0.4)',
-                        },
-                      },
+      <div className="bg-white/10 backdrop-blur-lg p-4 md:p-6 rounded-2xl border border-white/20 shadow-xl">
+        <h2 className="text-xl font-bold text-white mb-4">
+          Set Your Availability
+        </h2>
+        <Button
+          variant="contained"
+          onClick={() => setIsRecurringModalOpen(true)}
+          sx={{ mb: 2 }}
+        >
+          Set Recurring Availability
+        </Button>
+        <LocalizationProvider dateAdapter={AdapterDayjs}>
+          <div className="mb-4">
+            <label className="block text-gray-200 text-sm mb-2">
+              Filter by Month
+            </label>
+            <DatePicker
+              views={['month']}
+              value={dateFilter}
+              onChange={(newValue) => setDateFilter(newValue)}
+              slotProps={{
+                textField: {
+                  fullWidth: true,
+                  sx: {
+                    '& .MuiInputBase-root': {
+                      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                      border: '1px solid rgba(255, 255, 255, 0.2)',
+                      borderRadius: '8px',
+                      color: 'white',
+                    },
+                    '& .MuiInputLabel-root': {
+                      color: 'rgba(255, 255, 255, 0.7)',
+                    },
+                    '& .Mui-focused': {
+                      borderColor: 'rgba(192, 132, 252, 0.4)',
+                    },
+                  },
+                },
+              }}
+              sx={{ width: isMobile ? '100%' : '300px' }}
+            />
+          </div>
+        </LocalizationProvider>
+        <div className="mb-4">
+          <FilterSelect
+            label="Filter Dates"
+            value={filterType}
+            options={filterOptions}
+            onChange={(value) =>
+              setFilterType(value as 'all' | 'created' | 'booked')
+            }
+          />
+        </div>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: isMobile
+              ? '1fr'
+              : 'repeat(auto-fill, minmax(150px, 1fr))',
+            gap: 2,
+            mt: 4,
+          }}
+        >
+          {monthDates
+            .filter((date) => {
+              if (!dateFilter) return true;
+              const dateObj = dayjs.utc(date);
+              return dateObj.isSame(dayjs.utc(dateFilter), 'month');
+            })
+            .filter((date) => {
+              const isToday = dayjs.utc(date).isSame(dayjs.utc(), 'day');
+              if (isToday) return true;
+              const avail = availabilityMap.get(date);
+              if (filterType === 'all') return true;
+              if (filterType === 'created')
+                return !!avail && avail.timeSlots.length > 0;
+              if (filterType === 'booked')
+                return (
+                  !!avail && avail.timeSlots.some((s: TimeSlot) => s.isBooked)
+                );
+              return true;
+            })
+            .map((date) => {
+              const avail = availabilityMap.get(date);
+              const slotCount = avail?.timeSlots.length || 0;
+              return (
+                <Button
+                  key={date}
+                  variant="outlined"
+                  sx={{
+                    background:
+                      slotCount > 0
+                        ? 'linear-gradient(to right, rgba(34, 197, 94, 0.2), rgba(22, 163, 74, 0.2))'
+                        : 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    borderRadius: '8px',
+                    color: 'white',
+                    textAlign: 'center',
+                    padding: '16px',
+                    position: 'relative',
+                    '&:hover': {
+                      background:
+                        slotCount > 0
+                          ? 'linear-gradient(to right, rgba(34, 197, 94, 0.3), rgba(22, 163, 74, 0.3))'
+                          : 'rgba(255, 255, 255, 0.1)',
                     },
                   }}
-                  sx={{ width: isMobile ? '100%' : '300px' }}
-                />
-              </div>
-            </LocalizationProvider>
-            <div className="mb-4">
-              <FilterSelect
-                label="Filter Dates"
-                value={filterType}
-                options={filterOptions}
-                onChange={(value) =>
-                  setFilterType(value as 'all' | 'created' | 'booked')
-                }
-              />
-            </div>
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: isMobile
-                  ? '1fr'
-                  : 'repeat(auto-fill, minmax(150px, 1fr))',
-                gap: 2,
-                mt: 4,
-              }}
-            >
-              {monthDates
-                .filter((date) => {
-                  if (!dateFilter) return true;
-                  const dateObj = dayjs.utc(date);
-                  return dateObj.isSame(dayjs.utc(dateFilter), 'month');
-                })
-                .filter((date) => {
-                  const isToday = dayjs.utc(date).isSame(dayjs.utc(), 'day');
-                  if (isToday) return true; // Always include today
-                  const avail = availability.find((a: Availability) =>
-                    dayjs.utc(a.date).isSame(dayjs.utc(date), 'day')
-                  );
-                  if (filterType === 'all') return true;
-                  if (filterType === 'created')
-                    return !!avail && avail.timeSlots.length > 0;
-                  if (filterType === 'booked')
-                    return (
-                      !!avail &&
-                      avail.timeSlots.some((s: TimeSlot) => s.isBooked)
-                    );
-                  return true;
-                })
-                .map((date) => {
-                  const avail = availability.find((a: Availability) =>
-                    dayjs.utc(a.date).isSame(dayjs.utc(date), 'day')
-                  );
-                  const slotCount = avail?.timeSlots.length || 0;
-                  return (
-                    <Button
-                      key={date}
-                      variant="outlined"
-                      sx={{
-                        background:
-                          slotCount > 0
-                            ? 'linear-gradient(to right, rgba(34, 197, 94, 0.2), rgba(22, 163, 74, 0.2))'
-                            : 'rgba(255, 255, 255, 0.05)',
-                        border: '1px solid rgba(255, 255, 255, 0.2)',
-                        borderRadius: '8px',
-                        color: 'white',
-                        textAlign: 'center',
-                        padding: '16px',
-                        position: 'relative',
-                        '&:hover': {
-                          background:
-                            slotCount > 0
-                              ? 'linear-gradient(to right, rgba(34, 197, 94, 0.3), rgba(22, 163, 74, 0.3))'
-                              : 'rgba(255, 255, 255, 0.1)',
-                        },
-                      }}
-                      onClick={() => handleSelectDate(date)}
-                    >
-                      <div>
-                        <div>
-                          {DateUtils.formatToLocalDisplay(
-                            DateUtils.parseToUTC(date)
-                          )}
-                        </div>
-                        <div className="text-sm">
-                          {slotCount > 0
-                            ? `${slotCount} slot${slotCount > 1 ? 's' : ''}`
-                            : 'No slots'}
-                        </div>
-                        {slotCount > 0 && (
-                          <Box
-                            sx={{
-                              position: 'absolute',
-                              top: 8,
-                              right: 8,
-                              width: 10,
-                              height: 10,
-                              borderRadius: '50%',
-                              bgcolor: 'success.main',
-                            }}
-                          />
-                        )}
-                      </div>
-                    </Button>
-                  );
-                })}
-            </Box>
-          </div>
-        </div>
+                  onClick={() => handleSelectDate(date)}
+                >
+                  <div>
+                    <div>
+                      {DateUtils.formatToLocalDisplay(
+                        DateUtils.parseToUTC(date)
+                      )}
+                    </div>
+                    <div className="text-sm">
+                      {slotCount > 0
+                        ? `${slotCount} slot${slotCount > 1 ? 's' : ''}`
+                        : 'No slots'}
+                    </div>
+                    {slotCount > 0 && (
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          top: 8,
+                          right: 8,
+                          width: 10,
+                          height: 10,
+                          borderRadius: '50%',
+                          bgcolor: 'success.main',
+                        }}
+                      />
+                    )}
+                  </div>
+                </Button>
+              );
+            })}
+        </Box>
       </div>
 
       <Modal
@@ -826,12 +850,19 @@ const DoctorAvailability: React.FC = () => {
                     <EditIcon />
                   </IconButton>
                 )}
-                <button
+                <IconButton
                   onClick={() => handleRemoveClick(index)}
-                  className="bg-red-600 text-white px-2 py-1 rounded-lg hover:bg-red-700 transition-all duration-300"
+                  sx={{
+                    color: '#d32f2f',
+                    '&:hover': {
+                      backgroundColor: 'rgba(211, 47, 47, 0.1)', // Hover effect similar to bg-red-700
+                    },
+                  }}
+                  aria-label="Remove time slot"
+                  title="Remove"
                 >
-                  Remove
-                </button>
+                  <DeleteIcon />
+                </IconButton>
                 {slot.isBooked && (
                   <span className="text-yellow-400 ml-2">🔒 Booked</span>
                 )}
@@ -1002,6 +1033,11 @@ const DoctorAvailability: React.FC = () => {
               onChange={(newValue) => setRecurringEndDate(newValue)}
               minDate={
                 recurringStartDate ? recurringStartDate.add(1, 'day') : dayjs()
+              }
+              maxDate={
+                recurringStartDate
+                  ? recurringStartDate.add(MAX_RECURRING_DAYS, 'day')
+                  : undefined
               }
               slotProps={{
                 textField: {

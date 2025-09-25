@@ -3,8 +3,8 @@ import { PatientSubscription } from '../../../core/entities/PatientSubscription'
 
 const PatientSubscriptionSchema = new Schema<PatientSubscription>(
   {
-    patientId: { type: String, required: true, ref: 'Patient' },
-    planId: { type: String, required: true, ref: 'SubscriptionPlan' },
+    patientId: { type: Schema.Types.ObjectId, required: true, ref: 'Patient' },
+    planId: { type: Schema.Types.ObjectId, required: true, ref: 'SubscriptionPlan' },
     startDate: { type: Date, required: true },
     endDate: { type: Date, required: true },
     status: {

@@ -4,7 +4,6 @@ import { Patient } from '../../core/entities/Patient';
 import { BaseRepository } from './BaseRepository';
 import { PatientModel } from '../database/models/PatientModel';
 import { QueryParams, PaginatedResponse } from '../../types/authTypes';
-import logger from '../../utils/logger';
 import { ValidationError } from '../../utils/errors';
 
 export class PatientRepository extends BaseRepository<Patient> implements IPatientRepository {
@@ -14,6 +13,11 @@ export class PatientRepository extends BaseRepository<Patient> implements IPatie
 
   async findByEmail(email: string): Promise<Patient | null> {
     const patient = await this.model.findOne({ email, isBlocked: false }).exec();
+    return patient ? (patient.toObject() as Patient) : null;
+  }
+
+  async findOne(query: FilterQuery<Patient>): Promise<Patient | null> {
+    const patient = await this.model.findOne(query).exec();
     return patient ? (patient.toObject() as Patient) : null;
   }
 
@@ -62,8 +66,6 @@ export class PatientRepository extends BaseRepository<Patient> implements IPatie
       query._id = { $in: ids.map((id) => new mongoose.Types.ObjectId(id)) };
     }
 
-    logger.debug('query in patientrepo:', query);
-
     // Execute query
     const patients = await this.model
       .find(query)
@@ -84,7 +86,6 @@ export class PatientRepository extends BaseRepository<Patient> implements IPatie
   }
 
   async updateSubscriptionStatus(patientId: string, isSubscribed: boolean): Promise<Patient | null> {
-    if (!mongoose.Types.ObjectId.isValid(patientId)) return null;
     const patient = await this.model.findByIdAndUpdate(patientId, { isSubscribed }, { new: true }).exec();
     return patient ? (patient.toObject() as Patient) : null;
   }

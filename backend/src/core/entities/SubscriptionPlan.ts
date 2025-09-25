@@ -1,6 +1,6 @@
 export interface SubscriptionPlan {
   _id?: string;
-  doctorId: string;
+  doctorId?: string;
   name: string;
   description: string;
   price: number;

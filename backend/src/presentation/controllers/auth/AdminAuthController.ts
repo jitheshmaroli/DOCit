@@ -1,5 +1,4 @@
 import { Request, Response, NextFunction } from 'express';
-import { Container } from '../../../infrastructure/di/container';
 import { NotFoundError, ValidationError } from '../../../utils/errors';
 import { IDoctorUseCase } from '../../../core/interfaces/use-cases/IDoctorUseCase';
 import { IPatientUseCase } from '../../../core/interfaces/use-cases/IPatientUseCase';
@@ -7,35 +6,31 @@ import { setTokensInCookies } from '../../../utils/cookieUtils';
 import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 import { IAuthenticationUseCase } from '../../../core/interfaces/use-cases/IAuthenticationUseCase';
-import { LoginRequestDTO, LoginResponseDTO } from '../../../application/dtos/AuthDtos';
 import { QueryParams } from '../../../types/authTypes';
-import { DoctorMapper } from '../../../application/mappers/DoctorMapper';
-import { PatientMapper } from '../../../application/mappers/PatientMapper';
-import { DoctorDTO } from '../../../application/dtos/DoctorDTOs';
-import { PatientDTO } from '../../../application/dtos/PatientDTOs';
+import { UserRole } from '../../../types';
 
 export class AdminAuthController {
-  private _authenticationUseCase: IAuthenticationUseCase;
-  private _doctorUseCase: IDoctorUseCase;
-  private _patientUseCase: IPatientUseCase;
-
-  constructor(container: Container) {
-    this._authenticationUseCase = container.get<IAuthenticationUseCase>('IAuthenticationUseCase');
-    this._doctorUseCase = container.get<IDoctorUseCase>('IDoctorUseCase');
-    this._patientUseCase = container.get<IPatientUseCase>('IPatientUseCase');
-  }
+  constructor(
+    private _authenticationUseCase: IAuthenticationUseCase,
+    private _doctorUseCase: IDoctorUseCase,
+    private _patientUseCase: IPatientUseCase
+  ) {}
 
   async login(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const loginDTO: LoginRequestDTO = {
+      const loginData = {
         email: req.body.email,
         password: req.body.password,
       };
-      if (!loginDTO.email || !loginDTO.password) throw new ValidationError(ResponseMessages.BAD_REQUEST);
-      const { accessToken, refreshToken } = await this._authenticationUseCase.loginAdmin(loginDTO);
+      if (!loginData.email || !loginData.password) throw new ValidationError(ResponseMessages.BAD_REQUEST);
+      const { accessToken, refreshToken } = await this._authenticationUseCase.signIn(
+        UserRole.Admin,
+        'email',
+        loginData
+      );
       setTokensInCookies(res, accessToken, refreshToken);
-      const responseDTO: LoginResponseDTO = { accessToken, refreshToken, message: ResponseMessages.LOGGED_IN };
-      res.status(HttpStatusCode.OK).json(responseDTO);
+      const responseData = { accessToken, refreshToken, message: ResponseMessages.LOGGED_IN };
+      res.status(HttpStatusCode.OK).json(responseData);
     } catch (error) {
       next(error);
     }
@@ -45,8 +40,7 @@ export class AdminAuthController {
     try {
       const params = req.query as QueryParams;
       const { data, totalItems } = await this._patientUseCase.listPatients(params);
-      const responseDTO = PatientMapper.toPaginatedResponseDTO(data, totalItems, params);
-      res.status(HttpStatusCode.OK).json(responseDTO);
+      res.status(HttpStatusCode.OK).json({ data, totalItems });
     } catch (error) {
       next(error);
     }
@@ -56,8 +50,7 @@ export class AdminAuthController {
     try {
       const params = req.query as QueryParams;
       const { data, totalItems } = await this._doctorUseCase.listDoctors(params);
-      const responseDTO = DoctorMapper.toPaginatedResponseDTO(data, totalItems, params);
-      res.status(HttpStatusCode.OK).json(responseDTO);
+      res.status(HttpStatusCode.OK).json({ data, totalItems });
     } catch (error) {
       next(error);
     }
@@ -67,8 +60,8 @@ export class AdminAuthController {
     try {
       const { doctorId } = req.params;
       if (!doctorId) throw new ValidationError(ResponseMessages.BAD_REQUEST);
-      const responseDTO = await this._doctorUseCase.verifyDoctor(doctorId);
-      res.status(HttpStatusCode.OK).json(responseDTO);
+      const responseData = await this._doctorUseCase.verifyDoctor(doctorId);
+      res.status(HttpStatusCode.OK).json(responseData);
     } catch (error) {
       next(error);
     }
@@ -76,7 +69,7 @@ export class AdminAuthController {
 
   async createDoctor(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const doctorDTO: Partial<DoctorDTO> = {
+      const doctorData = {
         email: req.body.email,
         name: req.body.name,
         phone: req.body.phone,
@@ -94,7 +87,7 @@ export class AdminAuthController {
         licenseProof: req.body.licenseProof,
         licenseProofPublicId: req.body.licenseProofPublicId,
       };
-      const responseDTO = await this._doctorUseCase.createDoctor(doctorDTO);
+      const responseDTO = await this._doctorUseCase.createDoctor(doctorData);
       res.status(HttpStatusCode.CREATED).json(responseDTO);
     } catch (error) {
       next(error);
@@ -104,10 +97,10 @@ export class AdminAuthController {
   async updateDoctor(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const doctorId = req.params.id;
-      const updates: Partial<DoctorDTO> = req.body;
+      const updates = req.body;
       if (!doctorId) throw new ValidationError(ResponseMessages.BAD_REQUEST);
-      const responseDTO = await this._doctorUseCase.updateDoctor(doctorId, updates);
-      res.status(HttpStatusCode.OK).json(responseDTO);
+      const responseData = await this._doctorUseCase.updateDoctor(doctorId, updates);
+      res.status(HttpStatusCode.OK).json(responseData);
     } catch (error) {
       next(error);
     }
@@ -129,8 +122,8 @@ export class AdminAuthController {
       const doctorId = req.params.id;
       const { isBlocked } = req.body;
       if (!doctorId || typeof isBlocked !== 'boolean') throw new ValidationError(ResponseMessages.BAD_REQUEST);
-      const responseDTO = await this._doctorUseCase.blockDoctor(doctorId, isBlocked);
-      res.status(HttpStatusCode.OK).json(responseDTO);
+      const responseData = await this._doctorUseCase.blockDoctor(doctorId, isBlocked);
+      res.status(HttpStatusCode.OK).json(responseData);
     } catch (error) {
       next(error);
     }
@@ -138,7 +131,7 @@ export class AdminAuthController {
 
   async createPatient(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const patientDTO: Partial<PatientDTO> = {
+      const patientData = {
         email: req.body.email,
         name: req.body.name,
         phone: req.body.phone,
@@ -151,8 +144,8 @@ export class AdminAuthController {
         profilePicturePublicId: req.body.profilePicturePublicId,
         gender: req.body.gender,
       };
-      const responseDTO = await this._patientUseCase.createPatient(patientDTO);
-      res.status(HttpStatusCode.CREATED).json(responseDTO);
+      const responseData = await this._patientUseCase.createPatient(patientData);
+      res.status(HttpStatusCode.CREATED).json(responseData);
     } catch (error) {
       next(error);
     }
@@ -161,11 +154,11 @@ export class AdminAuthController {
   async updatePatient(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const patientId = req.params.id;
-      const updates: Partial<PatientDTO> = req.body;
+      const updates = req.body;
       if (!patientId) throw new ValidationError(ResponseMessages.BAD_REQUEST);
-      const responseDTO = await this._patientUseCase.updatePatient(patientId, updates);
-      if (!responseDTO) throw new NotFoundError(ResponseMessages.PATIENT_NOT_FOUND);
-      res.status(HttpStatusCode.OK).json(responseDTO);
+      const responseData = await this._patientUseCase.updatePatient(patientId, updates);
+      if (!responseData) throw new NotFoundError(ResponseMessages.PATIENT_NOT_FOUND);
+      res.status(HttpStatusCode.OK).json(responseData);
     } catch (error) {
       next(error);
     }
@@ -187,9 +180,9 @@ export class AdminAuthController {
       const patientId = req.params.id;
       const { isBlocked } = req.body;
       if (!patientId || typeof isBlocked !== 'boolean') throw new ValidationError(ResponseMessages.BAD_REQUEST);
-      const responseDTO = await this._patientUseCase.blockPatient(patientId, isBlocked);
-      if (!responseDTO) throw new NotFoundError(ResponseMessages.PATIENT_NOT_FOUND);
-      res.status(HttpStatusCode.OK).json(responseDTO);
+      const responseData = await this._patientUseCase.blockPatient(patientId, isBlocked);
+      if (!responseData) throw new NotFoundError(ResponseMessages.PATIENT_NOT_FOUND);
+      res.status(HttpStatusCode.OK).json(responseData);
     } catch (error) {
       next(error);
     }

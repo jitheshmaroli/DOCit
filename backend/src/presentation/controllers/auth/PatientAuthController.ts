@@ -1,47 +1,36 @@
 import { Request, Response, NextFunction } from 'express';
-import { Container } from '../../../infrastructure/di/container';
 import { validateEmail, validatePassword, validatePhone } from '../../../utils/validators';
 import { ValidationError } from '../../../utils/errors';
 import { setTokensInCookies } from '../../../utils/cookieUtils';
 import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 import { IAuthenticationUseCase } from '../../../core/interfaces/use-cases/IAuthenticationUseCase';
-import {
-  SignupRequestDTO,
-  SignupResponseDTO,
-  LoginRequestDTO,
-  LoginResponseDTO,
-  GoogleSignInRequestDTO,
-  GoogleSignInResponseDTO,
-} from '../../../application/dtos/AuthDtos';
-import logger from '../../../utils/logger';
+import { UserRole } from '../../../types';
 
 export class PatientAuthController {
-  private _authenticationUseCase: IAuthenticationUseCase;
-
-  constructor(container: Container) {
-    this._authenticationUseCase = container.get<IAuthenticationUseCase>('IAuthenticationUseCase');
-  }
+  constructor(private _authenticationUseCase: IAuthenticationUseCase) {}
 
   async signup(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const signupDTO: SignupRequestDTO = {
+      const signupData = {
         email: req.body.email,
         password: req.body.password,
         name: req.body.name,
         phone: req.body.phone,
-        role: 'patient',
       };
-      logger.info('Signup DTO:', signupDTO);
-      if (!validateEmail(signupDTO.email) || !validatePassword(signupDTO.password) || !validatePhone(signupDTO.phone)) {
+      if (
+        !validateEmail(signupData.email) ||
+        !validatePassword(signupData.password) ||
+        !validatePhone(signupData.phone)
+      ) {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
-      const savedPatient = await this._authenticationUseCase.signupPatient(signupDTO);
-      const responseDTO: SignupResponseDTO = {
+      const savedPatient = await this._authenticationUseCase.signupPatient(signupData);
+      const responseData = {
         message: ResponseMessages.OTP_SENT,
         _id: savedPatient._id!,
       };
-      res.status(HttpStatusCode.OK).json(responseDTO);
+      res.status(HttpStatusCode.OK).json(responseData);
     } catch (error) {
       next(error);
     }
@@ -49,19 +38,23 @@ export class PatientAuthController {
 
   async login(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const loginDTO: LoginRequestDTO = {
+      const loginData = {
         email: req.body.email,
         password: req.body.password,
       };
-      if (!loginDTO.email || !loginDTO.password) throw new ValidationError(ResponseMessages.BAD_REQUEST);
-      const { accessToken, refreshToken } = await this._authenticationUseCase.loginPatient(loginDTO);
+      if (!loginData.email || !loginData.password) throw new ValidationError(ResponseMessages.BAD_REQUEST);
+      const { accessToken, refreshToken } = await this._authenticationUseCase.signIn(
+        UserRole.Patient,
+        'email',
+        loginData
+      );
       setTokensInCookies(res, accessToken, refreshToken);
-      const responseDTO: LoginResponseDTO = {
+      const responseData = {
         accessToken,
         refreshToken,
         message: ResponseMessages.LOGGED_IN,
       };
-      res.status(HttpStatusCode.OK).json(responseDTO);
+      res.status(HttpStatusCode.OK).json(responseData);
     } catch (error) {
       next(error);
     }
@@ -69,20 +62,18 @@ export class PatientAuthController {
 
   async googleSignIn(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const googleSignInDTO: GoogleSignInRequestDTO = {
-        token: req.body.token,
-      };
-      if (!googleSignInDTO.token) throw new ValidationError(ResponseMessages.BAD_REQUEST);
-      const { accessToken, refreshToken } = await this._authenticationUseCase.googleSignInPatient(
-        googleSignInDTO.token
-      );
+      const token = req.body.token;
+      if (!token) throw new ValidationError(ResponseMessages.BAD_REQUEST);
+      const { accessToken, refreshToken } = await this._authenticationUseCase.signIn(UserRole.Patient, 'google', {
+        token,
+      });
       setTokensInCookies(res, accessToken, refreshToken);
-      const responseDTO: GoogleSignInResponseDTO = {
+      const responseData = {
         accessToken,
         refreshToken,
         message: ResponseMessages.LOGGED_IN,
       };
-      res.status(HttpStatusCode.OK).json(responseDTO);
+      res.status(HttpStatusCode.OK).json(responseData);
     } catch (error) {
       next(error);
     }

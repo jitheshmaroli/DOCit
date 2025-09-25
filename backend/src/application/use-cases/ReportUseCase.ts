@@ -10,9 +10,8 @@ import { IPatientSubscriptionRepository } from '../../core/interfaces/repositori
 import { ISubscriptionPlanRepository } from '../../core/interfaces/repositories/ISubscriptionPlanRepository';
 import { IDoctorRepository } from '../../core/interfaces/repositories/IDoctorRepository';
 import { IPatientRepository } from '../../core/interfaces/repositories/IPatientRepository';
-import { ValidationError } from '../../utils/errors';
+import { NotFoundError, ValidationError } from '../../utils/errors';
 import { DateUtils } from '../../utils/DateUtils';
-import logger from '../../utils/logger';
 import {
   ReportFilterDTO,
   ReportDataResponseDTO,
@@ -37,7 +36,6 @@ export class ReportUseCase implements IReportUseCase {
 
   async getAdminReports(filter: ReportFilterDTO): Promise<ReportDataResponseDTO> {
     if (!filter.type) {
-      logger.error('Report type is required');
       throw new ValidationError('Report type is required');
     }
 
@@ -61,18 +59,15 @@ export class ReportUseCase implements IReportUseCase {
 
   async getDoctorReports(doctorId: string, filter: ReportFilterDTO): Promise<ReportDataResponseDTO> {
     if (!doctorId) {
-      logger.error('Doctor ID is required for doctor reports');
       throw new ValidationError('Doctor ID is required');
     }
 
     if (!filter.type) {
-      logger.error('Report type is required');
       throw new ValidationError('Report type is required');
     }
 
     const doctor = await this._doctorRepository.findById(doctorId);
     if (!doctor) {
-      logger.error(`Doctor not found: ${doctorId}`);
       throw new ValidationError('Doctor not found');
     }
 
@@ -120,7 +115,6 @@ export class ReportUseCase implements IReportUseCase {
       (acc: Record<string, { count: number; totalSpent: number; patientName: string }>, sub: PatientSubscription) => {
         const patientId = sub.patientId;
         if (!patientId) {
-          logger.warn(`Invalid patientId in subscription: ${sub._id || 'unknown'}`);
           return acc;
         }
         const patientIdStr = patientId.toString();
@@ -132,7 +126,7 @@ export class ReportUseCase implements IReportUseCase {
             patientName: patient?.name || 'Unknown',
           };
           if (!patient) {
-            logger.warn(`Patient not found for patientId: ${patientIdStr}`);
+            throw new NotFoundError(`Patient not found for patientId: ${patientIdStr}`);
           }
         }
         acc[patientIdStr].count += 1;
@@ -160,12 +154,11 @@ export class ReportUseCase implements IReportUseCase {
           return acc;
         }
         const patientIdStr = patientId.toString();
-        // const patientName =
-        //   typeof appt.patientId === 'string'
-        //     ? patients.data.find((p: Patient) => p._id && p._id.toString() === patientIdStr)?.name || 'Unknown'
-        //     : appt.patientName || 'Unknown';
+        const patientName =
+          patients.data.find((p: Patient) => p._id && p._id.toString() === patientIdStr)?.name || 'Unknown';
+
         if (!acc[patientIdStr]) {
-          acc[patientIdStr] = { count: 0, patientName: patientIdStr };
+          acc[patientIdStr] = { count: 0, patientName: patientName };
         }
         acc[patientIdStr].count += 1;
         return acc;
@@ -187,17 +180,15 @@ export class ReportUseCase implements IReportUseCase {
       (acc: Record<string, { count: number; doctorName: string }>, sub: PatientSubscription) => {
         const planId = typeof sub.planId === 'string' ? sub.planId : sub.planId;
         if (!planId) {
-          logger.warn(`Invalid planId in subscription: ${sub._id || 'unknown'}`);
           return acc;
         }
         const plan = plans.data.find((p: SubscriptionPlan) => p._id && p._id.toString() === planId);
         if (!plan) {
-          logger.warn(`Plan not found for planId: ${planId}`);
           return acc;
         }
         const doctorId = plan.doctorId;
         if (!doctorId) {
-          logger.warn(`Invalid doctorId in plan: ${plan._id || 'unknown'}`);
+          throw new NotFoundError(`Invalid doctorId in plan: ${plan._id || 'unknown'}`);
           return acc;
         }
         const doctorIdStr = doctorId.toString();
@@ -208,7 +199,7 @@ export class ReportUseCase implements IReportUseCase {
             doctorName: doctor?.name || 'Unknown',
           };
           if (!doctor) {
-            logger.warn(`Doctor not found for doctorId: ${doctorIdStr}`);
+            throw new NotFoundError(`Doctor not found for doctorId: ${doctorIdStr}`);
           }
         }
         acc[doctorIdStr].count += 1;
@@ -226,12 +217,6 @@ export class ReportUseCase implements IReportUseCase {
       .sort((a, b) => b.subscriberCount - a.subscriberCount)
       .slice(0, 5);
 
-    logger.debug('Processed admin dashboard stats:', {
-      topSubscribers,
-      topPatients,
-      topDoctors,
-    });
-
     const stats = {
       totalDoctors: doctors.totalItems,
       totalPatients: patients.totalItems,
@@ -248,13 +233,11 @@ export class ReportUseCase implements IReportUseCase {
 
   async getDoctorDashboardStats(doctorId: string): Promise<DoctorDashboardStatsResponseDTO> {
     if (!doctorId) {
-      logger.error('Doctor ID is required for dashboard stats');
       throw new ValidationError('Doctor ID is required');
     }
 
     const doctor = await this._doctorRepository.findById(doctorId);
     if (!doctor) {
-      logger.error(`Doctor not found: ${doctorId}`);
       throw new ValidationError('Doctor not found');
     }
 

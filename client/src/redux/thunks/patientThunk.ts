@@ -10,6 +10,7 @@ import {
   cancelSubscription,
   getPatientSubscriptions,
   getDoctor,
+  getAppointmentsBySubscription,
 } from '../../services/patientService';
 import {
   GetDoctorAvailabilityPayload,
@@ -135,27 +136,58 @@ export const getPatientSubscriptionsThunk = createAsyncThunk(
       const subscriptions = await getPatientSubscriptions();
       const formattedSubscriptions = await Promise.all(
         subscriptions.map(async (subscription: PatientSubscription) => {
-          const doctor = await getDoctor(subscription.planId.doctorId);
+          if (!subscription.planId || !subscription?.planDetails?.doctorId) {
+            console.warn(
+              `Skipping doctor fetch for subscription ${subscription._id}: missing planId or doctorId`
+            );
+            return {
+              _id: subscription._id,
+              plan: {
+                _id: subscription.planDetails?._id || '',
+                name: subscription.planDetails?.name || 'Unknown Plan',
+                description: subscription.planDetails?.description || '',
+                price: subscription.planDetails?.price || 0,
+                validityDays: subscription.planDetails?.validityDays || 0,
+                appointmentCount:
+                  subscription.planDetails?.appointmentCount || 0,
+                doctorId: subscription.planDetails?.doctorId || '',
+              },
+              daysUntilExpiration: subscription.remainingDays,
+              isExpired:
+                subscription.status !== 'active' ||
+                DateUtils.parseToUTC(subscription.endDate) < new Date(),
+              appointmentsLeft: subscription.appointmentsLeft,
+              status: subscription.status,
+              createdAt: subscription.createdAt,
+              expiryDate: subscription.endDate,
+              refundId: subscription.refundId,
+              refundAmount: subscription.refundAmount,
+            };
+          }
+
+          const doctor = await getDoctor(subscription.planDetails.doctorId);
           return {
             _id: subscription._id,
             plan: {
-              _id: subscription.planId._id,
-              name: subscription.planId.name,
-              description: subscription.planId.description,
-              price: subscription.planId.price,
-              validityDays: subscription.planId.validityDays,
-              appointmentCount: subscription.planId.appointmentCount,
-              doctorId: subscription.planId.doctorId,
+              _id: subscription.planDetails._id,
+              name: subscription.planDetails.name,
+              description: subscription.planDetails.description,
+              price: subscription.planDetails.price,
+              validityDays: subscription.planDetails.validityDays,
+              appointmentCount: subscription.planDetails.appointmentCount,
+              doctorId: subscription.planDetails.doctorId,
               doctorName: doctor?.name || 'Unknown Doctor',
             },
             daysUntilExpiration: subscription.remainingDays,
             isExpired:
               subscription.status !== 'active' ||
-              DateUtils.parseToUTC(subscription.expiryDate) < new Date(),
+              DateUtils.parseToUTC(subscription.endDate) < new Date(),
             appointmentsLeft: subscription.appointmentsLeft,
             status: subscription.status,
             createdAt: subscription.createdAt,
-            expiryDate: subscription.expiryDate,
+            expiryDate: subscription.endDate,
+            refundId: subscription.refundId,
+            refundAmount: subscription.refundAmount,
           };
         })
       );
@@ -184,6 +216,27 @@ export const getPatientAppointmentsForDoctorThunk = createAsyncThunk<
         limit
       );
       return response;
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to fetch appointments';
+      return rejectWithValue(errorMessage);
+    }
+  }
+);
+
+export const getAppointmentsBySubscriptionThunk = createAsyncThunk<
+  { appointments: Appointment[]; totalItems: number },
+  { subscriptionId: string; page?: number; limit?: number },
+  { rejectValue: string }
+>(
+  'patient/getAppointmentsBySubscription',
+  async ({ subscriptionId, page = 1, limit = 5 }, { rejectWithValue }) => {
+    try {
+      const response = await getAppointmentsBySubscription(subscriptionId, {
+        page,
+        limit,
+      });
+      return response.data;
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to fetch appointments';
