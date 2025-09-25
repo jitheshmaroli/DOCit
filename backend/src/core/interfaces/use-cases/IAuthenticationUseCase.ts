@@ -1,7 +1,7 @@
 import { UserRole } from '../../../types';
 import {
   ForgotPasswordResponseDTO,
-  GoogleSignInResponseDTO,
+  // GoogleSignInResponseDTO,
   LoginResponseDTO,
   LogoutResponseDTO,
   RefreshTokenResponseDTO,
@@ -11,15 +11,17 @@ import {
   SignupResponseDTO,
   VerifySignupOTPRequestDTO,
   VerifySignupOTPResponseDTO,
-  LoginRequestDTO,
+  // LoginRequestDTO,
 } from '../../../application/dtos/AuthDtos';
+import { AuthProviderData } from '../../../types/authTypes';
 
 export interface IAuthenticationUseCase {
-  loginAdmin(dto: LoginRequestDTO): Promise<LoginResponseDTO>;
-  loginDoctor(dto: LoginRequestDTO): Promise<LoginResponseDTO>;
-  loginPatient(dto: LoginRequestDTO): Promise<LoginResponseDTO>;
-  googleSignInDoctor(token: string): Promise<GoogleSignInResponseDTO>;
-  googleSignInPatient(token: string): Promise<GoogleSignInResponseDTO>;
+  // loginAdmin(dto: LoginRequestDTO): Promise<LoginResponseDTO>;
+  // loginDoctor(dto: LoginRequestDTO): Promise<LoginResponseDTO>;
+  // loginPatient(dto: LoginRequestDTO): Promise<LoginResponseDTO>;
+  // googleSignInDoctor(token: string): Promise<GoogleSignInResponseDTO>;
+  // googleSignInPatient(token: string): Promise<GoogleSignInResponseDTO>;
+  signIn(role: UserRole, providerName: string, data: AuthProviderData): Promise<LoginResponseDTO>;
   signupDoctor(dto: SignupRequestDTO): Promise<SignupResponseDTO>;
   signupPatient(dto: SignupRequestDTO): Promise<SignupResponseDTO>;
   forgotPassword(email: string): Promise<ForgotPasswordResponseDTO>;

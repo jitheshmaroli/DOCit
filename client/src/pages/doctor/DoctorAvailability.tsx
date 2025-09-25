@@ -29,6 +29,7 @@ import {
 import dayjs, { Dayjs } from 'dayjs';
 import { DateUtils } from '../../utils/DateUtils';
 import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
 import InfoIcon from '@mui/icons-material/Info';
 import FilterSelect from '../../components/common/FilterSelect';
 import Modal from '../../components/common/Modal';
@@ -849,12 +850,19 @@ const DoctorAvailability: React.FC = () => {
                     <EditIcon />
                   </IconButton>
                 )}
-                <button
+                <IconButton
                   onClick={() => handleRemoveClick(index)}
-                  className="bg-red-600 text-white px-2 py-1 rounded-lg hover:bg-red-700 transition-all duration-300"
+                  sx={{
+                    color: '#d32f2f',
+                    '&:hover': {
+                      backgroundColor: 'rgba(211, 47, 47, 0.1)', // Hover effect similar to bg-red-700
+                    },
+                  }}
+                  aria-label="Remove time slot"
+                  title="Remove"
                 >
-                  Remove
-                </button>
+                  <DeleteIcon />
+                </IconButton>
                 {slot.isBooked && (
                   <span className="text-yellow-400 ml-2">🔒 Booked</span>
                 )}

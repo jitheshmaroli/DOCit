@@ -1,5 +1,4 @@
 import { Response, NextFunction } from 'express';
-import { Container } from '../../../infrastructure/di/container';
 import { ValidationError } from '../../../utils/errors';
 import { CustomRequest } from '../../../types';
 import { QueryParams } from '../../../types/authTypes';
@@ -19,23 +18,15 @@ import { IDoctorUseCase } from '../../../core/interfaces/use-cases/IDoctorUseCas
 // }
 
 export class PatientController {
-  private _patientUseCase: IPatientUseCase;
-  private _subscriptionPlanUseCase: ISubscriptionPlanUseCase;
-  private _specialityUseCase: ISpecialityUseCase;
-  private _appointmentUseCase: IAppointmentUseCase;
-  private _reviewUseCase: IReviewUseCase;
-  private _availabilityUseCase: IAvailabilityUseCase;
-  private _doctorUseCase: IDoctorUseCase;
-
-  constructor(container: Container) {
-    this._patientUseCase = container.get<IPatientUseCase>('IPatientUseCase');
-    this._subscriptionPlanUseCase = container.get<ISubscriptionPlanUseCase>('ISubscriptionPlanUseCase');
-    this._specialityUseCase = container.get<ISpecialityUseCase>('ISpecialityUseCase');
-    this._appointmentUseCase = container.get<IAppointmentUseCase>('IAppointmentUseCase');
-    this._reviewUseCase = container.get<IReviewUseCase>('IReviewUseCase');
-    this._availabilityUseCase = container.get<IAvailabilityUseCase>('IAvailabilityUseCase');
-    this._doctorUseCase = container.get<IDoctorUseCase>('IDoctorUseCase');
-  }
+  constructor(
+    private _patientUseCase: IPatientUseCase,
+    private _subscriptionPlanUseCase: ISubscriptionPlanUseCase,
+    private _specialityUseCase: ISpecialityUseCase,
+    private _appointmentUseCase: IAppointmentUseCase,
+    private _reviewUseCase: IReviewUseCase,
+    private _availabilityUseCase: IAvailabilityUseCase,
+    private _doctorUseCase: IDoctorUseCase
+  ) {}
 
   async getDoctorAvailability(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {

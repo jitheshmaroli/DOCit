@@ -1,5 +1,4 @@
 import { Response, NextFunction } from 'express';
-import { Container } from '../../../infrastructure/di/container';
 import { ValidationError } from '../../../utils/errors';
 import { CustomRequest, UserRole } from '../../../types';
 import { IChatUseCase } from '../../../core/interfaces/use-cases/IChatUseCase';
@@ -9,13 +8,10 @@ import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 
 export class ChatController {
-  private _chatUseCase: IChatUseCase;
-  private _socketService: SocketService;
-
-  constructor(container: Container) {
-    this._chatUseCase = container.get<IChatUseCase>('IChatUseCase');
-    this._socketService = container.get<SocketService>('SocketService');
-  }
+  constructor(
+    private _chatUseCase: IChatUseCase,
+    private _socketService: SocketService
+  ) {}
 
   async sendMessage(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {

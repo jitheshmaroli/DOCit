@@ -5,6 +5,7 @@ import { ValidationError, NotFoundError } from '../../utils/errors';
 import { SendNotificationRequestDTO, NotificationResponseDTO } from '../dtos/NotificationDTOs';
 import { NotificationMapper } from '../mappers/NotificationMapper';
 import { IValidatorService } from '../../core/interfaces/services/IValidatorService';
+import { NotificationType } from '../../core/entities/Notification';
 
 export class NotificationUseCase implements INotificationUseCase {
   constructor(
@@ -13,37 +14,25 @@ export class NotificationUseCase implements INotificationUseCase {
   ) {}
 
   async sendNotification(dto: SendNotificationRequestDTO): Promise<NotificationResponseDTO> {
-    // Validate required fields
+    // Validations
     this._validatorService.validateRequiredFields({
       userId: dto.userId,
       message: dto.message,
       type: dto.type,
     });
-
-    // Validate userId
     this._validatorService.validateIdFormat(dto.userId);
-
-    // Validate message length
     this._validatorService.validateLength(dto.message, 1, 1000);
-
-    // Validate notification type (assuming types are defined in a NotificationType enum or similar)
-    this._validatorService.validateEnum(dto.type, ['INFO', 'WARNING', 'ERROR', 'SUCCESS']); // Adjust enum values as needed
+    this._validatorService.validateEnum(dto.type, Object.values(NotificationType));
 
     const createdNotification = NotificationMapper.toNotificationEntity(dto);
 
-    try {
-      const savedNotification = await this._notificationRepository.create(createdNotification);
-      return NotificationMapper.toNotificationResponseDTO(savedNotification);
-    } catch {
-      throw new Error('Failed to create notification');
-    }
+    const savedNotification = await this._notificationRepository.create(createdNotification);
+    return NotificationMapper.toNotificationResponseDTO(savedNotification);
   }
 
   async getNotifications(userId: string, params: QueryParams): Promise<NotificationResponseDTO[]> {
-    // Validate required fields
+    // Validations
     this._validatorService.validateRequiredFields({ userId });
-
-    // Validate userId
     this._validatorService.validateIdFormat(userId);
 
     const notifications = await this._notificationRepository.findByUserId(userId, params);
@@ -51,10 +40,8 @@ export class NotificationUseCase implements INotificationUseCase {
   }
 
   async deleteNotification(notificationId: string): Promise<void> {
-    // Validate required fields
+    // Validations
     this._validatorService.validateRequiredFields({ notificationId });
-
-    // Validate IDs
     this._validatorService.validateIdFormat(notificationId);
 
     const notification = await this._notificationRepository.findById(notificationId);
@@ -66,20 +53,16 @@ export class NotificationUseCase implements INotificationUseCase {
   }
 
   async deleteAllNotifications(userId: string): Promise<void> {
-    // Validate required fields
+    // Validations
     this._validatorService.validateRequiredFields({ userId });
-
-    // Validate userId
     this._validatorService.validateIdFormat(userId);
 
     await this._notificationRepository.deleteAllByUserId(userId);
   }
 
   async markNotificationAsRead(notificationId: string, userId: string): Promise<void> {
-    // Validate required fields
+    // Validations
     this._validatorService.validateRequiredFields({ notificationId, userId });
-
-    // Validate IDs
     this._validatorService.validateIdFormat(notificationId);
     this._validatorService.validateIdFormat(userId);
 
@@ -88,7 +71,7 @@ export class NotificationUseCase implements INotificationUseCase {
       throw new NotFoundError('Notification not found');
     }
 
-    if (notification.userId !== userId) {
+    if (notification.userId?.toString() !== userId) {
       throw new ValidationError('Unauthorized to mark this notification as read');
     }
 

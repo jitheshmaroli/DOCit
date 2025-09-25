@@ -1,5 +1,4 @@
 import { Request, Response, NextFunction } from 'express';
-import { Container } from '../../../infrastructure/di/container';
 import { NotFoundError, ValidationError } from '../../../utils/errors';
 import { IDoctorUseCase } from '../../../core/interfaces/use-cases/IDoctorUseCase';
 import { IPatientUseCase } from '../../../core/interfaces/use-cases/IPatientUseCase';
@@ -8,17 +7,14 @@ import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 import { IAuthenticationUseCase } from '../../../core/interfaces/use-cases/IAuthenticationUseCase';
 import { QueryParams } from '../../../types/authTypes';
+import { UserRole } from '../../../types';
 
 export class AdminAuthController {
-  private _authenticationUseCase: IAuthenticationUseCase;
-  private _doctorUseCase: IDoctorUseCase;
-  private _patientUseCase: IPatientUseCase;
-
-  constructor(container: Container) {
-    this._authenticationUseCase = container.get<IAuthenticationUseCase>('IAuthenticationUseCase');
-    this._doctorUseCase = container.get<IDoctorUseCase>('IDoctorUseCase');
-    this._patientUseCase = container.get<IPatientUseCase>('IPatientUseCase');
-  }
+  constructor(
+    private _authenticationUseCase: IAuthenticationUseCase,
+    private _doctorUseCase: IDoctorUseCase,
+    private _patientUseCase: IPatientUseCase
+  ) {}
 
   async login(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -27,7 +23,11 @@ export class AdminAuthController {
         password: req.body.password,
       };
       if (!loginData.email || !loginData.password) throw new ValidationError(ResponseMessages.BAD_REQUEST);
-      const { accessToken, refreshToken } = await this._authenticationUseCase.loginAdmin(loginData);
+      const { accessToken, refreshToken } = await this._authenticationUseCase.signIn(
+        UserRole.Admin,
+        'email',
+        loginData
+      );
       setTokensInCookies(res, accessToken, refreshToken);
       const responseData = { accessToken, refreshToken, message: ResponseMessages.LOGGED_IN };
       res.status(HttpStatusCode.OK).json(responseData);

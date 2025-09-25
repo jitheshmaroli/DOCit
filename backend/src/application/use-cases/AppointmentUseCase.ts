@@ -46,18 +46,12 @@ export class AppointmentUseCase implements IAppointmentUseCase {
   ) {}
 
   async bookAppointment(dto: BookAppointmentRequestDTO): Promise<BookAppointmentResponseDTO> {
-    // Validate required fields
+    //validations
     this._validatorService.validateRequiredFields(dto);
-
-    // Validate IDs
     this._validatorService.validateIdFormat(dto.patientId);
     this._validatorService.validateIdFormat(dto.doctorId);
-
-    // Validate date and time slot
     this._validatorService.validateDateFormat(dto.date);
     this._validatorService.validateTimeSlot(dto.startTime, dto.endTime);
-
-    // Validate isFreeBooking
     this._validatorService.validateBoolean(dto.isFreeBooking);
 
     const doctor = await this._doctorRepository.findById(dto.doctorId);
@@ -164,17 +158,11 @@ export class AppointmentUseCase implements IAppointmentUseCase {
   }
 
   async cancelAppointment(dto: CancelAppointmentRequestDTO): Promise<void> {
-    // Validate required fields
+    // Validations
     this._validatorService.validateRequiredFields({ appointmentId: dto.appointmentId });
-
-    // Validate appointmentId
     this._validatorService.validateIdFormat(dto.appointmentId);
-
-    // Validate optional patientId or doctorId if provided
     if (dto.patientId) this._validatorService.validateIdFormat(dto.patientId);
     if (dto.doctorId) this._validatorService.validateIdFormat(dto.doctorId);
-
-    // Validate cancellationReason if provided
     if (dto.cancellationReason) {
       this._validatorService.validateLength(dto.cancellationReason, 1, 500);
     }
@@ -186,7 +174,6 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       throw new ValidationError('Appointment is already cancelled');
     }
 
-    // Validate that either patientId or doctorId is provided and matches the appointment
     if (!dto.patientId && !dto.doctorId) {
       throw new ValidationError('Either patientId or doctorId must be provided');
     }
@@ -206,13 +193,11 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       throw new ValidationError('Cannot cancel past or ongoing appointments');
     }
 
-    // Update appointment status
     await this._appointmentRepository.update(dto.appointmentId, {
       status: AppointmentStatus.CANCELLED,
       cancellationReason: dto.cancellationReason,
     });
 
-    // Free the availability slot
     const startOfDay = DateUtils.startOfDayUTC(new Date(appointment.date));
     await this._availabilityRepository.updateSlotBookingStatus(
       appointment.doctorId!.toString(),
@@ -221,7 +206,6 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       false
     );
 
-    // If not a free booking, increment appointmentsLeft in subscription
     if (!appointment.isFreeBooking && appointment.patientSubscriptionId) {
       const subscription = await this._patientSubscriptionRepository.findById(appointment.patientSubscriptionId);
       if (subscription) {
@@ -229,16 +213,13 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       }
     }
 
-    // Fetch doctor and patient for notifications
     const doctor = await this._doctorRepository.findById(appointment.doctorId!.toString());
     if (!doctor) throw new NotFoundError('Doctor not found');
     const patient = await this._patientRepository.findById(appointment.patientId!.toString());
     if (!patient) throw new NotFoundError('Patient not found');
 
-    // Determine who cancelled the appointment
     const canceller = dto.patientId ? patient.name : `Dr. ${doctor.name}`;
 
-    // Send notifications
     const patientNotification: Notification = {
       userId: appointment.patientId!.toString(),
       type: NotificationType.APPOINTMENT_CANCELLED,
@@ -255,7 +236,6 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       createdAt: new Date(),
     };
 
-    // Send emails
     const patientEmailSubject = 'Appointment Cancellation';
     const patientEmailText = `Dear ${patient.name},\n\nYour appointment with Dr. ${doctor.name} on ${startOfDay.toLocaleDateString()} at ${appointment.startTime} has been cancelled by ${canceller}.${dto.cancellationReason ? ` Reason: ${dto.cancellationReason}` : ''}\n\nBest regards,\nDOCit Team`;
     const doctorEmailSubject = 'Appointment Cancellation';
@@ -267,12 +247,10 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       this._emailService.sendEmail(patient.email, patientEmailSubject, patientEmailText),
       this._emailService.sendEmail(doctor.email, doctorEmailSubject, doctorEmailText),
     ]);
-
-    logger.info(`Appointment ${dto.appointmentId} cancelled successfully by ${canceller}`);
   }
 
   async adminCancelAppointment(appointmentId: string): Promise<void> {
-    // Validate appointmentId
+    // Validations
     this._validatorService.validateIdFormat(appointmentId);
 
     const appointment = await this._appointmentRepository.findById(appointmentId);
@@ -337,18 +315,14 @@ export class AppointmentUseCase implements IAppointmentUseCase {
   }
 
   async completeAppointment(dto: CompleteAppointmentRequestDTO): Promise<CompleteAppointmentResponseDTO> {
-    // Validate required fields
+    // Validations
     this._validatorService.validateRequiredFields({
       doctorId: dto.doctorId,
       appointmentId: dto.appointmentId,
       prescription: dto.prescription,
     });
-
-    // Validate IDs
     this._validatorService.validateIdFormat(dto.doctorId);
     this._validatorService.validateIdFormat(dto.appointmentId);
-
-    // Validate prescription fields
     this._validatorService.validateRequiredFields({
       medications: dto.prescription.medications,
     });
@@ -465,7 +439,6 @@ export class AppointmentUseCase implements IAppointmentUseCase {
   }
 
   async getAllAppointments(params: QueryParams): Promise<GetAppointmentsResponseDTO> {
-    // No specific validations needed for QueryParams as it's flexible
     const result = await this._appointmentRepository.findAllWithQuery(params);
     return {
       data: result.data.map((appointment) => AppointmentMapper.toAppointmentDTO(appointment)),
@@ -474,7 +447,7 @@ export class AppointmentUseCase implements IAppointmentUseCase {
   }
 
   async getDoctorAppointments(doctorId: string, params: QueryParams): Promise<GetAppointmentsResponseDTO> {
-    // Validate doctorId
+    // Validation
     this._validatorService.validateIdFormat(doctorId);
 
     const result = await this._appointmentRepository.findByDoctorWithQuery(doctorId, params);
@@ -487,14 +460,12 @@ export class AppointmentUseCase implements IAppointmentUseCase {
   async getDoctorAndPatientAppointmentsWithQuery(
     dto: GetDoctorAndPatientAppointmentsRequestDTO
   ): Promise<GetAppointmentsResponseDTO> {
-    // Validate required fields
+    // Validations
     this._validatorService.validateRequiredFields({
       doctorId: dto.doctorId,
       patientId: dto.patientId,
       queryParams: dto.queryParams,
     });
-
-    // Validate IDs
     this._validatorService.validateIdFormat(dto.doctorId);
     this._validatorService.validateIdFormat(dto.patientId);
 
@@ -527,14 +498,12 @@ export class AppointmentUseCase implements IAppointmentUseCase {
   async getPatientAppointmentsForDoctor(
     dto: GetPatientAppointmentsForDoctorRequestDTO
   ): Promise<GetPatientAppointmentsResponseDTO> {
-    // Validate required fields
+    // Validations
     this._validatorService.validateRequiredFields({
       patientId: dto.patientId,
       doctorId: dto.doctorId,
       queryParams: dto.queryParams,
     });
-
-    // Validate IDs
     this._validatorService.validateIdFormat(dto.patientId);
     this._validatorService.validateIdFormat(dto.doctorId);
 
@@ -587,13 +556,11 @@ export class AppointmentUseCase implements IAppointmentUseCase {
   }
 
   async checkFreeBooking(dto: CheckFreeBookingRequestDTO): Promise<boolean> {
-    // Validate required fields
+    // Validations
     this._validatorService.validateRequiredFields({
       patientId: dto.patientId,
       doctorId: dto.doctorId,
     });
-
-    // Validate IDs
     this._validatorService.validateIdFormat(dto.patientId);
     this._validatorService.validateIdFormat(dto.doctorId);
 

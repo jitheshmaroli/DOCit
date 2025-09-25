@@ -1,5 +1,4 @@
 import { Response, NextFunction } from 'express';
-import { Container } from '../../../infrastructure/di/container';
 import { AuthenticationError, ValidationError } from '../../../utils/errors';
 import { validatePassword } from '../../../utils/validators';
 import { setTokensInCookies } from '../../../utils/cookieUtils';
@@ -10,11 +9,7 @@ import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 import { IAuthenticationUseCase } from '../../../core/interfaces/use-cases/IAuthenticationUseCase';
 
 export class SharedAuthController {
-  private _authenticationUseCase: IAuthenticationUseCase;
-
-  constructor(container: Container) {
-    this._authenticationUseCase = container.get<IAuthenticationUseCase>('IAuthenticationUseCase');
-  }
+  constructor(private _authenticationUseCase: IAuthenticationUseCase) {}
 
   async refreshToken(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {

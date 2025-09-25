@@ -1,5 +1,4 @@
 import { Response, NextFunction } from 'express';
-import { Container } from '../../../infrastructure/di/container';
 import { ValidationError } from '../../../utils/errors';
 import { CustomRequest } from '../../../types';
 import { QueryParams } from '../../../types/authTypes';
@@ -8,11 +7,7 @@ import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 
 export class NotificationController {
-  private _notificationUseCase: INotificationUseCase;
-
-  constructor(container: Container) {
-    this._notificationUseCase = container.get<INotificationUseCase>('INotificationUseCase');
-  }
+  constructor(private _notificationUseCase: INotificationUseCase) {}
 
   async sendNotification(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {

@@ -16,6 +16,11 @@ export class PatientRepository extends BaseRepository<Patient> implements IPatie
     return patient ? (patient.toObject() as Patient) : null;
   }
 
+  async findOne(query: FilterQuery<Patient>): Promise<Patient | null> {
+    const patient = await this.model.findOne(query).exec();
+    return patient ? (patient.toObject() as Patient) : null;
+  }
+
   async findAllWithQuery(params: QueryParams & { ids?: string[] }): Promise<PaginatedResponse<Patient>> {
     const {
       search = '',

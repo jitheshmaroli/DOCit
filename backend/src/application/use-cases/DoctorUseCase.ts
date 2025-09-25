@@ -15,15 +15,13 @@ export class DoctorUseCase implements IDoctorUseCase {
   ) {}
 
   async createDoctor(dto: Partial<DoctorDTO>): Promise<DoctorDTO> {
-    // Validate required fields
+    // Validations
     this._validatorService.validateRequiredFields({
       email: dto.email,
       name: dto.name,
       speciality: dto.speciality,
       password: dto.password,
     });
-
-    // Validate email, name, password, and speciality
     this._validatorService.validateEmailFormat(dto.email!);
     this._validatorService.validateName(dto.name!);
     this._validatorService.validatePassword(dto.password!);
@@ -47,20 +45,14 @@ export class DoctorUseCase implements IDoctorUseCase {
       updatedAt: new Date(),
     };
 
-    try {
-      const createdDoctor = await this._doctorRepository.create(newDoctor);
-      return DoctorMapper.toDTO(createdDoctor);
-    } catch {
-      throw new Error('Failed to create doctor');
-    }
+    const createdDoctor = await this._doctorRepository.create(newDoctor);
+    return DoctorMapper.toDTO(createdDoctor);
   }
 
   async updateDoctor(doctorId: string, updates: Partial<DoctorDTO>): Promise<DoctorDTO> {
-    // Validate doctorId
+    // Validations
     this._validatorService.validateRequiredFields({ doctorId });
     this._validatorService.validateIdFormat(doctorId);
-
-    // Validate optional fields if provided
     if (updates.email) {
       this._validatorService.validateEmailFormat(updates.email);
     }
@@ -93,22 +85,18 @@ export class DoctorUseCase implements IDoctorUseCase {
       }
     }
 
-    try {
-      const updatedDoctor = await this._doctorRepository.update(doctorId, {
-        ...updates,
-        updatedAt: new Date(),
-      });
-      if (!updatedDoctor) {
-        throw new NotFoundError('Failed to update doctor');
-      }
-      return DoctorMapper.toDTO(updatedDoctor);
-    } catch {
-      throw new Error('Failed to update doctor');
+    const updatedDoctor = await this._doctorRepository.update(doctorId, {
+      ...updates,
+      updatedAt: new Date(),
+    });
+    if (!updatedDoctor) {
+      throw new NotFoundError('Failed to update doctor');
     }
+    return DoctorMapper.toDTO(updatedDoctor);
   }
 
   async deleteDoctor(doctorId: string): Promise<void> {
-    // Validate doctorId
+    // Validations
     this._validatorService.validateRequiredFields({ doctorId });
     this._validatorService.validateIdFormat(doctorId);
 
@@ -121,7 +109,7 @@ export class DoctorUseCase implements IDoctorUseCase {
   }
 
   async blockDoctor(doctorId: string, isBlocked: boolean): Promise<DoctorDTO> {
-    // Validate doctorId and isBlocked
+    // Validations
     this._validatorService.validateRequiredFields({ doctorId, isBlocked });
     this._validatorService.validateIdFormat(doctorId);
     this._validatorService.validateBoolean(isBlocked);
@@ -135,18 +123,14 @@ export class DoctorUseCase implements IDoctorUseCase {
       return DoctorMapper.toDTO(doctor);
     }
 
-    try {
-      const updatedDoctor = await this._doctorRepository.update(doctorId, {
-        isBlocked,
-        updatedAt: new Date(),
-      });
-      if (!updatedDoctor) {
-        throw new NotFoundError(`Failed to ${isBlocked ? 'block' : 'unblock'} doctor`);
-      }
-      return DoctorMapper.toDTO(updatedDoctor);
-    } catch {
-      throw new Error(`Failed to ${isBlocked ? 'block' : 'unblock'} doctor`);
+    const updatedDoctor = await this._doctorRepository.update(doctorId, {
+      isBlocked,
+      updatedAt: new Date(),
+    });
+    if (!updatedDoctor) {
+      throw new NotFoundError(`Failed to ${isBlocked ? 'block' : 'unblock'} doctor`);
     }
+    return DoctorMapper.toDTO(updatedDoctor);
   }
 
   async verifyDoctor(doctorId: string): Promise<DoctorDTO> {
@@ -163,22 +147,17 @@ export class DoctorUseCase implements IDoctorUseCase {
       return DoctorMapper.toDTO(doctor);
     }
 
-    try {
-      const updatedDoctor = await this._doctorRepository.update(doctorId, {
-        isVerified: true,
-        updatedAt: new Date(),
-      });
-      if (!updatedDoctor) {
-        throw new NotFoundError('Failed to verify doctor');
-      }
-      return DoctorMapper.toDTO(updatedDoctor);
-    } catch {
-      throw new Error('Failed to verify doctor');
+    const updatedDoctor = await this._doctorRepository.update(doctorId, {
+      isVerified: true,
+      updatedAt: new Date(),
+    });
+    if (!updatedDoctor) {
+      throw new NotFoundError('Failed to verify doctor');
     }
+    return DoctorMapper.toDTO(updatedDoctor);
   }
 
   async listDoctors(params: QueryParams): Promise<PaginatedDoctorResponseDTO> {
-    // No specific validation for QueryParams, as it's typically flexible
     const { data, totalItems } = await this._doctorRepository.findAllWithQuery(params);
     const doctorDTOs = data.map(DoctorMapper.toDTO);
     return DoctorMapper.toPaginatedResponseDTO(doctorDTOs, totalItems, params);
@@ -197,7 +176,7 @@ export class DoctorUseCase implements IDoctorUseCase {
   }
 
   async getVerifiedDoctors(params: QueryParams): Promise<PaginatedDoctorResponseDTO> {
-    // Validate query params if necessary
+    // Validations
     if (params.page) {
       this._validatorService.validatePositiveInteger(params.page);
     }

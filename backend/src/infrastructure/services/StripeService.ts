@@ -74,18 +74,24 @@ export class StripeService implements IPaymentService {
         payment_intent: paymentIntentId,
       });
 
-      logger.debug(`refund: ${refund}`);
+      logger.debug(JSON.stringify(refund, null, 2));
+
+      const refundRetrieve = await this._stripe.refunds.retrieve(refund.id);
+      logger.debug(JSON.stringify(refundRetrieve, null, 2));
 
       // Retrieve the PaymentIntent with expanded charges
       const paymentIntent = (await this._stripe.paymentIntents.retrieve(paymentIntentId, {
         expand: ['charges'],
       })) as PaymentIntentWithCharges;
 
+      logger.debug(JSON.stringify(paymentIntent, null, 2));
+
       let cardLast4: string | undefined = 'N/A';
 
       // Check if payment_method is available
       if (paymentIntent.payment_method && typeof paymentIntent.payment_method === 'string') {
         const paymentMethod = await this._stripe.paymentMethods.retrieve(paymentIntent.payment_method);
+        logger.debug(JSON.stringify(paymentMethod, null, 2));
         if (paymentMethod.card) {
           cardLast4 = paymentMethod.card.last4 || 'N/A';
         }

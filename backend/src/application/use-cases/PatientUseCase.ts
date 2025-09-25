@@ -4,7 +4,6 @@ import { IPatientRepository } from '../../core/interfaces/repositories/IPatientR
 import { IPatientSubscriptionRepository } from '../../core/interfaces/repositories/IPatientSubscriptionRepository';
 import { QueryParams } from '../../types/authTypes';
 import { NotFoundError, ValidationError } from '../../utils/errors';
-import logger from '../../utils/logger';
 import { PatientDTO, PatientSubscriptionDTO, PaginatedPatientResponseDTO } from '../dtos/PatientDTOs';
 import { PatientMapper } from '../mappers/PatientMapper';
 import { PatientSubscriptionMapper } from '../mappers/PatientSubscriptionMapper';
@@ -14,19 +13,6 @@ import { StripeService } from '../../infrastructure/services/StripeService';
 import { IAppointmentRepository } from '../../core/interfaces/repositories/IAppointmentRepository';
 import { ISubscriptionPlanRepository } from '../../core/interfaces/repositories/ISubscriptionPlanRepository';
 import { IDoctorRepository } from '../../core/interfaces/repositories/IDoctorRepository';
-
-// interface PopulatedPlan {
-//   _id: string;
-//   name: string;
-//   description: string;
-//   doctorId: string;
-//   price: number;
-//   validityDays: number;
-//   appointmentCount: number;
-//   status: 'pending' | 'approved' | 'rejected';
-//   createdAt: Date;
-//   updatedAt: Date;
-// }
 
 interface PaymentIntentWithCharges extends Stripe.PaymentIntent {
   charges?: {
@@ -46,14 +32,12 @@ export class PatientUseCase implements IPatientUseCase {
   ) {}
 
   async createPatient(dto: Partial<PatientDTO>): Promise<PatientDTO> {
-    // Validate required fields
+    // Validations
     this._validatorService.validateRequiredFields({
       email: dto.email,
       name: dto.name,
       password: dto.password,
     });
-
-    // Validate email, name, and password
     this._validatorService.validateEmailFormat(dto.email!);
     this._validatorService.validateName(dto.name!);
     this._validatorService.validatePassword(dto.password!);
@@ -70,20 +54,15 @@ export class PatientUseCase implements IPatientUseCase {
       updatedAt: new Date(),
     };
 
-    try {
-      const createdPatient = await this._patientRepository.create(newPatient);
-      return PatientMapper.toDTO(createdPatient);
-    } catch {
-      throw new Error('Failed to create patient');
-    }
+    const createdPatient = await this._patientRepository.create(newPatient);
+    return PatientMapper.toDTO(createdPatient);
   }
 
   async updatePatient(patientId: string, updates: Partial<PatientDTO>): Promise<PatientDTO | null> {
-    // Validate patientId
+    // Validations
     this._validatorService.validateRequiredFields({ patientId });
     this._validatorService.validateIdFormat(patientId);
 
-    // Validate optional fields if provided
     if (updates.email) {
       this._validatorService.validateEmailFormat(updates.email);
     }
@@ -106,26 +85,22 @@ export class PatientUseCase implements IPatientUseCase {
       }
     }
 
-    try {
-      const updatedPatientEntity = PatientMapper.toEntity({
-        ...PatientMapper.toDTO(patient),
-        ...updates,
-      });
-      const updatedPatient = await this._patientRepository.update(patientId, {
-        ...updatedPatientEntity,
-        updatedAt: new Date(),
-      });
-      if (!updatedPatient) {
-        throw new NotFoundError('Failed to update patient');
-      }
-      return PatientMapper.toDTO(updatedPatient);
-    } catch {
-      throw new Error('Failed to update patient');
+    const updatedPatientEntity = PatientMapper.toEntity({
+      ...PatientMapper.toDTO(patient),
+      ...updates,
+    });
+    const updatedPatient = await this._patientRepository.update(patientId, {
+      ...updatedPatientEntity,
+      updatedAt: new Date(),
+    });
+    if (!updatedPatient) {
+      throw new NotFoundError('Failed to update patient');
     }
+    return PatientMapper.toDTO(updatedPatient);
   }
 
   async deletePatient(patientId: string): Promise<void> {
-    // Validate patientId
+    // Validations
     this._validatorService.validateRequiredFields({ patientId });
     this._validatorService.validateIdFormat(patientId);
 
@@ -138,7 +113,7 @@ export class PatientUseCase implements IPatientUseCase {
   }
 
   async blockPatient(patientId: string, isBlocked: boolean): Promise<PatientDTO | null> {
-    // Validate patientId and isBlocked
+    // Validations
     this._validatorService.validateRequiredFields({ patientId, isBlocked });
     this._validatorService.validateIdFormat(patientId);
     this._validatorService.validateBoolean(isBlocked);
@@ -152,40 +127,35 @@ export class PatientUseCase implements IPatientUseCase {
       return PatientMapper.toDTO(patient);
     }
 
-    try {
-      const updatedPatient = await this._patientRepository.update(patientId, {
-        ...patient,
-        isBlocked,
-        updatedAt: new Date(),
-      });
-      if (!updatedPatient) {
-        throw new NotFoundError(`Failed to ${isBlocked ? 'block' : 'unblock'} patient`);
-      }
-      return PatientMapper.toDTO(updatedPatient);
-    } catch {
-      throw new Error(`Failed to ${isBlocked ? 'block' : 'unblock'} patient`);
+    const updatedPatient = await this._patientRepository.update(patientId, {
+      ...patient,
+      isBlocked,
+      updatedAt: new Date(),
+    });
+    if (!updatedPatient) {
+      throw new NotFoundError(`Failed to ${isBlocked ? 'block' : 'unblock'} patient`);
     }
+    return PatientMapper.toDTO(updatedPatient);
   }
 
   async listPatients(params: QueryParams): Promise<PaginatedPatientResponseDTO> {
-    // No specific validation for QueryParams, as it's typically flexible
     const { data, totalItems } = await this._patientRepository.findAllWithQuery(params);
     const patientDTOs = data.map(PatientMapper.toDTO);
     return PatientMapper.toPaginatedResponseDTO(patientDTOs, totalItems, params);
   }
 
   async getPatientSubscriptions(patientId: string): Promise<PatientSubscriptionDTO[]> {
-    // Validate patientId
+    // Validations
     this._validatorService.validateRequiredFields({ patientId });
     this._validatorService.validateIdFormat(patientId);
 
     const subscriptions = await this._patientSubscriptionRepository.findByPatient(patientId);
-    logger.info('sub::', subscriptions);
+
     return subscriptions.map(PatientSubscriptionMapper.toDTO);
   }
 
   async getAppointedPatients(doctorId: string, params: QueryParams): Promise<PaginatedPatientResponseDTO> {
-    // Validate doctorId
+    // Validations
     this._validatorService.validateRequiredFields({ doctorId });
     this._validatorService.validateIdFormat(doctorId);
 
@@ -196,7 +166,7 @@ export class PatientUseCase implements IPatientUseCase {
   }
 
   async getPatientActiveSubscription(patientId: string, doctorId: string): Promise<PatientSubscriptionDTO | null> {
-    // Validate patientId and doctorId
+    // Validations
     this._validatorService.validateRequiredFields({ patientId, doctorId });
     this._validatorService.validateIdFormat(patientId);
     this._validatorService.validateIdFormat(doctorId);
@@ -205,48 +175,26 @@ export class PatientUseCase implements IPatientUseCase {
     if (!subscription || !subscription.planId) {
       return null;
     }
-    logger.info('subscription:', subscription);
     return PatientSubscriptionMapper.toDTO(subscription);
   }
 
   async getSubscribedPatients(doctorId: string): Promise<PatientDTO[] | null> {
-    // Validate doctorId
+    // Validations
     this._validatorService.validateRequiredFields({ doctorId });
     this._validatorService.validateIdFormat(doctorId);
 
-    // Fetch active subscriptions with populated planId
     const activeSubscriptions = await this._patientSubscriptionRepository.findActiveSubscriptions();
     const patientIds: string[] = [];
     const patientSubscriptions: { [patientId: string]: PatientSubscription[] } = {};
 
-    // Filter subscriptions by doctorId and collect patient IDs
     for (const sub of activeSubscriptions) {
       const plan = sub.planDetails;
       if (plan) {
-        // Validate plan fields
-        this._validatorService.validateRequiredFields({
-          planId: plan._id,
-          doctorId: plan.doctorId,
-          name: plan.name,
-          price: plan.price,
-          validityDays: plan.validityDays,
-          appointmentCount: plan.appointmentCount,
-          status: plan.status,
-        });
-        this._validatorService.validateIdFormat(plan._id!.toString());
-        this._validatorService.validateIdFormat(plan.doctorId!.toString());
-        this._validatorService.validateEnum(plan.status, ['pending', 'approved', 'rejected']);
-        this._validatorService.validatePositiveNumber(plan.price);
-        this._validatorService.validatePositiveInteger(plan.validityDays);
-        this._validatorService.validatePositiveInteger(plan.appointmentCount);
-
         if (plan.doctorId?.toString() === doctorId) {
-          logger.info('yes');
           if (!patientSubscriptions[sub.patientId!]) {
             patientIds.push(sub.patientId!);
             patientSubscriptions[sub.patientId!] = [];
           }
-          logger.debug(`patientIds: ${patientIds}`);
           patientSubscriptions[sub.patientId!].push({
             ...sub,
             planId: sub.planId as string,
@@ -267,12 +215,10 @@ export class PatientUseCase implements IPatientUseCase {
       }
     }
 
-    // Validate patientIds
     for (const patientId of patientIds) {
       this._validatorService.validateIdFormat(patientId.toString());
     }
 
-    // Fetch patient details
     const subscribedPatients: PatientDTO[] = [];
     for (const patientId of patientIds) {
       const patient = await this._patientRepository.findById(patientId);
@@ -283,7 +229,6 @@ export class PatientUseCase implements IPatientUseCase {
       }
     }
 
-    logger.debug(`sub patients:, ${subscribedPatients}`);
     return subscribedPatients.length > 0 ? subscribedPatients : null;
   }
 
@@ -301,7 +246,7 @@ export class PatientUseCase implements IPatientUseCase {
     cancellationReason?: string;
     remainingDays?: number;
   }> {
-    // Validate inputs
+    // Validations
     this._validatorService.validateRequiredFields({ patientId, paymentIntentId });
     this._validatorService.validateIdFormat(patientId);
     this._validatorService.validateLength(paymentIntentId, 1, 100);

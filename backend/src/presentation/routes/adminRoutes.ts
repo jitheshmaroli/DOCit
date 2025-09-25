@@ -1,20 +1,15 @@
 import express from 'express';
-import { Container } from '../../infrastructure/di/container';
-import { AdminController } from '../controllers/admin/AdminController';
-import { AdminAuthController } from '../controllers/auth/AdminAuthController';
-import { authMiddleware } from '../middlewares/authMiddleware';
-import { roleMiddleware } from '../middlewares/roleMiddleware';
-import { UserRole } from '../../types';
+import createControllers from '../../infrastructure/di/controllers';
+import createMiddlewares from '../../infrastructure/di/middlewares';
 
 const router = express.Router();
-const container = Container.getInstance();
 
-// Controller instantiation
-const adminController = new AdminController(container);
-const adminAuthController = new AdminAuthController(container);
+// Controller
+const { adminController, adminAuthController } = createControllers();
+const { authMiddleware, adminRoleMiddleware } = createMiddlewares();
 
 // Middleware
-const adminAuth = [authMiddleware(container), roleMiddleware([UserRole.Admin])];
+const adminAuth = [authMiddleware.exec, adminRoleMiddleware.exec];
 
 // Dashboard routes
 router.get('/dashboard-stats', adminAuth, adminController.getDashboardStats.bind(adminController));

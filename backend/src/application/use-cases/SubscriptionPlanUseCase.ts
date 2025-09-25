@@ -12,7 +12,6 @@ import { NotFoundError, ValidationError } from '../../utils/errors';
 import { QueryParams } from '../../types/authTypes';
 import moment from 'moment';
 import { Notification, NotificationType } from '../../core/entities/Notification';
-import logger from '../../utils/logger';
 import {
   CreateSubscriptionPlanRequestDTO,
   UpdateSubscriptionPlanRequestDTO,
@@ -44,6 +43,7 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
     doctorId: string,
     plan: CreateSubscriptionPlanRequestDTO
   ): Promise<SubscriptionPlanResponseDTO> {
+    //validations
     this._validatorService.validateRequiredFields({
       doctorId,
       name: plan.name,
@@ -82,13 +82,8 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
 
     const subscriptionPlan = SubscriptionPlanMapper.toSubscriptionPlanEntity(plan, doctorId);
 
-    try {
-      const createdPlan = await this._subscriptionPlanRepository.create(subscriptionPlan);
-      return SubscriptionPlanMapper.toSubscriptionPlanResponseDTO(createdPlan);
-    } catch (error) {
-      logger.error(`Error creating subscription plan: ${(error as Error).message}`);
-      throw new Error('Failed to create subscription plan');
-    }
+    const createdPlan = await this._subscriptionPlanRepository.create(subscriptionPlan);
+    return SubscriptionPlanMapper.toSubscriptionPlanResponseDTO(createdPlan);
   }
 
   async updateDoctorSubscriptionPlan(
@@ -96,6 +91,7 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
     doctorId: string,
     planData: UpdateSubscriptionPlanRequestDTO
   ): Promise<SubscriptionPlanResponseDTO> {
+    //validations
     this._validatorService.validateRequiredFields({ subscriptionPlanId, doctorId });
     this._validatorService.validateIdFormat(subscriptionPlanId);
     this._validatorService.validateIdFormat(doctorId);
@@ -117,23 +113,18 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
     if (!plan) {
       throw new NotFoundError('Plan not found');
     }
-    if (plan.doctorId !== doctorId) {
+    if (plan.doctorId?.toString() !== doctorId) {
       throw new ValidationError('Unauthorized to update this plan');
     }
 
-    try {
-      const updatedPlan = await this._subscriptionPlanRepository.update(subscriptionPlanId, {
-        ...planData,
-        updatedAt: new Date(),
-      });
-      if (!updatedPlan) {
-        throw new NotFoundError('Failed to update plan');
-      }
-      return SubscriptionPlanMapper.toSubscriptionPlanResponseDTO(updatedPlan);
-    } catch (error) {
-      logger.error(`Error updating subscription plan ${subscriptionPlanId}: ${(error as Error).message}`);
-      throw new Error('Failed to update subscription plan');
+    const updatedPlan = await this._subscriptionPlanRepository.update(subscriptionPlanId, {
+      ...planData,
+      updatedAt: new Date(),
+    });
+    if (!updatedPlan) {
+      throw new NotFoundError('Failed to update plan');
     }
+    return SubscriptionPlanMapper.toSubscriptionPlanResponseDTO(updatedPlan);
   }
 
   async getDoctorSubscriptionPlans(
@@ -148,6 +139,7 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
   }
 
   async getDoctorApprovedPlans(doctorId: string): Promise<SubscriptionPlanResponseDTO[]> {
+    //validations
     this._validatorService.validateRequiredFields({ doctorId });
     this._validatorService.validateIdFormat(doctorId);
 
@@ -161,6 +153,7 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
   }
 
   async approveSubscriptionPlan(planId: string): Promise<SubscriptionPlanResponseDTO> {
+    //validations
     this._validatorService.validateRequiredFields({ planId });
     this._validatorService.validateIdFormat(planId);
 
@@ -176,6 +169,7 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
   }
 
   async rejectSubscriptionPlan(planId: string): Promise<SubscriptionPlanResponseDTO> {
+    //validations
     this._validatorService.validateRequiredFields({ planId });
     this._validatorService.validateIdFormat(planId);
 
@@ -191,6 +185,7 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
   }
 
   async deleteSubscriptionPlan(planId: string): Promise<void> {
+    //validations
     this._validatorService.validateRequiredFields({ planId });
     this._validatorService.validateIdFormat(planId);
 
@@ -202,25 +197,21 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
     const activeSubscriptions = await this._patientSubscriptionRepository.findActiveSubscriptions();
     const isPlanInUse = activeSubscriptions.some((sub) => {
       if (!sub.planId) return false;
-      return typeof sub.planId === 'string' ? sub.planId === planId : sub.planId === planId;
+      return sub.planId.toString() === planId;
     });
 
     if (isPlanInUse) {
       throw new ValidationError('Plan is in use by one or more patients and cannot be deleted');
     }
 
-    try {
-      await this._subscriptionPlanRepository.delete(planId);
-    } catch (error) {
-      logger.error(`Error deleting subscription plan ${planId}: ${(error as Error).message}`);
-      throw new Error('Failed to delete subscription plan');
-    }
+    await this._subscriptionPlanRepository.delete(planId);
   }
 
   async subscribeToPlan(
     patientId: string,
     dto: SubscribeToPlanRequestDTO
   ): Promise<{ clientSecret: string; paymentIntentId: string }> {
+    //validations
     this._validatorService.validateRequiredFields({ patientId, planId: dto.planId, price: dto.price });
     this._validatorService.validateIdFormat(patientId);
     this._validatorService.validateIdFormat(dto.planId);
@@ -239,20 +230,16 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
       throw new ValidationError('You are already subscribed to a plan for this doctor');
     }
 
-    try {
-      const clientSecret = await this._stripeService.createPaymentIntent(dto.price * 100);
-      const paymentIntentId = clientSecret.split('_secret_')[0];
-      return { clientSecret, paymentIntentId };
-    } catch (error) {
-      logger.error(`Error creating payment intent: ${(error as Error).message}`);
-      throw new Error('Failed to create payment intent');
-    }
+    const clientSecret = await this._stripeService.createPaymentIntent(dto.price * 100);
+    const paymentIntentId = clientSecret.split('_secret_')[0];
+    return { clientSecret, paymentIntentId };
   }
 
   async confirmSubscription(
     patientId: string,
     dto: ConfirmSubscriptionRequestDTO
   ): Promise<PatientSubscriptionResponseDTO> {
+    //validations
     this._validatorService.validateRequiredFields({
       patientId,
       planId: dto.planId,
@@ -370,8 +357,6 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
     const hasActiveSubscriptions = activeSubscriptions.some((sub) => sub.patientId?.toString() === patientId);
     await this._patientRepository.updateSubscriptionStatus(patientId, hasActiveSubscriptions);
 
-    logger.info('active subscription:', activeSubscriptions);
-    logger.info('saved subscription:', savedSubscription);
     return PatientSubscriptionMapper.toDTO(savedSubscription);
   }
 
@@ -413,12 +398,7 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
     let refundDetails: { refundId: string; cardLast4?: string; amount: number } | null = null;
     if (subscription.stripePaymentId) {
       this._validatorService.validateLength(subscription.stripePaymentId, 1, 100);
-      try {
-        refundDetails = await this._stripeService.createRefund(subscription.stripePaymentId);
-      } catch (error) {
-        logger.error(`Error processing refund: ${(error as Error).message}`);
-        throw new Error(`Failed to process refund: ${(error as Error).message}`);
-      }
+      refundDetails = await this._stripeService.createRefund(subscription.stripePaymentId);
     }
 
     await this._patientSubscriptionRepository.update(dto.subscriptionId, {
@@ -429,7 +409,7 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
       updatedAt: new Date(),
     });
 
-    const planId = typeof subscription.planId === 'string' ? subscription.planId : subscription.planId;
+    const planId = subscription.planId?.toString();
     if (!planId) {
       throw new NotFoundError('Plan ID not found');
     }

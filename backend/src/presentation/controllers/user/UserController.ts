@@ -1,17 +1,12 @@
 import { Response, NextFunction } from 'express';
 import { AuthenticationError } from '../../../utils/errors';
-import { Container } from '../../../infrastructure/di/container';
 import { IUserUseCase } from '../../../core/interfaces/use-cases/IUserUseCase';
 import { CustomRequest, UserRole } from '../../../types';
 import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 
 export class UserController {
-  private _userUseCase: IUserUseCase;
-
-  constructor(container: Container) {
-    this._userUseCase = container.get<IUserUseCase>('IUserUseCase');
-  }
+  constructor(private _userUseCase: IUserUseCase) {}
 
   async getCurrentUser(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {

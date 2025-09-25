@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
 import { ISubscriptionPlanUseCase } from '../../../core/interfaces/use-cases/ISubscriptionPlanUseCase';
-import { Container } from '../../../infrastructure/di/container';
 import { IAppointmentUseCase } from '../../../core/interfaces/use-cases/IAppointmentUseCase';
 import { ISpecialityUseCase } from '../../../core/interfaces/use-cases/ISpecialityUseCase';
 import { IReportUseCase } from '../../../core/interfaces/use-cases/IReportUseCase';
@@ -11,19 +10,13 @@ import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 
 export class AdminController {
-  private _subscriptionPlanUseCase: ISubscriptionPlanUseCase;
-  private _appointmentUseCase: IAppointmentUseCase;
-  private _specialityUseCase: ISpecialityUseCase;
-  private _reportUseCase: IReportUseCase;
-  private _patientUseCase: IPatientUseCase;
-
-  constructor(container: Container) {
-    this._subscriptionPlanUseCase = container.get<ISubscriptionPlanUseCase>('ISubscriptionPlanUseCase');
-    this._appointmentUseCase = container.get<IAppointmentUseCase>('IAppointmentUseCase');
-    this._specialityUseCase = container.get<ISpecialityUseCase>('ISpecialityUseCase');
-    this._reportUseCase = container.get<IReportUseCase>('IReportUseCase');
-    this._patientUseCase = container.get<IPatientUseCase>('IPatientUseCase');
-  }
+  constructor(
+    private _subscriptionPlanUseCase: ISubscriptionPlanUseCase,
+    private _appointmentUseCase: IAppointmentUseCase,
+    private _specialityUseCase: ISpecialityUseCase,
+    private _reportUseCase: IReportUseCase,
+    private _patientUseCase: IPatientUseCase
+  ) {}
 
   async getDashboardStats(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {

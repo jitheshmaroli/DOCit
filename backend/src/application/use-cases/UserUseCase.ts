@@ -20,10 +20,8 @@ export class UserUseCase implements IUserUseCase {
   ) {}
 
   async getCurrentUser(userId: string, role: UserRole): Promise<GetUserResponseDTO | null> {
-    // Validate required fields
+    // Validations
     this._validatorService.validateRequiredFields({ userId, role });
-
-    // Validate userId and role
     this._validatorService.validateIdFormat(userId);
     this._validatorService.validateEnum(role, [UserRole.Patient, UserRole.Doctor, UserRole.Admin]);
 
@@ -48,10 +46,8 @@ export class UserUseCase implements IUserUseCase {
   }
 
   async getUser(userId: string): Promise<GetUserResponseDTO | null> {
-    // Validate required fields
+    // Validations
     this._validatorService.validateRequiredFields({ userId });
-
-    // Validate userId
     this._validatorService.validateIdFormat(userId);
 
     const patient = await this._patientRepository.findById(userId);

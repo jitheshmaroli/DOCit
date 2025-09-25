@@ -8,7 +8,7 @@ export class AvailabilityMapper {
       _id: availability._id?.toString() ?? '',
       doctorId: availability.doctorId?.toString() ?? '',
       date: dateIso,
-      dateKey: new Date(dateIso).toISOString().split('T')[0], // 'YYYY-MM-DD'
+      dateKey: new Date(dateIso).toISOString().split('T')[0],
       timeSlots: availability.timeSlots.map((slot) => ({
         startTime: slot.startTime,
         endTime: slot.endTime,

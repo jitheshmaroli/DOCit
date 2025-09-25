@@ -1,18 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
-import { Container } from '../../../infrastructure/di/container';
-import { validateEmail, validatePassword, validatePhone } from '../../../utils/validators';
 import { ValidationError } from '../../../utils/errors';
 import { setTokensInCookies } from '../../../utils/cookieUtils';
 import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 import { IAuthenticationUseCase } from '../../../core/interfaces/use-cases/IAuthenticationUseCase';
+import { UserRole } from '../../../types';
 
 export class DoctorAuthController {
-  private _authenticationUseCase: IAuthenticationUseCase;
-
-  constructor(container: Container) {
-    this._authenticationUseCase = container.get<IAuthenticationUseCase>('IAuthenticationUseCase');
-  }
+  constructor(private _authenticationUseCase: IAuthenticationUseCase) {}
 
   async signup(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -23,14 +18,7 @@ export class DoctorAuthController {
         phone: req.body.phone,
         licenseNumber: req.body.licenseNumber,
       };
-      if (
-        !validateEmail(signupData.email) ||
-        !validatePassword(signupData.password) ||
-        !validatePhone(signupData.phone) ||
-        !signupData.licenseNumber
-      ) {
-        throw new ValidationError(ResponseMessages.BAD_REQUEST);
-      }
+
       const savedDoctor = await this._authenticationUseCase.signupDoctor(signupData);
       const responseData = {
         message: ResponseMessages.OTP_SENT,
@@ -49,7 +37,11 @@ export class DoctorAuthController {
         password: req.body.password,
       };
       if (!loginData.email || !loginData.password) throw new ValidationError(ResponseMessages.BAD_REQUEST);
-      const { accessToken, refreshToken } = await this._authenticationUseCase.loginDoctor(loginData);
+      const { accessToken, refreshToken } = await this._authenticationUseCase.signIn(
+        UserRole.Doctor,
+        'email',
+        loginData
+      );
       setTokensInCookies(res, accessToken, refreshToken);
       const responseData = {
         accessToken,
@@ -64,13 +56,11 @@ export class DoctorAuthController {
 
   async googleSignIn(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const googleSignInData = {
-        token: req.body.token,
-      };
-      if (!googleSignInData.token) throw new ValidationError(ResponseMessages.BAD_REQUEST);
-      const { accessToken, refreshToken } = await this._authenticationUseCase.googleSignInDoctor(
-        googleSignInData.token
-      );
+      const token = req.body.token;
+      if (!token) throw new ValidationError(ResponseMessages.BAD_REQUEST);
+      const { accessToken, refreshToken } = await this._authenticationUseCase.signIn(UserRole.Doctor, 'google', {
+        token,
+      });
       setTokensInCookies(res, accessToken, refreshToken);
       const responseData = {
         accessToken,

@@ -27,6 +27,11 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
     return doctor ? (doctor.toObject() as Doctor) : null;
   }
 
+  async findOne(query: FilterQuery<Doctor>): Promise<Doctor | null> {
+    const doctor = await this.model.findOne(query).exec();
+    return doctor ? (doctor.toObject() as Doctor) : null;
+  }
+
   async getDoctorDetails(doctorId: string): Promise<Doctor | null> {
     if (!mongoose.Types.ObjectId.isValid(doctorId)) {
       logger.error(`Invalid doctorId format: ${doctorId}`);
@@ -462,7 +467,6 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
       const totalItems = countResult[0]?.totalItems || 0;
       const totalPages = Math.ceil(totalItems / validatedLimit);
 
-      console.log('dododo', doctors[0]._id);
       return {
         data: doctors as Doctor[],
         totalPages,

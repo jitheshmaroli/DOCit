@@ -138,7 +138,6 @@ export class SocketService {
         `User connected: ${userId}, socketId=${socket.id}, totalSockets=${this._connectedUsers.get(userId)!.size}`
       );
 
-      // Update last seen and broadcast online status
       await this._updateUserLastSeen(userId, role);
       this._broadcastUserStatus(userId, true);
 
@@ -146,7 +145,6 @@ export class SocketService {
 
       socket.on('sendMessage', async (message: ChatMessage) => {
         try {
-          logger.info('Received sendMessage payload:', { message });
           const messagePayload = {
             _id: message._id,
             message: message.message,
@@ -193,21 +191,19 @@ export class SocketService {
 
       socket.on('sendReaction', async (data: { messageId: string; emoji: string; userId: string }) => {
         try {
-          logger.info('Received sendReaction payload:', { data });
           const reactionPayload = {
             messageId: data.messageId,
             emoji: data.emoji,
             userId: data.userId,
           };
 
-          const message = await this._chatRepository
-            .findByParticipants(data.userId, '')
-            .then((messages) => messages.find((m) => m._id === data.messageId));
+          const message = await this._chatRepository.findById(data.messageId);
           if (!message) {
             throw new Error('Message not found');
           }
 
-          const receiverId = message.senderId === data.userId ? message.receiverId : message.senderId;
+          const receiverId =
+            message.senderId?.toString() === data.userId ? message.receiverId?.toString() : message.senderId;
           const receiverSocketIds = this._connectedUsers.get(receiverId!);
           if (receiverSocketIds && receiverSocketIds.size > 0) {
             receiverSocketIds.forEach((socketId) => {

@@ -1,24 +1,19 @@
 import express from 'express';
-import { Container } from '../../infrastructure/di/container';
-import { PatientController } from '../controllers/patient/PatientController';
-import { PatientProfileController } from '../controllers/patient/PatientProfileController';
+import createControllers from '../../infrastructure/di/controllers';
+import createMiddlewares from '../../infrastructure/di/middlewares';
 import { getMulterUploader } from '../../utils/multerConfig';
-import { authMiddleware } from '../middlewares/authMiddleware';
-import { roleMiddleware } from '../middlewares/roleMiddleware';
-import { UserRole } from '../../types';
 
 const router = express.Router();
-const container = Container.getInstance();
 
-// Controller instantiation
-const patientController = new PatientController(container);
-const patientProfileController = new PatientProfileController(container);
+// Controllers
+const { patientController, patientProfileController } = createControllers();
+const { authMiddleware, patientRoleMiddleware } = createMiddlewares();
 
 // Multer setup
 const upload = getMulterUploader('patient-profiles');
 
 // Middleware
-const patientAuth = [authMiddleware(container), roleMiddleware([UserRole.Patient])];
+const patientAuth = [authMiddleware.exec, patientRoleMiddleware.exec];
 
 // Doctor lookup routes
 router.get('/doctors/verified', patientAuth, patientController.getVerifiedDoctors.bind(patientController));

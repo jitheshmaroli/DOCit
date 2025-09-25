@@ -11,11 +11,6 @@ export class AvailabilityRepository extends BaseRepository<Availability> impleme
     super(AvailabilityModel);
   }
 
-  async bulkCreate(availabilities: Availability[]): Promise<Availability[]> {
-    const newAvailabilities = await this.model.insertMany(availabilities, { ordered: false });
-    return newAvailabilities.map((avail) => avail.toObject() as Availability);
-  }
-
   async findByDoctorAndDate(doctorId: string, date: Date): Promise<Availability | null> {
     const startOfDay = DateUtils.startOfDayUTC(date);
     const endOfDay = DateUtils.endOfDayUTC(date);

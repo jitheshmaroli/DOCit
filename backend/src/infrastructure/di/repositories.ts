@@ -1,0 +1,27 @@
+import { PatientRepository } from '../repositories/PatientRepository';
+import { DoctorRepository } from '../repositories/DoctorRepository';
+import { AdminRepository } from '../repositories/AdminRepository';
+import { OTPRepository } from '../repositories/OTPRepository';
+import { AvailabilityRepository } from '../repositories/AvailabilityRepository';
+import { SubscriptionPlanRepository } from '../repositories/SubscriptionPlanRepository';
+import { PatientSubscriptionRepository } from '../repositories/PatientSubscriptionRepositroy';
+import { AppointmentRepository } from '../repositories/AppointmentRepository';
+import { SpecialityRepository } from '../repositories/SpecialityRepository';
+import { ChatRepository } from '../repositories/ChatRepository';
+import { NotificationRepository } from '../repositories/NotificationRepository';
+import { ReviewRepository } from '../repositories/ReviewRepository';
+import { PrescriptionRepository } from '../repositories/PrescriptionRepository';
+
+export const patientRepository = new PatientRepository();
+export const doctorRepository = new DoctorRepository();
+export const adminRepository = new AdminRepository();
+export const otpRepository = new OTPRepository();
+export const availabilityRepository = new AvailabilityRepository();
+export const subscriptionPlanRepository = new SubscriptionPlanRepository();
+export const patientSubscriptionRepository = new PatientSubscriptionRepository();
+export const appointmentRepository = new AppointmentRepository();
+export const specialityRepository = new SpecialityRepository();
+export const chatRepository = new ChatRepository();
+export const notificationRepository = new NotificationRepository();
+export const reviewRepository = new ReviewRepository();
+export const prescriptionRepository = new PrescriptionRepository();

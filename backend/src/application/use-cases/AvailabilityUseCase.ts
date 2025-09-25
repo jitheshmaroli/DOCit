@@ -28,26 +28,8 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
     private _validatorService: IValidatorService
   ) {}
 
-  private async _notifyPatient(appointmentId: string, message: string): Promise<void> {
-    this._validatorService.validateRequiredFields({ appointmentId, message });
-    this._validatorService.validateIdFormat(appointmentId);
-    this._validatorService.validateLength(message, 1, 1000);
-
-    const appointment = await this._appointmentRepository.findById(appointmentId);
-    if (appointment) {
-      const patient = await this._patientRepository.findById(appointment.patientId!.toString());
-      if (!patient || !patient.email) {
-        throw new NotFoundError('Patient email not found');
-      }
-      this._validatorService.validateEmailFormat(patient.email);
-
-      await this._emailService.sendEmail(patient.email, 'Appointment Update', message);
-    } else {
-      throw new NotFoundError('Appointment not found');
-    }
-  }
-
   async setAvailability(doctorId: string, dto: SetAvailabilityRequestDTO): Promise<SetAvailabilityResponseDTO> {
+    //validations
     this._validatorService.validateRequiredFields({
       doctorId,
       date: dto.date,
@@ -179,6 +161,7 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
   }
 
   async getAvailability(doctorId: string, startDate: Date, endDate: Date): Promise<AvailabilityResponseDTO[]> {
+    //validations
     this._validatorService.validateRequiredFields({ doctorId, startDate, endDate });
     this._validatorService.validateIdFormat(doctorId);
     this._validatorService.validateDateFormat(startDate.toISOString());
@@ -203,6 +186,7 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
     endDate: Date,
     filterBooked: boolean
   ): Promise<AvailabilityResponseDTO[]> {
+    //validations
     this._validatorService.validateRequiredFields({ doctorId, startDate, endDate });
     this._validatorService.validateIdFormat(doctorId);
     this._validatorService.validateDateFormat(startDate.toISOString());
@@ -237,10 +221,10 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
     doctorId: string,
     reason?: string
   ): Promise<AvailabilityResponseDTO | null> {
+    //validations
     this._validatorService.validateRequiredFields({ availabilityId, slotIndex, doctorId });
     this._validatorService.validateIdFormat(availabilityId);
     this._validatorService.validateIdFormat(doctorId);
-
     if (reason) {
       this._validatorService.validateLength(reason, 1, 500);
     }
@@ -297,6 +281,7 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
     doctorId: string,
     reason?: string
   ): Promise<AvailabilityResponseDTO | null> {
+    //validations
     this._validatorService.validateRequiredFields({
       availabilityId,
       slotIndex,
@@ -308,7 +293,6 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
     this._validatorService.validateIdFormat(doctorId);
     this._validatorService.validatePositiveInteger(slotIndex);
     this._validatorService.validateTimeSlot(newSlot.startTime, newSlot.endTime);
-
     if (reason) {
       this._validatorService.validateLength(reason, 1, 500);
     }
@@ -362,5 +346,25 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
       timeSlots: availability.timeSlots,
     });
     return updatedAvailability ? AvailabilityMapper.toAvailabilityResponseDTO(updatedAvailability) : null;
+  }
+
+  private async _notifyPatient(appointmentId: string, message: string): Promise<void> {
+    //validations
+    this._validatorService.validateRequiredFields({ appointmentId, message });
+    this._validatorService.validateIdFormat(appointmentId);
+    this._validatorService.validateLength(message, 1, 1000);
+
+    const appointment = await this._appointmentRepository.findById(appointmentId);
+    if (appointment) {
+      const patient = await this._patientRepository.findById(appointment.patientId!.toString());
+      if (!patient || !patient.email) {
+        throw new NotFoundError('Patient email not found');
+      }
+      this._validatorService.validateEmailFormat(patient.email);
+
+      await this._emailService.sendEmail(patient.email, 'Appointment Update', message);
+    } else {
+      throw new NotFoundError('Appointment not found');
+    }
   }
 }

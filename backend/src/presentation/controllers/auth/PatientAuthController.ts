@@ -1,18 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
-import { Container } from '../../../infrastructure/di/container';
 import { validateEmail, validatePassword, validatePhone } from '../../../utils/validators';
 import { ValidationError } from '../../../utils/errors';
 import { setTokensInCookies } from '../../../utils/cookieUtils';
 import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 import { IAuthenticationUseCase } from '../../../core/interfaces/use-cases/IAuthenticationUseCase';
+import { UserRole } from '../../../types';
 
 export class PatientAuthController {
-  private _authenticationUseCase: IAuthenticationUseCase;
-
-  constructor(container: Container) {
-    this._authenticationUseCase = container.get<IAuthenticationUseCase>('IAuthenticationUseCase');
-  }
+  constructor(private _authenticationUseCase: IAuthenticationUseCase) {}
 
   async signup(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -47,7 +43,11 @@ export class PatientAuthController {
         password: req.body.password,
       };
       if (!loginData.email || !loginData.password) throw new ValidationError(ResponseMessages.BAD_REQUEST);
-      const { accessToken, refreshToken } = await this._authenticationUseCase.loginPatient(loginData);
+      const { accessToken, refreshToken } = await this._authenticationUseCase.signIn(
+        UserRole.Patient,
+        'email',
+        loginData
+      );
       setTokensInCookies(res, accessToken, refreshToken);
       const responseData = {
         accessToken,
@@ -62,13 +62,11 @@ export class PatientAuthController {
 
   async googleSignIn(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const googleSignInData = {
-        token: req.body.token,
-      };
-      if (!googleSignInData.token) throw new ValidationError(ResponseMessages.BAD_REQUEST);
-      const { accessToken, refreshToken } = await this._authenticationUseCase.googleSignInPatient(
-        googleSignInData.token
-      );
+      const token = req.body.token;
+      if (!token) throw new ValidationError(ResponseMessages.BAD_REQUEST);
+      const { accessToken, refreshToken } = await this._authenticationUseCase.signIn(UserRole.Patient, 'google', {
+        token,
+      });
       setTokensInCookies(res, accessToken, refreshToken);
       const responseData = {
         accessToken,

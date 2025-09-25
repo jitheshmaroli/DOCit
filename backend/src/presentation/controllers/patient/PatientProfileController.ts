@@ -1,5 +1,4 @@
 import { Response, NextFunction } from 'express';
-import { Container } from '../../../infrastructure/di/container';
 import { ValidationError } from '../../../utils/errors';
 import { IProfileUseCase } from '../../../core/interfaces/use-cases/IProfileUseCase';
 import fs from 'fs';
@@ -8,11 +7,7 @@ import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 
 export class PatientProfileController {
-  private _profileUseCase: IProfileUseCase;
-
-  constructor(container: Container) {
-    this._profileUseCase = container.get<IProfileUseCase>('IProfileUseCase');
-  }
+  constructor(private _profileUseCase: IProfileUseCase) {}
 
   async viewProfile(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {

@@ -13,9 +13,10 @@ export interface Patient {
   pincode?: string;
   profilePicture?: string;
   profilePicturePublicId?: string;
-  refreshToken?: string;
+  // refreshToken?: string;
   gender?: 'Male' | 'Female' | 'Other';
-  googleId?: string;
+  // googleId?: string;
+  socialLogins?: Record<string, string>;
   lastSeen?: Date;
   isOnline?: boolean;
   isOtpVerified?: boolean;
