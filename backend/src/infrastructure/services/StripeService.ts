@@ -4,14 +4,12 @@ import { ValidationError } from '../../utils/errors';
 import { IPaymentService } from '../../core/interfaces/services/IPaymentService';
 import logger from '../../utils/logger';
 
-// Extend the PaymentIntent interface to include charges
 interface PaymentIntentWithCharges extends Stripe.PaymentIntent {
   charges?: {
     data: Stripe.Charge[];
   };
 }
 
-// Define a custom type for Stripe request options that includes expand
 interface StripeRequestOptions extends Stripe.RequestOptions {
   expand?: string[];
 }
@@ -105,7 +103,7 @@ export class StripeService implements IPaymentService {
       return {
         refundId: refund.id,
         cardLast4,
-        amount: refund.amount / 100, // Convert from cents to INR
+        amount: refund.amount / 100,
       };
     } catch (error) {
       throw new ValidationError(`Failed to process refund: ${(error as Error).message || 'Unknown error'}`);

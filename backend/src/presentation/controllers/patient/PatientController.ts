@@ -13,10 +13,6 @@ import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 import { IAvailabilityUseCase } from '../../../core/interfaces/use-cases/IAvailabilityUseCase';
 import { IDoctorUseCase } from '../../../core/interfaces/use-cases/IDoctorUseCase';
 
-// export interface ExtendedGetPatientAppointmentsResponseDTO extends GetPatientAppointmentsResponseDTO {
-//   canBookFree?: boolean;
-// }
-
 export class PatientController {
   constructor(
     private _patientUseCase: IPatientUseCase,

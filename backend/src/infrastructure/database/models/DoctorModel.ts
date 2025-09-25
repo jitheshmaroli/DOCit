@@ -26,8 +26,6 @@ const DoctorSchema = new Schema<Doctor>(
     profilePicturePublicId: { type: String },
     licenseProof: { type: String },
     licenseProofPublicId: { type: String },
-    // refreshToken: { type: String },
-    // googleId: { type: String, unique: true, sparse: true },
     socialLogins: { type: Map, of: String, default: {} },
     lastSeen: { type: Date },
     isOnline: { type: Boolean, default: false },

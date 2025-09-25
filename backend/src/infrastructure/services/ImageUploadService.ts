@@ -50,7 +50,6 @@ export class ImageUploadService implements IImageUploadService {
         throw new Error(`File size exceeds limit of ${maxSizeBytes / (1024 * 1024)}MB`);
       }
 
-      // Set access_mode to 'authenticated' for PDFs in 'doctor-proofs' folder
       const accessMode = folder === 'doctor-proofs' ? 'authenticated' : 'public';
       const resourceType = folder === 'doctor-proofs' ? 'raw' : 'auto';
 
@@ -61,24 +60,6 @@ export class ImageUploadService implements IImageUploadService {
         allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'doc', 'docx'],
         access_mode: accessMode,
       });
-
-      // Generate signed URL for authenticated resources
-      // let url = result.secure_url;
-      // if (accessMode === 'authenticated') {
-      //   const timestamp = Math.round(new Date().getTime() / 1000);
-      //   const signature = cloudinary.utils.api_sign_request(
-      //     { public_id: result.public_id, timestamp: timestamp },
-      //     env.CLOUDINARY_API_SECRET
-      //   );
-      //   logger.info(
-      //     `String to sign (uploadFile): public_id=${result.public_id}, timestamp=${timestamp}, signature=${signature}`
-      //   );
-      //   const baseUrl = cloudinary.utils.private_download_url(result.public_id, result.format, {
-      //     resource_type: 'raw',
-      //     attachment: false,
-      //   });
-      //   url = `${baseUrl}&timestamp=${timestamp}&signature=${signature}`;
-      // }
 
       return {
         url: result.secure_url,
