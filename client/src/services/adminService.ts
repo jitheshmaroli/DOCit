@@ -1,89 +1,22 @@
 import { AxiosError } from 'axios';
 import api from './api';
 import {
+  ApiError,
   Appointment,
   Doctor,
+  PaginatedResponse,
+  PaginationParams,
   Patient,
-  SubscriptionPlan,
+  QueryParams,
   Speciality,
 } from '../types/authTypes';
 import { ROUTES } from '../constants/routeConstants';
-
-interface ApiError {
-  message: string;
-  status?: number;
-}
-
-interface PaginationParams {
-  page: number;
-  limit: number;
-  search?: string;
-  status?: string;
-  specialty?: string;
-}
-
-export interface QueryParams {
-  page?: number;
-  limit?: number;
-  search?: string;
-  sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
-  status?: string;
-  specialty?: string;
-  isBlocked?: boolean;
-  isVerified?: boolean;
-  dateFrom?: string;
-  dateTo?: string;
-}
-
-interface PaginatedResponse<T> {
-  data: T[];
-  totalPages: number;
-  currentPage: number;
-  totalItems: number;
-}
-
-interface TopSubscriber {
-  patientId: string;
-  patientName: string;
-  subscriptionCount: number;
-  totalSpent: number;
-}
-
-interface TopPatient {
-  patientId: string;
-  patientName: string;
-  appointmentCount: number;
-}
-
-interface TopDoctor {
-  doctorId: string;
-  doctorName: string;
-  subscriberCount: number;
-}
-
-interface DashboardStats {
-  totalDoctors: number;
-  totalPatients: number;
-  totalAppointments: number;
-  activePlans: number;
-  totalRevenue: number;
-  topSubscribers: TopSubscriber[];
-  topPatients: TopPatient[];
-  topDoctors: TopDoctor[];
-}
-
-interface ReportFilter {
-  type: 'daily' | 'monthly' | 'yearly';
-  startDate?: string;
-  endDate?: string;
-}
-
-interface ReportData {
-  daily?: Array<{ date: string; appointments: number; revenue: number }>;
-  monthly?: Array<{ month: string; appointments: number; revenue: number }>;
-  yearly?: Array<{ year: string; appointments: number; revenue: number }>;
-}
+import { SubscriptionPlan } from '../types/subscriptionTypes';
+import {
+  AdminDashboardStats,
+  ReportData,
+  ReportFilter,
+} from '../types/reportTypes';
 
 // Doctors
 export const listDoctors = async (
@@ -414,9 +347,9 @@ export const deleteSpeciality = async (id: string): Promise<string> => {
 };
 
 // Dashboard Stats
-export const getDashboardStats = async (): Promise<DashboardStats> => {
+export const getDashboardStats = async (): Promise<AdminDashboardStats> => {
   try {
-    const response = await api.get<DashboardStats>(
+    const response = await api.get<AdminDashboardStats>(
       ROUTES.API.ADMIN.DASHBOARD_STATS
     );
     return response.data;

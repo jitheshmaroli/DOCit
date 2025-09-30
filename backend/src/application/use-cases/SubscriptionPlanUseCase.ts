@@ -26,6 +26,7 @@ import {
 } from '../dtos/SubscriptionPlanDTOs';
 import { SubscriptionPlanMapper } from '../mappers/SubscriptionPlanMapper';
 import { PatientSubscriptionMapper } from '../mappers/PatientSubscriptionMapper';
+import logger from '../../utils/logger';
 
 export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
   constructor(
@@ -401,13 +402,15 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
       refundDetails = await this._stripeService.createRefund(subscription.stripePaymentId);
     }
 
-    await this._patientSubscriptionRepository.update(dto.subscriptionId, {
+    const res = await this._patientSubscriptionRepository.update(dto.subscriptionId, {
       status: 'cancelled',
       cancellationReason: dto.cancellationReason || 'Patient requested cancellation',
       refundId: refundDetails?.refundId || 'N/A',
       refundAmount: refundDetails?.amount || 0,
       updatedAt: new Date(),
     });
+
+    logger.debug(res);
 
     const planId = subscription.planId?.toString();
     if (!planId) {

@@ -9,8 +9,8 @@ import {
 import DataTable from '../../components/common/DataTable';
 import SearchBar from '../../components/common/SearchBar';
 import Pagination from '../../components/common/Pagination';
-import { SubscriptionPlan } from '../../types/authTypes';
 import { toast } from 'react-toastify';
+import { SubscriptionPlan } from '../../types/subscriptionTypes';
 
 const AdminPlanManagement: React.FC = () => {
   const dispatch = useAppDispatch();

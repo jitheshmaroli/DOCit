@@ -47,8 +47,8 @@ interface DashboardStats {
 
 interface ReportFilter {
   type: 'daily' | 'monthly' | 'yearly';
-  startDate?: string;
-  endDate?: string;
+  startDate?: Date;
+  endDate?: Date;
 }
 
 interface ReportItem {
@@ -122,8 +122,8 @@ const AdminDashboard: React.FC = () => {
       setLoading(true);
       const data = await getReports({
         type: reportType,
-        startDate: reportType === 'daily' ? startDate : undefined,
-        endDate: reportType === 'daily' ? endDate : undefined,
+        startDate: reportType === 'daily' ? new Date(startDate) : undefined,
+        endDate: reportType === 'daily' ? new Date(endDate) : undefined,
       });
       const reportItems = data[reportType] || [];
       if (!Array.isArray(reportItems)) {

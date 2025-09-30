@@ -18,7 +18,7 @@ export const store = configureStore({
     auth: persistedAuthReducer,
     admin: adminReducer,
     doctors: doctorReducer,
-    patient: patientReducer
+    patient: patientReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

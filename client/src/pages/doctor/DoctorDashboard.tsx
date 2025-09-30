@@ -13,43 +13,11 @@ import {
 import { format } from 'date-fns';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-
-// Types
-interface DashboardStats {
-  activePlans: number;
-  totalSubscribers: number;
-  appointmentsThroughPlans: number;
-  freeAppointments: number;
-  totalRevenue: number;
-  planWiseRevenue: Array<{
-    planId: string;
-    planName: string;
-    subscribers: number;
-    revenue: number;
-    appointmentsUsed: number;
-    appointmentsLeft: number;
-  }>;
-}
-
-interface Plan {
-  id: string;
-  name: string;
-  subscribers: number;
-  status: string;
-  expired?: boolean;
-}
-
-interface ReportFilter {
-  type: 'daily' | 'monthly' | 'yearly';
-  startDate?: Date;
-  endDate?: Date;
-}
-
-interface ReportData {
-  daily?: Array<{ date: string; appointments: number; revenue: number }>;
-  monthly?: Array<{ month: string; appointments: number; revenue: number }>;
-  yearly?: Array<{ year: string; appointments: number; revenue: number }>;
-}
+import {
+  DoctorDashboardData,
+  ReportFilter,
+  ReportItem,
+} from '../../types/reportTypes';
 
 interface AppointmentStats {
   total: number;
@@ -58,36 +26,10 @@ interface AppointmentStats {
   cancelled: number;
 }
 
-interface Appointment {
-  _id: string;
-  patientId: { name: string };
-  date: string;
-  startTime: string;
-  status: 'pending' | 'confirmed' | 'cancelled';
-}
-
-interface ReportItem {
-  date?: string;
-  month?: string;
-  year?: string;
-  appointments: number;
-  revenue: number;
-}
-
-interface DashboardData {
-  stats: DashboardStats | null;
-  appointments: Appointment[];
-  plans: Plan[];
-  reportData:
-    | ReportData['daily']
-    | ReportData['monthly']
-    | ReportData['yearly'];
-}
-
 const DoctorDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [filter, setFilter] = useState<ReportFilter>({ type: 'monthly' });
-  const [data, setData] = useState<DashboardData>({
+  const [data, setData] = useState<DoctorDashboardData>({
     stats: null,
     appointments: [],
     plans: [],
@@ -258,7 +200,7 @@ const DoctorDashboard: React.FC = () => {
     total: data.appointments.length,
     upcoming: data.appointments.filter((appt) => appt.status === 'pending')
       .length,
-    completed: data.appointments.filter((appt) => appt.status === 'confirmed')
+    completed: data.appointments.filter((appt) => appt.status === 'completed')
       .length,
     cancelled: data.appointments.filter((appt) => appt.status === 'cancelled')
       .length,
@@ -518,7 +460,7 @@ const DoctorDashboard: React.FC = () => {
                     className={`p-2 text-right ${
                       appt.status === 'pending'
                         ? 'text-green-600'
-                        : appt.status === 'confirmed'
+                        : appt.status === 'completed'
                           ? 'text-blue-600'
                           : 'text-red-600'
                     }`}
@@ -534,8 +476,8 @@ const DoctorDashboard: React.FC = () => {
 
       {isLoading && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-            <span className="text-white">Loading...</span>
-          </div>
+          <span className="text-white">Loading...</span>
+        </div>
       )}
     </div>
   );

@@ -11,8 +11,7 @@ import { Patient, PatientSubscription } from '../../types/authTypes';
 import DataTable, { Column } from '../../components/common/DataTable';
 import Pagination from '../../components/common/Pagination';
 import BackButton from '../../components/common/BackButton';
-
-const ITEMS_PER_PAGE = 5;
+import { ITEMS_PER_PAGE } from '../../utils/constants';
 
 const PlanDetails: React.FC = () => {
   const { planId } = useParams<{ planId: string }>();

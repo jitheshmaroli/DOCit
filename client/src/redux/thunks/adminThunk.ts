@@ -27,14 +27,13 @@ import {
   Doctor,
   Patient,
   Appointment,
-  SubscriptionPlan,
   Speciality,
   PaginatedResponse,
   QueryParams,
   PaginationParams,
 } from '../../types/authTypes';
 import { RootState, AppDispatch } from '../store';
-
+import { SubscriptionPlan } from '../../types/subscriptionTypes';
 
 export const listDoctorsThunk = createAsyncThunk<
   PaginatedResponse<Doctor>,
@@ -172,16 +171,16 @@ export const blockPatientThunk = createAsyncThunk(
   }
 );
 
-export const getAllAppointmentsThunk = createAsyncThunk<PaginatedResponse<Appointment>, PaginationParams>(
-  'admin/getAllAppointments',
-  async (params, { rejectWithValue }) => {
-    try {
-      return await getAllAppointments(params);
-    } catch (error: any) {
-      return rejectWithValue(error.message);
-    }
+export const getAllAppointmentsThunk = createAsyncThunk<
+  PaginatedResponse<Appointment>,
+  PaginationParams
+>('admin/getAllAppointments', async (params, { rejectWithValue }) => {
+  try {
+    return await getAllAppointments(params);
+  } catch (error: any) {
+    return rejectWithValue(error.message);
   }
-);
+});
 
 export const cancelAppointmentThunk = createAsyncThunk<
   string,

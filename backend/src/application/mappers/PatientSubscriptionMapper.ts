@@ -19,6 +19,8 @@ export class PatientSubscriptionMapper {
       createdAt: entity.createdAt?.toISOString(),
       updatedAt: entity.updatedAt?.toISOString(),
       cancellationReason: entity.cancellationReason,
+      refundId: entity.refundId?.toString(),
+      refundAmount: entity.refundAmount,
     };
   }
 

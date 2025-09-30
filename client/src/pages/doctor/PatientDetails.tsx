@@ -10,6 +10,7 @@ import { useAppSelector } from '../../redux/hooks';
 import api from '../../services/api';
 import Modal from '../../components/common/Modal';
 import BackButton from '../../components/common/BackButton';
+import { ITEMS_PER_PAGE } from '../../utils/constants';
 
 interface Appointment {
   _id: string;
@@ -22,11 +23,8 @@ interface Appointment {
   prescription?: Prescription;
 }
 
-const ITEMS_PER_PAGE = 4;
-
 const PatientDetails: React.FC = () => {
   const { patientId } = useParams<{ patientId: string }>();
-  // const navigate = useNavigate();
   const { user } = useAppSelector((state) => state.auth);
   const [patient, setPatient] = useState<Patient | null>(null);
   const [activeTab, setActiveTab] = useState<'profile' | 'medicalHistory'>(
@@ -38,6 +36,7 @@ const PatientDetails: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [selectedPrescription, setSelectedPrescription] =
     useState<Prescription | null>(null);
+  const [showFullNotes, setShowFullNotes] = useState(false);
 
   useEffect(() => {
     const fetchPatient = async () => {
@@ -88,7 +87,12 @@ const PatientDetails: React.FC = () => {
   const handleViewPrescription = (prescription: Prescription | undefined) => {
     if (prescription) {
       setSelectedPrescription(prescription);
+      setShowFullNotes(false); // Reset notes display when opening modal
     }
+  };
+
+  const toggleNotes = () => {
+    setShowFullNotes(!showFullNotes);
   };
 
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
@@ -151,7 +155,21 @@ const PatientDetails: React.FC = () => {
             {selectedPrescription.notes && (
               <div>
                 <h4 className="text-sm text-gray-300">Notes</h4>
-                <p>{selectedPrescription.notes}</p>
+                <p className="text-white break-words max-w-full">
+                  {showFullNotes
+                    ? selectedPrescription.notes
+                    : selectedPrescription.notes.length > 100
+                      ? `${selectedPrescription.notes.substring(0, 100)}...`
+                      : selectedPrescription.notes}
+                </p>
+                {selectedPrescription.notes.length > 100 && (
+                  <button
+                    onClick={toggleNotes}
+                    className="text-blue-300 hover:text-blue-200 text-sm mt-2"
+                  >
+                    {showFullNotes ? 'Show Less' : 'Show More'}
+                  </button>
+                )}
               </div>
             )}
           </div>
