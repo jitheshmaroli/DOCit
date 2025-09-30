@@ -11,8 +11,7 @@ import Pagination from '../../components/common/Pagination';
 import Modal from '../../components/common/Modal';
 import { Appointment, PaginationParams } from '../../types/authTypes';
 import { toast } from 'react-toastify';
-
-const ITEMS_PER_PAGE = 5;
+import { ITEMS_PER_PAGE } from '../../utils/constants';
 
 const AdminAppointments: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -31,6 +30,7 @@ const AdminAppointments: React.FC = () => {
   const [selectedAppointment, setSelectedAppointment] =
     useState<Appointment | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showFullNotes, setShowFullNotes] = useState(false);
 
   useEffect(() => {
     if (user?.role === 'admin') {
@@ -75,11 +75,13 @@ const AdminAppointments: React.FC = () => {
   const handleViewDetails = useCallback((appointment: Appointment) => {
     setSelectedAppointment(appointment);
     setIsModalOpen(true);
+    setShowFullNotes(false); // Reset notes display when opening modal
   }, []);
 
   const handleCloseModal = useCallback(() => {
     setIsModalOpen(false);
     setSelectedAppointment(null);
+    setShowFullNotes(false);
   }, []);
 
   const columns = useMemo(
@@ -137,7 +139,7 @@ const AdminAppointments: React.FC = () => {
         label: 'Cancel',
         onClick: handleCancelAppointment,
         className: 'bg-red-600 hover:bg-red-700 px-3 py-1 rounded-lg',
-        condition: (appt: Appointment) => appt.status !== 'cancelled',
+        condition: (appt: Appointment) => appt.status === 'pending',
       },
     ],
     [handleCancelAppointment, handleViewDetails]
@@ -171,6 +173,10 @@ const AdminAppointments: React.FC = () => {
     setSearchTerm(term);
     setCurrentPage(1);
   }, []);
+
+  const toggleNotes = () => {
+    setShowFullNotes(!showFullNotes);
+  };
 
   return (
     <div className="bg-white/10 backdrop-blur-lg p-4 sm:p-6 lg:p-8 rounded-2xl border border-white/20 shadow-xl">
@@ -295,16 +301,6 @@ const AdminAppointments: React.FC = () => {
                         : 'N/A'}
                     </span>
                   </div>
-                  {/* <div className="flex justify-between">
-                    <span className="text-gray-300">Booking Time:</span>
-                    <span>
-                      {selectedAppointment.createdAt
-                        ? new Date(
-                            selectedAppointment.createdAt
-                          ).toLocaleString()
-                        : 'N/A'}
-                    </span>
-                  </div> */}
                 </div>
               </div>
 
@@ -316,7 +312,9 @@ const AdminAppointments: React.FC = () => {
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-gray-300">Reason:</span>
-                      <span>{selectedAppointment.cancellationReason}</span>
+                      <span className="break-words max-w-full">
+                        {selectedAppointment.cancellationReason}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -337,7 +335,7 @@ const AdminAppointments: React.FC = () => {
                       <>
                         <div className="flex justify-between">
                           <span className="text-gray-300">Medications:</span>
-                          <span>
+                          <span className="break-words max-w-full">
                             {selectedAppointment.prescriptionId.medications
                               ?.map(
                                 (med) =>
@@ -348,10 +346,27 @@ const AdminAppointments: React.FC = () => {
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-300">Notes:</span>
-                          <span>
-                            {selectedAppointment.prescriptionId.notes || 'N/A'}
+                          <span className="break-words max-w-full">
+                            {selectedAppointment.prescriptionId.notes
+                              ? showFullNotes
+                                ? selectedAppointment.prescriptionId.notes
+                                : selectedAppointment.prescriptionId.notes
+                                      .length > 100
+                                  ? `${selectedAppointment.prescriptionId.notes.substring(0, 100)}...`
+                                  : selectedAppointment.prescriptionId.notes
+                              : 'N/A'}
                           </span>
                         </div>
+                        {selectedAppointment.prescriptionId.notes &&
+                          selectedAppointment.prescriptionId.notes.length >
+                            100 && (
+                            <button
+                              onClick={toggleNotes}
+                              className="text-blue-300 hover:text-blue-200 text-sm mt-2"
+                            >
+                              {showFullNotes ? 'Show Less' : 'Show More'}
+                            </button>
+                          )}
                         <div className="flex justify-between">
                           <span className="text-gray-300">Issued:</span>
                           <span>
@@ -373,12 +388,6 @@ const AdminAppointments: React.FC = () => {
                   Additional Information
                 </h4>
                 <div className="space-y-2">
-                  {/* <div className="flex justify-between">
-                    <span className="text-gray-300">Reminder Sent:</span>
-                    <span>
-                      {selectedAppointment.reminderSent ? 'Yes' : 'No'}
-                    </span>
-                  </div> */}
                   <div className="flex justify-between">
                     <span className="text-gray-300">Has Review:</span>
                     <span>{selectedAppointment.hasReview ? 'Yes' : 'No'}</span>

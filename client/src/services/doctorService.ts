@@ -5,90 +5,16 @@ import {
   SubscriptionPlanPayload,
   UpdateSubscriptionPlanPayload,
   QueryParams,
+  Prescription,
 } from '../types/authTypes';
 import { DateUtils } from '../utils/DateUtils';
 import { ROUTES } from '../constants/routeConstants';
-
-// Types
-interface DashboardStats {
-  activePlans: number;
-  totalSubscribers: number;
-  appointmentsThroughPlans: number;
-  freeAppointments: number;
-  totalRevenue: number;
-  planWiseRevenue: Array<{
-    planId: string;
-    planName: string;
-    subscribers: number;
-    revenue: number;
-    appointmentsUsed: number;
-    appointmentsLeft: number;
-  }>;
-}
-
-interface Plan {
-  id: string;
-  name: string;
-  subscribers: number;
-  status: string;
-  expired?: boolean;
-}
-
-interface ReportFilter {
-  type: 'daily' | 'monthly' | 'yearly';
-  startDate?: Date;
-  endDate?: Date;
-}
-
-interface ReportData {
-  daily?: Array<{ date: string; appointments: number; revenue: number }>;
-  monthly?: Array<{ month: string; appointments: number; revenue: number }>;
-  yearly?: Array<{ year: string; appointments: number; revenue: number }>;
-}
-
-interface Appointment {
-  _id: string;
-  patientId: { name: string };
-  date: string;
-  startTime: string;
-  status: 'pending' | 'confirmed' | 'cancelled';
-}
-
-interface SubscriptionPlan {
-  _id: string;
-  name: string;
-  status: string;
-}
-
-interface PlanWiseRevenue {
-  planId: string;
-  planName: string;
-  subscribers: number;
-  revenue: number;
-  appointmentsUsed: number;
-  appointmentsLeft: number;
-}
-
-interface DashboardData {
-  stats: DashboardStats | null;
-
-  appointments: Appointment[];
-  plans: Plan[];
-  reportData:
-    | ReportData['daily']
-    | ReportData['monthly']
-    | ReportData['yearly'];
-}
-
-interface Prescription {
-  medications: Array<{
-    name: string;
-    dosage: string;
-    frequency: string;
-    duration: string;
-  }>;
-  notes?: string;
-}
+import {
+  DoctorDashboardData,
+  Plan,
+  PlanWiseRevenue,
+  ReportFilter,
+} from '../types/reportTypes';
 
 export const fetchVerifiedDoctors = async (params: QueryParams = {}) => {
   const response = await api.get(ROUTES.API.PATIENT.VERIFIED_DOCTORS, {
@@ -310,7 +236,7 @@ export const fetchDashboardData = async ({
   reportFilter: ReportFilter;
   page?: number;
   limit?: number;
-}): Promise<DashboardData> => {
+}): Promise<DoctorDashboardData> => {
   try {
     const [
       statsResponse,
@@ -332,16 +258,18 @@ export const fetchDashboardData = async ({
       }),
     ]);
 
-    const plans: Plan[] = plansResponse.data.map((plan: SubscriptionPlan) => ({
-      id: plan._id,
-      name: plan.name,
-      subscribers:
-        statsResponse.planWiseRevenue.find(
-          (p: PlanWiseRevenue) => p.planId === plan._id
-        )?.subscribers || 0,
-      status: plan.status,
-      expired: plan.status === 'rejected',
-    }));
+    const plans: Plan[] = plansResponse.data.map(
+      (plan: Plan) => ({
+        id: plan.id,
+        name: plan.name,
+        subscribers:
+          statsResponse.planWiseRevenue.find(
+            (p: PlanWiseRevenue) => p.planId === plan.id
+          )?.subscribers || 0,
+        status: plan.status,
+        expired: plan.status === 'rejected',
+      })
+    );
 
     return {
       stats: statsResponse,

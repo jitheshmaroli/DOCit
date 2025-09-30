@@ -7,32 +7,8 @@ import { getAppointmentsThunk } from '../../redux/thunks/doctorThunk';
 import { DateUtils } from '../../utils/DateUtils';
 import Pagination from '../../components/common/Pagination';
 import DataTable, { Column } from '../../components/common/DataTable';
-
-interface AppointmentPatient {
-  _id: string;
-  name?: string;
-  profilePicture?: string;
-}
-interface AppointmentDoctor {
-  _id: string;
-  name: string;
-  profilePicture?: string;
-  speciality?: string;
-  qualifications?: string[];
-  gender?: string;
-}
-
-interface Appointment {
-  _id: string;
-  patientId: AppointmentPatient;
-  doctorId: AppointmentDoctor;
-  date: string;
-  startTime: string;
-  endTime: string;
-  status: 'pending' | 'completed' | 'cancelled';
-}
-
-const ITEMS_PER_PAGE = 4;
+import { Appointment } from '../../types/authTypes';
+import { ITEMS_PER_PAGE } from '../../utils/constants';
 
 const DoctorAppointments: React.FC = () => {
   const dispatch = useAppDispatch();

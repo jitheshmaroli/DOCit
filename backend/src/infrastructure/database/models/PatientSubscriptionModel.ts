@@ -17,6 +17,9 @@ const PatientSubscriptionSchema = new Schema<PatientSubscription>(
     appointmentsLeft: { type: Number, required: true, min: 0 },
     stripePaymentId: { type: String, unique: true, sparse: true },
     remainingDays: { type: Number },
+    cancellationReason: { type: String },
+    refundId: { type: String },
+    refundAmount: { type: Number },
   },
   { timestamps: true }
 );

@@ -19,12 +19,7 @@ import {
   PatientSubscription,
 } from '../../types/authTypes';
 import { DateUtils } from '../../utils/DateUtils';
-
-interface CancelSubscriptionResponse {
-  refundId: string;
-  cardLast4?: string;
-  amount: number;
-}
+import { CancelSubscriptionResponse } from '../../types/subscriptionTypes';
 
 export const getDoctorAvailabilityThunk = createAsyncThunk(
   'patient/getDoctorAvailability',

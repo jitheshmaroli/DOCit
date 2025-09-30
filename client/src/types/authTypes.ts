@@ -4,22 +4,6 @@ export interface Experience {
   years: number;
 }
 
-export interface Prescription {
-  _id: string;
-  appointmentId: string;
-  patientId: string;
-  doctorId: string;
-  medications?: Array<{
-    name: string;
-    dosage: string;
-    frequency: string;
-    duration: string;
-  }>;
-  notes?: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
 export interface Doctor {
   _id: string;
   email: string;
@@ -94,16 +78,6 @@ export interface ResetPasswordPayload {
 
 export type UserRole = 'patient' | 'doctor' | 'admin';
 
-export interface Subscription {
-  _id: string;
-  plan: SubscriptionPlan;
-  daysUntilExpiration: number;
-  isExpired: boolean;
-  appointmentsLeft: number;
-  status: 'active' | 'inactive';
-  stripePaymentId?: string;
-}
-
 export interface GetDoctorAvailabilityPayload {
   doctorId: string;
   startDate: Date;
@@ -170,20 +144,6 @@ export interface User {
   profilePicture?: string;
 }
 
-export interface SubscriptionPlan {
-  _id: string;
-  name: string;
-  description: string;
-  doctorId: string;
-  doctorName: string;
-  price: number;
-  validityDays: number;
-  appointmentCount: number;
-  status: 'pending' | 'approved' | 'rejected';
-  createdAt: string;
-  updatedAt: string;
-}
-
 export interface Speciality {
   _id: string;
   name: string;
@@ -231,10 +191,10 @@ export interface Appointment {
 }
 
 export interface Prescription {
-  _id: string;
-  appointmentId: string;
-  patientId: string;
-  doctorId: string;
+  _id?: string;
+  appointmentId?: string;
+  patientId?: string;
+  doctorId?: string;
   medications?: Array<{
     name: string;
     dosage: string;
@@ -245,6 +205,33 @@ export interface Prescription {
   createdAt?: string;
   updatedAt?: string;
   pdfUrl?: string;
+}
+
+export interface PrescriptionRequest {
+  prescription: {
+    medications: Array<{
+      name: string;
+      dosage: string;
+      frequency: string;
+      duration: string;
+    }>;
+    notes?: string;
+  };
+}
+
+export interface PaginationParams {
+  page: number;
+  limit: number;
+  search?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+  isBlocked?: boolean;
+  isSubscribed?: boolean;
+  dateFrom?: string;
+  isVerified?: boolean;
+  dateTo?: string;
+  status?: string;
+  specialty?: string;
 }
 
 export interface QueryParams {
@@ -262,6 +249,8 @@ export interface QueryParams {
   isSubscribed?: boolean;
   availabilityStart?: string;
   availabilityEnd?: string;
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 export interface PaginatedResponse<T> {
@@ -269,21 +258,6 @@ export interface PaginatedResponse<T> {
   totalPages: number;
   currentPage: number;
   totalItems: number;
-}
-
-export interface PaginationParams {
-  page: number;
-  limit: number;
-  search?: string;
-  sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
-  isBlocked?: boolean;
-  isSubscribed?: boolean;
-  dateFrom?: string;
-  isVerified?: boolean;
-  dateTo?: string;
-  status?: string;
-  specialty?: string;
 }
 
 export enum NotificationType {
@@ -343,4 +317,25 @@ export interface UpdateSlotPayload {
   startTime: string;
   endTime: string;
   reason?: string;
+}
+
+export interface ApiError {
+  message: string;
+  status?: number;
+}
+
+export interface ExtendedPatientSubscription extends PatientSubscription {
+  plan: {
+    _id: string;
+    name: string;
+    description: string;
+    price: number;
+    validityDays: number;
+    appointmentCount: number;
+    doctorId: string;
+    doctorName?: string;
+  };
+  daysUntilExpiration: number;
+  isExpired: boolean;
+  expiryDate: string;
 }

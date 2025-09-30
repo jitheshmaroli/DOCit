@@ -34,6 +34,7 @@ import Modal from '../../components/common/Modal';
 import { getDoctorReviews } from '../../services/patientService';
 import { debounce } from 'lodash';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import { ITEMS_PER_PAGE } from '../../utils/constants';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);
 
@@ -58,8 +59,6 @@ interface PaymentDetails {
   paymentIntentId: string;
   amount: number;
 }
-
-const ITEMS_PER_PAGE = 5;
 
 const DoctorDetails: React.FC = () => {
   const { doctorId } = useParams<{ doctorId: string }>();
@@ -95,28 +94,33 @@ const DoctorDetails: React.FC = () => {
     price: number;
   }>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [paymentDetails, setPaymentDetails] = useState<PaymentDetails | null>(null);
+  const [paymentDetails, setPaymentDetails] = useState<PaymentDetails | null>(
+    null
+  );
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [isCancelSubscriptionModalOpen, setIsCancelSubscriptionModalOpen] = useState(false);
+  const [isCancelSubscriptionModalOpen, setIsCancelSubscriptionModalOpen] =
+    useState(false);
   const [cancellationReason, setCancellationReason] = useState<string>('');
   const [modalMode, setModalMode] = useState<'cancel' | 'refund'>('cancel');
   const [reviews, setReviews] = useState<Review[]>([]);
   const [subscriptionsLoaded, setSubscriptionsLoaded] = useState(false);
 
-  const specialityFromState = (location.state as { speciality?: string[] })?.speciality;
+  const specialityFromState = (location.state as { speciality?: string[] })
+    ?.speciality;
 
   const activeSubscription = useMemo(() => {
     if (!doctorId) return null;
     const subsForDoctor = activeSubscriptions.filter(
       (sub) => sub.plan.doctorId === doctorId && sub.createdAt
     );
-    return subsForDoctor
-      .sort((a, b) => {
+    return (
+      subsForDoctor.sort((a, b) => {
         const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
         return dateB - dateA;
-      })[0] || null;
+      })[0] || null
+    );
   }, [activeSubscriptions, doctorId]);
 
   const plans = useMemo(
@@ -131,10 +135,17 @@ const DoctorDetails: React.FC = () => {
   );
 
   const canCancelSubscription = useMemo(() => {
-    if (!activeSubscription || activeSubscription.status !== 'active' || !activeSubscription.createdAt) {
+    if (
+      !activeSubscription ||
+      activeSubscription.status !== 'active' ||
+      !activeSubscription.createdAt
+    ) {
       return false;
     }
-    const timeDiffMinutes = (new Date().getTime() - new Date(activeSubscription.createdAt).getTime()) / (1000 * 60);
+    const timeDiffMinutes =
+      (new Date().getTime() -
+        new Date(activeSubscription.createdAt).getTime()) /
+      (1000 * 60);
     return timeDiffMinutes <= 30;
   }, [activeSubscription]);
 
@@ -320,12 +331,6 @@ const DoctorDetails: React.FC = () => {
   const handleCloseSuccessModal = () => {
     setIsSuccessModalOpen(false);
     setPaymentDetails(null);
-  };
-
-  const handleViewInvoice = () => {
-    if (paymentDetails) {
-      navigate(`/patient/invoice/${paymentDetails.paymentIntentId}`);
-    }
   };
 
   const handleDateChange = (date: string) => {
@@ -569,12 +574,15 @@ const DoctorDetails: React.FC = () => {
               </div>
             </>
           ) : (
-            <p>
-              Your subscription has been cancelled, and a refund has been
-              initiated to the card ending in{' '}
-              {lastRefundDetails?.cardLast4 || 'N/A'} for ₹
-              {lastRefundDetails?.amount.toFixed(2) || '0.00'}.
-            </p>
+            <>
+              <p>
+                Your subscription has been cancelled, and a refund has been
+                initiated to the card ending in{' '}
+                {lastRefundDetails?.cardLast4 || 'N/A'} for ₹
+                {lastRefundDetails?.amount.toFixed(2) || '0.00'}.
+              </p>
+              <p>Refund Id: {lastRefundDetails?.refundId}</p>
+            </>
           )}
         </div>
       </Modal>
@@ -584,12 +592,6 @@ const DoctorDetails: React.FC = () => {
         title="Payment Successful"
         footer={
           <div className="flex gap-4">
-            <button
-              onClick={handleViewInvoice}
-              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-300"
-            >
-              View Invoice
-            </button>
             <button
               onClick={handleCloseSuccessModal}
               className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
@@ -750,14 +752,15 @@ const DoctorDetails: React.FC = () => {
               <p className="text-sm text-gray-200 mt-2">
                 Status: {activeSubscription.status}
               </p>
-              {activeSubscription.status === 'active' && canCancelSubscription && (
-                <button
-                  onClick={() => setIsCancelSubscriptionModalOpen(true)}
-                  className="mt-4 w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-2 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300"
-                >
-                  Cancel Subscription
-                </button>
-              )}
+              {activeSubscription.status === 'active' &&
+                canCancelSubscription && (
+                  <button
+                    onClick={() => setIsCancelSubscriptionModalOpen(true)}
+                    className="mt-4 w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-2 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300"
+                  >
+                    Cancel Subscription
+                  </button>
+                )}
               {activeSubscription.status === 'expired' && (
                 <p className="text-sm text-gray-200 mt-2">
                   This plan has expired
@@ -771,8 +774,7 @@ const DoctorDetails: React.FC = () => {
             <p className="text-gray-300 text-center">No subscription found.</p>
           )}
           {plans.length > 0 &&
-            (!activeSubscription ||
-              activeSubscription.status !== 'active') && (
+            (!activeSubscription || activeSubscription.status !== 'active') && (
               <div className="mt-6">
                 <h3 className="text-xl font-bold text-white mb-4">
                   Available Plans

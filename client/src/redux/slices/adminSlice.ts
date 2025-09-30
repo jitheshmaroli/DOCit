@@ -22,7 +22,13 @@ import {
   updateSpecialityThunk,
   deleteSpecialityThunk,
 } from '../thunks/adminThunk';
-import { Appointment, Doctor, Patient, SubscriptionPlan, Speciality } from '../../types/authTypes';
+import {
+  Appointment,
+  Doctor,
+  Patient,
+  Speciality,
+} from '../../types/authTypes';
+import { SubscriptionPlan } from '../../types/subscriptionTypes';
 
 interface AdminState {
   appointments: Appointment[];
@@ -105,7 +111,9 @@ const adminSlice = createSlice({
         state.error = null;
       })
       .addCase(updateDoctorThunk.fulfilled, (state, action) => {
-        const index = state.doctors.findIndex((d) => d._id === action.payload._id);
+        const index = state.doctors.findIndex(
+          (d) => d._id === action.payload._id
+        );
         if (index !== -1) {
           state.doctors[index] = action.payload;
         }
@@ -132,7 +140,9 @@ const adminSlice = createSlice({
         state.error = null;
       })
       .addCase(blockDoctorThunk.fulfilled, (state, action) => {
-        const index = state.doctors.findIndex((d) => d._id === action.payload._id);
+        const index = state.doctors.findIndex(
+          (d) => d._id === action.payload._id
+        );
         if (index !== -1) {
           state.doctors[index] = action.payload;
         }
@@ -147,7 +157,9 @@ const adminSlice = createSlice({
         state.error = null;
       })
       .addCase(verifyDoctorThunk.fulfilled, (state, action) => {
-        const index = state.doctors.findIndex((d) => d._id === action.payload._id);
+        const index = state.doctors.findIndex(
+          (d) => d._id === action.payload._id
+        );
         if (index !== -1) {
           state.doctors[index] = action.payload;
         }
@@ -190,7 +202,9 @@ const adminSlice = createSlice({
         state.error = null;
       })
       .addCase(updatePatientThunk.fulfilled, (state, action) => {
-        const index = state.patients.findIndex((p) => p._id === action.payload._id);
+        const index = state.patients.findIndex(
+          (p) => p._id === action.payload._id
+        );
         if (index !== -1) {
           state.patients[index] = action.payload;
         }
@@ -217,7 +231,9 @@ const adminSlice = createSlice({
         state.error = null;
       })
       .addCase(blockPatientThunk.fulfilled, (state, action) => {
-        const index = state.patients.findIndex((p) => p._id === action.payload._id);
+        const index = state.patients.findIndex(
+          (p) => p._id === action.payload._id
+        );
         if (index !== -1) {
           state.patients[index] = action.payload;
         }
@@ -307,7 +323,9 @@ const adminSlice = createSlice({
       })
       .addCase(cancelAppointmentThunk.fulfilled, (state, action) => {
         state.loading = false;
-        const appointment = state.appointments.find((a) => a._id === action.payload);
+        const appointment = state.appointments.find(
+          (a) => a._id === action.payload
+        );
         if (appointment) {
           appointment.status = 'cancelled';
         }
@@ -350,7 +368,9 @@ const adminSlice = createSlice({
       })
       .addCase(updateSpecialityThunk.fulfilled, (state, action) => {
         state.loading = false;
-        const index = state.specialities.findIndex((s) => s._id === action.payload._id);
+        const index = state.specialities.findIndex(
+          (s) => s._id === action.payload._id
+        );
         if (index !== -1) {
           state.specialities[index] = action.payload;
         }
@@ -365,7 +385,9 @@ const adminSlice = createSlice({
       })
       .addCase(deleteSpecialityThunk.fulfilled, (state, action) => {
         state.loading = false;
-        state.specialities = state.specialities.filter((s) => s._id !== action.payload);
+        state.specialities = state.specialities.filter(
+          (s) => s._id !== action.payload
+        );
       })
       .addCase(deleteSpecialityThunk.rejected, (state, action) => {
         state.loading = false;

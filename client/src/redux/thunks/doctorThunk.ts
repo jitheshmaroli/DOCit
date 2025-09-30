@@ -30,10 +30,10 @@ import {
   UpdateSubscriptionPlanPayload,
   QueryParams,
   Appointment,
-  SubscriptionPlan,
   UpdateSlotPayload,
 } from '../../types/authTypes';
 import { DateUtils } from '../../utils/DateUtils';
+import { SubscriptionPlan } from '../../types/subscriptionTypes';
 
 export const fetchVerifiedDoctorsThunk = createAsyncThunk(
   'doctors/fetchVerifiedDoctors',

@@ -9,9 +9,21 @@ import doctorImg from '../../assets/doctor1.jpeg';
 
 const LandingPage: React.FC = () => {
   const serviceData = [
-    { title: 'Online Booking', icon: serviceImg, description: 'Book appointments effortlessly online.' },
-    { title: 'Doctor Consultation', icon: serviceImg, description: 'Connect with doctors virtually.' },
-    { title: 'Prescription', icon: serviceImg, description: 'Get prescriptions digitally.' },
+    {
+      title: 'Online Booking',
+      icon: serviceImg,
+      description: 'Book appointments effortlessly online.',
+    },
+    {
+      title: 'Doctor Consultation',
+      icon: serviceImg,
+      description: 'Connect with doctors virtually.',
+    },
+    {
+      title: 'Prescription',
+      icon: serviceImg,
+      description: 'Get prescriptions digitally.',
+    },
   ];
 
   return (
@@ -26,7 +38,7 @@ const LandingPage: React.FC = () => {
                 className="w-full lg:w-1/2 mb-10 lg:mb-0 lg:pr-8 z-10"
                 initial={{ opacity: 0, y: 40 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.7, ease: "easeOut" }}
+                transition={{ duration: 0.7, ease: 'easeOut' }}
               >
                 <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold bg-gradient-to-r from-[#78B9B5] to-[#0F828C] bg-clip-text text-transparent mb-4 md:mb-6">
                   Find Your Doctor, Book Appointments Online
@@ -46,7 +58,7 @@ const LandingPage: React.FC = () => {
                 className="w-full lg:w-1/2 flex justify-center"
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.8, ease: "easeOut" }}
+                transition={{ duration: 0.8, ease: 'easeOut' }}
               >
                 <motion.img
                   src={bannerImg}
@@ -88,7 +100,9 @@ const LandingPage: React.FC = () => {
                   Easy Online Appointment
                 </h3>
                 <p className="text-[#78B9B5] mb-6">
-                  We provide a simple and efficient way to connect patients with healthcare providers. Book appointments online, receive reminders, and manage your health records all in one place.
+                  We provide a simple and efficient way to connect patients with
+                  healthcare providers. Book appointments online, receive
+                  reminders, and manage your health records all in one place.
                 </p>
               </motion.div>
             </div>
@@ -110,10 +124,12 @@ const LandingPage: React.FC = () => {
                   Who We Are
                 </h3>
                 <p className="text-[#78B9B5] mb-6">
-                  Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+                  Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed
+                  do eiusmod tempor incididunt ut labore et dolore magna aliqua.
                 </p>
                 <p className="text-[#78B9B5] mb-6">
-                  Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+                  Excepteur sint occaecat cupidatat non proident, sunt in culpa
+                  qui officia deserunt mollit anim id est laborum.
                 </p>
               </motion.div>
 
@@ -135,7 +151,10 @@ const LandingPage: React.FC = () => {
         </section>
 
         {/* Services Section */}
-        <section id="services" className="py-16 bg-[#0F828C]/10 backdrop-blur-lg">
+        <section
+          id="services"
+          className="py-16 bg-[#0F828C]/10 backdrop-blur-lg"
+        >
           <div className="container mx-auto px-4 md:px-16">
             <motion.h2
               initial={{ opacity: 0, y: -22 }}
@@ -163,8 +182,12 @@ const LandingPage: React.FC = () => {
                     alt={service.title}
                     className="mx-auto mb-4 h-20 rounded-full object-cover"
                   />
-                  <h3 className="text-lg font-semibold bg-gradient-to-r from-[#78B9B5] to-[#0F828C] bg-clip-text text-transparent">{service.title}</h3>
-                  <p className="text-sm text-[#78B9B5] mt-2">{service.description}</p>
+                  <h3 className="text-lg font-semibold bg-gradient-to-r from-[#78B9B5] to-[#0F828C] bg-clip-text text-transparent">
+                    {service.title}
+                  </h3>
+                  <p className="text-sm text-[#78B9B5] mt-2">
+                    {service.description}
+                  </p>
                 </motion.div>
               ))}
             </div>
@@ -172,7 +195,10 @@ const LandingPage: React.FC = () => {
         </section>
 
         {/* Doctors Section */}
-        <section id="doctors" className="py-16 bg-[#320A6B]/10 backdrop-blur-lg">
+        <section
+          id="doctors"
+          className="py-16 bg-[#320A6B]/10 backdrop-blur-lg"
+        >
           <div className="container mx-auto px-4 md:px-16">
             <motion.h2
               initial={{ opacity: 0, y: -22 }}
@@ -192,8 +218,8 @@ const LandingPage: React.FC = () => {
               variants={{
                 hidden: {},
                 visible: {
-                  transition: { staggerChildren: 0.18 }
-                }
+                  transition: { staggerChildren: 0.18 },
+                },
               }}
             >
               {[...Array(4)].map((_, idx) => (
@@ -210,7 +236,9 @@ const LandingPage: React.FC = () => {
                     alt={`Doctor ${idx + 1}`}
                     className="rounded-full mx-auto mb-4 w-28 h-28 object-cover shadow-md"
                   />
-                  <h3 className="font-semibold bg-gradient-to-r from-[#78B9B5] to-[#0F828C] bg-clip-text text-transparent">Dr. Name</h3>
+                  <h3 className="font-semibold bg-gradient-to-r from-[#78B9B5] to-[#0F828C] bg-clip-text text-transparent">
+                    Dr. Name
+                  </h3>
                   <p className="text-sm text-[#78B9B5]">Specialization</p>
                   <button className="mt-3 text-sm text-[#320A6B] hover:text-[#065084] transition-colors">
                     View Profile

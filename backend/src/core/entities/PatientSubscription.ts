@@ -16,4 +16,6 @@ export interface PatientSubscription {
   createdAt?: Date;
   updatedAt?: Date;
   cancellationReason?: string;
+  refundId?: string;
+  refundAmount?: number;
 }

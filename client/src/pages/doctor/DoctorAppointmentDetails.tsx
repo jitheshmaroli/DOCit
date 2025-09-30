@@ -21,78 +21,11 @@ import {
   validateDuration,
 } from '../../utils/validation';
 import { getAppointmentById } from '../../services/doctorService';
-
-interface AppointmentPatient {
-  _id: string;
-  name?: string;
-  profilePicture?: string;
-}
-
-interface AppointmentDoctor {
-  _id: string;
-  name: string;
-  profilePicture?: string;
-  speciality?: string[];
-  qualifications?: string[];
-  age?: number;
-  gender?: string;
-}
-
-interface Prescription {
-  _id?: string;
-  appointmentId?: string;
-  patientId?: string | { _id: string; name: string };
-  doctorId?: string | { _id: string; name: string };
-  medications: Array<{
-    name: string;
-    dosage: string;
-    frequency: string;
-    duration: string;
-    _id?: string;
-  }>;
-  notes?: string;
-  createdAt?: string;
-  updatedAt?: string;
-  pdfUrl?: string;
-}
-
-interface Appointment {
-  _id: string;
-  patientId: AppointmentPatient;
-  doctorId: AppointmentDoctor;
-  date: string;
-  startTime: string;
-  endTime: string;
-  status: 'pending' | 'completed' | 'cancelled';
-  isFreeBooking?: boolean;
-  bookingTime?: string;
-  createdAt?: string;
-  updatedAt?: string;
-  cancellationReason?: string;
-  prescriptionId?: Prescription;
-  prescription?: {
-    medications: Array<{
-      name: string;
-      dosage: string;
-      frequency: string;
-      duration: string;
-    }>;
-    notes?: string;
-    pdfUrl?: string;
-  };
-}
-
-interface Medication {
-  name: string;
-  dosage: string;
-  frequency: string;
-  duration: string;
-}
-
-interface FormErrors {
-  medications: Array<{ [key in keyof Medication]?: string }>;
-  notes?: string;
-}
+import {
+  Appointment,
+  FormErrors,
+  Medication,
+} from '../../types/appointmentTypes';
 
 const DoctorAppointmentDetails: React.FC = () => {
   const { appointmentId } = useParams<{ appointmentId: string }>();
@@ -113,6 +46,7 @@ const DoctorAppointmentDetails: React.FC = () => {
     { callerId: string; callerRole: string } | undefined
   >(undefined);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [showFullNotes, setShowFullNotes] = useState(false);
 
   useEffect(() => {
     const fetchAppointment = async () => {
@@ -375,6 +309,10 @@ const DoctorAppointmentDetails: React.FC = () => {
     } catch {
       toast.error('Failed to cancel appointment');
     }
+  };
+
+  const toggleNotes = () => {
+    setShowFullNotes(!showFullNotes);
   };
 
   if (loading) {
@@ -770,8 +708,23 @@ const DoctorAppointmentDetails: React.FC = () => {
                             Additional Notes
                           </h4>
                           <p className="text-white break-words max-w-full">
-                            {appointment.prescription.notes}
+                            {showFullNotes
+                              ? appointment.prescription.notes
+                              : appointment.prescription.notes.length > 100
+                                ? `${appointment.prescription.notes.substring(
+                                    0,
+                                    100
+                                  )}...`
+                                : appointment.prescription.notes}
                           </p>
+                          {appointment.prescription.notes.length > 100 && (
+                            <button
+                              onClick={toggleNotes}
+                              className="text-blue-300 hover:text-blue-200 text-sm mt-2"
+                            >
+                              {showFullNotes ? 'Show Less' : 'Show More'}
+                            </button>
+                          )}
                         </div>
                       )}
                       {appointment.prescription.pdfUrl && (

@@ -71,3 +71,8 @@ export interface ChatMessageResponse {
   };
   reactions?: { emoji: string; userId: string }[];
 }
+
+export interface MessageApiError {
+  message: string;
+  status?: number;
+}

@@ -21,7 +21,10 @@ import {
   getAppointmentsBySubscriptionThunk,
 } from '../../../redux/thunks/patientThunk';
 import { clearError } from '../../../redux/slices/patientSlice';
-import { PatientSubscription, Appointment } from '../../../types/authTypes';
+import {
+  Appointment,
+  ExtendedPatientSubscription,
+} from '../../../types/authTypes';
 import DataTable, { Column } from '../../../components/common/DataTable';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -29,22 +32,6 @@ import dayjs from 'dayjs';
 import { useAppSelector } from '../../../redux/hooks';
 import ROUTES from '../../../constants/routeConstants';
 import Pagination from '../../../components/common/Pagination';
-
-interface ExtendedPatientSubscription extends PatientSubscription {
-  plan: {
-    _id: string;
-    name: string;
-    description: string;
-    price: number;
-    validityDays: number;
-    appointmentCount: number;
-    doctorId: string;
-    doctorName?: string;
-  };
-  daysUntilExpiration: number;
-  isExpired: boolean;
-  expiryDate: string;
-}
 
 const Subscriptions: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -531,7 +518,7 @@ const Subscriptions: React.FC = () => {
                         <div className="flex items-center gap-3 text-sm text-gray-300">
                           <Calendar className="w-5 h-5 text-purple-400" />
                           <span>
-                            Started:{' '}
+                            Start:{' '}
                             {subscription.createdAt
                               ? dayjs(subscription.createdAt).format(
                                   'MMM D, YYYY'
@@ -542,23 +529,41 @@ const Subscriptions: React.FC = () => {
                         <div className="flex items-center gap-3 text-sm text-gray-300">
                           <Clock className="w-5 h-5 text-purple-400" />
                           <span>
-                            <span>
-                            Ends:{' '}
-                            {subscription.endDate
+                            End:{' '}
+                            {subscription.status
                               ? dayjs(subscription.endDate).format(
                                   'MMM D, YYYY'
                                 )
                               : 'N/A'}
                           </span>
-                            {/* {subscription.status === 'active' &&
-                            subscription.remainingDays !== undefined
-                              ? `Expires: ${dayjs().add(subscription.remainingDays!, 'day').format('MMM D, YYYY')}`
-                              : subscription.expiryDate
-                                ? `Expired: ${dayjs(subscription.expiryDate).format('MMM D, YYYY')}`
-                                : 'No expiry date'} */}
-                          </span>
                         </div>
                       </div>
+
+                      {/* Refund Details for Cancelled Subscriptions */}
+                      {subscription.status === 'cancelled' &&
+                        subscription.refundId && (
+                          <div className="mb-8">
+                            <h5 className="text-sm font-medium text-gray-200 mb-3">
+                              Refund Details
+                            </h5>
+                            <div className="space-y-4 text-sm text-gray-300">
+                              <div className="flex items-center gap-3">
+                                <CreditCard className="w-5 h-5 text-purple-400" />
+                                <span>
+                                  Refund ID: {subscription.refundId || 'N/A'}
+                                </span>
+                              </div>
+                              {subscription.refundAmount && (
+                                <div className="flex items-center gap-3">
+                                  <CreditCard className="w-5 h-5 text-purple-400" />
+                                  <span>
+                                    Refund Amount: ₹{subscription.refundAmount}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
 
                       {/* Action Buttons */}
                       <div className="flex flex-col sm:flex-row gap-3">

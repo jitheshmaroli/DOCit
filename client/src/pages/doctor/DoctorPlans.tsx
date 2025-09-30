@@ -9,29 +9,16 @@ import {
   updateSubscriptionPlanThunk,
   deleteSubscriptionPlanThunk,
 } from '../../redux/thunks/doctorThunk';
-import { SubscriptionPlan } from '../../types/authTypes';
 import DataTable, { Column } from '../../components/common/DataTable';
 import { useNavigate } from 'react-router-dom';
 import Pagination from '../../components/common/Pagination';
 import { validateName, validateNumeric } from '../../utils/validation';
-
-const ITEMS_PER_PAGE = 5;
-
-interface PlanFormData {
-  name: string;
-  description: string;
-  price: string;
-  validityDays: string;
-  appointmentCount: string;
-}
-
-interface FormErrors {
-  name?: string;
-  description?: string;
-  price?: string;
-  validityDays?: string;
-  appointmentCount?: string;
-}
+import { ITEMS_PER_PAGE } from '../../utils/constants';
+import {
+  FormErrors,
+  PlanFormData,
+  SubscriptionPlan,
+} from '../../types/subscriptionTypes';
 
 const DoctorPlans: React.FC = () => {
   const dispatch = useAppDispatch();

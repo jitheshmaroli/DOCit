@@ -11,19 +11,7 @@ import { RootState } from '../../redux/store';
 import { useAppSelector } from '../../redux/hooks';
 import { getImageUrl } from '../../utils/config';
 import api from '../../services/api';
-
-interface Speciality {
-  _id: string;
-  name: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-interface Experience {
-  hospitalName: string;
-  department: string;
-  years: string;
-}
+import { Experience, Speciality } from '../../types/doctorTypes';
 
 interface FormData {
   name: string;
@@ -38,7 +26,6 @@ interface FormData {
   experiences: Experience[];
   licenseProof?: string;
 }
-
 const DoctorProfilePage: React.FC = () => {
   const { user } = useAppSelector((state: RootState) => state.auth);
 
