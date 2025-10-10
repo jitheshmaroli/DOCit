@@ -4,6 +4,7 @@ import { useAppSelector } from './redux/hooks';
 import { useEffect } from 'react';
 import { toast, ToastContainer } from 'react-toastify';
 import { useSocket } from './hooks/useSocket';
+import ToastManager from './components/ToastManager';
 
 const App = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -40,6 +41,7 @@ const App = () => {
   return (
     <BrowserRouter>
       <ToastContainer position="top-right" autoClose={3000} theme="dark" />
+      <ToastManager />
       <AppRoutes />
     </BrowserRouter>
   );

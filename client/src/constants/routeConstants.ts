@@ -132,6 +132,7 @@ export const ROUTES = {
       APPOINTMENTS_BY_SUBSCRIPTION: apiPath(
         '/patients/subscriptions/:subscriptionId/appointments'
       ),
+      SPECIALITIES: apiPath('/patients/specialities'),
     },
 
     MESSAGE: {

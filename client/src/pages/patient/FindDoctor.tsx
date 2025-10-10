@@ -1,15 +1,12 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useState, useEffect } from 'react';
 import defaultAvatar from '/images/avatar.png';
 import { useNavigate } from 'react-router-dom';
-import { toast, ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import { fetchVerifiedDoctorsThunk } from '../../redux/thunks/doctorThunk';
 import { getImageUrl } from '../../utils/config';
 import { clearError as clearDoctorError } from '../../redux/slices/doctorSlice';
-import api from '../../services/api';
 import SearchBar from '../../components/common/SearchBar';
+import { fetchSpecialities } from '../../services/patientService';
 
 interface Filters {
   searchQuery: string;
@@ -50,17 +47,11 @@ const FindDoctor: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
-    const fetchSpecialities = async () => {
-      try {
-        const response = await api.get('/api/patients/specialities');
-        setSpecialities(
-          response.data.map((spec: { name: string }) => spec.name)
-        );
-      } catch (error) {
-        toast.error('Failed to fetch specialities');
-      }
+    const loadSpecialities = async () => {
+      const data = await fetchSpecialities();
+      setSpecialities(data.map((spec: { name: string }) => spec.name));
     };
-    fetchSpecialities();
+    loadSpecialities();
   }, []);
 
   useEffect(() => {
@@ -83,7 +74,6 @@ const FindDoctor: React.FC = () => {
 
   useEffect(() => {
     if (doctorError) {
-      toast.error(doctorError);
       dispatch(clearDoctorError());
     }
   }, [doctorError, dispatch]);
@@ -110,7 +100,6 @@ const FindDoctor: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 py-8">
-      <ToastContainer position="top-right" autoClose={3000} theme="dark" />
       <div className="container mx-auto px-4">
         <div className="bg-white/10 backdrop-blur-lg py-8 rounded-2xl border border-white/20 mb-8">
           <h2 className="text-2xl font-bold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent mb-6 text-center">

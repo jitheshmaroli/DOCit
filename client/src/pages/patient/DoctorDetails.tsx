@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { toast, ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { toast } from 'react-toastify'; // Keep for action-specific toasts
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import {
   fetchDoctorByIdThunk,
@@ -15,11 +14,7 @@ import {
   getDoctorAvailabilityThunk,
   cancelSubscriptionThunk,
 } from '../../redux/thunks/patientThunk';
-import { clearError as clearDoctorError } from '../../redux/slices/doctorSlice';
-import {
-  clearError as clearPatientError,
-  clearRefundDetails,
-} from '../../redux/slices/patientSlice';
+import { clearRefundDetails } from '../../redux/slices/patientSlice';
 import defaultAvatar from '/images/avatar.png';
 import { getImageUrl } from '../../utils/config';
 import useAuth from '../../hooks/useAuth';
@@ -71,8 +66,6 @@ const DoctorDetails: React.FC = () => {
     selectedDoctor,
     doctorPlans,
     loading: doctorLoading,
-    error: doctorError,
-    subscriptionStatus,
   } = useAppSelector((state) => state.doctors);
   const {
     activeSubscriptions,
@@ -80,7 +73,6 @@ const DoctorDetails: React.FC = () => {
     totalItems,
     canBookFree,
     loading: patientLoading,
-    error: patientError,
     lastRefundDetails,
   } = useAppSelector((state) => state.patient);
   const [selectedDate, setSelectedDate] = useState<string>('');
@@ -95,28 +87,33 @@ const DoctorDetails: React.FC = () => {
     price: number;
   }>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [paymentDetails, setPaymentDetails] = useState<PaymentDetails | null>(null);
+  const [paymentDetails, setPaymentDetails] = useState<PaymentDetails | null>(
+    null
+  );
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [isCancelSubscriptionModalOpen, setIsCancelSubscriptionModalOpen] = useState(false);
+  const [isCancelSubscriptionModalOpen, setIsCancelSubscriptionModalOpen] =
+    useState(false);
   const [cancellationReason, setCancellationReason] = useState<string>('');
   const [modalMode, setModalMode] = useState<'cancel' | 'refund'>('cancel');
   const [reviews, setReviews] = useState<Review[]>([]);
   const [subscriptionsLoaded, setSubscriptionsLoaded] = useState(false);
 
-  const specialityFromState = (location.state as { speciality?: string[] })?.speciality;
+  const specialityFromState = (location.state as { speciality?: string[] })
+    ?.speciality;
 
   const activeSubscription = useMemo(() => {
     if (!doctorId) return null;
     const subsForDoctor = activeSubscriptions.filter(
       (sub) => sub.plan.doctorId === doctorId && sub.createdAt
     );
-    return subsForDoctor
-      .sort((a, b) => {
+    return (
+      subsForDoctor.sort((a, b) => {
         const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
         return dateB - dateA;
-      })[0] || null;
+      })[0] || null
+    );
   }, [activeSubscriptions, doctorId]);
 
   const plans = useMemo(
@@ -131,10 +128,17 @@ const DoctorDetails: React.FC = () => {
   );
 
   const canCancelSubscription = useMemo(() => {
-    if (!activeSubscription || activeSubscription.status !== 'active' || !activeSubscription.createdAt) {
+    if (
+      !activeSubscription ||
+      activeSubscription.status !== 'active' ||
+      !activeSubscription.createdAt
+    ) {
       return false;
     }
-    const timeDiffMinutes = (new Date().getTime() - new Date(activeSubscription.createdAt).getTime()) / (1000 * 60);
+    const timeDiffMinutes =
+      (new Date().getTime() -
+        new Date(activeSubscription.createdAt).getTime()) /
+      (1000 * 60);
     return timeDiffMinutes <= 30;
   }, [activeSubscription]);
 
@@ -148,7 +152,7 @@ const DoctorDetails: React.FC = () => {
         })
         .catch((error) => {
           console.error('Failed to fetch subscriptions:', error);
-          toast.error('Failed to load subscription data');
+          // Let ToastManager handle the error via Redux
           setSubscriptionsLoaded(true);
         });
 
@@ -199,12 +203,10 @@ const DoctorDetails: React.FC = () => {
           } else {
             setAvailableDates([]);
             setAvailability([]);
-            toast.warn('No available dates found for this doctor');
+            // Let ToastManager handle via Redux
           }
         } else {
-          toast.error(
-            (result.payload as string) || 'Failed to load available dates'
-          );
+          // Let ToastManager handle via Redux
           setAvailableDates([]);
           setAvailability([]);
         }
@@ -214,7 +216,7 @@ const DoctorDetails: React.FC = () => {
           setReviews(reviews);
         })
         .catch(() => {
-          toast.error('Failed to load reviews');
+          // Let ToastManager handle via Redux
           setReviews([]);
         });
     }
@@ -223,47 +225,23 @@ const DoctorDetails: React.FC = () => {
     };
   }, [dispatch, doctorId, currentPage]);
 
-  useEffect(() => {
-    if (doctorError) {
-      toast.error(doctorError);
-      dispatch(clearDoctorError());
-    }
-    if (patientError) {
-      toast.error(patientError);
-      dispatch(clearPatientError());
-    }
-    if (subscriptionStatus === 'success') {
-      toast.success('Successfully subscribed to plan');
-      dispatch(getPatientSubscriptionsThunk());
-      setIsPaymentModalOpen(false);
-      setSelectedPlan(null);
-      setClientSecret(null);
-    } else if (subscriptionStatus === 'failed') {
-      toast.error('Failed to subscribe to plan');
-    }
-  }, [doctorError, patientError, subscriptionStatus, dispatch]);
+  // Removed useEffect for toasting doctorError, patientError, subscriptionStatus
 
   const handleSubscribe = async (planId: string, price: number) => {
     if (!user) {
-      toast.error('Please log in to subscribe');
       navigate('/login');
       return;
     }
-    try {
-      const response = await dispatch(
-        subscribeToPlanThunk({
-          planId,
-          price,
-        })
-      ).unwrap();
-      setSelectedPlan({ id: planId, price });
-      setClientSecret(response.clientSecret);
-      setIsPaymentModalOpen(true);
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Failed to initiate payment';
-      toast.error(errorMessage);
-    }
+
+    const response = await dispatch(
+      subscribeToPlanThunk({
+        planId,
+        price,
+      })
+    ).unwrap();
+    setSelectedPlan({ id: planId, price });
+    setClientSecret(response.clientSecret);
+    setIsPaymentModalOpen(true);
   };
 
   const handlePaymentSuccess = (details: PaymentDetails) => {
@@ -273,16 +251,24 @@ const DoctorDetails: React.FC = () => {
     setSelectedPlan(null);
     setClientSecret(null);
     dispatch(getPatientSubscriptionsThunk());
+    toast.success('Successfully subscribed to plan', {
+      toastId: 'subscription-success',
+      autoClose: 3000,
+    });
   };
 
   const debouncedCancelSubscription = debounce(async () => {
     if (!doctorId || !activeSubscription?._id) {
-      toast.error('No active subscription to cancel');
+      toast.error('No active subscription to cancel', {
+        toastId: 'no-subscription-error',
+      });
       setIsCancelSubscriptionModalOpen(false);
       return;
     }
     if (!cancellationReason.trim()) {
-      toast.error('Please provide a cancellation reason');
+      toast.error('Please provide a cancellation reason', {
+        toastId: 'cancellation-reason-error',
+      });
       return;
     }
     try {
@@ -295,12 +281,11 @@ const DoctorDetails: React.FC = () => {
       dispatch(getPatientSubscriptionsThunk());
       setModalMode('refund');
       setCancellationReason('');
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : 'Failed to cancel subscription';
-      toast.error(errorMessage);
+      toast.success('Subscription cancelled successfully', {
+        toastId: 'cancel-subscription-success',
+      });
+    } catch {
+      // Error is handled by Redux and ToastManager
       setIsCancelSubscriptionModalOpen(false);
       setCancellationReason('');
     }
@@ -361,7 +346,9 @@ const DoctorDetails: React.FC = () => {
 
   const handleBookAppointment = async (isFreeBooking: boolean = false) => {
     if (!selectedSlot || !selectedDate || !doctorId) {
-      toast.error('Please select a date and time slot');
+      toast.error('Please select a date and time slot', {
+        toastId: 'booking-selection-error',
+      });
       return;
     }
     if (
@@ -370,109 +357,105 @@ const DoctorDetails: React.FC = () => {
     ) {
       if (!canBookFreeAppointment) {
         toast.error(
-          'Please subscribe to a plan or check free booking eligibility'
+          'Please subscribe to a plan or check free booking eligibility',
+          { toastId: 'booking-eligibility-error' }
         );
         return;
       }
     }
-    try {
-      const bookingDate = DateUtils.parseToUTC(selectedDate);
-      await dispatch(
-        bookAppointmentThunk({
-          doctorId,
-          date: bookingDate,
-          startTime: selectedSlot.startTime,
-          endTime: selectedSlot.endTime,
-          isFreeBooking,
-        })
-      ).unwrap();
-      toast.success('Appointment booked successfully', {
-        position: 'top-right',
-        autoClose: 3000,
-        theme: 'dark',
-      });
-      setBookingConfirmed(true);
-      setSelectedSlot(null);
-      dispatch(
-        getPatientAppointmentsForDoctorThunk({
-          doctorId,
-          page: currentPage,
-          limit: ITEMS_PER_PAGE,
-        })
-      );
-      dispatch(getPatientSubscriptionsThunk());
-      dispatch(
-        getDoctorAvailabilityThunk({ doctorId, startDate: new Date() })
-      ).then((result) => {
-        if (getDoctorAvailabilityThunk.fulfilled.match(result)) {
-          const payload = result.payload as {
-            date: string;
-            timeSlots: TimeSlot[];
-          }[];
-          if (Array.isArray(payload)) {
-            const validAvailability = payload
-              .filter((entry) => entry.timeSlots.length > 0)
-              .map((entry) => ({
-                date: entry.date.split('T')[0],
-                timeSlots: entry.timeSlots.filter((slot) => !slot.isBooked),
-              }));
-            setAvailability(validAvailability);
-            const dates = validAvailability
-              .map((entry) => {
-                const dateStr = entry.date;
-                if (dateStr && !isNaN(new Date(dateStr).getTime())) {
-                  const normalizedDate = DateUtils.formatToISO(
-                    DateUtils.parseToUTC(dateStr)
-                  ).split('T')[0];
-                  const dateObj = new Date(normalizedDate);
-                  const today = new Date();
-                  today.setHours(0, 0, 0, 0);
-                  if (dateObj >= today) {
-                    return normalizedDate;
-                  }
+    const bookingDate = DateUtils.parseToUTC(selectedDate);
+    await dispatch(
+      bookAppointmentThunk({
+        doctorId,
+        date: bookingDate,
+        startTime: selectedSlot.startTime,
+        endTime: selectedSlot.endTime,
+        isFreeBooking,
+      })
+    ).unwrap();
+    toast.success('Appointment booked successfully', {
+      toastId: 'booking-success',
+      position: 'top-right',
+      autoClose: 3000,
+      theme: 'dark',
+    });
+    setBookingConfirmed(true);
+    setSelectedSlot(null);
+    dispatch(
+      getPatientAppointmentsForDoctorThunk({
+        doctorId,
+        page: currentPage,
+        limit: ITEMS_PER_PAGE,
+      })
+    );
+    dispatch(getPatientSubscriptionsThunk());
+    dispatch(
+      getDoctorAvailabilityThunk({ doctorId, startDate: new Date() })
+    ).then((result) => {
+      if (getDoctorAvailabilityThunk.fulfilled.match(result)) {
+        const payload = result.payload as {
+          date: string;
+          timeSlots: TimeSlot[];
+        }[];
+        if (Array.isArray(payload)) {
+          const validAvailability = payload
+            .filter((entry) => entry.timeSlots.length > 0)
+            .map((entry) => ({
+              date: entry.date.split('T')[0],
+              timeSlots: entry.timeSlots.filter((slot) => !slot.isBooked),
+            }));
+          setAvailability(validAvailability);
+          const dates = validAvailability
+            .map((entry) => {
+              const dateStr = entry.date;
+              if (dateStr && !isNaN(new Date(dateStr).getTime())) {
+                const normalizedDate = DateUtils.formatToISO(
+                  DateUtils.parseToUTC(dateStr)
+                ).split('T')[0];
+                const dateObj = new Date(normalizedDate);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                if (dateObj >= today) {
+                  return normalizedDate;
                 }
-                return null;
-              })
-              .filter((date): date is string => date !== null);
-            const uniqueDates = [...new Set(dates)];
-            setAvailableDates(uniqueDates);
-            if (selectedDate) {
-              const selectedAvail = validAvailability.find(
-                (avail) => avail.date === selectedDate
-              );
-              const slots = selectedAvail
-                ? selectedAvail.timeSlots.filter((slot) => {
-                    if (!slot.startTime || !slot.endTime || slot.isBooked)
-                      return false;
-                    const now = new Date();
-                    const slotDate = new Date(selectedDate);
-                    const endTime = new Date(`${selectedDate}T${slot.endTime}`);
-                    if (slotDate.toDateString() === now.toDateString()) {
-                      return endTime > now;
-                    }
-                    return slotDate >= now;
-                  })
-                : [];
-              setCurrentTimeSlots(slots);
-            }
-          } else {
-            setAvailableDates([]);
-            setAvailability([]);
-            setCurrentTimeSlots([]);
-            toast.warn('No available dates found for this doctor');
+              }
+              return null;
+            })
+            .filter((date): date is string => date !== null);
+          const uniqueDates = [...new Set(dates)];
+          setAvailableDates(uniqueDates);
+          if (selectedDate) {
+            const selectedAvail = validAvailability.find(
+              (avail) => avail.date === selectedDate
+            );
+            const slots = selectedAvail
+              ? selectedAvail.timeSlots.filter((slot) => {
+                  if (!slot.startTime || !slot.endTime || slot.isBooked)
+                    return false;
+                  const now = new Date();
+                  const slotDate = new Date(selectedDate);
+                  const endTime = new Date(`${selectedDate}T${slot.endTime}`);
+                  if (slotDate.toDateString() === now.toDateString()) {
+                    return endTime > now;
+                  }
+                  return slotDate >= now;
+                })
+              : [];
+            setCurrentTimeSlots(slots);
           }
         } else {
-          toast.error(
-            (result.payload as string) || 'Failed to load available dates'
-          );
           setAvailableDates([]);
           setAvailability([]);
           setCurrentTimeSlots([]);
+          // Let ToastManager handle via Redux
         }
-      });
-    } catch (error: unknown) {
-      toast.error(`Failed to book appointment: ${error}`);
-    }
+      } else {
+        // Let ToastManager handle via Redux
+        setAvailableDates([]);
+        setAvailability([]);
+        setCurrentTimeSlots([]);
+      }
+    });
   };
 
   const handlePageChange = (page: number) => {
@@ -504,12 +487,6 @@ const DoctorDetails: React.FC = () => {
       className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 py-8"
       key={doctorId}
     >
-      <ToastContainer
-        position="top-right"
-        autoClose={3000}
-        theme="dark"
-        className="fixed top-4 right-4 z-60"
-      />
       <Modal
         isOpen={isCancelSubscriptionModalOpen}
         onClose={handleCloseCancelSubscriptionModal}
@@ -750,14 +727,15 @@ const DoctorDetails: React.FC = () => {
               <p className="text-sm text-gray-200 mt-2">
                 Status: {activeSubscription.status}
               </p>
-              {activeSubscription.status === 'active' && canCancelSubscription && (
-                <button
-                  onClick={() => setIsCancelSubscriptionModalOpen(true)}
-                  className="mt-4 w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-2 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300"
-                >
-                  Cancel Subscription
-                </button>
-              )}
+              {activeSubscription.status === 'active' &&
+                canCancelSubscription && (
+                  <button
+                    onClick={() => setIsCancelSubscriptionModalOpen(true)}
+                    className="mt-4 w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-2 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300"
+                  >
+                    Cancel Subscription
+                  </button>
+                )}
               {activeSubscription.status === 'expired' && (
                 <p className="text-sm text-gray-200 mt-2">
                   This plan has expired
@@ -771,8 +749,7 @@ const DoctorDetails: React.FC = () => {
             <p className="text-gray-300 text-center">No subscription found.</p>
           )}
           {plans.length > 0 &&
-            (!activeSubscription ||
-              activeSubscription.status !== 'active') && (
+            (!activeSubscription || activeSubscription.status !== 'active') && (
               <div className="mt-6">
                 <h3 className="text-xl font-bold text-white mb-4">
                   Available Plans
@@ -943,7 +920,7 @@ const DoctorDetails: React.FC = () => {
                   price={selectedPlan.price}
                   onSuccess={handlePaymentSuccess}
                   onError={(error) => {
-                    toast.error(error);
+                    toast.error(error, { toastId: 'payment-error' });
                   }}
                 />
               </Elements>

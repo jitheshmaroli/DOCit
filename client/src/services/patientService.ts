@@ -373,3 +373,15 @@ export const getAppointmentsBySubscription = async (
     { params }
   );
 };
+
+export const fetchSpecialities = async () => {
+  try {
+    const response = await api.get(ROUTES.API.PATIENT.SPECIALITIES);
+    return response.data;
+  } catch (error) {
+    const axiosError = error as AxiosError<PatientApiError>;
+    throw new Error(
+      axiosError.response?.data.message || 'Failed to fetch specialities'
+    );
+  }
+};
