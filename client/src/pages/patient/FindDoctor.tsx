@@ -7,6 +7,7 @@ import { getImageUrl } from '../../utils/config';
 import { clearError as clearDoctorError } from '../../redux/slices/doctorSlice';
 import SearchBar from '../../components/common/SearchBar';
 import { fetchSpecialities } from '../../services/patientService';
+import { ITEMS_PER_PAGE } from '../../utils/constants';
 
 interface Filters {
   searchQuery: string;
@@ -19,8 +20,6 @@ interface Filters {
   availabilityEnd?: string;
   minRating?: number;
 }
-
-const ITEMS_PER_PAGE = 5;
 
 const FindDoctor: React.FC = () => {
   const dispatch = useAppDispatch();

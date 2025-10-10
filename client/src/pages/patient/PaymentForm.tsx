@@ -2,7 +2,11 @@ import React, { useState } from 'react';
 import { toast } from 'react-toastify';
 import { useAppDispatch } from '../../redux/hooks';
 import { confirmSubscriptionThunk } from '../../redux/thunks/doctorThunk';
-import { PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import {
+  PaymentElement,
+  useStripe,
+  useElements,
+} from '@stripe/react-stripe-js';
 import useAuth from '../../hooks/useAuth';
 
 interface PaymentDetails {

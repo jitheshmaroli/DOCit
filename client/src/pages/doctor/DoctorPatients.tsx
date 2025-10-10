@@ -5,21 +5,9 @@ import 'react-toastify/dist/ReactToastify.css';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import DataTable, { Column } from '../../components/common/DataTable';
 import Pagination from '../../components/common/Pagination';
-import { getAppointedPatients } from '../../services/doctorService'; // Updated import
-
-interface Patient {
-  _id: string;
-  name: string;
-  email: string;
-  profilePicture?: string;
-  phone?: string;
-  age?: number;
-  gender?: string;
-  isSubscribed?: boolean;
-  isBlocked?: boolean;
-}
-
-const ITEMS_PER_PAGE = 4;
+import { getAppointedPatients } from '../../services/doctorService';
+import { ITEMS_PER_PAGE } from '../../utils/constants';
+import { Patient } from '../../types/authTypes';
 
 const DoctorPatients: React.FC = () => {
   const dispatch = useAppDispatch();

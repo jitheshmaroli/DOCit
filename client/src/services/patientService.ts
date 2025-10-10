@@ -3,48 +3,14 @@ import api from './api';
 import {
   BookAppointmentPayload,
   GetDoctorAvailabilityPayload,
-  SubscriptionPlan,
   Doctor,
   QueryParams,
 } from '../types/authTypes';
 import { DateUtils } from '../utils/DateUtils';
 import { ROUTES } from '../constants/routeConstants';
 import InvoiceDetails from '../pages/patient/InvoiceDetails';
-
-interface PatientApiError {
-  message: string;
-  status?: number;
-}
-
-export interface Review {
-  _id?: string;
-  patientId: string;
-  doctorId: string;
-  appointmentId: string;
-  rating: number;
-  comment: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-export interface PatientSubscription {
-  _id: string;
-  patientId: string;
-  planId: SubscriptionPlan;
-  startDate: string;
-  expiryDate: string;
-  status: 'active' | 'expired' | 'cancelled';
-  price: number;
-  appointmentsUsed: number;
-  appointmentsLeft: number;
-  stripePaymentId?: string;
-  remainingDays?: number;
-  createdAt?: string;
-  updatedAt?: string;
-  cancellationReason?: string;
-  refundId?: string;
-  refundAmount?: number;
-}
+import { SubscriptionPlan } from '../types/subscriptionTypes';
+import { PatientApiError, Review } from '../types/patientTypes';
 
 export const getDoctors = async () => {
   try {

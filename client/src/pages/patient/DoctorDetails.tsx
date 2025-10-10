@@ -29,6 +29,7 @@ import Modal from '../../components/common/Modal';
 import { getDoctorReviews } from '../../services/patientService';
 import { debounce } from 'lodash';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import { ITEMS_PER_PAGE } from '../../utils/constants';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);
 
@@ -53,8 +54,6 @@ interface PaymentDetails {
   paymentIntentId: string;
   amount: number;
 }
-
-const ITEMS_PER_PAGE = 5;
 
 const DoctorDetails: React.FC = () => {
   const { doctorId } = useParams<{ doctorId: string }>();
@@ -307,12 +306,6 @@ const DoctorDetails: React.FC = () => {
     setPaymentDetails(null);
   };
 
-  const handleViewInvoice = () => {
-    if (paymentDetails) {
-      navigate(`/patient/invoice/${paymentDetails.paymentIntentId}`);
-    }
-  };
-
   const handleDateChange = (date: string) => {
     setSelectedDate(date);
     setSelectedSlot(null);
@@ -546,12 +539,15 @@ const DoctorDetails: React.FC = () => {
               </div>
             </>
           ) : (
-            <p>
-              Your subscription has been cancelled, and a refund has been
-              initiated to the card ending in{' '}
-              {lastRefundDetails?.cardLast4 || 'N/A'} for ₹
-              {lastRefundDetails?.amount.toFixed(2) || '0.00'}.
-            </p>
+            <>
+              <p>
+                Your subscription has been cancelled, and a refund has been
+                initiated to the card ending in{' '}
+                {lastRefundDetails?.cardLast4 || 'N/A'} for ₹
+                {lastRefundDetails?.amount.toFixed(2) || '0.00'}.
+              </p>
+              <p>Refund Id: {lastRefundDetails?.refundId}</p>
+            </>
           )}
         </div>
       </Modal>
@@ -561,12 +557,6 @@ const DoctorDetails: React.FC = () => {
         title="Payment Successful"
         footer={
           <div className="flex gap-4">
-            <button
-              onClick={handleViewInvoice}
-              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-300"
-            >
-              View Invoice
-            </button>
             <button
               onClick={handleCloseSuccessModal}
               className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"

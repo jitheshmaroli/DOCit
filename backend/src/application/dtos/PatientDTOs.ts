@@ -39,6 +39,8 @@ export interface PatientSubscriptionDTO {
   updatedAt?: string;
   cancellationReason?: string;
   appointments?: AppointmentDTO[];
+  refundId?: string;
+  refundAmount?: number;
 }
 
 export interface PaginatedPatientResponseDTO {

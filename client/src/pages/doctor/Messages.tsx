@@ -25,7 +25,9 @@ import ROUTES from '../../constants/routeConstants';
 const Messages = () => {
   const { user } = useAppSelector((state) => state.auth);
   const [threads, setThreads] = useState<MessageThread[]>([]);
-  const [selectedThread, setSelectedThread] = useState<MessageThread | null>(null);
+  const [selectedThread, setSelectedThread] = useState<MessageThread | null>(
+    null
+  );
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [newMessagesCount, setNewMessagesCount] = useState(0);
@@ -78,7 +80,10 @@ const Messages = () => {
           partnerProfilePicture = partner.profilePicture;
           partnerRole = partner.role;
         } catch (error) {
-          console.error(`Failed to fetch details for user ${partnerId}:`, error);
+          console.error(
+            `Failed to fetch details for user ${partnerId}:`,
+            error
+          );
         }
 
         const newMessageObj: Message = {
@@ -107,7 +112,10 @@ const Messages = () => {
               senderName: partnerName,
               partnerProfilePicture,
               role: partnerRole,
-              messages: [...updatedThreads[threadIndex].messages, newMessageObj],
+              messages: [
+                ...updatedThreads[threadIndex].messages,
+                newMessageObj,
+              ],
               createdAt: message.createdAt,
               latestMessage: {
                 _id: message._id,
@@ -121,7 +129,8 @@ const Messages = () => {
             };
             return updatedThreads.sort(
               (a, b) =>
-                new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                new Date(b.createdAt).getTime() -
+                new Date(a.createdAt).getTime()
             );
           }
           const newThread: MessageThread = {

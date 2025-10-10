@@ -2,14 +2,10 @@ import { AxiosError } from 'axios';
 import {
   ChatMessageResponse,
   InboxThreadResponse,
+  MessageApiError,
 } from '../types/messageTypes';
 import api from './api';
 import { ROUTES } from '../constants/routeConstants';
-
-interface MessageApiError {
-  message: string;
-  status?: number;
-}
 
 export const fetchInbox = async () => {
   try {

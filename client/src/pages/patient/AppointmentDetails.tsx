@@ -91,6 +91,7 @@ const AppointmentDetails: React.FC = () => {
   const [rating, setRating] = useState<number>(0);
   const [comment, setComment] = useState<string>('');
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [showFullNotes, setShowFullNotes] = useState(false);
 
   useEffect(() => {
     if (!user?._id) {
@@ -303,6 +304,10 @@ const AppointmentDetails: React.FC = () => {
     }
   };
 
+  const toggleNotes = () => {
+    setShowFullNotes(!showFullNotes);
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 flex items-center justify-center">
@@ -503,7 +508,21 @@ const AppointmentDetails: React.FC = () => {
               {appointment.prescription.notes && (
                 <div>
                   <h4 className="text-sm text-gray-300">Additional Notes</h4>
-                  <p className="text-white">{appointment.prescription.notes}</p>
+                  <p className="text-white break-words max-w-full">
+                    {showFullNotes
+                      ? appointment.prescription.notes
+                      : appointment.prescription.notes.length > 100
+                        ? `${appointment.prescription.notes.substring(0, 100)}...`
+                        : appointment.prescription.notes}
+                  </p>
+                  {appointment.prescription.notes.length > 100 && (
+                    <button
+                      onClick={toggleNotes}
+                      className="text-blue-300 hover:text-blue-200 text-sm mt-2"
+                    >
+                      {showFullNotes ? 'Show Less' : 'Show More'}
+                    </button>
+                  )}
                 </div>
               )}
               {appointment.prescription.pdfUrl ? (

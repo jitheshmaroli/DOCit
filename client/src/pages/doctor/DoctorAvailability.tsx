@@ -38,26 +38,11 @@ import {
   DEFAULT_TIME_FORMAT,
   DEFAULT_DATE_FORMAT,
 } from '../../constants/AppConstants';
-
-interface TimeSlot {
-  startTime: string;
-  endTime: string;
-  isBooked?: boolean;
-  _id?: string;
-}
-
-interface Availability {
-  _id?: string;
-  date: string;
-  dateKey: string;
-  timeSlots: TimeSlot[];
-  doctorId?: string;
-}
-
-interface SetAvailabilityResponse {
-  availabilities: Availability[];
-  conflicts: { date: string; error: string }[];
-}
+import {
+  Availability,
+  SetAvailabilityResponse,
+  TimeSlot,
+} from '../../types/aailabilityTypes';
 
 const DoctorAvailability: React.FC = () => {
   const dispatch = useAppDispatch();

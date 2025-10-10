@@ -96,6 +96,8 @@ export class PatientSubscriptionRepository
             createdAt: 1,
             updatedAt: 1,
             cancellationReason: 1,
+            refundId: 1,
+            refundAmount: 1,
           },
         },
       ])

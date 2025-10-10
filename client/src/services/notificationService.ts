@@ -1,11 +1,7 @@
 import { AxiosError } from 'axios';
 import api from './api';
 import { ROUTES } from '../constants/routeConstants';
-
-interface NotificationApiError {
-  message: string;
-  status?: number;
-}
+import { NotificationApiError } from '../types/notificationTypes';
 
 export const fetchNotifications = async () => {
   try {

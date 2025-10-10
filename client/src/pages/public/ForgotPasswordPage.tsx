@@ -37,7 +37,9 @@ const ForgotPasswordPage: React.FC = () => {
   const { forgotPassword, resetPassword } = useAuth();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { loading, error: apiError } = useSelector((state: RootState) => state.auth);
+  const { loading, error: apiError } = useSelector(
+    (state: RootState) => state.auth
+  );
 
   useEffect(() => {
     dispatch(resetAuthState());
@@ -54,7 +56,8 @@ const ForgotPasswordPage: React.FC = () => {
     if (name === 'email') return validateEmail(value);
     if (name === 'otp') return value.length === 6 ? '' : 'OTP must be 6 digits';
     if (name === 'newPassword') return validatePassword(value);
-    if (name === 'confirmPassword') return validateConfirmPassword(newPassword, value);
+    if (name === 'confirmPassword')
+      return validateConfirmPassword(newPassword, value);
     return '';
   };
 
@@ -126,7 +129,11 @@ const ForgotPasswordPage: React.FC = () => {
     if (otpError || passwordError || confirmError) return;
     try {
       await resetPassword({ email, otp, newPassword });
-      dispatch(setMessage('Password reset successfully. Please login with your new password.'));
+      dispatch(
+        setMessage(
+          'Password reset successfully. Please login with your new password.'
+        )
+      );
       navigate('/login');
     } catch (err) {
       console.error('Failed to reset password:', err);
@@ -135,8 +142,13 @@ const ForgotPasswordPage: React.FC = () => {
 
   const isEmailSubmitDisabled = !email || !!fieldErrors.email || loading;
   const isResetSubmitDisabled =
-    !otp || !newPassword || !confirmPassword ||
-    !!fieldErrors.otp || !!fieldErrors.newPassword || !!fieldErrors.confirmPassword || loading;
+    !otp ||
+    !newPassword ||
+    !confirmPassword ||
+    !!fieldErrors.otp ||
+    !!fieldErrors.newPassword ||
+    !!fieldErrors.confirmPassword ||
+    loading;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#320A6B] via-[#065084] to-[#0F828C] flex items-center justify-center p-4">
@@ -158,7 +170,8 @@ const ForgotPasswordPage: React.FC = () => {
                 Forgot Password
               </h2>
               <p className="text-[#78B9B5] text-sm mt-2">
-                Enter your email address and we'll send you a One-Time Password (OTP) to reset your password.
+                Enter your email address and we'll send you a One-Time Password
+                (OTP) to reset your password.
               </p>
             </header>
 
@@ -181,11 +194,15 @@ const ForgotPasswordPage: React.FC = () => {
                 onChange={handleChange}
                 onBlur={handleBlur}
                 className={`w-full p-3 bg-[#0F828C]/10 border border-[#78B9B5]/20 rounded-lg text-[#ffffff] placeholder-[#78B9B5] focus:outline-none focus:ring-2 ${
-                  touchedFields.email && fieldErrors.email ? 'focus:ring-red-400' : 'focus:ring-[#0F828C]'
+                  touchedFields.email && fieldErrors.email
+                    ? 'focus:ring-red-400'
+                    : 'focus:ring-[#0F828C]'
                 }`}
               />
               {touchedFields.email && fieldErrors.email && (
-                <p className="mt-1 text-xs text-[#320A6B]">{fieldErrors.email}</p>
+                <p className="mt-1 text-xs text-[#320A6B]">
+                  {fieldErrors.email}
+                </p>
               )}
 
               <motion.button
@@ -203,7 +220,10 @@ const ForgotPasswordPage: React.FC = () => {
             </form>
 
             <div className="mt-6 text-center">
-              <Link to="/login" className="text-[#320A6B] hover:text-[#065084] text-sm">
+              <Link
+                to="/login"
+                className="text-[#320A6B] hover:text-[#065084] text-sm"
+              >
                 Back to Login
               </Link>
             </div>
@@ -222,7 +242,9 @@ const ForgotPasswordPage: React.FC = () => {
                 Reset Password
               </h2>
               <p className="text-[#78B9B5] text-sm mt-2">
-                We've sent a 6-digit OTP to <span className="font-semibold">{email}</span>. Please check your inbox.
+                We've sent a 6-digit OTP to{' '}
+                <span className="font-semibold">{email}</span>. Please check
+                your inbox.
               </p>
             </header>
 
@@ -235,7 +257,9 @@ const ForgotPasswordPage: React.FC = () => {
                 onChange={handleChange}
                 onBlur={handleBlur}
                 className={`w-full p-3 bg-[#0F828C]/10 border border-[#78B9B5]/20 rounded-lg text-[#ffffff] placeholder-[#78B9B5] focus:outline-none ${
-                  touchedFields.otp && fieldErrors.otp ? 'focus:ring-red-400' : 'focus:ring-[#0F828C]'
+                  touchedFields.otp && fieldErrors.otp
+                    ? 'focus:ring-red-400'
+                    : 'focus:ring-[#0F828C]'
                 }`}
               />
               {touchedFields.otp && fieldErrors.otp && (
@@ -250,11 +274,15 @@ const ForgotPasswordPage: React.FC = () => {
                 onChange={handleChange}
                 onBlur={handleBlur}
                 className={`w-full p-3 bg-[#0F828C]/10 border border-[#78B9B5]/20 rounded-lg text-[#ffffff] placeholder-[#78B9B5] focus:outline-none ${
-                  touchedFields.newPassword && fieldErrors.newPassword ? 'focus:ring-red-400' : 'focus:ring-[#0F828C]'
+                  touchedFields.newPassword && fieldErrors.newPassword
+                    ? 'focus:ring-red-400'
+                    : 'focus:ring-[#0F828C]'
                 }`}
               />
               {touchedFields.newPassword && fieldErrors.newPassword && (
-                <p className="mt-1 text-xs text-[#320A6B]">{fieldErrors.newPassword}</p>
+                <p className="mt-1 text-xs text-[#320A6B]">
+                  {fieldErrors.newPassword}
+                </p>
               )}
 
               <input
@@ -265,11 +293,15 @@ const ForgotPasswordPage: React.FC = () => {
                 onChange={handleChange}
                 onBlur={handleBlur}
                 className={`w-full p-3 bg-[#0F828C]/10 border border-[#78B9B5]/20 rounded-lg text-[#ffffff] placeholder-[#78B9B5] focus:outline-none ${
-                  touchedFields.confirmPassword && fieldErrors.confirmPassword ? 'focus:ring-red-400' : 'focus:ring-[#0F828C]'
+                  touchedFields.confirmPassword && fieldErrors.confirmPassword
+                    ? 'focus:ring-red-400'
+                    : 'focus:ring-[#0F828C]'
                 }`}
               />
               {touchedFields.confirmPassword && fieldErrors.confirmPassword && (
-                <p className="mt-1 text-xs text-[#320A6B]">{fieldErrors.confirmPassword}</p>
+                <p className="mt-1 text-xs text-[#320A6B]">
+                  {fieldErrors.confirmPassword}
+                </p>
               )}
 
               <motion.button

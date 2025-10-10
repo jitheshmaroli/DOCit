@@ -34,7 +34,8 @@ const NotFoundPage: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
         >
-          Oops! It looks like you're lost. The page you're looking for doesn't exist or has been moved.
+          Oops! It looks like you're lost. The page you're looking for doesn't
+          exist or has been moved.
         </motion.p>
 
         <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>

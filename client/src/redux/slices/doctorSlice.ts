@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { Appointment, Doctor, Patient, SubscriptionPlan } from '../../types/authTypes';
+import { Appointment, Doctor, Patient } from '../../types/authTypes';
 import {
   createSubscriptionPlanThunk,
   fetchVerifiedDoctorsThunk,
@@ -17,6 +17,7 @@ import {
   getPlanSubscriptionCountsThunk,
   getSubscribedPatientsThunk,
 } from '../thunks/doctorThunk';
+import { SubscriptionPlan } from '../../types/subscriptionTypes';
 
 interface DoctorState {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
