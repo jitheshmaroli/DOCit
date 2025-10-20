@@ -1,7 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
 import { useAppSelector } from '../../redux/hooks';
 import { MessageInbox } from '../../components/MessageInbox';
 import { ChatBox } from '../../components/ChatBox';
@@ -21,6 +19,7 @@ import {
 } from '../../types/messageTypes';
 import { useSocket } from '../../hooks/useSocket';
 import ROUTES from '../../constants/routeConstants';
+import { showSuccess } from '../../utils/toastConfig';
 
 const Messages = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -72,7 +71,7 @@ const Messages = () => {
         const partnerId = message.senderId;
         let partnerName = message.senderName || 'Unknown';
         let partnerProfilePicture: string | undefined;
-        let partnerRole: 'patient' | 'doctor' = 'patient'; // Default to patient, as doctors typically message patients
+        let partnerRole: 'patient' | 'doctor' = 'patient';
 
         try {
           const partner = await fetchPartnerDetails(partnerId);
@@ -302,7 +301,7 @@ const Messages = () => {
         );
       } catch (error) {
         console.error('Fetch inbox error:', error);
-        toast.error('Failed to load inbox');
+        // toast.error('Failed to load inbox');
       } finally {
         setLoading(false);
       }
@@ -360,7 +359,7 @@ const Messages = () => {
             navigate(ROUTES.DOCTOR.MESSAGES, { replace: true });
           } catch (error) {
             console.error('Failed to create new thread:', error);
-            toast.error('Failed to open chat');
+            // toast.error('Failed to open chat');
             navigate(ROUTES.DOCTOR.MESSAGES, { replace: true });
           }
         };
@@ -413,7 +412,7 @@ const Messages = () => {
         }, 100);
       } catch (error) {
         console.error('Fetch messages error:', error);
-        toast.error('Failed to load messages');
+        // toast.error('Failed to load messages');
       }
     };
     loadMessages();
@@ -542,16 +541,17 @@ const Messages = () => {
             : thread
         )
       );
-      toast.success('Messages deleted successfully');
+      showSuccess('Messages deleted successfully');
+      // toast.success('Messages deleted successfully');
     } catch (error) {
       console.error('Failed to delete messages:', error);
-      toast.error('Failed to delete messages');
+      // toast.error('Failed to delete messages');
     }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 py-8 px-4 sm:px-6 lg:px-8">
-      <ToastContainer position="bottom-right" autoClose={3000} theme="dark" />
+      {/* <ToastContainer position="bottom-right" autoClose={3000} theme="dark" /> */}
       <div className="container mx-auto">
         <h2 className="text-2xl sm:text-3xl font-semibold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text mb-6">
           Messages

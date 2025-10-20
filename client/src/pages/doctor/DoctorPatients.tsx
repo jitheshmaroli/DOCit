@@ -1,18 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import DataTable, { Column } from '../../components/common/DataTable';
 import Pagination from '../../components/common/Pagination';
 import { getAppointedPatients } from '../../services/doctorService';
 import { ITEMS_PER_PAGE } from '../../utils/constants';
 import { Patient } from '../../types/authTypes';
+import { showError } from '../../utils/toastConfig';
 
 const DoctorPatients: React.FC = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const { user, error } = useAppSelector((state) => state.auth);
+  const { user } = useAppSelector((state) => state.auth);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -31,7 +30,7 @@ const DoctorPatients: React.FC = () => {
         setPatients(response.data || []);
         setTotalItems(response.totalItems || 0);
       } catch {
-        toast.error('Failed to fetch patients');
+        showError('Failed to fetch patients');
       } finally {
         setLoading(false);
       }
@@ -39,12 +38,6 @@ const DoctorPatients: React.FC = () => {
 
     fetchPatients();
   }, [dispatch, currentPage, user?._id]);
-
-  useEffect(() => {
-    if (error) {
-      toast.error(error);
-    }
-  }, [error]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -113,7 +106,6 @@ const DoctorPatients: React.FC = () => {
 
   return (
     <>
-      <ToastContainer position="top-right" autoClose={3000} theme="dark" />
       <div className="bg-white/10 backdrop-blur-lg p-4 sm:p-6 rounded-2xl border border-white/20 shadow-xl">
         <h2 className="text-xl sm:text-2xl font-semibold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent mb-6">
           Patients

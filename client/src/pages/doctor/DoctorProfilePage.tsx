@@ -1,7 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from 'react';
-import { toast, ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
 import {
   validateName,
   validatePhone,
@@ -12,6 +10,8 @@ import { useAppSelector } from '../../redux/hooks';
 import { getImageUrl } from '../../utils/config';
 import api from '../../services/api';
 import { Experience, Speciality } from '../../types/doctorTypes';
+import { showError, showSuccess } from '../../utils/toastConfig';
+import Modal from '../../components/common/Modal';
 
 interface FormData {
   name: string;
@@ -26,6 +26,7 @@ interface FormData {
   experiences: Experience[];
   licenseProof?: string;
 }
+
 const DoctorProfilePage: React.FC = () => {
   const { user } = useAppSelector((state: RootState) => state.auth);
 
@@ -53,6 +54,7 @@ const DoctorProfilePage: React.FC = () => {
   >([]);
   const [specialities, setSpecialities] = useState<Speciality[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const doctorId = user?._id;
 
@@ -104,14 +106,13 @@ const DoctorProfilePage: React.FC = () => {
         setExperienceErrors(data.experiences?.map(() => ({})) || []);
       } catch (error) {
         console.error('Error fetching doctor profile:', error);
-        toast.error('Failed to load profile', {
-          position: 'bottom-right',
-          autoClose: 3000,
-        });
+        showError('Failed to load profile');
       }
     };
 
-    fetchProfile();
+    if (doctorId) {
+      fetchProfile();
+    }
   }, [doctorId]);
 
   useEffect(() => {
@@ -231,10 +232,7 @@ const DoctorProfilePage: React.FC = () => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
       if (selectedFile.type !== 'application/pdf') {
-        toast.error('License proof must be a PDF file', {
-          position: 'bottom-right',
-          autoClose: 3000,
-        });
+        showError('License proof must be a PDF file');
         return;
       }
       setLicenseProofFile(selectedFile);
@@ -383,127 +381,72 @@ const DoctorProfilePage: React.FC = () => {
     e.preventDefault();
 
     if (!validateForm()) {
-      toast.error('Please fill all required fields correctly', {
-        position: 'bottom-right',
-        autoClose: 3000,
-      });
+      showError('Please fill all required fields correctly');
       return;
     }
 
-    toast(
-      ({ closeToast }) => (
-        <div>
-          <p>Are you sure you want to update the profile?</p>
-          <button
-            onClick={async () => {
-              try {
-                const formDataToSend = new FormData();
-                formDataToSend.append('name', formData.name);
-                formDataToSend.append('phone', formData.phone);
-                formDataToSend.append('licenseNumber', formData.licenseNumber);
-                formDataToSend.append(
-                  'qualifications',
-                  formData.qualifications
-                );
-                formDataToSend.append('location', formData.location);
-                formDataToSend.append('speciality', formData.speciality);
-                formDataToSend.append('gender', formData.gender);
-                formDataToSend.append(
-                  'allowFreeBooking',
-                  String(formData.allowFreeBooking)
-                );
-                formDataToSend.append(
-                  'experiences',
-                  JSON.stringify(
-                    formData.experiences.map((exp) => ({
-                      ...exp,
-                      years: parseInt(exp.years),
-                    }))
-                  )
-                );
-                if (file) {
-                  formDataToSend.append('profilePicture', file);
-                }
-                if (licenseProofFile) {
-                  formDataToSend.append('licenseProof', licenseProofFile);
-                }
+    setIsModalOpen(true);
+  };
 
-                const response = await api.patch(
-                  `/api/doctors/profile`,
-                  formDataToSend,
-                  {
-                    headers: { 'Content-Type': 'multipart/form-data' },
-                  }
-                );
-
-                const speciality = specialities.find(
-                  (s) => s._id === response.data.speciality
-                );
-                const updatedFormData: FormData = {
-                  ...formData,
-                  speciality: speciality
-                    ? speciality.name
-                    : formData.speciality,
-                  licenseProof:
-                    response.data.licenseProof || formData.licenseProof,
-                };
-                setFormData(updatedFormData);
-                setInitialFormData(updatedFormData);
-                const imageUrl = getImageUrl(response.data.profilePicture);
-                setProfilePicture(imageUrl);
-                setPreviewImage(imageUrl);
-                setFile(null);
-                setLicenseProofFile(null);
-
-                toast.success('Profile updated successfully!', {
-                  position: 'bottom-right',
-                  autoClose: 3000,
-                });
-                console.log('Profile updated:', response.data);
-              } catch (error: any) {
-                toast.error(
-                  error.response?.data?.message || 'Error updating profile',
-                  {
-                    position: 'bottom-right',
-                    autoClose: 3000,
-                  }
-                );
-                console.error('Error updating profile:', error);
-                setPreviewImage(profilePicture);
-                setFile(null);
-                setLicenseProofFile(null);
-              }
-              closeToast();
-            }}
-            className="bg-green-500 text-white px-2 py-1 rounded mr-2"
-          >
-            Yes
-          </button>
-          <button
-            onClick={() => {
-              setPreviewImage(profilePicture);
-              setFile(null);
-              setLicenseProofFile(null);
-              closeToast();
-            }}
-            className="bg-red-500 text-white px-2 py-1 rounded"
-          >
-            No
-          </button>
-        </div>
-      ),
-      {
-        position: 'bottom-right',
-        autoClose: false,
-        closeOnClick: false,
-        draggable: false,
+  const handleConfirmUpdate = async () => {
+    try {
+      const formDataToSend = new FormData();
+      formDataToSend.append('name', formData.name);
+      formDataToSend.append('phone', formData.phone);
+      formDataToSend.append('licenseNumber', formData.licenseNumber);
+      formDataToSend.append('qualifications', formData.qualifications);
+      formDataToSend.append('location', formData.location);
+      formDataToSend.append('speciality', formData.speciality);
+      formDataToSend.append('gender', formData.gender);
+      formDataToSend.append('allowFreeBooking', String(formData.allowFreeBooking));
+      formDataToSend.append(
+        'experiences',
+        JSON.stringify(
+          formData.experiences.map((exp) => ({
+            ...exp,
+            years: parseInt(exp.years),
+          }))
+        )
+      );
+      if (file) {
+        formDataToSend.append('profilePicture', file);
       }
-    );
+      if (licenseProofFile) {
+        formDataToSend.append('licenseProof', licenseProofFile);
+      }
+
+      const response = await api.patch(`/api/doctors/profile`, formDataToSend, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      const speciality = specialities.find(
+        (s) => s._id === response.data.speciality
+      );
+      const updatedFormData: FormData = {
+        ...formData,
+        speciality: speciality ? speciality.name : formData.speciality,
+        licenseProof: response.data.licenseProof || formData.licenseProof,
+      };
+      setFormData(updatedFormData);
+      setInitialFormData(updatedFormData);
+      const imageUrl = getImageUrl(response.data.profilePicture);
+      setProfilePicture(imageUrl);
+      setPreviewImage(imageUrl);
+      setFile(null);
+      setLicenseProofFile(null);
+      setIsModalOpen(false);
+      showSuccess('Profile updated successfully!');
+    } catch (error: any) {
+      setPreviewImage(profilePicture);
+      setFile(null);
+      setLicenseProofFile(null);
+      setIsModalOpen(false);
+      showError(error.response?.data?.message || 'Error updating profile');
+    }
   };
 
   return (
     <div className="p-6">
-      <ToastContainer position="bottom-right" />
       <div className="max-w-4xl mx-auto">
         <div className="w-full h-[72px] bg-white/10 backdrop-blur-lg flex items-center px-6 mb-8 border border-white/20 rounded-lg shadow-sm">
           <h1 className="text-[24px] font-bold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent">
@@ -854,6 +797,40 @@ const DoctorProfilePage: React.FC = () => {
             </div>
           </div>
         </div>
+
+        <Modal
+          isOpen={isModalOpen}
+          onClose={() => {
+            setPreviewImage(profilePicture);
+            setFile(null);
+            setLicenseProofFile(null);
+            setIsModalOpen(false);
+          }}
+          title="Confirm Profile Update"
+          footer={
+            <>
+              <button
+                onClick={handleConfirmUpdate}
+                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
+              >
+                Yes
+              </button>
+              <button
+                onClick={() => {
+                  setPreviewImage(profilePicture);
+                  setFile(null);
+                  setLicenseProofFile(null);
+                  setIsModalOpen(false);
+                }}
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
+              >
+                No
+              </button>
+            </>
+          }
+        >
+          <p className="text-white">Are you sure you want to update your profile?</p>
+        </Modal>
       </div>
     </div>
   );

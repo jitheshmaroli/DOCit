@@ -4,6 +4,7 @@ import {
   ReportDataResponseDTO,
   ReportFilterDTO,
 } from '../../../application/dtos/ReportDTOs';
+import { QueryParams } from '../../../types/authTypes';
 
 export interface DailyReportData {
   date: string;
@@ -43,6 +44,11 @@ export interface DoctorDashboardStats {
     appointmentsUsed: number;
     appointmentsLeft: number;
   }>;
+  totalPlans: number;
+  cancelledStats: {
+    count: number;
+    totalRefunded: number;
+  };
 }
 
 export interface TopSubscriber {
@@ -73,11 +79,15 @@ export interface AdminDashboardStats {
   topSubscribers: TopSubscriber[];
   topPatients: TopPatient[];
   topDoctors: TopDoctor[];
+  cancelledStats: {
+    count: number;
+    totalRefunded: number;
+  };
 }
 
 export interface IReportUseCase {
   getAdminReports(filter: ReportFilterDTO): Promise<ReportDataResponseDTO>;
   getDoctorReports(doctorId: string, filter: ReportFilterDTO): Promise<ReportDataResponseDTO>;
   getAdminDashboardStats(): Promise<AdminDashboardStatsResponseDTO>;
-  getDoctorDashboardStats(doctorId: string): Promise<DoctorDashboardStatsResponseDTO>;
+  getDoctorDashboardStats(doctorId: string, query?: QueryParams): Promise<DoctorDashboardStatsResponseDTO>;
 }

@@ -1,6 +1,4 @@
 import { useState, useEffect } from 'react';
-import { toast, ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
 import {
   validateName,
   validateNumeric,
@@ -12,6 +10,8 @@ import { getImageUrl } from '../../../utils/config';
 import { useAppSelector } from '../../../redux/hooks';
 import { RootState } from '../../../redux/store';
 import { useNavigate } from 'react-router-dom';
+import { showError, showSuccess } from '../../../utils/toastConfig';
+import Modal from '../../../components/common/Modal';
 
 interface FormData {
   name: string;
@@ -39,6 +39,7 @@ const PersonalInformation = () => {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const { user } = useAppSelector((state: RootState) => state.auth);
   const patientId = user?._id;
   const navigate = useNavigate();
@@ -76,13 +77,12 @@ const PersonalInformation = () => {
         setPreviewImage(imageUrl);
       } catch (error) {
         console.error('Error fetching profile:', error);
-        toast.error('Failed to load profile', {
-          position: 'bottom-right',
-          autoClose: 3000,
-        });
+        showError('Failed to load profile data');
       }
     };
-    fetchProfile();
+    if (patientId) {
+      fetchProfile();
+    }
   }, [patientId]);
 
   useEffect(() => {
@@ -207,95 +207,57 @@ const PersonalInformation = () => {
     e.preventDefault();
 
     if (!validateForm()) {
-      toast.error('Please fill all required fields correctly', {
-        position: 'bottom-right',
-        autoClose: 3000,
-      });
+      await showError('Please fill all required fields correctly');
       return;
     }
 
-    toast(
-      ({ closeToast }) => (
-        <div>
-          <p>Are you sure you want to update the profile?</p>
-          <button
-            onClick={async () => {
-              try {
-                const formDataToSend = new FormData();
-                formDataToSend.append('name', formData.name);
-                formDataToSend.append('phone', formData.phone);
-                formDataToSend.append('age', formData.age);
-                formDataToSend.append('gender', formData.gender);
-                formDataToSend.append('address', formData.address);
-                formDataToSend.append('pincode', formData.pincode);
-                if (file) {
-                  formDataToSend.append('profilePicture', file);
-                }
+    setIsModalOpen(true);
+  };
 
-                const response = await api.patch(
-                  ROUTES.API.PATIENT.PATIENT_BY_ID.replace(
-                    ':patientId',
-                    patientId as string
-                  ),
-                  formDataToSend,
-                  {
-                    headers: { 'Content-Type': 'multipart/form-data' },
-                    withCredentials: true,
-                  }
-                );
-
-                const updatedFormData: FormData = {
-                  ...formData,
-                  age: response.data.age?.toString() || formData.age,
-                };
-                setFormData(updatedFormData);
-                setInitialFormData(updatedFormData);
-                const imageUrl = getImageUrl(response.data.profilePicture);
-                setProfilePicture(imageUrl);
-                setPreviewImage(imageUrl);
-                setFile(null);
-
-                toast.success('Profile updated successfully!', {
-                  position: 'bottom-right',
-                  autoClose: 3000,
-                });
-                console.log('Profile updated:', response.data);
-              } catch (error) {
-                toast.error('Error updating profile', {
-                  position: 'bottom-right',
-                  autoClose: 3000,
-                });
-                console.error('Error updating profile:', error);
-                setPreviewImage(profilePicture);
-                setFile(null);
-              }
-              closeToast();
-            }}
-            className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-lg mr-2 hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
-          >
-            Yes
-          </button>
-          <button
-            onClick={() => {
-              setPreviewImage(profilePicture);
-              setFile(null);
-              closeToast();
-            }}
-            className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-lg mr-2 hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
-          >
-            No
-          </button>
-        </div>
-      ),
-      {
-        position: 'bottom-right',
-        autoClose: false,
-        closeOnClick: false,
-        draggable: false,
-        className:
-          'bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl',
+  const handleConfirmUpdate = async () => {
+    try {
+      const formDataToSend = new FormData();
+      formDataToSend.append('name', formData.name);
+      formDataToSend.append('phone', formData.phone);
+      formDataToSend.append('age', formData.age);
+      formDataToSend.append('gender', formData.gender);
+      formDataToSend.append('address', formData.address);
+      formDataToSend.append('pincode', formData.pincode);
+      if (file) {
+        formDataToSend.append('profilePicture', file);
       }
-    );
+
+      const response = await api.patch(
+        ROUTES.API.PATIENT.PATIENT_BY_ID.replace(
+          ':patientId',
+          patientId as string
+        ),
+        formDataToSend,
+        {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          withCredentials: true,
+        }
+      );
+
+      const updatedFormData: FormData = {
+        ...formData,
+        age: response.data.age?.toString() || formData.age,
+      };
+      setFormData(updatedFormData);
+      setInitialFormData(updatedFormData);
+      const imageUrl = getImageUrl(response.data.profilePicture);
+      setProfilePicture(imageUrl);
+      setPreviewImage(imageUrl);
+      setFile(null);
+      setIsModalOpen(false);
+      await showSuccess('Profile updated successfully!');
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      setPreviewImage(profilePicture);
+      setFile(null);
+      setIsModalOpen(false);
+      await showError('Error updating profile');
+    }
   };
 
   if (!user) {
@@ -304,7 +266,6 @@ const PersonalInformation = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 py-8 px-4 sm:px-6 lg:px-8">
-      <ToastContainer position="bottom-right" />
       <div className="container mx-auto">
         <div className="bg-white/10 backdrop-blur-lg py-8 rounded-2xl border border-white/20 mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent mb-6 text-center">
@@ -490,6 +451,38 @@ const PersonalInformation = () => {
             </div>
           </div>
         </div>
+
+        <Modal
+          isOpen={isModalOpen}
+          onClose={() => {
+            setPreviewImage(profilePicture);
+            setFile(null);
+            setIsModalOpen(false);
+          }}
+          title="Confirm Profile Update"
+          footer={
+            <>
+              <button
+                onClick={handleConfirmUpdate}
+                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
+              >
+                Yes
+              </button>
+              <button
+                onClick={() => {
+                  setPreviewImage(profilePicture);
+                  setFile(null);
+                  setIsModalOpen(false);
+                }}
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
+              >
+                No
+              </button>
+            </>
+          }
+        >
+          <p className="text-white">Are you sure you want to update your profile?</p>
+        </Modal>
       </div>
     </div>
   );

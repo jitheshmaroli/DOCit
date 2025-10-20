@@ -12,6 +12,7 @@ import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 import { IAvailabilityUseCase } from '../../../core/interfaces/use-cases/IAvailabilityUseCase';
 import { IDoctorUseCase } from '../../../core/interfaces/use-cases/IDoctorUseCase';
+import logger from '../../../utils/logger';
 
 export class PatientController {
   constructor(
@@ -57,6 +58,7 @@ export class PatientController {
           throw new ValidationError('Not eligible for free booking');
         }
       }
+
       const appointment = await this._appointmentUseCase.bookAppointment({
         patientId,
         doctorId,
@@ -208,11 +210,6 @@ export class PatientController {
     try {
       const { doctorId } = req.params;
 
-      if (!mongoose.Types.ObjectId.isValid(doctorId)) {
-        res.status(HttpStatusCode.BAD_REQUEST).json({ message: ResponseMessages.BAD_REQUEST });
-        return;
-      }
-
       const doctor = await this._doctorUseCase.getDoctor(doctorId);
       if (!doctor) {
         res.status(HttpStatusCode.NOT_FOUND).json({ message: ResponseMessages.NOT_FOUND });
@@ -271,6 +268,7 @@ export class PatientController {
         responseData = await this._appointmentUseCase.getPatientAppointmentsForDoctor(patientsAppointmentRequestData);
       } else {
         responseData = await this._appointmentUseCase.getPatientAppointments(patientId, queryParams);
+        logger.debug(responseData);
       }
 
       res.status(HttpStatusCode.OK).json(responseData);

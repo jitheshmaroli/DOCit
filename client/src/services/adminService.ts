@@ -152,7 +152,7 @@ export const updatePatient = async (
   updates: Partial<Patient>
 ): Promise<Patient> => {
   try {
-    const response = await api.put<Patient>(
+    const response = await api.patch<Patient>(
       ROUTES.API.ADMIN.PATIENT_BY_ID.replace(':id', id),
       updates
     );
@@ -318,12 +318,12 @@ export const createSpeciality = async (name: string): Promise<Speciality> => {
 
 export const updateSpeciality = async (
   id: string,
-  name: string
+  specialityName: string
 ): Promise<Speciality> => {
   try {
-    const response = await api.put<Speciality>(
+    const response = await api.patch<Speciality>(
       ROUTES.API.ADMIN.SPECIALITY_BY_ID.replace(':id', id),
-      { name }
+      { specialityName }
     );
     return response.data;
   } catch (error) {

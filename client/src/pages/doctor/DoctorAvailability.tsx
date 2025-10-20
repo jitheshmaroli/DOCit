@@ -1,7 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState, useCallback } from 'react';
-import { toast, ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import {
   getAvailabilityThunk,
@@ -31,6 +29,7 @@ import { DateUtils } from '../../utils/DateUtils';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import InfoIcon from '@mui/icons-material/Info';
+import WarningIcon from '@mui/icons-material/Warning';
 import FilterSelect from '../../components/common/FilterSelect';
 import Modal from '../../components/common/Modal';
 import {
@@ -43,10 +42,11 @@ import {
   SetAvailabilityResponse,
   TimeSlot,
 } from '../../types/aailabilityTypes';
+import { showError, showSuccess } from '../../utils/toastConfig';
 
 const DoctorAvailability: React.FC = () => {
   const dispatch = useAppDispatch();
-  const { availability, error } = useAppSelector((state) => state.doctors);
+  const { availability } = useAppSelector((state) => state.doctors);
   const { user } = useAppSelector((state) => state.auth);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedAvailabilityId, setSelectedAvailabilityId] = useState<
@@ -85,6 +85,9 @@ const DoctorAvailability: React.FC = () => {
   const [availabilityMap, setAvailabilityMap] = useState<
     Map<string, Availability>
   >(new Map());
+  const [conflictErrors, setConflictErrors] = useState<Map<string, string>>(
+    new Map()
+  );
   const isMobile = useMediaQuery('(max-width:600px)');
 
   useEffect(() => {
@@ -117,13 +120,6 @@ const DoctorAvailability: React.FC = () => {
     }
   }, [dispatch, user?.role, dateFilter, fetchAvailability]);
 
-  useEffect(() => {
-    if (error) {
-      toast.error(error);
-      dispatch({ type: 'doctors/clearError' });
-    }
-  }, [error, dispatch]);
-
   const generateMonthDates = () => {
     const monthStart = dateFilter
       ? dayjs.utc(dateFilter).startOf('month')
@@ -145,7 +141,7 @@ const DoctorAvailability: React.FC = () => {
   const handleSelectDate = (date: string) => {
     const selected = DateUtils.parseToUTC(date);
     if (!DateUtils.isFutureDate(selected)) {
-      toast.error('Cannot select past dates');
+      showError('Cannot select past dates');
       return;
     }
     setSelectedDate(selected);
@@ -186,7 +182,7 @@ const DoctorAvailability: React.FC = () => {
         `${dayjs(selectedDate).format('YYYY-MM-DD')} ${value}`
       );
       if (slotTime.isBefore(now)) {
-        toast.error('Cannot set time slots before current time');
+        showError('Cannot set time slots before current time');
         return;
       }
     }
@@ -227,7 +223,7 @@ const DoctorAvailability: React.FC = () => {
           slotIndex: index,
         })
       ).unwrap();
-      toast.success('Slot removed successfully');
+      showSuccess('Slot removed successfully');
       const startDate = dayjs(selectedDate).startOf('month').toDate();
       const endDate = dayjs(selectedDate).endOf('month').toDate();
       dispatch(getAvailabilityThunk({ startDate, endDate }));
@@ -237,7 +233,8 @@ const DoctorAvailability: React.FC = () => {
         setIsModalOpen(false);
       }
     } catch (err: any) {
-      toast.error(err.message || 'Failed to remove slot');
+      console.error(err.message || 'Failed to remove slot');
+      showError(err.message || 'Failed to remove slot');
     }
   };
 
@@ -265,7 +262,7 @@ const DoctorAvailability: React.FC = () => {
           `${dayjs(selectedDate).format('YYYY-MM-DD')} ${slot.startTime}`
         );
         if (slotTime.isBefore(now)) {
-          toast.error('Cannot update to a time before current time');
+          showError('Cannot update to a time before current time');
           return;
         }
       }
@@ -285,13 +282,13 @@ const DoctorAvailability: React.FC = () => {
 
   const handleSaveSlot = async (index: number) => {
     if (!selectedAvailabilityId) {
-      toast.error('No availability exists for this date');
+      showError('No availability exists for this date');
       return;
     }
 
     const slot = timeSlots[index];
     if (!slot.startTime || !slot.endTime) {
-      toast.error('Start and end times are required');
+      showError('Start and end times are required');
       return;
     }
 
@@ -301,7 +298,7 @@ const DoctorAvailability: React.FC = () => {
         `${dayjs(selectedDate).format('YYYY-MM-DD')} ${slot.startTime}`
       );
       if (slotTime.isBefore(now)) {
-        toast.error('Cannot set time slots before current time');
+        showError('Cannot set time slots before current time');
         return;
       }
     }
@@ -317,7 +314,7 @@ const DoctorAvailability: React.FC = () => {
 
     const reason = editingReasons[index] || '';
     if (slot.isBooked && !reason.trim()) {
-      toast.error('Reason is required for changes to booked slots');
+      showError('Reason is required for changes to booked slots');
       return;
     }
 
@@ -331,7 +328,7 @@ const DoctorAvailability: React.FC = () => {
           reason: slot.isBooked ? reason : undefined,
         })
       ).unwrap();
-      toast.success('Slot updated successfully');
+      showSuccess('Slot updated successfully');
       setEditingIndex(null);
       setEditingReasons((prev) => {
         const newReasons = { ...prev };
@@ -346,8 +343,15 @@ const DoctorAvailability: React.FC = () => {
       const startDate = dayjs(selectedDate).startOf('month').toDate();
       const endDate = dayjs(selectedDate).endOf('month').toDate();
       dispatch(getAvailabilityThunk({ startDate, endDate }));
+      // Clear any conflict error for this date
+      setConflictErrors((prev) => {
+        const newErrors = new Map(prev);
+        newErrors.delete(dayjs(selectedDate).format(DEFAULT_DATE_FORMAT));
+        return newErrors;
+      });
     } catch (err: any) {
-      toast.error(err.message || 'Failed to update slot');
+      console.error(err.message || 'Failed to update slot');
+      showError(err.message || 'Failed to update slot');
     }
   };
 
@@ -374,14 +378,21 @@ const DoctorAvailability: React.FC = () => {
             reason,
           })
         ).unwrap();
-        toast.success('Slot removed successfully');
+        showSuccess('Slot removed successfully');
         const startDate = dayjs(selectedDate).startOf('month').toDate();
         const endDate = dayjs(selectedDate).endOf('month').toDate();
         dispatch(getAvailabilityThunk({ startDate, endDate }));
         setTimeSlots(timeSlots.filter((_, i) => i !== selectedSlotIndex));
         setOriginalSlotCount(originalSlotCount - 1);
+        // Clear any conflict error for this date
+        setConflictErrors((prev) => {
+          const newErrors = new Map(prev);
+          newErrors.delete(dayjs(selectedDate).format(DEFAULT_DATE_FORMAT));
+          return newErrors;
+        });
       } catch (err: any) {
-        toast.error(err.message || 'Failed to remove slot');
+        console.error(err.message || 'Failed to remove slot');
+        showError(err.message || 'Failed to remove slot');
       }
     }
     setEditDialogOpen(false);
@@ -410,7 +421,7 @@ const DoctorAvailability: React.FC = () => {
 
   const handleSubmitAvailability = async () => {
     if (!selectedDate || newSlots.length === 0) {
-      toast.error('Please add at least one new time slot');
+      showError('Please add at least one new time slot');
       return;
     }
 
@@ -418,12 +429,12 @@ const DoctorAvailability: React.FC = () => {
       validateSlot(slot, selectedDate)
     );
     if (validNewSlots.length === 0) {
-      toast.error('All new slots must have valid start and end times');
+      showError('All new slots must have valid start and end times');
       return;
     }
 
     if (DateUtils.checkOverlappingSlots([...timeSlots], selectedDate)) {
-      toast.error('Time slots cannot overlap');
+      showError('Time slots cannot overlap');
       return;
     }
 
@@ -435,12 +446,22 @@ const DoctorAvailability: React.FC = () => {
       const response = (await dispatch(
         setAvailabilityThunk(payload)
       ).unwrap()) as SetAvailabilityResponse;
-      toast.success('New slots added successfully');
+      showSuccess('New slots added successfully');
       if (response.conflicts.length > 0) {
+        const newErrors = new Map(conflictErrors);
         response.conflicts.forEach((conflict) => {
-          toast.warn(
-            `Failed to set availability for ${dayjs(conflict.date).format('YYYY-MM-DD')}: ${conflict.error}`
+          newErrors.set(
+            dayjs(conflict.date).format(DEFAULT_DATE_FORMAT),
+            conflict.error
           );
+        });
+        setConflictErrors(newErrors);
+      } else {
+        // Clear any existing error for this date
+        setConflictErrors((prev) => {
+          const newErrors = new Map(prev);
+          newErrors.delete(dayjs(selectedDate).format(DEFAULT_DATE_FORMAT));
+          return newErrors;
         });
       }
       setNewSlots([]);
@@ -450,7 +471,8 @@ const DoctorAvailability: React.FC = () => {
       const endDate = dayjs(selectedDate).endOf('month').toDate();
       await dispatch(getAvailabilityThunk({ startDate, endDate }));
     } catch (err: any) {
-      toast.error(err.message || 'Failed to add new slots');
+      console.error(err.message || 'Failed to add new slots');
+      showError(err.message || 'Failed to add new slots');
     }
   };
 
@@ -485,34 +507,33 @@ const DoctorAvailability: React.FC = () => {
       recurringDays.length === 0 ||
       recurringTimeSlots.length === 0
     ) {
-      toast.error(
+      showError(
         'Please provide start date, end date, recurring days, and time slots'
       );
       return;
     }
 
     if (recurringEndDate.isBefore(recurringStartDate, 'day')) {
-      toast.error('End date must be after start date');
+      showError('End date must be after start date');
       return;
     }
 
     const daysDiff = recurringEndDate.diff(recurringStartDate, 'day');
     if (daysDiff > MAX_RECURRING_DAYS) {
-      toast.error(`Recurring period cannot exceed ${MAX_RECURRING_DAYS} days`);
+      showError(`Recurring period cannot exceed ${MAX_RECURRING_DAYS} days`);
       return;
     }
 
-    // Validate all slots
     for (const slot of recurringTimeSlots) {
       if (!slot.startTime || !slot.endTime) {
-        toast.error('All slots must have valid start and end times');
+        showError('All slots must have valid start and end times');
         return;
       }
       const timeRegex = new RegExp(
         `^${DEFAULT_TIME_FORMAT.replace('HH', '\\d{2}').replace('mm', '\\d{2}')}$`
       );
       if (!timeRegex.test(slot.startTime) || !timeRegex.test(slot.endTime)) {
-        toast.error(
+        showError(
           `Invalid time format. Use ${DEFAULT_TIME_FORMAT} (e.g., 09:00)`
         );
         return;
@@ -524,19 +545,18 @@ const DoctorAvailability: React.FC = () => {
         `${recurringStartDate.format('YYYY-MM-DD')} ${slot.endTime}`
       );
       if (!start.isValid() || !end.isValid() || !start.isBefore(end)) {
-        toast.error('Invalid slot: Start time must be before end time');
+        showError('Invalid slot: Start time must be before end time');
         return;
       }
     }
 
-    // Check for overlaps on the start date
     if (
       DateUtils.checkOverlappingSlots(
         recurringTimeSlots,
         recurringStartDate.toDate()
       )
     ) {
-      toast.error('Time slots cannot overlap');
+      showError('Time slots cannot overlap');
       return;
     }
 
@@ -551,14 +571,16 @@ const DoctorAvailability: React.FC = () => {
       const response = (await dispatch(
         setAvailabilityThunk(payload)
       ).unwrap()) as SetAvailabilityResponse;
-      toast.success('Recurring availability set successfully');
+      showSuccess('Recurring availability set successfully');
       if (response.conflicts.length > 0) {
-        const errors = response.conflicts.map((conflict, index) => (
-          <div key={index}>
-            {`${index + 1}-Failed to set availability for ${dayjs(conflict.date).format('YYYY-MM-DD')}: ${conflict.error}`}
-          </div>
-        ));
-        toast.warn(<div>{errors}</div>, { autoClose: 5000 });
+        const newErrors = new Map(conflictErrors);
+        response.conflicts.forEach((conflict) => {
+          newErrors.set(
+            dayjs(conflict.date).format(DEFAULT_DATE_FORMAT),
+            conflict.error
+          );
+        });
+        setConflictErrors(newErrors);
       }
       setIsRecurringModalOpen(false);
       setRecurringTimeSlots([]);
@@ -567,7 +589,8 @@ const DoctorAvailability: React.FC = () => {
       setRecurringDays([]);
       fetchAvailability();
     } catch (err: any) {
-      toast.error(err.message || 'Failed to set recurring availability');
+      console.error(err.message || 'Failed to set recurring availability');
+      showError(err.message || 'Failed to set recurring availability');
     }
   };
 
@@ -595,7 +618,6 @@ const DoctorAvailability: React.FC = () => {
 
   return (
     <>
-      <ToastContainer position="top-right" autoClose={3000} theme="dark" />
       <div className="bg-white/10 backdrop-blur-lg p-4 md:p-6 rounded-2xl border border-white/20 shadow-xl">
         <h2 className="text-xl font-bold text-white mb-4">
           Set Your Availability
@@ -681,56 +703,100 @@ const DoctorAvailability: React.FC = () => {
             .map((date) => {
               const avail = availabilityMap.get(date);
               const slotCount = avail?.timeSlots.length || 0;
+              const error = conflictErrors.get(date);
               return (
-                <Button
-                  key={date}
-                  variant="outlined"
-                  sx={{
-                    background:
-                      slotCount > 0
-                        ? 'linear-gradient(to right, rgba(34, 197, 94, 0.2), rgba(22, 163, 74, 0.2))'
-                        : 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid rgba(255, 255, 255, 0.2)',
-                    borderRadius: '8px',
-                    color: 'white',
-                    textAlign: 'center',
-                    padding: '16px',
-                    position: 'relative',
-                    '&:hover': {
-                      background:
-                        slotCount > 0
-                          ? 'linear-gradient(to right, rgba(34, 197, 94, 0.3), rgba(22, 163, 74, 0.3))'
-                          : 'rgba(255, 255, 255, 0.1)',
-                    },
-                  }}
-                  onClick={() => handleSelectDate(date)}
-                >
-                  <div>
+                <Box key={date} sx={{ position: 'relative' }}>
+                  <Button
+                    variant="outlined"
+                    sx={{
+                      background: error
+                        ? 'rgba(211, 47, 47, 0.2)'
+                        : slotCount > 0
+                          ? 'linear-gradient(to right, rgba(34, 197, 94, 0.2), rgba(22, 163, 74, 0.2))'
+                          : 'rgba(255, 255, 255, 0.05)',
+                      border: error
+                        ? '1px solid rgba(211, 47, 47, 0.5)'
+                        : '1px solid rgba(255, 255, 255, 0.2)',
+                      borderRadius: '8px',
+                      color: 'white',
+                      textAlign: 'center',
+                      padding: '16px',
+                      position: 'relative',
+                      '&:hover': {
+                        background: error
+                          ? 'rgba(211, 47, 47, 0.3)'
+                          : slotCount > 0
+                            ? 'linear-gradient(to right, rgba(34, 197, 94, 0.3), rgba(22, 163, 74, 0.3))'
+                            : 'rgba(255, 255, 255, 0.1)',
+                      },
+                      width: '100%',
+                    }}
+                    onClick={() => handleSelectDate(date)}
+                  >
                     <div>
-                      {DateUtils.formatToLocalDisplay(
-                        DateUtils.parseToUTC(date)
+                      <div>
+                        {DateUtils.formatToLocalDisplay(
+                          DateUtils.parseToUTC(date)
+                        )}
+                      </div>
+                      <div className="text-sm">
+                        {slotCount > 0
+                          ? `${slotCount} slot${slotCount > 1 ? 's' : ''}`
+                          : 'No slots'}
+                      </div>
+                      {slotCount > 0 && !error && (
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            top: 8,
+                            right: 8,
+                            width: 10,
+                            height: 10,
+                            borderRadius: '50%',
+                            bgcolor: 'success.main',
+                          }}
+                        />
+                      )}
+                      {error && (
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            top: 8,
+                            right: 8,
+                            width: 10,
+                            height: 10,
+                            borderRadius: '50%',
+                            bgcolor: 'error.main',
+                          }}
+                        />
                       )}
                     </div>
-                    <div className="text-sm">
-                      {slotCount > 0
-                        ? `${slotCount} slot${slotCount > 1 ? 's' : ''}`
-                        : 'No slots'}
-                    </div>
-                    {slotCount > 0 && (
+                  </Button>
+                  {error && (
+                    <Tooltip title={error} arrow>
                       <Box
                         sx={{
-                          position: 'absolute',
-                          top: 8,
-                          right: 8,
-                          width: 10,
-                          height: 10,
-                          borderRadius: '50%',
-                          bgcolor: 'success.main',
+                          color: 'error.main',
+                          fontSize: '0.75rem',
+                          mt: 0.5,
+                          textAlign: 'center',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
                         }}
-                      />
-                    )}
-                  </div>
-                </Button>
+                      >
+                        <WarningIcon
+                          sx={{
+                            fontSize: 16,
+                            verticalAlign: 'middle',
+                            mr: 0.5,
+                          }}
+                        />
+                        {error}
+                      </Box>
+                    </Tooltip>
+                  )}
+                </Box>
               );
             })}
         </Box>
@@ -840,7 +906,7 @@ const DoctorAvailability: React.FC = () => {
                   sx={{
                     color: '#d32f2f',
                     '&:hover': {
-                      backgroundColor: 'rgba(211, 47, 47, 0.1)', // Hover effect similar to bg-red-700
+                      backgroundColor: 'rgba(211, 47, 47, 0.1)',
                     },
                   }}
                   aria-label="Remove time slot"

@@ -20,7 +20,6 @@ import Pagination from '../../components/common/Pagination';
 import Modal from '../../components/common/Modal';
 import Avatar from '../../components/common/Avatar';
 import { Patient } from '../../types/authTypes';
-import { toast } from 'react-toastify';
 import { formatDate } from '../../utils/helpers';
 import {
   validateName,
@@ -28,6 +27,8 @@ import {
   validatePassword,
   validatePhone,
 } from '../../utils/validation';
+import { ITEMS_PER_PAGE } from '../../utils/constants';
+import { showSuccess, showError } from '../../utils/toastConfig';
 
 interface PaginationParams {
   page: number;
@@ -39,20 +40,12 @@ interface PaginationParams {
   isSubscribed?: boolean;
 }
 
-interface Confirmation {
-  isOpen: boolean;
-  message: string;
-  onConfirm: () => void;
-}
-
 interface Action {
   label: string;
   onClick: (item: Patient) => void | Promise<void>;
   className?: string;
   condition?: (item: Patient) => boolean;
 }
-
-const ITEMS_PER_PAGE = 5;
 
 const AdminManagePatients: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -82,11 +75,9 @@ const AdminManagePatients: React.FC = () => {
     password: '',
     phone: '',
   });
-  const [confirmation, setConfirmation] = useState<Confirmation>({
-    isOpen: false,
-    message: '',
-    onConfirm: () => {},
-  });
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -134,97 +125,75 @@ const AdminManagePatients: React.FC = () => {
 
   const handleCreatePatient = useCallback(async () => {
     if (!validateForm(newPatient)) {
-      toast.error('Please fix the form errors');
+      showError('Please fix the form errors');
       return;
     }
     try {
       await dispatch(createPatientThunk(newPatient)).unwrap();
-      toast.success('Patient created successfully');
+      showSuccess('Patient created successfully');
       setIsModalOpen(false);
       setNewPatient({ email: '', password: '', name: '', phone: '' });
       setFormErrors({ name: '', email: '', password: '', phone: '' });
     } catch (err) {
-      toast.error(`Failed to create patient: ${err}`);
+      showError(`Failed to create patient: ${err}`);
     }
   }, [dispatch, newPatient, validateForm]);
 
   const handleUpdatePatient = useCallback(async () => {
     if (!editPatient || !validateForm(editPatient)) {
-      toast.error('Please fix the form errors');
+      showError('Please fix the form errors');
       return;
     }
     try {
       await dispatch(
         updatePatientThunk({ id: editPatient._id, updates: editPatient })
       ).unwrap();
-      toast.success('Patient updated successfully');
+      showSuccess('Patient updated successfully');
       setEditPatient(null);
       setFormErrors({ name: '', email: '', password: '', phone: '' });
     } catch (err) {
-      toast.error(`Failed to update patient: ${err}`);
+      showError(`Failed to update patient: ${err}`);
     }
   }, [dispatch, editPatient, validateForm]);
 
   const handleDeletePatient = useCallback(
-    async (patient: Patient) => {
-      setConfirmation({
-        isOpen: true,
-        message: `Are you sure you want to delete patient ${patient.name || 'Unknown'}?`,
-        onConfirm: async () => {
-          try {
-            await dispatch(deletePatientThunk(patient._id)).unwrap();
-            toast.success('Patient deleted successfully');
-            setConfirmation({
-              isOpen: false,
-              message: '',
-              onConfirm: () => {},
-            });
-          } catch (err) {
-            toast.error(`Failed to delete patient: ${err}`);
-            setConfirmation({
-              isOpen: false,
-              message: '',
-              onConfirm: () => {},
-            });
-          }
-        },
-      });
+    async () => {
+      if (!selectedPatient) return;
+      try {
+        await dispatch(deletePatientThunk(selectedPatient._id)).unwrap();
+        showSuccess('Patient deleted successfully');
+        setIsDeleteModalOpen(false);
+        setSelectedPatient(null);
+      } catch (err) {
+        showError(`Failed to delete patient: ${err}`);
+        setIsDeleteModalOpen(false);
+        setSelectedPatient(null);
+      }
     },
-    [dispatch]
+    [dispatch, selectedPatient]
   );
 
   const handleBlockPatient = useCallback(
-    async (patient: Patient) => {
-      const action = patient.isBlocked ? 'unblock' : 'block';
-      setConfirmation({
-        isOpen: true,
-        message: `Are you sure you want to ${action} patient ${patient.name || 'Unknown'}?`,
-        onConfirm: async () => {
-          try {
-            await dispatch(
-              blockPatientThunk({
-                id: patient._id,
-                isBlocked: !patient.isBlocked,
-              })
-            ).unwrap();
-            toast.success(`Patient ${action}ed successfully`);
-            setConfirmation({
-              isOpen: false,
-              message: '',
-              onConfirm: () => {},
-            });
-          } catch (err) {
-            toast.error(`Failed to ${action} patient: ${err}`);
-            setConfirmation({
-              isOpen: false,
-              message: '',
-              onConfirm: () => {},
-            });
-          }
-        },
-      });
+    async () => {
+      if (!selectedPatient) return;
+      const action = selectedPatient.isBlocked ? 'unblock' : 'block';
+      try {
+        await dispatch(
+          blockPatientThunk({
+            id: selectedPatient._id,
+            isBlocked: !selectedPatient.isBlocked,
+          })
+        ).unwrap();
+        showSuccess(`Patient ${action}ed successfully`);
+        setIsBlockModalOpen(false);
+        setSelectedPatient(null);
+      } catch (err) {
+        showError(`Failed to ${action} patient: ${err}`);
+        setIsBlockModalOpen(false);
+        setSelectedPatient(null);
+      }
     },
-    [dispatch]
+    [dispatch, selectedPatient]
   );
 
   const columns = useMemo(
@@ -295,23 +264,32 @@ const AdminManagePatients: React.FC = () => {
       },
       {
         label: 'Delete',
-        onClick: handleDeletePatient,
+        onClick: (patient: Patient) => {
+          setSelectedPatient(patient);
+          setIsDeleteModalOpen(true);
+        },
         className: 'bg-red-600 hover:bg-red-700 px-3 py-1 rounded-lg',
       },
       {
         label: 'Block',
-        onClick: handleBlockPatient,
+        onClick: (patient: Patient) => {
+          setSelectedPatient(patient);
+          setIsBlockModalOpen(true);
+        },
         className: 'bg-yellow-600 hover:bg-yellow-700 px-3 py-1 rounded-lg',
         condition: (patient: Patient) => patient.isBlocked === false,
       },
       {
         label: 'Unblock',
-        onClick: handleBlockPatient,
+        onClick: (patient: Patient) => {
+          setSelectedPatient(patient);
+          setIsBlockModalOpen(true);
+        },
         className: 'bg-green-600 hover:bg-green-700 px-3 py-1 rounded-lg',
         condition: (patient: Patient) => patient.isBlocked === true,
       },
     ],
-    [handleDeletePatient, handleBlockPatient]
+    []
   );
 
   const statusOptions = useMemo(
@@ -603,37 +581,76 @@ const AdminManagePatients: React.FC = () => {
           </div>
         </Modal>
       )}
-      <Modal
-        isOpen={confirmation.isOpen}
-        onClose={() =>
-          setConfirmation({ isOpen: false, message: '', onConfirm: () => {} })
-        }
-        title="Confirm Action"
-        footer={
-          <div className="flex justify-end gap-3">
-            <button
-              onClick={() =>
-                setConfirmation({
-                  isOpen: false,
-                  message: '',
-                  onConfirm: () => {},
-                })
-              }
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={confirmation.onConfirm}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all duration-300"
-            >
-              Confirm
-            </button>
-          </div>
-        }
-      >
-        <p className="text-gray-300">{confirmation.message}</p>
-      </Modal>
+      {isDeleteModalOpen && selectedPatient && (
+        <Modal
+          isOpen={isDeleteModalOpen}
+          onClose={() => {
+            setIsDeleteModalOpen(false);
+            setSelectedPatient(null);
+          }}
+          title="Confirm Delete"
+          footer={
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setIsDeleteModalOpen(false);
+                  setSelectedPatient(null);
+                }}
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeletePatient}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all duration-300"
+              >
+                Delete
+              </button>
+            </div>
+          }
+        >
+          <p className="text-white">
+            Are you sure you want to delete {selectedPatient.name || 'Unknown'}?
+          </p>
+        </Modal>
+      )}
+      {isBlockModalOpen && selectedPatient && (
+        <Modal
+          isOpen={isBlockModalOpen}
+          onClose={() => {
+            setIsBlockModalOpen(false);
+            setSelectedPatient(null);
+          }}
+          title={selectedPatient.isBlocked ? "Confirm Unblock" : "Confirm Block"}
+          footer={
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setIsBlockModalOpen(false);
+                  setSelectedPatient(null);
+                }}
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBlockPatient}
+                className={`px-4 py-2 text-white rounded-lg transition-all duration-300 ${
+                  selectedPatient.isBlocked
+                    ? 'bg-green-600 hover:bg-green-700'
+                    : 'bg-yellow-600 hover:bg-yellow-700'
+                }`}
+              >
+                {selectedPatient.isBlocked ? 'Unblock' : 'Block'}
+              </button>
+            </div>
+          }
+        >
+          <p className="text-white">
+            Are you sure you want to {selectedPatient.isBlocked ? 'unblock' : 'block'} {selectedPatient.name || 'Unknown'}?
+          </p>
+        </Modal>
+      )}
     </div>
   );
 };

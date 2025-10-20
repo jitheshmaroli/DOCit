@@ -22,7 +22,6 @@ import Pagination from '../../components/common/Pagination';
 import Modal from '../../components/common/Modal';
 import Avatar from '../../components/common/Avatar';
 import { Doctor, QueryParams } from '../../types/authTypes';
-import { toast } from 'react-toastify';
 import {
   validateName,
   validateEmail,
@@ -31,6 +30,7 @@ import {
   validateLicenseNumber,
 } from '../../utils/validation';
 import { ITEMS_PER_PAGE } from '../../utils/constants';
+import { showError, showSuccess } from '../../utils/toastConfig';
 
 const AdminManageDoctors: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -64,6 +64,10 @@ const AdminManageDoctors: React.FC = () => {
     phone: '',
     licenseNumber: '',
   });
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
+  const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
+  const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -123,12 +127,12 @@ const AdminManageDoctors: React.FC = () => {
 
   const handleCreateDoctor = useCallback(async () => {
     if (!validateForm(newDoctor)) {
-      toast.error('Please fix the form errors');
+      showError('Please fix the form errors');
       return;
     }
     try {
       await dispatch(createDoctorThunk(newDoctor)).unwrap();
-      toast.success('Doctor created successfully');
+      showSuccess('Doctor created successfully');
       setIsModalOpen(false);
       setNewDoctor({
         email: '',
@@ -145,20 +149,21 @@ const AdminManageDoctors: React.FC = () => {
         licenseNumber: '',
       });
     } catch (err) {
-      toast.error(`Failed to create doctor: ${err}`);
+      console.error(`Failed to create doctor: ${err}`);
+      showError(`Failed to create doctor: ${err}`);
     }
   }, [dispatch, newDoctor, validateForm]);
 
   const handleUpdateDoctor = useCallback(async () => {
     if (!editDoctor || !validateForm(editDoctor)) {
-      toast.error('Please fix the form errors');
+      showError('Please fix the form errors');
       return;
     }
     try {
       await dispatch(
         updateDoctorThunk({ id: editDoctor._id, updates: editDoctor })
       ).unwrap();
-      toast.success('Doctor updated successfully');
+      showSuccess('Doctor updated successfully');
       setEditDoctor(null);
       setFormErrors({
         name: '',
@@ -168,53 +173,60 @@ const AdminManageDoctors: React.FC = () => {
         licenseNumber: '',
       });
     } catch (err) {
-      toast.error(`Failed to update doctor: ${err}`);
+      console.error(`Failed to update doctor: ${err}`);
+      showError(`Failed to update doctor: ${err}`);
     }
   }, [dispatch, editDoctor, validateForm]);
 
   const handleDeleteDoctor = useCallback(
-    async (doctor: Doctor) => {
-      if (window.confirm('Are you sure you want to delete this doctor?')) {
-        try {
-          await dispatch(deleteDoctorThunk(doctor._id)).unwrap();
-          toast.success('Doctor deleted successfully');
-        } catch (err) {
-          toast.error(`Failed to delete doctor: ${err}`);
-        }
+    async () => {
+      if (!selectedDoctor) return;
+      try {
+        await dispatch(deleteDoctorThunk(selectedDoctor._id)).unwrap();
+        showSuccess('Doctor deleted successfully');
+        setIsDeleteModalOpen(false);
+        setSelectedDoctor(null);
+      } catch (err) {
+        console.error(`Failed to delete doctor: ${err}`);
+        showError(`Failed to delete doctor: ${err}`);
       }
     },
-    [dispatch]
+    [dispatch, selectedDoctor]
   );
 
   const handleBlockDoctor = useCallback(
-    async (doctor: Doctor) => {
-      const action = doctor.isBlocked ? 'unblock' : 'block';
-      if (window.confirm(`Are you sure you want to ${action} this doctor?`)) {
-        try {
-          await dispatch(
-            blockDoctorThunk({ id: doctor._id, isBlocked: !doctor.isBlocked })
-          ).unwrap();
-          toast.success(`Doctor ${action}ed successfully`);
-        } catch (err) {
-          toast.error(`Failed to ${action} doctor: ${err}`);
-        }
+    async () => {
+      if (!selectedDoctor) return;
+      const action = selectedDoctor.isBlocked ? 'unblock' : 'block';
+      try {
+        await dispatch(
+          blockDoctorThunk({ id: selectedDoctor._id, isBlocked: !selectedDoctor.isBlocked })
+        ).unwrap();
+        showSuccess(`Doctor ${action}ed successfully`);
+        setIsBlockModalOpen(false);
+        setSelectedDoctor(null);
+      } catch (err) {
+        console.error(`Failed to ${action} doctor: ${err}`);
+        showError(`Failed to ${action} doctor: ${err}`);
       }
     },
-    [dispatch]
+    [dispatch, selectedDoctor]
   );
 
   const handleVerifyDoctor = useCallback(
-    async (doctor: Doctor) => {
-      if (window.confirm('Are you sure you want to verify this doctor?')) {
-        try {
-          await dispatch(verifyDoctorThunk(doctor._id)).unwrap();
-          toast.success('Doctor verified successfully');
-        } catch (err) {
-          toast.error(`Failed to verify doctor: ${err}`);
-        }
+    async () => {
+      if (!selectedDoctor) return;
+      try {
+        await dispatch(verifyDoctorThunk(selectedDoctor._id)).unwrap();
+        showSuccess('Doctor verified successfully');
+        setIsVerifyModalOpen(false);
+        setSelectedDoctor(null);
+      } catch (err) {
+        console.error(`Failed to verify doctor: ${err}`);
+        showError(`Failed to verify doctor: ${err}`);
       }
     },
-    [dispatch]
+    [dispatch, selectedDoctor]
   );
 
   const columns = useMemo(
@@ -313,29 +325,41 @@ const AdminManageDoctors: React.FC = () => {
       },
       {
         label: 'Delete',
-        onClick: handleDeleteDoctor,
+        onClick: (doctor: Doctor) => {
+          setSelectedDoctor(doctor);
+          setIsDeleteModalOpen(true);
+        },
         className: 'bg-red-600 hover:bg-red-700 px-3 py-1 rounded-lg',
       },
       {
         label: 'Block',
-        onClick: handleBlockDoctor,
+        onClick: (doctor: Doctor) => {
+          setSelectedDoctor(doctor);
+          setIsBlockModalOpen(true);
+        },
         className: 'bg-yellow-600 hover:bg-yellow-700 px-3 py-1 rounded-lg',
         condition: (doctor: Doctor) => !doctor.isBlocked,
       },
       {
         label: 'Unblock',
-        onClick: handleBlockDoctor,
+        onClick: (doctor: Doctor) => {
+          setSelectedDoctor(doctor);
+          setIsBlockModalOpen(true);
+        },
         className: 'bg-green-600 hover:bg-green-700 px-3 py-1 rounded-lg',
         condition: (doctor: Doctor) => doctor.isBlocked,
       },
       {
         label: 'Verify',
-        onClick: handleVerifyDoctor,
+        onClick: (doctor: Doctor) => {
+          setSelectedDoctor(doctor);
+          setIsVerifyModalOpen(true);
+        },
         className: 'bg-purple-600 hover:bg-purple-700 px-3 py-1 rounded-lg',
         condition: (doctor: Doctor) => !doctor.isVerified,
       },
     ],
-    [handleDeleteDoctor, handleBlockDoctor, handleVerifyDoctor]
+    []
   );
 
   const statusOptions = useMemo(
@@ -723,6 +747,109 @@ const AdminManageDoctors: React.FC = () => {
               )}
             </div>
           </div>
+        </Modal>
+      )}
+      {isDeleteModalOpen && selectedDoctor && (
+        <Modal
+          isOpen={isDeleteModalOpen}
+          onClose={() => {
+            setIsDeleteModalOpen(false);
+            setSelectedDoctor(null);
+          }}
+          title="Confirm Delete"
+          footer={
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setIsDeleteModalOpen(false);
+                  setSelectedDoctor(null);
+                }}
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteDoctor}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all duration-300"
+              >
+                Delete
+              </button>
+            </div>
+          }
+        >
+          <p className="text-white">
+            Are you sure you want to delete {selectedDoctor.name}?
+          </p>
+        </Modal>
+      )}
+      {isBlockModalOpen && selectedDoctor && (
+        <Modal
+          isOpen={isBlockModalOpen}
+          onClose={() => {
+            setIsBlockModalOpen(false);
+            setSelectedDoctor(null);
+          }}
+          title={selectedDoctor.isBlocked ? "Confirm Unblock" : "Confirm Block"}
+          footer={
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setIsBlockModalOpen(false);
+                  setSelectedDoctor(null);
+                }}
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBlockDoctor}
+                className={`px-4 py-2 text-white rounded-lg transition-all duration-300 ${
+                  selectedDoctor.isBlocked
+                    ? 'bg-green-600 hover:bg-green-700'
+                    : 'bg-yellow-600 hover:bg-yellow-700'
+                }`}
+              >
+                {selectedDoctor.isBlocked ? 'Unblock' : 'Block'}
+              </button>
+            </div>
+          }
+        >
+          <p className="text-white">
+            Are you sure you want to {selectedDoctor.isBlocked ? 'unblock' : 'block'} {selectedDoctor.name}?
+          </p>
+        </Modal>
+      )}
+      {isVerifyModalOpen && selectedDoctor && (
+        <Modal
+          isOpen={isVerifyModalOpen}
+          onClose={() => {
+            setIsVerifyModalOpen(false);
+            setSelectedDoctor(null);
+          }}
+          title="Confirm Verify"
+          footer={
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setIsVerifyModalOpen(false);
+                  setSelectedDoctor(null);
+                }}
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleVerifyDoctor}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all duration-300"
+              >
+                Verify
+              </button>
+            </div>
+          }
+        >
+          <p className="text-white">
+            Are you sure you want to verify {selectedDoctor.name}?
+          </p>
         </Modal>
       )}
     </div>

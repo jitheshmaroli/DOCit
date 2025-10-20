@@ -193,8 +193,10 @@ export const fetchSpecialities = async () => {
   return response.data;
 };
 
-export const getDashboardStats = async () => {
-  const response = await api.get(ROUTES.API.DOCTOR.DASHBOARD_STATS);
+export const getDashboardStats = async (query: QueryParams = {}) => {
+  const response = await api.get(ROUTES.API.DOCTOR.DASHBOARD_STATS, {
+    params: query,
+  });
   return response.data;
 };
 
@@ -218,6 +220,7 @@ export const getAppointedPatients = async (page: number, limit: number) => {
   const response = await api.get(ROUTES.API.DOCTOR.APPOINTED_PATIENTS, {
     params: { page, limit },
   });
+  console.log('patients:', response.data);
   return response.data;
 };
 
@@ -244,7 +247,7 @@ export const fetchDashboardData = async ({
       plansResponse,
       reportsResponse,
     ] = await Promise.all([
-      getDashboardStats(),
+      getDashboardStats({ page, limit }),
       getAppointments(page, limit),
       getSubscriptionPlans({ page, limit }),
       getReports({
@@ -258,18 +261,17 @@ export const fetchDashboardData = async ({
       }),
     ]);
 
-    const plans: Plan[] = plansResponse.data.map(
-      (plan: Plan) => ({
-        id: plan.id,
-        name: plan.name,
-        subscribers:
-          statsResponse.planWiseRevenue.find(
-            (p: PlanWiseRevenue) => p.planId === plan.id
-          )?.subscribers || 0,
-        status: plan.status,
-        expired: plan.status === 'rejected',
-      })
-    );
+    const plans: Plan[] = plansResponse.data.map((plan: Plan) => ({
+      id: plan.id,
+      name: plan.name,
+      subscribers:
+        statsResponse.planWiseRevenue.find(
+          (p: PlanWiseRevenue) => p.planId.toString() === plan.id
+        )?.subscribers || 0,
+      status: plan.status,
+      expired: plan.status === 'expired',
+    }));
+    console.log('statsresponse:', statsResponse);
 
     return {
       stats: statsResponse,

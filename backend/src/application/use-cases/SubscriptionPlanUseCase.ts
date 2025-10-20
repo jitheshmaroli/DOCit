@@ -195,10 +195,10 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
       throw new NotFoundError('Plan not found');
     }
 
-    const activeSubscriptions = await this._patientSubscriptionRepository.findActiveSubscriptions();
+    const activeSubscriptions = await this._patientSubscriptionRepository.findAll();
     const isPlanInUse = activeSubscriptions.some((sub) => {
       if (!sub.planId) return false;
-      return sub.planId.toString() === planId;
+      return sub.status === 'active' && sub.planId.toString() === planId;
     });
 
     if (isPlanInUse) {
@@ -354,8 +354,10 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
       this._emailService.sendEmail(doctor.email, doctorEmailSubject, doctorEmailText),
     ]);
 
-    const activeSubscriptions = await this._patientSubscriptionRepository.findActiveSubscriptions();
-    const hasActiveSubscriptions = activeSubscriptions.some((sub) => sub.patientId?.toString() === patientId);
+    const activeSubscriptions = await this._patientSubscriptionRepository.findAll();
+    const hasActiveSubscriptions = activeSubscriptions.some(
+      (sub) => sub.status === 'active' && sub.patientId?.toString() === patientId
+    );
     await this._patientRepository.updateSubscriptionStatus(patientId, hasActiveSubscriptions);
 
     return PatientSubscriptionMapper.toDTO(savedSubscription);

@@ -31,6 +31,7 @@ export const getDoctor = async (doctorId: string): Promise<Doctor | null> => {
     const response = await api.get(
       ROUTES.API.PATIENT.DOCTOR_BY_ID.replace(':doctorId', doctorId)
     );
+    console.log('doctorDetails:', response.data);
     return response.data || null;
   } catch (error) {
     const axiosError = error as AxiosError<PatientApiError>;

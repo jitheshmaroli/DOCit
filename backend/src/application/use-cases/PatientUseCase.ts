@@ -183,7 +183,7 @@ export class PatientUseCase implements IPatientUseCase {
     this._validatorService.validateRequiredFields({ doctorId });
     this._validatorService.validateIdFormat(doctorId);
 
-    const activeSubscriptions = await this._patientSubscriptionRepository.findActiveSubscriptions();
+    const activeSubscriptions = await this._patientSubscriptionRepository.findAll();
     const patientIds: string[] = [];
     const patientSubscriptions: { [patientId: string]: PatientSubscription[] } = {};
 

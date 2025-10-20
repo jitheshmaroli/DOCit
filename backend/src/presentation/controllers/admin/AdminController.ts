@@ -8,6 +8,7 @@ import { ValidationError } from '../../../utils/errors';
 import { QueryParams } from '../../../types/authTypes';
 import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
+import logger from '../../../utils/logger';
 
 export class AdminController {
   constructor(
@@ -21,6 +22,7 @@ export class AdminController {
   async getDashboardStats(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const stats = await this._reportUseCase.getAdminDashboardStats();
+      logger.debug(stats);
       res.status(HttpStatusCode.OK).json(stats);
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
@@ -42,6 +44,7 @@ export class AdminController {
         startDate,
         endDate,
       });
+      logger.debug(reportData);
       res.status(HttpStatusCode.OK).json(reportData);
     } catch (error) {
       next(error);
@@ -90,16 +93,20 @@ export class AdminController {
 
   async getAllAppointments(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const params = req.query as QueryParams;
-      const { data, totalItems } = await this._appointmentUseCase.getAllAppointments(params);
+      const queryParams: QueryParams = {
+        page: req.query.page ? parseInt(String(req.query.page)) : 1,
+        limit: req.query.limit ? parseInt(String(req.query.limit)) : 5,
+        search: req.query.search ? String(req.query.search) : undefined,
+        sortBy: req.query.sortBy ? String(req.query.sortBy) : undefined,
+        sortOrder: req.query.sortOrder ? (String(req.query.sortOrder) as 'asc' | 'desc') : undefined,
+        status: req.query.status ? String(req.query.status) : undefined,
+      };
+      const { data, totalItems } = await this._appointmentUseCase.getAllAppointments(queryParams);
       const appointmentDTOs = data;
-      const { page = 1, limit = 10 } = params;
-      const totalPages = Math.ceil(totalItems / limit);
+      logger.debug(data);
 
       res.status(HttpStatusCode.OK).json({
         data: appointmentDTOs,
-        totalPages,
-        currentPage: page,
         totalItems,
       });
     } catch (error) {

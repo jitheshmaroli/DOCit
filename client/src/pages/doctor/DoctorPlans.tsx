@@ -1,8 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
-import { toast, ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
 import {
   createSubscriptionPlanThunk,
   getSubscriptionPlansThunk,
@@ -19,6 +17,7 @@ import {
   PlanFormData,
   SubscriptionPlan,
 } from '../../types/subscriptionTypes';
+import { showError, showSuccess } from '../../utils/toastConfig';
 
 const DoctorPlans: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -93,7 +92,7 @@ const DoctorPlans: React.FC = () => {
 
   const handleSubmitPlan = async () => {
     if (!validateForm()) {
-      toast.error('Please fix all form errors');
+      showError('Please fix all form errors');
       return;
     }
 
@@ -110,10 +109,10 @@ const DoctorPlans: React.FC = () => {
         await dispatch(
           updateSubscriptionPlanThunk({ id: selectedPlanId, ...payload })
         ).unwrap();
-        toast.success('Plan updated successfully');
+        showSuccess('Plan updated successfully');
       } else {
         await dispatch(createSubscriptionPlanThunk(payload)).unwrap();
-        toast.success('Plan created successfully');
+        showSuccess('Plan created successfully');
       }
 
       setIsModalOpen(false);
@@ -133,7 +132,7 @@ const DoctorPlans: React.FC = () => {
     } catch (error: any) {
       const errorMessage =
         error?.message || (error as Error)?.message || error || 'Unknown error';
-      toast.error(
+      showError(
         `Failed to ${isEditMode ? 'update' : 'create'} plan: ${errorMessage}`
       );
     }
@@ -155,23 +154,32 @@ const DoctorPlans: React.FC = () => {
 
   const handleDeletePlan = async (plan: SubscriptionPlan) => {
     if (window.confirm('Are you sure you want to delete this plan?')) {
-      try {
-        await dispatch(deleteSubscriptionPlanThunk(plan._id)).unwrap();
-        toast.success('Plan deleted successfully');
-        dispatch(
-          getSubscriptionPlansThunk({
-            page: currentPage,
-            limit: ITEMS_PER_PAGE,
-          })
-        );
-      } catch (error: any) {
-        const errorMessage =
-          error?.message ||
-          (error as Error)?.message ||
-          error ||
-          'Unknown error';
-        toast.error(`Failed to delete plan: ${errorMessage}`);
-      }
+      await dispatch(deleteSubscriptionPlanThunk(plan._id)).unwrap();
+      showSuccess('Plan deleted successfully');
+      dispatch(
+        getSubscriptionPlansThunk({
+          page: currentPage,
+          limit: ITEMS_PER_PAGE,
+        })
+      );
+      // try {
+      //   await dispatch(deleteSubscriptionPlanThunk(plan._id)).unwrap();
+      //   showSuccess('Plan deleted successfully');
+      //   // toast.success('Plan deleted successfully');
+      //   dispatch(
+      //     getSubscriptionPlansThunk({
+      //       page: currentPage,
+      //       limit: ITEMS_PER_PAGE,
+      //     })
+      //   );
+      // } catch (error: any) {
+      //   const errorMessage =
+      //     error?.message ||
+      //     (error as Error)?.message ||
+      //     error ||
+      //     'Unknown error';
+      //   toast.error(`Failed to delete plan: ${errorMessage}`);
+      // }
     }
   };
 
@@ -228,7 +236,6 @@ const DoctorPlans: React.FC = () => {
 
   return (
     <>
-      <ToastContainer position="top-right" autoClose={3000} theme="dark" />
       <div className="bg-white/10 backdrop-blur-lg p-4 md:p-6 rounded-2xl border border-white/20 shadow-xl">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent">

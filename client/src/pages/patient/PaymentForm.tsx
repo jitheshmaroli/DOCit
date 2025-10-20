@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { toast } from 'react-toastify';
 import { useAppDispatch } from '../../redux/hooks';
 import { confirmSubscriptionThunk } from '../../redux/thunks/doctorThunk';
 import {
@@ -8,6 +7,7 @@ import {
   useElements,
 } from '@stripe/react-stripe-js';
 import useAuth from '../../hooks/useAuth';
+import { showError, showSuccess } from '../../utils/toastConfig';
 
 interface PaymentDetails {
   paymentIntentId: string;
@@ -81,7 +81,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         };
 
         onSuccess(paymentDetails);
-        toast.success('Payment successful! Subscribed to plan.');
+        showSuccess('Payment successful! Subscribed to plan.');
       } else {
         throw new Error('Payment not completed');
       }
@@ -89,7 +89,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
       onError(errorMessage);
-      toast.error(`Payment failed: ${errorMessage}`);
+      showError(`Payment failed: ${errorMessage}`);
     } finally {
       setIsProcessing(false);
     }

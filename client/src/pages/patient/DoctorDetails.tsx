@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { toast } from 'react-toastify'; // Keep for action-specific toasts
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import {
   fetchDoctorByIdThunk,
@@ -30,6 +29,7 @@ import { getDoctorReviews } from '../../services/patientService';
 import { debounce } from 'lodash';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { ITEMS_PER_PAGE } from '../../utils/constants';
+import { showError, showSuccess } from '../../utils/toastConfig';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);
 
@@ -149,9 +149,7 @@ const DoctorDetails: React.FC = () => {
         .then(() => {
           setSubscriptionsLoaded(true);
         })
-        .catch((error) => {
-          console.error('Failed to fetch subscriptions:', error);
-          // Let ToastManager handle the error via Redux
+        .catch(() => {
           setSubscriptionsLoaded(true);
         });
 
@@ -202,10 +200,8 @@ const DoctorDetails: React.FC = () => {
           } else {
             setAvailableDates([]);
             setAvailability([]);
-            // Let ToastManager handle via Redux
           }
         } else {
-          // Let ToastManager handle via Redux
           setAvailableDates([]);
           setAvailability([]);
         }
@@ -215,7 +211,6 @@ const DoctorDetails: React.FC = () => {
           setReviews(reviews);
         })
         .catch(() => {
-          // Let ToastManager handle via Redux
           setReviews([]);
         });
     }
@@ -223,8 +218,6 @@ const DoctorDetails: React.FC = () => {
       dispatch(clearRefundDetails());
     };
   }, [dispatch, doctorId, currentPage]);
-
-  // Removed useEffect for toasting doctorError, patientError, subscriptionStatus
 
   const handleSubscribe = async (planId: string, price: number) => {
     if (!user) {
@@ -250,24 +243,27 @@ const DoctorDetails: React.FC = () => {
     setSelectedPlan(null);
     setClientSecret(null);
     dispatch(getPatientSubscriptionsThunk());
-    toast.success('Successfully subscribed to plan', {
-      toastId: 'subscription-success',
-      autoClose: 3000,
-    });
+    // showSuccess('Successfully subscribed to plan');
+    // toast.success('Successfully subscribed to plan', {
+    //   toastId: 'subscription-success',
+    //   autoClose: 3000,
+    // });
   };
 
   const debouncedCancelSubscription = debounce(async () => {
     if (!doctorId || !activeSubscription?._id) {
-      toast.error('No active subscription to cancel', {
-        toastId: 'no-subscription-error',
-      });
+      showError('No active subscription to cancel');
+      // toast.error('No active subscription to cancel', {
+      //   toastId: 'no-subscription-error',
+      // });
       setIsCancelSubscriptionModalOpen(false);
       return;
     }
     if (!cancellationReason.trim()) {
-      toast.error('Please provide a cancellation reason', {
-        toastId: 'cancellation-reason-error',
-      });
+      showError('Please provide a cancellation reason');
+      // toast.error('Please provide a cancellation reason', {
+      //   toastId: 'cancellation-reason-error',
+      // });
       return;
     }
     try {
@@ -280,11 +276,11 @@ const DoctorDetails: React.FC = () => {
       dispatch(getPatientSubscriptionsThunk());
       setModalMode('refund');
       setCancellationReason('');
-      toast.success('Subscription cancelled successfully', {
-        toastId: 'cancel-subscription-success',
-      });
+      showSuccess('Subscription cancelled successfully');
+      // toast.success('Subscription cancelled successfully', {
+      //   toastId: 'cancel-subscription-success',
+      // });
     } catch {
-      // Error is handled by Redux and ToastManager
       setIsCancelSubscriptionModalOpen(false);
       setCancellationReason('');
     }
@@ -339,9 +335,10 @@ const DoctorDetails: React.FC = () => {
 
   const handleBookAppointment = async (isFreeBooking: boolean = false) => {
     if (!selectedSlot || !selectedDate || !doctorId) {
-      toast.error('Please select a date and time slot', {
-        toastId: 'booking-selection-error',
-      });
+      showError('Please select a date and time slot');
+      // toast.error('Please select a date and time slot', {
+      //   toastId: 'booking-selection-error',
+      // });
       return;
     }
     if (
@@ -349,10 +346,13 @@ const DoctorDetails: React.FC = () => {
       (!activeSubscription || activeSubscription.status !== 'active')
     ) {
       if (!canBookFreeAppointment) {
-        toast.error(
-          'Please subscribe to a plan or check free booking eligibility',
-          { toastId: 'booking-eligibility-error' }
+        showError(
+          'Please subscribe to a plan or check free booking eligibility'
         );
+        // toast.error(
+        //   'Please subscribe to a plan or check free booking eligibility',
+        //   { toastId: 'booking-eligibility-error' }
+        // );
         return;
       }
     }
@@ -366,12 +366,13 @@ const DoctorDetails: React.FC = () => {
         isFreeBooking,
       })
     ).unwrap();
-    toast.success('Appointment booked successfully', {
-      toastId: 'booking-success',
-      position: 'top-right',
-      autoClose: 3000,
-      theme: 'dark',
-    });
+    showSuccess('Appointment booked successfully');
+    // toast.success('Appointment booked successfully', {
+    //   toastId: 'booking-success',
+    //   position: 'top-right',
+    //   autoClose: 3000,
+    //   theme: 'dark',
+    // });
     setBookingConfirmed(true);
     setSelectedSlot(null);
     dispatch(
@@ -440,10 +441,8 @@ const DoctorDetails: React.FC = () => {
           setAvailableDates([]);
           setAvailability([]);
           setCurrentTimeSlots([]);
-          // Let ToastManager handle via Redux
         }
       } else {
-        // Let ToastManager handle via Redux
         setAvailableDates([]);
         setAvailability([]);
         setCurrentTimeSlots([]);
@@ -695,8 +694,7 @@ const DoctorDetails: React.FC = () => {
               } border rounded-lg p-4`}
             >
               <h4 className="text-lg font-semibold text-white">
-                {activeSubscription.status === 'active' ? 'Active' : 'Expired'}{' '}
-                Plan: {activeSubscription.plan.name}
+                {activeSubscription.status} Plan: {activeSubscription.plan.name}
               </h4>
               <p className="text-sm text-gray-200 mt-2">
                 Description: {activeSubscription.plan.description || 'N/A'}
@@ -910,7 +908,8 @@ const DoctorDetails: React.FC = () => {
                   price={selectedPlan.price}
                   onSuccess={handlePaymentSuccess}
                   onError={(error) => {
-                    toast.error(error, { toastId: 'payment-error' });
+                    showError(error);
+                    // toast.error(error, { toastId: 'payment-error' });
                   }}
                 />
               </Elements>

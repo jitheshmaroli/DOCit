@@ -10,8 +10,8 @@ import FilterSelect from '../../components/common/FilterSelect';
 import Pagination from '../../components/common/Pagination';
 import Modal from '../../components/common/Modal';
 import { Appointment, PaginationParams } from '../../types/authTypes';
-import { toast } from 'react-toastify';
 import { ITEMS_PER_PAGE } from '../../utils/constants';
+import { showSuccess, showError } from '../../utils/toastConfig';
 
 const AdminAppointments: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -30,6 +30,7 @@ const AdminAppointments: React.FC = () => {
   const [selectedAppointment, setSelectedAppointment] =
     useState<Appointment | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [showFullNotes, setShowFullNotes] = useState(false);
 
   useEffect(() => {
@@ -59,23 +60,25 @@ const AdminAppointments: React.FC = () => {
   }, [totalPagesFromState.appointments]);
 
   const handleCancelAppointment = useCallback(
-    async (appointment: Appointment) => {
-      if (window.confirm('Are you sure you want to cancel this appointment?')) {
-        try {
-          await dispatch(cancelAppointmentThunk(appointment._id)).unwrap();
-          toast.success('Appointment cancelled successfully');
-        } catch (err) {
-          toast.error(`Failed to cancel appointment: ${err}`);
-        }
+    async () => {
+      if (!selectedAppointment) return;
+      try {
+        await dispatch(cancelAppointmentThunk(selectedAppointment._id)).unwrap();
+        showSuccess('Appointment cancelled successfully');
+        setIsCancelModalOpen(false);
+        setSelectedAppointment(null);
+      } catch (err) {
+        console.error(`Failed to cancel appointment: ${err}`);
+        showError(`Failed to cancel appointment: ${err}`);
       }
     },
-    [dispatch]
+    [dispatch, selectedAppointment]
   );
 
   const handleViewDetails = useCallback((appointment: Appointment) => {
     setSelectedAppointment(appointment);
     setIsModalOpen(true);
-    setShowFullNotes(false); // Reset notes display when opening modal
+    setShowFullNotes(false);
   }, []);
 
   const handleCloseModal = useCallback(() => {
@@ -89,12 +92,12 @@ const AdminAppointments: React.FC = () => {
       {
         header: 'Patient',
         accessor: (appt: Appointment): React.ReactNode =>
-          appt.patientId?.name || 'N/A',
+          appt.patientName || 'N/A',
       },
       {
         header: 'Doctor',
         accessor: (appt: Appointment): React.ReactNode =>
-          appt.doctorId?.name || 'N/A',
+          appt.doctorName || 'N/A',
       },
       {
         header: 'Date',
@@ -137,12 +140,15 @@ const AdminAppointments: React.FC = () => {
       },
       {
         label: 'Cancel',
-        onClick: handleCancelAppointment,
+        onClick: (appointment: Appointment) => {
+          setSelectedAppointment(appointment);
+          setIsCancelModalOpen(true);
+        },
         className: 'bg-red-600 hover:bg-red-700 px-3 py-1 rounded-lg',
         condition: (appt: Appointment) => appt.status === 'pending',
       },
     ],
-    [handleCancelAppointment, handleViewDetails]
+    [handleViewDetails]
   );
 
   const statusOptions = useMemo(
@@ -248,11 +254,11 @@ const AdminAppointments: React.FC = () => {
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span className="text-gray-300">Patient Name:</span>
-                    <span>{selectedAppointment.patientId?.name || 'N/A'}</span>
+                    <span>{selectedAppointment.patientName || 'N/A'}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-300">Doctor Name:</span>
-                    <span>{selectedAppointment.doctorId?.name || 'N/A'}</span>
+                    <span>{selectedAppointment.doctorName || 'N/A'}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-300">Booking Type:</span>
@@ -398,6 +404,39 @@ const AdminAppointments: React.FC = () => {
           </div>
         )}
       </Modal>
+      {isCancelModalOpen && selectedAppointment && (
+        <Modal
+          isOpen={isCancelModalOpen}
+          onClose={() => {
+            setIsCancelModalOpen(false);
+            setSelectedAppointment(null);
+          }}
+          title="Confirm Cancel Appointment"
+          footer={
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setIsCancelModalOpen(false);
+                  setSelectedAppointment(null);
+                }}
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCancelAppointment}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all duration-300"
+              >
+                Cancel Appointment
+              </button>
+            </div>
+          }
+        >
+          <p className="text-white">
+            Are you sure you want to cancel the appointment for {selectedAppointment.patientName} with {selectedAppointment.doctorName}?
+          </p>
+        </Modal>
+      )}
     </div>
   );
 };

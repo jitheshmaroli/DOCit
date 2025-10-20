@@ -2,9 +2,11 @@ import { BrowserRouter } from 'react-router-dom';
 import AppRoutes from './AppRoutes';
 import { useAppSelector } from './redux/hooks';
 import { useEffect } from 'react';
-import { toast, ToastContainer } from 'react-toastify';
+import { ToastContainer } from 'react-toastify';
+import { toastConfig } from './utils/toastConfig';
 import { useSocket } from './hooks/useSocket';
 import ToastManager from './components/ToastManager';
+import 'react-toastify/dist/ReactToastify.css';
 
 const App = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -24,7 +26,6 @@ const App = () => {
           });
         } catch (error) {
           console.error('Failed to connect socket:', error);
-          toast.error('Failed to connect to real-time service');
         }
       };
 
@@ -40,7 +41,7 @@ const App = () => {
 
   return (
     <BrowserRouter>
-      <ToastContainer position="top-right" autoClose={3000} theme="dark" />
+      <ToastContainer {...toastConfig} limit={5} />
       <ToastManager />
       <AppRoutes />
     </BrowserRouter>

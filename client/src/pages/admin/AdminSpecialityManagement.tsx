@@ -17,8 +17,8 @@ import SearchBar from '../../components/common/SearchBar';
 import Pagination from '../../components/common/Pagination';
 import Modal from '../../components/common/Modal';
 import { Speciality } from '../../types/authTypes';
-import { toast } from 'react-toastify';
 import { validateName } from '../../utils/validation';
+import { showSuccess, showError } from '../../utils/toastConfig';
 
 const AdminSpecialityManagement: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -33,6 +33,7 @@ const AdminSpecialityManagement: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedSpeciality, setSelectedSpeciality] =
     useState<Speciality | null>(null);
   const [specialityName, setSpecialityName] = useState('');
@@ -64,7 +65,7 @@ const AdminSpecialityManagement: React.FC = () => {
 
   const handleCreateOrUpdateSpeciality = useCallback(async () => {
     if (!validateForm()) {
-      toast.error('Please fix the form error');
+      showError('Please fix the form error');
       return;
     }
     try {
@@ -72,20 +73,20 @@ const AdminSpecialityManagement: React.FC = () => {
         await dispatch(
           updateSpecialityThunk({
             id: selectedSpeciality._id,
-            name: specialityName,
+            specialityName,
           })
         ).unwrap();
-        toast.success('Speciality updated successfully');
+        await showSuccess('Speciality updated successfully');
       } else {
         await dispatch(createSpecialityThunk(specialityName)).unwrap();
-        toast.success('Speciality created successfully');
+        await showSuccess('Speciality created successfully');
       }
       setIsModalOpen(false);
       setSpecialityName('');
       setSelectedSpeciality(null);
       setFormError('');
     } catch (err) {
-      toast.error(
+      await showError(
         `Failed to ${selectedSpeciality ? 'update' : 'create'} speciality: ${err}`
       );
     }
@@ -98,17 +99,20 @@ const AdminSpecialityManagement: React.FC = () => {
   }, []);
 
   const handleDeleteSpeciality = useCallback(
-    async (speciality: Speciality) => {
-      if (window.confirm('Are you sure you want to delete this speciality?')) {
-        try {
-          await dispatch(deleteSpecialityThunk(speciality._id)).unwrap();
-          toast.success('Speciality deleted successfully');
-        } catch (err) {
-          toast.error(`Failed to delete speciality: ${err}`);
-        }
+    async () => {
+      if (!selectedSpeciality) return;
+      try {
+        await dispatch(deleteSpecialityThunk(selectedSpeciality._id)).unwrap();
+        await showSuccess('Speciality deleted successfully');
+        setIsDeleteModalOpen(false);
+        setSelectedSpeciality(null);
+      } catch (err) {
+        await showError(`Failed to delete speciality: ${err}`);
+        setIsDeleteModalOpen(false);
+        setSelectedSpeciality(null);
       }
     },
-    [dispatch]
+    [dispatch, selectedSpeciality]
   );
 
   const handleAddSpeciality = useCallback(() => {
@@ -157,11 +161,14 @@ const AdminSpecialityManagement: React.FC = () => {
       },
       {
         label: 'Delete',
-        onClick: handleDeleteSpeciality,
+        onClick: (speciality: Speciality) => {
+          setSelectedSpeciality(speciality);
+          setIsDeleteModalOpen(true);
+        },
         className: 'bg-red-600 hover:bg-red-700',
       },
     ],
-    [handleEditSpeciality, handleDeleteSpeciality]
+    [handleEditSpeciality]
   );
 
   const handlePageChange = useCallback((page: number) => {
@@ -222,7 +229,7 @@ const AdminSpecialityManagement: React.FC = () => {
         }}
         title={selectedSpeciality ? 'Edit Speciality' : 'Add Speciality'}
         footer={
-          <>
+          <div className="flex justify-end gap-3">
             <button
               onClick={() => {
                 setIsModalOpen(false);
@@ -238,7 +245,7 @@ const AdminSpecialityManagement: React.FC = () => {
             >
               {selectedSpeciality ? 'Update' : 'Create'}
             </button>
-          </>
+          </div>
         }
       >
         <div className="space-y-4">
@@ -260,6 +267,39 @@ const AdminSpecialityManagement: React.FC = () => {
           </div>
         </div>
       </Modal>
+      {isDeleteModalOpen && selectedSpeciality && (
+        <Modal
+          isOpen={isDeleteModalOpen}
+          onClose={() => {
+            setIsDeleteModalOpen(false);
+            setSelectedSpeciality(null);
+          }}
+          title="Confirm Delete"
+          footer={
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setIsDeleteModalOpen(false);
+                  setSelectedSpeciality(null);
+                }}
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteSpeciality}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all duration-300"
+              >
+                Delete
+              </button>
+            </div>
+          }
+        >
+          <p className="text-white">
+            Are you sure you want to delete the speciality "{selectedSpeciality.name || 'Unknown'}"?
+          </p>
+        </Modal>
+      )}
     </div>
   );
 };

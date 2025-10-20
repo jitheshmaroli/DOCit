@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import {
   getPlanSubscriptionCountsThunk,
@@ -44,9 +42,14 @@ const PlanDetails: React.FC = () => {
     patient: Patient,
     planId?: string
   ): PatientSubscription | undefined => {
-    return patient.subscribedPlans?.find(
+    const res = patient.subscribedPlans?.find(
       (sub) => sub.planDetails?._id === planId
     );
+    console.log('res:', res);
+    console.log('planid:', planId);
+    console.log('patiet:', patient);
+    console.log('subplans:', patient.subscribedPlans);
+    return res;
   };
 
   const patientColumns: Column<Patient>[] = [
@@ -124,7 +127,6 @@ const PlanDetails: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 py-8">
-      <ToastContainer position="top-right" autoClose={3000} theme="dark" />
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 shadow-xl">
           <button

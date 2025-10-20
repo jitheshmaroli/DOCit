@@ -1,7 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
 import { motion } from 'framer-motion';
 import { MessageInbox } from '../../../components/MessageInbox';
 import { ChatBox } from '../../../components/ChatBox';
@@ -304,12 +302,6 @@ const Messages: React.FC = () => {
         );
       } catch (error) {
         console.error('Fetch inbox error:', error);
-        toast.error('Failed to load inbox', {
-          position: 'bottom-right',
-          autoClose: 3000,
-          className:
-            'bg-white/10 backdrop-blur-lg border border-white/20 rounded-lg',
-        });
       } finally {
         setLoading(false);
       }
@@ -331,7 +323,7 @@ const Messages: React.FC = () => {
             t.receiverId === threadId ? { ...t, unreadCount: 0 } : t
           )
         );
-        // Do not navigate away, just update the thread
+        
       } else {
         const createNewThread = async () => {
           try {
@@ -364,12 +356,12 @@ const Messages: React.FC = () => {
             setSelectedThread(newThread);
           } catch (error) {
             console.error('Failed to create new thread:', error);
-            toast.error('Failed to open chat', {
-              position: 'bottom-right',
-              autoClose: 3000,
-              className:
-                'bg-white/10 backdrop-blur-lg border border-white/20 rounded-lg',
-            });
+            // toast.error('Failed to open chat', {
+            //   position: 'bottom-right',
+            //   autoClose: 3000,
+            //   className:
+            //     'bg-white/10 backdrop-blur-lg border border-white/20 rounded-lg',
+            // });
           }
         };
         createNewThread();
@@ -421,12 +413,6 @@ const Messages: React.FC = () => {
         }, 100);
       } catch (error) {
         console.error('Fetch messages error:', error);
-        toast.error('Failed to load messages', {
-          position: 'bottom-right',
-          autoClose: 3000,
-          className:
-            'bg-white/10 backdrop-blur-lg border border-white/20 rounded-lg',
-        });
       }
     };
     loadMessages();
@@ -555,26 +541,19 @@ const Messages: React.FC = () => {
             : thread
         )
       );
-      toast.success('Messages deleted successfully', {
-        position: 'bottom-right',
-        autoClose: 3000,
-        className:
-          'bg-white/10 backdrop-blur-lg border border-white/20 rounded-lg',
-      });
+      // toast.success('Messages deleted successfully', {
+      //   position: 'bottom-right',
+      //   autoClose: 3000,
+      //   className:
+      //     'bg-white/10 backdrop-blur-lg border border-white/20 rounded-lg',
+      // });
     } catch (error) {
       console.error('Failed to delete messages:', error);
-      toast.error('Failed to delete messages', {
-        position: 'bottom-right',
-        autoClose: 3000,
-        className:
-          'bg-white/10 backdrop-blur-lg border border-white/20 rounded-lg',
-      });
     }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 py-6 px-4 sm:px-6 lg:px-8">
-      <ToastContainer position="bottom-right" theme="dark" />
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}

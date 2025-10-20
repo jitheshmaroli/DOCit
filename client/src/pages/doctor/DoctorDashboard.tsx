@@ -13,6 +13,7 @@ import {
 import { format } from 'date-fns';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import Pagination from '../../components/common/Pagination';
 import {
   DoctorDashboardData,
   ReportFilter,
@@ -35,10 +36,11 @@ const DoctorDashboard: React.FC = () => {
     plans: [],
     reportData: [],
   });
+  const [planPage, setPlanPage] = useState(1);
+  const [planLimit] = useState(10);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Handle report filter changes
   const handleFilterChange = useCallback(
     async (newFilter: Partial<ReportFilter>) => {
       setIsLoading(true);
@@ -50,8 +52,8 @@ const DoctorDashboard: React.FC = () => {
 
         const { reportData } = await fetchDashboardData({
           reportFilter: updatedFilter,
-          page: 1,
-          limit: 10,
+          page: planPage,
+          limit: planLimit,
         });
 
         setData((prev) => ({ ...prev, reportData }));
@@ -62,10 +64,32 @@ const DoctorDashboard: React.FC = () => {
         setIsLoading(false);
       }
     },
-    [filter]
+    [filter, planPage, planLimit]
   );
 
-  // Fetch initial data
+  const handlePlanPageChange = useCallback(
+    async (newPage: number) => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        setPlanPage(newPage);
+        const dashboardData = await fetchDashboardData({
+          reportFilter: filter,
+          page: newPage,
+          limit: planLimit,
+        });
+        setData(dashboardData);
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        setError('Failed to load dashboard data. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [filter, planLimit]
+  );
+
   useEffect(() => {
     const fetchInitialData = async () => {
       setIsLoading(true);
@@ -74,8 +98,8 @@ const DoctorDashboard: React.FC = () => {
       try {
         const dashboardData = await fetchDashboardData({
           reportFilter: { type: 'monthly' },
-          page: 1,
-          limit: 10,
+          page: planPage,
+          limit: planLimit,
         });
         setData(dashboardData);
       } catch (error) {
@@ -85,16 +109,13 @@ const DoctorDashboard: React.FC = () => {
         setIsLoading(false);
       }
     };
-
     fetchInitialData();
-  }, []); // Empty dependency array to run only once on mount
+  }, [planPage, planLimit]);
 
-  // Generate PDF report
   const generatePDF = () => {
     const doc = new jsPDF();
     let finalY = 22;
 
-    // Set font to DejaVu Sans for Unicode support
     doc.setFont('DejaVuSans', 'normal');
 
     doc.setFontSize(18);
@@ -116,7 +137,6 @@ const DoctorDashboard: React.FC = () => {
       finalY += 4;
     }
 
-    // Stats Summary
     doc.text('Dashboard Statistics:', 14, finalY);
     finalY += 5;
 
@@ -132,6 +152,11 @@ const DoctorDashboard: React.FC = () => {
         ],
         ['Free Appointments', data.stats?.freeAppointments.toString() || '0'],
         ['Total Revenue', `₹${data.stats?.totalRevenue || 0}`],
+        [
+          'Cancelled Subscriptions',
+          data.stats?.cancelledStats.count.toString() || '0',
+        ],
+        ['Total Refunded', `₹${data.stats?.cancelledStats.totalRefunded || 0}`],
       ],
       styles: { font: 'DejaVuSans' },
     });
@@ -273,6 +298,18 @@ const DoctorDashboard: React.FC = () => {
             {appointmentStats.cancelled}
           </p>
         </div>
+        <div className="bg-white/10 p-4 rounded-lg border border-white/20 col-span-1 sm:col-span-2 lg:col-span-1">
+          <h3 className="text-gray-300">Cancelled Subscriptions</h3>
+          <p className="text-2xl font-bold text-red-300">
+            {data.stats?.cancelledStats?.count || 0}
+          </p>
+        </div>
+        <div className="bg-white/10 p-4 rounded-lg border border-white/20 col-span-1 sm:col-span-2 lg:col-span-1">
+          <h3 className="text-gray-300">Refunded</h3>
+          <p className="text-2xl font-bold text-red-300">
+            ₹{data.stats?.cancelledStats?.totalRefunded || 0}
+          </p>
+        </div>
       </div>
 
       {/* Report Section */}
@@ -362,37 +399,6 @@ const DoctorDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Plans Section */}
-      <div className="bg-white/10 backdrop-blur-lg p-6 rounded-xl border border-white/20">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-white">
-            Subscription Plans
-          </h2>
-          <button
-            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md"
-            onClick={() => navigate('/doctor/plans')}
-          >
-            Manage Plans
-          </button>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {data.plans.map((plan) => (
-            <div
-              key={plan.id}
-              className="bg-white/5 p-4 rounded-lg border border-white/10"
-            >
-              <h3 className="text-lg font-semibold text-white">{plan.name}</h3>
-              <p className="text-gray-300">Subscribers: {plan.subscribers}</p>
-              <p
-                className={`text-sm ${plan.expired ? 'text-red-600' : 'text-green-600'}`}
-              >
-                {plan.status.toUpperCase()}
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
-
       {/* Plan-wise Revenue Breakdown */}
       <div className="bg-white/10 backdrop-blur-lg p-6 rounded-xl border border-white/20">
         <h2 className="text-xl font-semibold mb-4 text-white">
@@ -422,6 +428,11 @@ const DoctorDashboard: React.FC = () => {
             </tbody>
           </table>
         </div>
+        <Pagination
+          currentPage={planPage}
+          totalPages={Math.ceil((data.stats?.totalPlans || 0) / planLimit)}
+          onPageChange={handlePlanPageChange}
+        />
       </div>
 
       {/* Recent Appointments */}
@@ -450,12 +461,11 @@ const DoctorDashboard: React.FC = () => {
             <tbody>
               {data.appointments.map((appt) => (
                 <tr key={appt._id} className="border-b border-gray-600">
-                  {/* <td className="p-2">{appt.patientId.name}</td> */}
-                  <td className="p-2"></td>
+                  <td className="p-2">{appt.patientId.name}</td>
                   <td className="p-2 text-right">
                     {format(new Date(appt.date), 'MMM d, yyyy')}
                   </td>
-                  <td className="p-2 text-right">{appt.startTime}</td>
+                  <td className="p-2 text-right">{appt.startTime} - {appt.endTime}</td>
                   <td
                     className={`p-2 text-right ${
                       appt.status === 'pending'

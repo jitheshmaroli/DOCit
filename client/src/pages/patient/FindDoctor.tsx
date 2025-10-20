@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import { fetchVerifiedDoctorsThunk } from '../../redux/thunks/doctorThunk';
 import { getImageUrl } from '../../utils/config';
-import { clearError as clearDoctorError } from '../../redux/slices/doctorSlice';
 import SearchBar from '../../components/common/SearchBar';
 import { fetchSpecialities } from '../../services/patientService';
 import { ITEMS_PER_PAGE } from '../../utils/constants';
@@ -27,7 +26,6 @@ const FindDoctor: React.FC = () => {
   const {
     doctors,
     totalItems,
-    error: doctorError,
     loading,
   } = useAppSelector((state) => state.doctors);
   const [specialities, setSpecialities] = useState<string[]>([]);
@@ -70,12 +68,6 @@ const FindDoctor: React.FC = () => {
     };
     dispatch(fetchVerifiedDoctorsThunk(params));
   }, [dispatch, currentPage, filters]);
-
-  useEffect(() => {
-    if (doctorError) {
-      dispatch(clearDoctorError());
-    }
-  }, [doctorError, dispatch]);
 
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 

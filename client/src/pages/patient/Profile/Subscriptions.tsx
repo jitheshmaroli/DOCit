@@ -20,18 +20,22 @@ import {
   cancelSubscriptionThunk,
   getAppointmentsBySubscriptionThunk,
 } from '../../../redux/thunks/patientThunk';
-import { clearError } from '../../../redux/slices/patientSlice';
+import {
+  clearError,
+  clearRefundDetails,
+} from '../../../redux/slices/patientSlice';
 import {
   Appointment,
   ExtendedPatientSubscription,
 } from '../../../types/authTypes';
 import DataTable, { Column } from '../../../components/common/DataTable';
-import { toast, ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
 import dayjs from 'dayjs';
 import { useAppSelector } from '../../../redux/hooks';
 import ROUTES from '../../../constants/routeConstants';
 import Pagination from '../../../components/common/Pagination';
+import Modal from '../../../components/common/Modal';
+import { debounce } from 'lodash';
+import { showError, showSuccess } from '../../../utils/toastConfig';
 
 const Subscriptions: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -50,26 +54,19 @@ const Subscriptions: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const limit = 5;
 
+  const [isCancelSubscriptionModalOpen, setIsCancelSubscriptionModalOpen] =
+    useState(false);
+  const [cancellationReason, setCancellationReason] = useState<string>('');
+  const [modalMode, setModalMode] = useState<'cancel' | 'refund'>('cancel');
+  const [selectedSubscriptionId, setSelectedSubscriptionId] = useState<
+    string | null
+  >(null);
+
   useEffect(() => {
-    dispatch(getPatientSubscriptionsThunk()).then((result) => {
-      if (
-        result.meta.requestStatus === 'fulfilled' &&
-        Array.isArray(result.payload)
-      ) {
-        const subscriptionIds = (
-          result.payload as ExtendedPatientSubscription[]
-        )
-          .filter(
-            (sub): sub is ExtendedPatientSubscription =>
-              sub !== null &&
-              sub !== undefined &&
-              typeof sub === 'object' &&
-              'plan' in sub &&
-              sub.plan !== null &&
-              typeof sub.plan === 'object' &&
-              'doctorId' in sub.plan
-          )
-          .map((sub) => sub._id);
+    dispatch(getPatientSubscriptionsThunk())
+      .unwrap()
+      .then((subscriptions) => {
+        const subscriptionIds = subscriptions.map((sub) => sub._id);
         subscriptionIds.forEach((subscriptionId) => {
           dispatch(
             getAppointmentsBySubscriptionThunk({
@@ -79,10 +76,10 @@ const Subscriptions: React.FC = () => {
             })
           );
         });
-      }
-    });
+      });
     return () => {
       dispatch(clearError());
+      dispatch(clearRefundDetails());
     };
   }, [dispatch, currentPage]);
 
@@ -122,56 +119,61 @@ const Subscriptions: React.FC = () => {
     return minutesSinceCreation <= 30;
   };
 
-  const handleCancelSubscription = async (subscriptionId: string) => {
-    toast(
-      ({ closeToast }) => (
-        <div className="flex flex-col gap-4">
-          <p className="text-white">
-            Are you sure you want to cancel this subscription?
-          </p>
-          <div className="flex gap-2">
-            <button
-              onClick={async () => {
-                try {
-                  await dispatch(cancelSubscriptionThunk({ subscriptionId }));
-                  toast.success('Subscription cancelled successfully!', {
-                    position: 'bottom-right',
-                    autoClose: 3000,
-                    className:
-                      'bg-white/10 backdrop-blur-lg border border-white/20 rounded-lg',
-                  });
-                } catch {
-                  toast.error('Failed to cancel subscription', {
-                    position: 'bottom-right',
-                    autoClose: 3000,
-                    className:
-                      'bg-white/10 backdrop-blur-lg border border-white/20 rounded-lg',
-                  });
-                }
-                closeToast();
-              }}
-              className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 py-2 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300"
-            >
-              Yes
-            </button>
-            <button
-              onClick={closeToast}
-              className="bg-white/10 text-white px-4 py-2 rounded-lg border border-white/20 hover:bg-white/20 transition-all duration-300"
-            >
-              No
-            </button>
-          </div>
-        </div>
-      ),
-      {
-        position: 'bottom-right',
-        autoClose: false,
-        closeOnClick: false,
-        draggable: false,
-        className:
-          'bg-white/10 backdrop-blur-lg border border-white/20 rounded-lg',
-      }
-    );
+  const handleCancelSubscription = (subscriptionId: string) => {
+    setSelectedSubscriptionId(subscriptionId);
+    setIsCancelSubscriptionModalOpen(true);
+    setModalMode('cancel');
+    setCancellationReason('');
+  };
+
+  const debouncedCancelSubscription = debounce(async () => {
+    if (!selectedSubscriptionId || !cancellationReason.trim()) {
+      showError('Please provide a cancellation reason');
+      // toast.error('Please provide a cancellation reason', {
+      //   position: 'bottom-right',
+      //   autoClose: 3000,
+      //   className: 'bg-white/10 backdrop-blur-lg border border-white/20 rounded-lg',
+      // });
+      return;
+    }
+    try {
+      await dispatch(
+        cancelSubscriptionThunk({
+          subscriptionId: selectedSubscriptionId,
+          cancellationReason,
+        })
+      ).unwrap();
+      setModalMode('refund');
+      showSuccess('Subscription cancelled successfully!');
+      // toast.success('Subscription cancelled successfully!', {
+      //   position: 'bottom-right',
+      //   autoClose: 3000,
+      //   className:
+      //     'bg-white/10 backdrop-blur-lg border border-white/20 rounded-lg',
+      // });
+    } catch {
+      showError('Failed to cancel subscription');
+      // toast.error('Failed to cancel subscription', {
+      //   position: 'bottom-right',
+      //   autoClose: 3000,
+      //   className:
+      //     'bg-white/10 backdrop-blur-lg border border-white/20 rounded-lg',
+      // });
+      setIsCancelSubscriptionModalOpen(false);
+      setCancellationReason('');
+    }
+  }, 1000);
+
+  const handleConfirmCancel = () => {
+    debouncedCancelSubscription();
+  };
+
+  const handleCloseCancelSubscriptionModal = () => {
+    setIsCancelSubscriptionModalOpen(false);
+    setCancellationReason('');
+    setModalMode('cancel');
+    setSelectedSubscriptionId(null);
+    dispatch(clearRefundDetails());
   };
 
   const canRenewSubscription = (status: string, subscriptionId: string) => {
@@ -190,14 +192,14 @@ const Subscriptions: React.FC = () => {
     setCurrentCardIndex((prev) =>
       prev === 0 ? filteredSubscriptions.length - 1 : prev - 1
     );
-    setCurrentPage(1); // Reset page when switching subscriptions
+    setCurrentPage(1);
   };
 
   const handleNextCard = () => {
     setCurrentCardIndex((prev) =>
       prev === filteredSubscriptions.length - 1 ? 0 : prev + 1
     );
-    setCurrentPage(1); // Reset page when switching subscriptions
+    setCurrentPage(1);
   };
 
   const handlePageChange = (page: number) => {
@@ -254,9 +256,12 @@ const Subscriptions: React.FC = () => {
       )
     : 1;
 
+  const currentSubscriptionForModal = activeSubscriptions.find(
+    (sub) => sub._id === selectedSubscriptionId
+  );
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 py-8 px-4 sm:px-6 lg:px-8">
-      <ToastContainer position="bottom-right" theme="dark" />
       <div className="container mx-auto">
         {/* Header */}
         <motion.div
@@ -317,18 +322,6 @@ const Subscriptions: React.FC = () => {
             >
               <AlertCircle className="w-5 h-5" />
               {error}
-            </motion.div>
-          )}
-          {lastRefundDetails && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="mb-6 p-4 bg-green-500/20 text-green-400 rounded-lg flex items-center gap-2 border border-green-400/30 shadow-lg"
-            >
-              <CheckCircle className="w-5 h-5" />
-              Subscription cancelled successfully. Refund ID:{' '}
-              {lastRefundDetails.refundId}
             </motion.div>
           )}
         </AnimatePresence>
@@ -615,7 +608,11 @@ const Subscriptions: React.FC = () => {
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
                             className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-3 rounded-lg hover:from-green-700 hover:to-green-800 transition-all duration-300 text-sm font-medium shadow-md"
-                            onClick={() => navigate('/patient/find-doctor')}
+                            onClick={() =>
+                              navigate(
+                                `${ROUTES.PATIENT.DOCTOR_DETAILS.replace(':doctorId', subscription.plan.doctorId)}`
+                              )
+                            }
                           >
                             Renew Subscription
                           </motion.button>
@@ -688,6 +685,80 @@ const Subscriptions: React.FC = () => {
             </div>
           </motion.div>
         )}
+
+        <Modal
+          isOpen={isCancelSubscriptionModalOpen}
+          onClose={handleCloseCancelSubscriptionModal}
+          title={
+            modalMode === 'cancel' ? 'Cancel Subscription' : 'Refund Details'
+          }
+          footer={
+            <div className="flex gap-4">
+              {modalMode === 'cancel' ? (
+                <>
+                  <button
+                    onClick={handleConfirmCancel}
+                    className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 py-2 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300"
+                  >
+                    Confirm Cancellation
+                  </button>
+                  <button
+                    onClick={handleCloseCancelSubscriptionModal}
+                    className="bg-white/10 text-white px-4 py-2 rounded-lg border border-white/20 hover:bg-white/20 transition-all duration-300"
+                  >
+                    Close
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={handleCloseCancelSubscriptionModal}
+                  className="bg-white/10 text-white px-4 py-2 rounded-lg border border-white/20 hover:bg-white/20 transition-all duration-300"
+                >
+                  Close
+                </button>
+              )}
+            </div>
+          }
+        >
+          <div className="text-gray-200 mb-4">
+            {modalMode === 'cancel' ? (
+              <>
+                <p className="text-white">
+                  Are you sure you want to cancel your subscription to{' '}
+                  {currentSubscriptionForModal?.plan.name}?
+                </p>
+                <div className="mt-4">
+                  <label
+                    htmlFor="cancellationReason"
+                    className="block text-sm font-medium text-gray-200"
+                  >
+                    Cancellation Reason
+                  </label>
+                  <textarea
+                    id="cancellationReason"
+                    value={cancellationReason}
+                    onChange={(e) => setCancellationReason(e.target.value)}
+                    className="mt-1 block w-full rounded-md bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 p-2"
+                    rows={4}
+                    placeholder="Please provide a reason for cancellation"
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-white">
+                  Your subscription has been cancelled, and a refund has been
+                  initiated to the card ending in{' '}
+                  {lastRefundDetails?.cardLast4 || 'N/A'} for ₹
+                  {lastRefundDetails?.amount.toFixed(2) || '0.00'}.
+                </p>
+                <p className="text-white">
+                  Refund Id: {lastRefundDetails?.refundId}
+                </p>
+              </>
+            )}
+          </div>
+        </Modal>
       </div>
     </div>
   );

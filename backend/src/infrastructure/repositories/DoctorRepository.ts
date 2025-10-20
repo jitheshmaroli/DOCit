@@ -38,7 +38,7 @@ export class DoctorRepository extends BaseRepository<Doctor> implements IDoctorR
       throw new ValidationError('Invalid doctor ID');
     }
     const pipeline: PipelineStage[] = [
-      { $match: { _id: new mongoose.Types.ObjectId(doctorId), isBlocked: false, isVerified: true } },
+      { $match: { _id: new mongoose.Types.ObjectId(doctorId), isVerified: true } },
       {
         $lookup: {
           from: 'reviews',

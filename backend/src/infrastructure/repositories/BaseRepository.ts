@@ -1,6 +1,7 @@
 import mongoose, { Model, UpdateQuery } from 'mongoose';
+import { IBaseRepository } from '../../core/interfaces/repositories/IBaseRepository';
 
-export class BaseRepository<T> {
+export class BaseRepository<T> implements IBaseRepository<T> {
   protected model: Model<T>;
 
   constructor(model: Model<T>) {

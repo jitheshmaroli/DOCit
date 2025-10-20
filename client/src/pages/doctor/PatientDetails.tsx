@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
 import { Patient, Prescription } from '../../types/authTypes';
 import { DateUtils } from '../../utils/DateUtils';
 import Pagination from '../../components/common/Pagination';
@@ -46,7 +44,7 @@ const PatientDetails: React.FC = () => {
         const response = await api.get(`/api/user/${patientId}`);
         setPatient(response.data);
       } catch {
-        toast.error('Failed to fetch patient details');
+        console.error('Failed to fetch patient details');
       } finally {
         setLoading(false);
       }
@@ -69,7 +67,7 @@ const PatientDetails: React.FC = () => {
         setAppointments(response.appointments || []);
         setTotalItems(response.totalItems || 0);
       } catch {
-        toast.error('Failed to fetch appointments');
+        console.error('Failed to fetch appointments');
       } finally {
         setLoading(false);
       }
@@ -87,7 +85,7 @@ const PatientDetails: React.FC = () => {
   const handleViewPrescription = (prescription: Prescription | undefined) => {
     if (prescription) {
       setSelectedPrescription(prescription);
-      setShowFullNotes(false); // Reset notes display when opening modal
+      setShowFullNotes(false);
     }
   };
 
@@ -99,7 +97,6 @@ const PatientDetails: React.FC = () => {
 
   return (
     <>
-      <ToastContainer position="top-right" autoClose={3000} theme="dark" />
       <Modal
         isOpen={!!selectedPrescription}
         onClose={() => setSelectedPrescription(null)}
