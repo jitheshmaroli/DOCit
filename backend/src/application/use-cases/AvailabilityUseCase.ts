@@ -15,8 +15,8 @@ import { IEmailService } from '../../core/interfaces/services/IEmailService';
 import { AvailabilityMapper } from '../mappers/AvailabilityMapper';
 import { DateUtils } from '../../utils/DateUtils';
 import { IValidatorService } from '../../core/interfaces/services/IValidatorService';
-import { env } from '../../config/env';
 import moment from 'moment';
+import { MAX_REASON_LENGTH, MAX_RECURRING_DAYS } from '../../core/constants/AppConstants';
 
 export class AvailabilityUseCase implements IAvailabilityUseCase {
   constructor(
@@ -60,7 +60,6 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
         throw new ValidationError('At least one recurring day is required');
       }
 
-      const MAX_RECURRING_DAYS = Number(env.MAX_RECURRING_DAYS);
       const startMoment = moment.utc(dto.date);
       const endMoment = moment.utc(dto.recurringEndDate!);
       const daysDiff = endMoment.diff(startMoment, 'days');
@@ -294,7 +293,7 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
     this._validatorService.validatePositiveInteger(slotIndex);
     this._validatorService.validateTimeSlot(newSlot.startTime, newSlot.endTime);
     if (reason) {
-      this._validatorService.validateLength(reason, 1, 500);
+      this._validatorService.validateLength(reason, 1, MAX_REASON_LENGTH);
     }
 
     const availability = await this._availabilityRepository.findById(availabilityId);
@@ -302,7 +301,7 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
       throw new NotFoundError('Availability not found');
     }
 
-    if (availability.doctorId !== doctorId) {
+    if (availability.doctorId?.toString() !== doctorId) {
       throw new ValidationError('Unauthorized to modify this availability');
     }
 
@@ -327,7 +326,7 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
           endTime: newSlot.endTime,
         });
         await this._notifyPatient(
-          appointment._id!,
+          appointment._id!.toString(),
           `Your appointment on ${availability.date.toISOString()} has been updated to ${newSlot.startTime} - ${newSlot.endTime}. Reason: ${reason}`
         );
       }

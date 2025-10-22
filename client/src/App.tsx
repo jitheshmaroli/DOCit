@@ -41,7 +41,7 @@ const App = () => {
 
   return (
     <BrowserRouter>
-      <ToastContainer {...toastConfig} limit={5} />
+      <ToastContainer {...toastConfig} />
       <ToastManager />
       <AppRoutes />
     </BrowserRouter>
