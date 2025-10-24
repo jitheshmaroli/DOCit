@@ -16,13 +16,13 @@ export interface IAvailabilityUseCase {
   ): Promise<AvailabilityResponseDTO[]>;
   removeSlot(
     availabilityId: string,
-    slotIndex: number,
+    slotd: string,
     doctorId: string,
     reason?: string
   ): Promise<AvailabilityResponseDTO | null>;
   updateSlot(
     availabilityId: string,
-    slotIndex: number,
+    slotId: string,
     newSlot: UpdateSlotRequestDTO,
     doctorId: string,
     reason?: string

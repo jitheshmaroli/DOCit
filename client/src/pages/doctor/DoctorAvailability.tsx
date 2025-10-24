@@ -43,18 +43,6 @@ import {
 } from '../../types/aailabilityTypes';
 import { showError, showSuccess } from '../../utils/toastConfig';
 
-// CONSTANT FOR REASON LENGTH
-const MAX_REASON_LENGTH = 100;
-
-// HELPER FUNCTION TO SORT TIME SLOTS BY START TIME
-const sortTimeSlotsByStartTime = (slots: TimeSlot[]): TimeSlot[] => {
-  return [...slots].sort((a, b) => {
-    if (!a.startTime || !b.startTime) return 0;
-    return DateUtils.getTimeDifferenceInMinutes('00:00', a.startTime) - 
-           DateUtils.getTimeDifferenceInMinutes('00:00', b.startTime);
-  });
-};
-
 const DoctorAvailability: React.FC = () => {
   const dispatch = useAppDispatch();
   const { availability } = useAppSelector((state) => state.doctors);
@@ -99,19 +87,45 @@ const DoctorAvailability: React.FC = () => {
   const [conflictErrors, setConflictErrors] = useState<Map<string, string>>(
     new Map()
   );
-  const [modalError, setModalError] = useState<string>('');
+
+  // NEW: Inline validation states
+  const [fieldErrors, setFieldErrors] = useState<{
+    [key: number]: {
+      startTime?: string;
+      endTime?: string;
+      reason?: string;
+      general?: string;
+    };
+  }>({});
+  const [recurringFieldErrors, setRecurringFieldErrors] = useState<{
+    [key: number]: {
+      startTime?: string;
+      endTime?: string;
+    };
+  }>({});
+
   const isMobile = useMediaQuery('(max-width:600px)');
+
+  // Helper function to clear errors for a specific slot
+  const clearSlotErrors = (index: number) => {
+    setFieldErrors((prev) => ({
+      ...prev,
+      [index]: {},
+    }));
+  };
+
+  const clearRecurringSlotErrors = (index: number) => {
+    setRecurringFieldErrors((prev) => ({
+      ...prev,
+      [index]: {},
+    }));
+  };
 
   useEffect(() => {
     if (availability.length > 0) {
       const map = new Map<string, Availability>();
       availability.forEach((avail: Availability) => {
-        // SORT SLOTS WHEN LOADING FROM API
-        const sortedAvailability = {
-          ...avail,
-          timeSlots: sortTimeSlotsByStartTime(avail.timeSlots)
-        };
-        map.set(avail.dateKey, sortedAvailability);
+        map.set(avail.dateKey, avail);
       });
       setAvailabilityMap(map);
     }
@@ -164,27 +178,21 @@ const DoctorAvailability: React.FC = () => {
     setSelectedDate(selected);
     const existingAvailability = availabilityMap.get(date);
     setSelectedAvailabilityId(existingAvailability?._id || null);
-    
-    // SORT SLOTS WHEN SELECTING DATE
     const existingSlots = existingAvailability
-      ? sortTimeSlotsByStartTime(existingAvailability.timeSlots)
+      ? existingAvailability.timeSlots
       : [];
-    
     setTimeSlots(existingSlots);
     setOriginalSlotCount(existingSlots.length);
     setNewSlots([]);
+    setFieldErrors({}); // Clear all slot errors
     setIsModalOpen(true);
-    setModalError('');
   };
 
   const handleAddTimeSlot = () => {
     const newSlot = { startTime: '', endTime: '' };
-    const currentSlots = [...timeSlots, newSlot];
-    
-    // SORT ALL SLOTS AFTER ADDING NEW ONE
-    setTimeSlots(sortTimeSlotsByStartTime(currentSlots));
+    setTimeSlots([...timeSlots, newSlot]);
     setNewSlots([...newSlots, newSlot]);
-    setModalError('');
+    clearSlotErrors(timeSlots.length); // Clear errors for new slot
   };
 
   const handleTimeSlotChange = (
@@ -192,11 +200,24 @@ const DoctorAvailability: React.FC = () => {
     field: 'startTime' | 'endTime',
     value: string
   ) => {
+    // Clear previous errors for this slot
+    clearSlotErrors(index);
+
     const timeRegex = new RegExp(
       `^${DEFAULT_TIME_FORMAT.replace('HH', '\\d{2}').replace('mm', '\\d{2}')}$`
     );
-    if (value !== '' && !timeRegex.test(value)) return;
+    if (value !== '' && !timeRegex.test(value)) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        [index]: {
+          ...prev[index],
+          [field]: `Invalid time format (${DEFAULT_TIME_FORMAT})`,
+        },
+      }));
+      return;
+    }
 
+    // Current time validation
     if (
       selectedDate &&
       dayjs(selectedDate).isSame(dayjs(), 'day') &&
@@ -207,7 +228,13 @@ const DoctorAvailability: React.FC = () => {
         `${dayjs(selectedDate).format('YYYY-MM-DD')} ${value}`
       );
       if (slotTime.isBefore(now)) {
-        setModalError('Cannot set time slots before current time');
+        setFieldErrors((prev) => ({
+          ...prev,
+          [index]: {
+            ...prev[index],
+            [field]: 'Cannot set time before current time',
+          },
+        }));
         return;
       }
     }
@@ -215,7 +242,7 @@ const DoctorAvailability: React.FC = () => {
     const updatedTimeSlots = [...timeSlots];
     updatedTimeSlots[index] = { ...updatedTimeSlots[index], [field]: value };
 
-    // AUTO-SET END TIME: If start time is set and end time is empty, set to start + 15 min
+    // AUTO-SET END TIME
     if (field === 'startTime' && value && !updatedTimeSlots[index].endTime) {
       const minEndTime = DateUtils.addMinutesToTime(
         value,
@@ -224,9 +251,24 @@ const DoctorAvailability: React.FC = () => {
       updatedTimeSlots[index].endTime = minEndTime;
     }
 
-    // RE-SORT AFTER TIME CHANGE
-    setTimeSlots(sortTimeSlotsByStartTime(updatedTimeSlots));
+    setTimeSlots(updatedTimeSlots);
 
+    // Validate duration when both times are set
+    if (field === 'startTime' && value && updatedTimeSlots[index].endTime) {
+      if (
+        !DateUtils.isValidSlotDuration(value, updatedTimeSlots[index].endTime)
+      ) {
+        setFieldErrors((prev) => ({
+          ...prev,
+          [index]: {
+            ...prev[index],
+            endTime: `Duration must be ${MIN_SLOT_DURATION_MINUTES}-${MAX_SLOT_DURATION_MINUTES} minutes`,
+          },
+        }));
+      }
+    }
+
+    // Update newSlots if applicable
     if (index >= originalSlotCount) {
       const newSlotIndex = index - originalSlotCount;
       const updatedNewSlots = [...newSlots];
@@ -246,34 +288,6 @@ const DoctorAvailability: React.FC = () => {
       };
       setNewSlots(updatedNewSlots);
     }
-
-    // END TIME VALIDATION - RESET IF INVALID
-    if (field === 'startTime' && value && updatedTimeSlots[index].endTime) {
-      if (
-        !DateUtils.isValidSlotDuration(value, updatedTimeSlots[index].endTime)
-      ) {
-        const minEndTime = DateUtils.addMinutesToTime(
-          value,
-          MIN_SLOT_DURATION_MINUTES
-        );
-        updatedTimeSlots[index].endTime = minEndTime;
-        
-        // RE-SORT AFTER RESET
-        setTimeSlots(sortTimeSlotsByStartTime(updatedTimeSlots));
-
-        if (index >= originalSlotCount) {
-          const newSlotIndex = index - originalSlotCount;
-          const updatedNewSlots = [...newSlots];
-          updatedNewSlots[newSlotIndex].endTime = minEndTime;
-          setNewSlots(updatedNewSlots);
-        }
-      }
-    }
-
-    // Clear time-related errors when user types
-    if (modalError.includes('time') || modalError.includes('duration')) {
-      setModalError('');
-    }
   };
 
   const handleRecurringTimeSlotChange = (
@@ -281,15 +295,27 @@ const DoctorAvailability: React.FC = () => {
     field: 'startTime' | 'endTime',
     value: string
   ) => {
+    // Clear previous errors for this slot
+    clearRecurringSlotErrors(index);
+
     const timeRegex = new RegExp(
       `^${DEFAULT_TIME_FORMAT.replace('HH', '\\d{2}').replace('mm', '\\d{2}')}$`
     );
-    if (value !== '' && !timeRegex.test(value)) return;
+    if (value !== '' && !timeRegex.test(value)) {
+      setRecurringFieldErrors((prev) => ({
+        ...prev,
+        [index]: {
+          ...prev[index],
+          [field]: `Invalid time format (${DEFAULT_TIME_FORMAT})`,
+        },
+      }));
+      return;
+    }
 
     const updatedTimeSlots = [...recurringTimeSlots];
     updatedTimeSlots[index] = { ...updatedTimeSlots[index], [field]: value };
 
-    // AUTO-SET END TIME: If start time is set and end time is empty, set to start + 15 min
+    // AUTO-SET END TIME
     if (field === 'startTime' && value && !updatedTimeSlots[index].endTime) {
       const minEndTime = DateUtils.addMinutesToTime(
         value,
@@ -298,8 +324,22 @@ const DoctorAvailability: React.FC = () => {
       updatedTimeSlots[index].endTime = minEndTime;
     }
 
-    // RE-SORT RECURRING SLOTS
-    setRecurringTimeSlots(sortTimeSlotsByStartTime(updatedTimeSlots));
+    setRecurringTimeSlots(updatedTimeSlots);
+
+    // Validate duration
+    if (field === 'startTime' && value && updatedTimeSlots[index].endTime) {
+      if (
+        !DateUtils.isValidSlotDuration(value, updatedTimeSlots[index].endTime)
+      ) {
+        setRecurringFieldErrors((prev) => ({
+          ...prev,
+          [index]: {
+            ...prev[index],
+            endTime: `Duration must be ${MIN_SLOT_DURATION_MINUTES}-${MAX_SLOT_DURATION_MINUTES} minutes`,
+          },
+        }));
+      }
+    }
   };
 
   const handleRemoveTimeSlot = async (index: number) => {
@@ -308,14 +348,17 @@ const DoctorAvailability: React.FC = () => {
       !selectedAvailabilityId ||
       timeSlots[index].isBooked
     ) {
-      // Remove from display and re-sort
-      const updatedSlots = timeSlots.filter((_, i) => i !== index);
-      setTimeSlots(sortTimeSlotsByStartTime(updatedSlots));
-      
+      setTimeSlots(timeSlots.filter((_, i) => i !== index));
       if (index >= originalSlotCount) {
         const newSlotIndex = index - originalSlotCount;
         setNewSlots(newSlots.filter((_, i) => i !== newSlotIndex));
       }
+      // Clear errors for removed slot
+      setFieldErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[index];
+        return newErrors;
+      });
       return;
     }
 
@@ -323,25 +366,26 @@ const DoctorAvailability: React.FC = () => {
       await dispatch(
         removeSlotThunk({
           availabilityId: selectedAvailabilityId,
-          slotIndex: index,
+          slotId: timeSlots[index]._id!,
         })
       ).unwrap();
       showSuccess('Slot removed successfully');
       const startDate = dayjs(selectedDate).startOf('month').toDate();
       const endDate = dayjs(selectedDate).endOf('month').toDate();
       dispatch(getAvailabilityThunk({ startDate, endDate }));
-      
-      // Remove and re-sort
-      const updatedSlots = timeSlots.filter((_, i) => i !== index);
-      setTimeSlots(sortTimeSlotsByStartTime(updatedSlots));
+      setTimeSlots(timeSlots.filter((_, i) => i !== index));
       setOriginalSlotCount(originalSlotCount - 1);
-      
+      // Clear errors for removed slot
+      setFieldErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[index];
+        return newErrors;
+      });
       if (timeSlots.length === 1) {
         setIsModalOpen(false);
       }
     } catch (err: any) {
-      console.error(err.message || 'Failed to remove slot');
-      setModalError(err.message || 'Failed to remove slot');
+      showError(err.message || 'Failed to remove slot');
     }
   };
 
@@ -351,30 +395,43 @@ const DoctorAvailability: React.FC = () => {
     if (slot.isBooked) {
       setDialogType('update');
       setEditDialogOpen(true);
-      setModalError('');
+      clearSlotErrors(index);
     } else {
       setEditingIndex(index);
       setOriginalTimes((prev) => ({
         ...prev,
         [index]: { startTime: slot.startTime, endTime: slot.endTime },
       }));
-      setModalError('');
+      clearSlotErrors(index);
     }
   };
 
   const handleConfirmEdit = async () => {
     if (selectedSlotIndex !== null) {
       const slot = timeSlots[selectedSlotIndex];
+      const errors: { startTime?: string; endTime?: string } = {};
+
+      // Validate time
       if (selectedDate && dayjs(selectedDate).isSame(dayjs(), 'day')) {
         const now = dayjs();
         const slotTime = dayjs(
           `${dayjs(selectedDate).format('YYYY-MM-DD')} ${slot.startTime}`
         );
         if (slotTime.isBefore(now)) {
-          setModalError('Cannot update to a time before current time');
-          return;
+          errors.startTime = 'Cannot update to a time before current time';
         }
       }
+
+      if (Object.keys(errors).length > 0) {
+        setFieldErrors((prev) => ({
+          ...prev,
+          [selectedSlotIndex]: errors,
+        }));
+        setEditDialogOpen(false);
+        setSelectedSlotIndex(null);
+        return;
+      }
+
       setEditingIndex(selectedSlotIndex);
       setOriginalTimes((prev) => ({
         ...prev,
@@ -398,8 +455,7 @@ const DoctorAvailability: React.FC = () => {
         startTime: original.startTime,
         endTime: original.endTime,
       };
-      // RE-SORT AFTER CANCEL
-      setTimeSlots(sortTimeSlotsByStartTime(updatedTimeSlots));
+      setTimeSlots(updatedTimeSlots);
     }
     setEditingIndex(null);
     setEditingReasons((prev) => {
@@ -412,55 +468,29 @@ const DoctorAvailability: React.FC = () => {
       delete newTimes[index];
       return newTimes;
     });
-    setModalError('');
-  };
-
-  const handleReasonChange = (index: number, value: string) => {
-    if (value.length > MAX_REASON_LENGTH) {
-      value = value.slice(0, MAX_REASON_LENGTH);
-    }
-    
-    setEditingReasons((prev) => ({
-      ...prev,
-      [index]: value,
-    }));
-    
-    if (modalError.includes('Reason')) {
-      setModalError('');
-    }
-  };
-
-  const handleRemoveReasonChange = (value: string) => {
-    if (value.length > MAX_REASON_LENGTH) {
-      value = value.slice(0, MAX_REASON_LENGTH);
-    }
-    
-    setReason(value);
-    
-    if (modalError.includes('Reason')) {
-      setModalError('');
-    }
+    clearSlotErrors(index);
   };
 
   const handleSaveSlot = async (index: number) => {
-    setModalError('');
-
-    if (!selectedAvailabilityId) {
-      setModalError('No availability exists for this date');
-      return;
-    }
+    clearSlotErrors(index);
 
     const slot = timeSlots[index];
-    if (!slot.startTime || !slot.endTime) {
-      setModalError('Start and end times are required');
-      return;
+    const errors: { startTime?: string; endTime?: string; reason?: string } =
+      {};
+
+    // Validation with inline errors
+    if (!slot.startTime) {
+      errors.startTime = 'Start time is required';
     }
 
-    if (!DateUtils.isValidSlotDuration(slot.startTime, slot.endTime)) {
-      setModalError(
-        `Slot duration must be between ${MIN_SLOT_DURATION_MINUTES} and ${MAX_SLOT_DURATION_MINUTES} minutes`
-      );
-      return;
+    if (!slot.endTime) {
+      errors.endTime = 'End time is required';
+    }
+
+    if (slot.startTime && slot.endTime) {
+      if (!DateUtils.isValidSlotDuration(slot.startTime, slot.endTime)) {
+        errors.endTime = `Duration must be ${MIN_SLOT_DURATION_MINUTES}-${MAX_SLOT_DURATION_MINUTES} minutes`;
+      }
     }
 
     if (selectedDate && dayjs(selectedDate).isSame(dayjs(), 'day')) {
@@ -469,11 +499,25 @@ const DoctorAvailability: React.FC = () => {
         `${dayjs(selectedDate).format('YYYY-MM-DD')} ${slot.startTime}`
       );
       if (slotTime.isBefore(now)) {
-        setModalError('Cannot set time slots before current time');
-        return;
+        errors.startTime = 'Cannot set time before current time';
       }
     }
 
+    const reason = editingReasons[index] || '';
+    if (slot.isBooked && !reason.trim()) {
+      errors.reason = 'Reason is required for booked slots';
+    }
+
+    // If there are errors, show them inline and return
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        [index]: errors,
+      }));
+      return;
+    }
+
+    // Proceed with save
     const original = originalTimes[index];
     const changed =
       slot.startTime !== original?.startTime ||
@@ -483,17 +527,11 @@ const DoctorAvailability: React.FC = () => {
       return;
     }
 
-    const reason = editingReasons[index] || '';
-    if (slot.isBooked && !reason.trim()) {
-      setModalError('Reason is required for changes to booked slots');
-      return;
-    }
-
     try {
       await dispatch(
         updateSlotThunk({
-          availabilityId: selectedAvailabilityId,
-          slotIndex: index,
+          availabilityId: selectedAvailabilityId!,
+          slotId: slot._id!,
           startTime: slot.startTime,
           endTime: slot.endTime,
           reason: slot.isBooked ? reason : undefined,
@@ -514,21 +552,25 @@ const DoctorAvailability: React.FC = () => {
       const startDate = dayjs(selectedDate).startOf('month').toDate();
       const endDate = dayjs(selectedDate).endOf('month').toDate();
       dispatch(getAvailabilityThunk({ startDate, endDate }));
-      setConflictErrors((prev) => {
-        const newErrors = new Map(prev);
-        newErrors.delete(dayjs(selectedDate).format(DEFAULT_DATE_FORMAT));
+      setFieldErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[index];
         return newErrors;
       });
     } catch (err: any) {
-      setModalError(err.message || 'Failed to update slot');
+      setFieldErrors((prev) => ({
+        ...prev,
+        [index]: {
+          ...prev[index],
+          general: err.message || 'Failed to update slot',
+        },
+      }));
     }
   };
 
   const handleConfirmRemove = async () => {
-    setModalError('');
-
     if (!reason.trim()) {
-      setModalError('Reason is required for removing booked slots');
+      showError('Reason is required for removing booked slots');
       return;
     }
 
@@ -537,7 +579,7 @@ const DoctorAvailability: React.FC = () => {
         await dispatch(
           removeSlotThunk({
             availabilityId: selectedAvailabilityId,
-            slotIndex: selectedSlotIndex,
+            slotId: timeSlots[selectedSlotIndex]._id!,
             reason,
           })
         ).unwrap();
@@ -545,21 +587,30 @@ const DoctorAvailability: React.FC = () => {
         const startDate = dayjs(selectedDate).startOf('month').toDate();
         const endDate = dayjs(selectedDate).endOf('month').toDate();
         dispatch(getAvailabilityThunk({ startDate, endDate }));
-        const updatedSlots = timeSlots.filter((_, i) => i !== selectedSlotIndex);
-        setTimeSlots(sortTimeSlotsByStartTime(updatedSlots));
+        setTimeSlots(timeSlots.filter((_, i) => i !== selectedSlotIndex));
         setOriginalSlotCount(originalSlotCount - 1);
-        setConflictErrors((prev) => {
-          const newErrors = new Map(prev);
-          newErrors.delete(dayjs(selectedDate).format(DEFAULT_DATE_FORMAT));
-          return newErrors;
-        });
       } catch (err: any) {
-        setModalError(err.message || 'Failed to remove slot');
+        showError(err.message || 'Failed to remove slot');
       }
     }
     setEditDialogOpen(false);
     setReason('');
     setSelectedSlotIndex(null);
+  };
+
+  const handleReasonChange = (index: number, value: string) => {
+    setEditingReasons((prev) => ({
+      ...prev,
+      [index]: value,
+    }));
+    // Clear reason error when user starts typing
+    setFieldErrors((prev) => ({
+      ...prev,
+      [index]: {
+        ...prev[index],
+        reason: undefined,
+      },
+    }));
   };
 
   const handleRemoveClick = (index: number) => {
@@ -569,7 +620,6 @@ const DoctorAvailability: React.FC = () => {
       setDialogType('remove');
       setEditDialogOpen(true);
       setReason('');
-      setModalError('');
     } else {
       setRemoveIndex(index);
       setNonBookedRemoveOpen(true);
@@ -595,45 +645,69 @@ const DoctorAvailability: React.FC = () => {
 
   const isSubmitDisabled =
     newSlots.length === 0 ||
-    newSlots.every(
-      (slot) =>
+    newSlots.some((slot, index) => {
+      const slotErrors = fieldErrors[originalSlotCount + index];
+      return (
         !slot.startTime ||
         !slot.endTime ||
-        !DateUtils.isValidSlotDuration(slot.startTime, slot.endTime)
-    );
+        Object.keys(slotErrors || {}).length > 0
+      );
+    });
 
   const handleSubmitAvailability = async () => {
-    setModalError('');
+    // Clear all errors before validation
+    setFieldErrors({});
 
     if (!selectedDate || newSlots.length === 0) {
-      setModalError('Please add at least one new time slot');
+      showError('Please add at least one new time slot');
       return;
     }
 
-    // SORT NEW SLOTS BEFORE VALIDATION
-    const sortedNewSlots = sortTimeSlotsByStartTime(newSlots);
-    const validNewSlots = sortedNewSlots.filter((slot) =>
+    const validNewSlots = newSlots.filter((slot) =>
       validateSlot(slot, selectedDate)
     );
-    
     if (validNewSlots.length === 0) {
-      setModalError(
-        'All new slots must have valid start and end times (15-60 min)'
-      );
+      // Set errors for invalid new slots
+      newSlots.forEach((slot, index) => {
+        if (!slot.startTime) {
+          setFieldErrors((prev) => ({
+            ...prev,
+            [originalSlotCount + index]: {
+              startTime: 'Start time is required',
+            },
+          }));
+        }
+        if (!slot.endTime) {
+          setFieldErrors((prev) => ({
+            ...prev,
+            [originalSlotCount + index]: { endTime: 'End time is required' },
+          }));
+        }
+        if (
+          slot.startTime &&
+          slot.endTime &&
+          !DateUtils.isValidSlotDuration(slot.startTime, slot.endTime)
+        ) {
+          setFieldErrors((prev) => ({
+            ...prev,
+            [originalSlotCount + index]: {
+              endTime: `Duration must be ${MIN_SLOT_DURATION_MINUTES}-${MAX_SLOT_DURATION_MINUTES} minutes`,
+            },
+          }));
+        }
+      });
       return;
     }
 
-    // CHECK OVERLAPPING WITH SORTED SLOTS (combine existing + new)
-    const allSlotsForValidation = [...timeSlots, ...validNewSlots];
-    if (DateUtils.checkOverlappingSlots(allSlotsForValidation, selectedDate)) {
-      setModalError('Time slots cannot overlap');
+    if (DateUtils.checkOverlappingSlots([...timeSlots], selectedDate)) {
+      showError('Time slots cannot overlap');
       return;
     }
 
     try {
       const payload = {
         date: selectedDate,
-        timeSlots: validNewSlots, // Already sorted
+        timeSlots: validNewSlots,
       };
       const response = (await dispatch(
         setAvailabilityThunk(payload)
@@ -656,109 +730,136 @@ const DoctorAvailability: React.FC = () => {
         });
       }
       setNewSlots([]);
+      setTimeSlots(timeSlots.filter((_, index) => index < originalSlotCount));
       setIsModalOpen(false);
       const startDate = dayjs(selectedDate).startOf('month').toDate();
       const endDate = dayjs(selectedDate).endOf('month').toDate();
       await dispatch(getAvailabilityThunk({ startDate, endDate }));
     } catch (err: any) {
-      setModalError(err.message || 'Failed to add new slots');
+      showError(err.message || 'Failed to add new slots');
     }
   };
 
   const handleAddRecurringTimeSlot = () => {
     const newSlot = { startTime: '', endTime: '' };
-    const currentSlots = [...recurringTimeSlots, newSlot];
-    
-    // SORT RECURRING SLOTS
-    setRecurringTimeSlots(sortTimeSlotsByStartTime(currentSlots));
+    setRecurringTimeSlots([...recurringTimeSlots, newSlot]);
+    clearRecurringSlotErrors(recurringTimeSlots.length);
   };
 
   const handleRemoveRecurringTimeSlot = (index: number) => {
-    const updatedSlots = recurringTimeSlots.filter((_, i) => i !== index);
-    // SORT AFTER REMOVAL
-    setRecurringTimeSlots(sortTimeSlotsByStartTime(updatedSlots));
+    setRecurringTimeSlots(recurringTimeSlots.filter((_, i) => i !== index));
+    setRecurringFieldErrors((prev) => {
+      const newErrors = { ...prev };
+      delete newErrors[index];
+      return newErrors;
+    });
   };
 
   const handleSubmitRecurringAvailability = async () => {
+    // Clear all errors before validation
+    setRecurringFieldErrors({});
+
     if (
       !recurringStartDate ||
       !recurringEndDate ||
       recurringDays.length === 0 ||
       recurringTimeSlots.length === 0
     ) {
-      setModalError(
+      showError(
         'Please provide start date, end date, recurring days, and time slots'
       );
       return;
     }
 
     if (recurringEndDate.isBefore(recurringStartDate, 'day')) {
-      setModalError('End date must be after start date');
+      showError('End date must be after start date');
       return;
     }
 
     const daysDiff = recurringEndDate.diff(recurringStartDate, 'day');
     if (daysDiff > MAX_RECURRING_DAYS) {
-      setModalError(`Recurring period cannot exceed ${MAX_RECURRING_DAYS} days`);
+      showError(`Recurring period cannot exceed ${MAX_RECURRING_DAYS} days`);
       return;
     }
 
-    // SORT RECURRING SLOTS BEFORE VALIDATION
-    const sortedRecurringSlots = sortTimeSlotsByStartTime(recurringTimeSlots);
+    // Validate all slots
+    const invalidSlots: number[] = [];
+    recurringTimeSlots.forEach((slot, index) => {
+      const errors: { startTime?: string; endTime?: string } = {};
 
-    for (const slot of sortedRecurringSlots) {
-      if (!slot.startTime || !slot.endTime) {
-        setModalError('All slots must have valid start and end times');
-        return;
+      if (!slot.startTime) errors.startTime = 'Start time is required';
+      if (!slot.endTime) errors.endTime = 'End time is required';
+
+      if (slot.startTime && slot.endTime) {
+        if (!DateUtils.isValidSlotDuration(slot.startTime, slot.endTime)) {
+          errors.endTime = `Duration must be ${MIN_SLOT_DURATION_MINUTES}-${MAX_SLOT_DURATION_MINUTES} minutes`;
+        }
       }
-      if (!DateUtils.isValidSlotDuration(slot.startTime, slot.endTime)) {
-        setModalError(
-          `Slot duration must be ${MIN_SLOT_DURATION_MINUTES}-${MAX_SLOT_DURATION_MINUTES} minutes`
-        );
-        return;
+
+      if (Object.keys(errors).length > 0) {
+        invalidSlots.push(index);
+        setRecurringFieldErrors((prev) => ({
+          ...prev,
+          [index]: errors,
+        }));
       }
-      const timeRegex = new RegExp(
-        `^${DEFAULT_TIME_FORMAT.replace('HH', '\\d{2}').replace('mm', '\\d{2}')}$`
-      );
-      if (!timeRegex.test(slot.startTime) || !timeRegex.test(slot.endTime)) {
-        setModalError(
-          `Invalid time format. Use ${DEFAULT_TIME_FORMAT} (e.g., 09:00)`
-        );
-        return;
-      }
-      const start = dayjs(
-        `${recurringStartDate.format('YYYY-MM-DD')} ${slot.startTime}`
-      );
-      const end = dayjs(
-        `${recurringStartDate.format('YYYY-MM-DD')} ${slot.endTime}`
-      );
-      if (!start.isValid() || !end.isValid() || !start.isBefore(end)) {
-        setModalError('Invalid slot: Start time must be before end time');
-        return;
-      }
+    });
+
+    if (invalidSlots.length > 0) {
+      showError('Please fix all time slot errors');
+      return;
+    }
+
+    // NEW: Check for today's past time if today is included in recurring dates
+    const today = dayjs();
+    const todayDayOfWeek = today.day(); // 0 = Sunday, 1 = Monday, etc.
+    const isTodayIncluded =
+      recurringDays.includes(todayDayOfWeek) &&
+      !recurringStartDate.isAfter(today, 'day') &&
+      !recurringEndDate.isBefore(today, 'day');
+
+    if (isTodayIncluded) {
+      recurringTimeSlots.forEach((slot, index) => {
+        if (slot.startTime) {
+          const slotTime = dayjs(`${today.format('YYYY-MM-DD')} ${slot.startTime}`);
+          if (slotTime.isBefore(today)) {
+            setRecurringFieldErrors((prev) => ({
+              ...prev,
+              [index]: {
+                ...prev[index],
+                startTime: 'Cannot set time before current time (today is included)',
+              },
+            }));
+            invalidSlots.push(index);
+          }
+        }
+      });
+    }
+
+    if (invalidSlots.length > 0) {
+      showError('Please fix all time slot errors, including current time validation for today');
+      return;
     }
 
     if (
       DateUtils.checkOverlappingSlots(
-        sortedRecurringSlots,
+        recurringTimeSlots,
         recurringStartDate.toDate()
       )
     ) {
-      setModalError('Time slots cannot overlap');
+      showError('Time slots cannot overlap');
       return;
     }
 
     try {
       const payload = {
         date: recurringStartDate.toDate(),
-        timeSlots: sortedRecurringSlots, // Already sorted
+        timeSlots: recurringTimeSlots,
         isRecurring: true,
         recurringEndDate: recurringEndDate.toDate(),
         recurringDays,
       };
-      const response = (await dispatch(
-        setAvailabilityThunk(payload)
-      ).unwrap()) as SetAvailabilityResponse;
+      const response = (await dispatch(setAvailabilityThunk(payload)).unwrap()) as SetAvailabilityResponse;
       showSuccess('Recurring availability set successfully');
       if (response.conflicts.length > 0) {
         const newErrors = new Map(conflictErrors);
@@ -775,9 +876,10 @@ const DoctorAvailability: React.FC = () => {
       setRecurringStartDate(null);
       setRecurringEndDate(null);
       setRecurringDays([]);
+      setRecurringFieldErrors({});
       fetchAvailability();
     } catch (err: any) {
-      setModalError(err.message || 'Failed to set recurring availability');
+      showError(err.message || 'Failed to set recurring availability');
     }
   };
 
@@ -1031,12 +1133,12 @@ const DoctorAvailability: React.FC = () => {
         </Box>
       </div>
 
-      {/* MAIN MODAL */}
+      {/* MAIN MODAL - INLINE VALIDATION */}
       <Modal
         isOpen={isModalOpen && !!selectedDate}
         onClose={() => {
           setIsModalOpen(false);
-          setModalError('');
+          setFieldErrors({});
         }}
         title={`Set Availability for ${selectedDate ? DateUtils.formatToLocalDisplay(selectedDate) : ''}`}
         footer={
@@ -1044,7 +1146,7 @@ const DoctorAvailability: React.FC = () => {
             <button
               onClick={() => {
                 setIsModalOpen(false);
-                setModalError('');
+                setFieldErrors({});
               }}
               className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
             >
@@ -1060,26 +1162,20 @@ const DoctorAvailability: React.FC = () => {
           </>
         }
       >
-        {/* ERROR DISPLAY */}
-        {modalError && (
-          <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg">
-            <div className="flex items-center gap-2 text-red-300">
-              <WarningIcon sx={{ fontSize: 18 }} />
-              <span className="text-sm">{modalError}</span>
-            </div>
-          </div>
-        )}
-
         {timeSlots.length === 0 ? (
           <p className="text-white mb-4">No time slots set for this date.</p>
         ) : (
-          // TIME SLOTS ARE ALREADY SORTED BY STATE MANAGEMENT
           timeSlots.map((slot, index) => {
             const durationFeedback = getDurationFeedback(slot);
+            const slotErrors = fieldErrors[index] || {};
+
             return (
-              <div key={index} className="mb-4 p-3 bg-white/5 rounded-lg">
+              <div
+                key={slot._id || index}
+                className="mb-4 p-3 bg-white/5 rounded-lg"
+              >
                 <div className="flex flex-col gap-3">
-                  {/* TIME INPUTS */}
+                  {/* TIME INPUTS WITH INLINE ERRORS */}
                   <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       {index >= originalSlotCount || editingIndex === index ? (
@@ -1091,7 +1187,13 @@ const DoctorAvailability: React.FC = () => {
                             </label>
                             <input
                               type="time"
-                              className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent"
+                              className={`w-full p-3 bg-white/10 border-2 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent ${
+                                slotErrors.startTime
+                                  ? 'border-red-400'
+                                  : durationFeedback.isValid
+                                    ? 'border-green-400'
+                                    : 'border-white/20'
+                              }`}
                               value={slot.startTime}
                               onChange={(e) =>
                                 handleTimeSlotChange(
@@ -1103,6 +1205,13 @@ const DoctorAvailability: React.FC = () => {
                               placeholder="--:--"
                               required
                             />
+                            {/* INLINE ERROR */}
+                            {slotErrors.startTime && (
+                              <div className="text-red-400 text-xs mt-1 flex items-center gap-1">
+                                <WarningIcon sx={{ fontSize: 14 }} />
+                                {slotErrors.startTime}
+                              </div>
+                            )}
                           </div>
 
                           <span className="text-white text-sm sm:text-base whitespace-nowrap px-2">
@@ -1117,10 +1226,10 @@ const DoctorAvailability: React.FC = () => {
                             <input
                               type="time"
                               className={`w-full p-3 bg-white/10 border-2 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent ${
-                                durationFeedback.isValid
-                                  ? 'border-green-400'
-                                  : slot.startTime
-                                    ? 'border-red-400'
+                                slotErrors.endTime
+                                  ? 'border-red-400'
+                                  : durationFeedback.isValid
+                                    ? 'border-green-400'
                                     : 'border-white/20'
                               }`}
                               value={slot.endTime}
@@ -1151,6 +1260,13 @@ const DoctorAvailability: React.FC = () => {
                               required
                               disabled={!slot.startTime}
                             />
+                            {/* INLINE ERROR */}
+                            {slotErrors.endTime && (
+                              <div className="text-red-400 text-xs mt-1 flex items-center gap-1">
+                                <WarningIcon sx={{ fontSize: 14 }} />
+                                {slotErrors.endTime}
+                              </div>
+                            )}
                           </div>
                         </>
                       ) : (
@@ -1184,68 +1300,33 @@ const DoctorAvailability: React.FC = () => {
                     <DurationFeedback slot={slot} />
                   )}
 
-                  {/* REASON FIELD */}
+                  {/* REASON FIELD WITH INLINE ERROR */}
                   {editingIndex === index && slot.isBooked && (
                     <div className="mt-3 pt-2 border-t border-white/10">
                       <TextField
                         label="Reason for Change"
                         value={editingReasons[index] || ''}
-                        onChange={(e) => handleReasonChange(index, e.target.value)}
+                        onChange={(e) =>
+                          handleReasonChange(index, e.target.value)
+                        }
                         fullWidth
                         variant="outlined"
                         size="small"
                         placeholder="Enter reason for modifying booked slot..."
-                        error={modalError.includes('Reason')}
-                        helperText={
-                          modalError.includes('Reason')
-                            ? modalError
-                            : `${editingReasons[index]?.length || 0}/${MAX_REASON_LENGTH} characters`
-                        }
-                        inputProps={{
-                          maxLength: MAX_REASON_LENGTH,
-                        }}
+                        error={!!slotErrors.reason}
+                        helperText={slotErrors.reason}
                         sx={{
                           '& .MuiOutlinedInput-root': {
                             backgroundColor: 'rgba(255, 255, 255, 0.1)',
                             borderRadius: '8px',
                             '& fieldset': {
-                              borderColor: modalError.includes('Reason')
+                              borderColor: !slotErrors.reason
                                 ? 'rgb(239, 68, 68)'
                                 : 'rgba(255, 255, 255, 0.2)',
                             },
-                            '&:hover fieldset': {
-                              borderColor: modalError.includes('Reason')
-                                ? 'rgb(239, 68, 68)'
-                                : 'rgba(168, 85, 247, 0.3)',
-                            },
-                            '&.Mui-focused fieldset': {
-                              borderColor: modalError.includes('Reason')
-                                ? 'rgb(239, 68, 68)'
-                                : 'rgba(168, 85, 247, 0.5)',
-                              borderWidth: '2px',
-                            },
-                            color: 'white',
-                          },
-                          '& .MuiInputLabel-root': {
-                            color: modalError.includes('Reason')
-                              ? 'rgb(239, 68, 68)'
-                              : 'rgba(255, 255, 255, 0.7)',
-                            '&.Mui-focused': {
-                              color: modalError.includes('Reason')
-                                ? 'rgb(239, 68, 68)'
-                                : 'white',
-                            },
-                          },
-                          '& .MuiOutlinedInput-input': {
-                            color: 'white',
-                            '&::placeholder': {
-                              color: 'rgba(255, 255, 255, 0.5)',
-                            },
                           },
                           '& .MuiFormHelperText-root': {
-                            color: modalError.includes('Reason')
-                              ? 'rgb(239, 68, 68)'
-                              : 'rgba(255, 255, 255, 0.6)',
+                            color: 'rgb(239, 68, 68)',
                             fontSize: '0.75rem',
                           },
                         }}
@@ -1284,6 +1365,7 @@ const DoctorAvailability: React.FC = () => {
                             size="small"
                             disabled={
                               !isSlotChanged(index) ||
+                              Object.keys(slotErrors).length > 0 ||
                               !(
                                 timeSlots[index].startTime &&
                                 timeSlots[index].endTime &&
@@ -1298,6 +1380,7 @@ const DoctorAvailability: React.FC = () => {
                               minHeight: '40px',
                               bgcolor:
                                 isSlotChanged(index) &&
+                                Object.keys(slotErrors).length === 0 &&
                                 DateUtils.isValidSlotDuration(
                                   timeSlots[index].startTime,
                                   timeSlots[index].endTime
@@ -1306,6 +1389,7 @@ const DoctorAvailability: React.FC = () => {
                                   : 'rgba(255, 255, 255, 0.1)',
                               color:
                                 isSlotChanged(index) &&
+                                Object.keys(slotErrors).length === 0 &&
                                 DateUtils.isValidSlotDuration(
                                   timeSlots[index].startTime,
                                   timeSlots[index].endTime
@@ -1315,6 +1399,7 @@ const DoctorAvailability: React.FC = () => {
                               '&:hover': {
                                 bgcolor:
                                   isSlotChanged(index) &&
+                                  Object.keys(slotErrors).length === 0 &&
                                   DateUtils.isValidSlotDuration(
                                     timeSlots[index].startTime,
                                     timeSlots[index].endTime
@@ -1392,16 +1477,16 @@ const DoctorAvailability: React.FC = () => {
         isOpen={editDialogOpen}
         onClose={() => {
           setEditDialogOpen(false);
-          setModalError('');
           setReason('');
         }}
-        title={dialogType === 'update' ? 'Update Booked Slot' : 'Remove Booked Slot'}
+        title={
+          dialogType === 'update' ? 'Update Booked Slot' : 'Remove Booked Slot'
+        }
         footer={
           <div className="flex justify-end space-x-2">
             <button
               onClick={() => {
                 setEditDialogOpen(false);
-                setModalError('');
                 setReason('');
               }}
               className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
@@ -1426,23 +1511,13 @@ const DoctorAvailability: React.FC = () => {
           </div>
         }
       >
-        {/* ERROR DISPLAY */}
-        {modalError && (
-          <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg">
-            <div className="flex items-center gap-2 text-red-300">
-              <WarningIcon sx={{ fontSize: 18 }} />
-              <span className="text-sm">{modalError}</span>
-            </div>
-          </div>
-        )}
-
         <p className="text-white mb-4">
           This slot is booked by a patient. Would you like to proceed with the{' '}
           {dialogType === 'update' ? 'update' : 'removal'}?{' '}
           {dialogType === 'remove' &&
             'Provide a reason for the change (will be notified to the patient).'}
         </p>
-        
+
         {dialogType === 'remove' && (
           <TextField
             autoFocus
@@ -1452,35 +1527,13 @@ const DoctorAvailability: React.FC = () => {
             fullWidth
             variant="standard"
             value={reason}
-            onChange={(e) => handleRemoveReasonChange(e.target.value)}
-            error={modalError.includes('Reason')}
-            helperText={
-              modalError.includes('Reason')
-                ? modalError
-                : `${reason.length}/${MAX_REASON_LENGTH} characters`
-            }
-            inputProps={{
-              maxLength: MAX_REASON_LENGTH,
-            }}
+            onChange={(e) => setReason(e.target.value)}
             sx={{
               '& .MuiInput-root': {
                 color: 'white',
               },
               '& .MuiInputLabel-root': {
-                color: modalError.includes('Reason') 
-                  ? 'rgb(239, 68, 68)' 
-                  : 'rgba(255, 255, 255, 0.7)',
-              },
-              '& .MuiInput-underline:after': {
-                borderBottomColor: modalError.includes('Reason') 
-                  ? 'rgb(239, 68, 68)' 
-                  : 'rgba(168, 85, 247, 0.5)',
-              },
-              '& .MuiFormHelperText-root': {
-                color: modalError.includes('Reason')
-                  ? 'rgb(239, 68, 68)'
-                  : 'rgba(255, 255, 255, 0.6)',
-                fontSize: '0.75rem',
+                color: 'rgba(255, 255, 255, 0.7)',
               },
             }}
           />
@@ -1526,12 +1579,12 @@ const DoctorAvailability: React.FC = () => {
         </p>
       </Modal>
 
-      {/* RECURRING AVAILABILITY MODAL */}
+      {/* RECURRING AVAILABILITY MODAL - INLINE VALIDATION */}
       <Modal
         isOpen={isRecurringModalOpen}
         onClose={() => {
           setIsRecurringModalOpen(false);
-          setModalError('');
+          setRecurringFieldErrors({});
         }}
         title="Set Recurring Availability"
         footer={
@@ -1539,7 +1592,7 @@ const DoctorAvailability: React.FC = () => {
             <button
               onClick={() => {
                 setIsRecurringModalOpen(false);
-                setModalError('');
+                setRecurringFieldErrors({});
               }}
               className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
             >
@@ -1550,12 +1603,14 @@ const DoctorAvailability: React.FC = () => {
               className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
               disabled={
                 recurringTimeSlots.length === 0 ||
-                recurringTimeSlots.some(
-                  (slot) =>
+                recurringTimeSlots.some((slot, index) => {
+                  const slotErrors = recurringFieldErrors[index];
+                  return (
                     !slot.startTime ||
                     !slot.endTime ||
-                    !DateUtils.isValidSlotDuration(slot.startTime, slot.endTime)
-                ) ||
+                    Object.keys(slotErrors || {}).length > 0
+                  );
+                }) ||
                 !recurringStartDate ||
                 !recurringEndDate ||
                 recurringDays.length === 0
@@ -1566,16 +1621,6 @@ const DoctorAvailability: React.FC = () => {
           </>
         }
       >
-        {/* ERROR DISPLAY */}
-        {modalError && (
-          <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg">
-            <div className="flex items-center gap-2 text-red-300">
-              <WarningIcon sx={{ fontSize: 18 }} />
-              <span className="text-sm">{modalError}</span>
-            </div>
-          </div>
-        )}
-
         <div className="space-y-4">
           {/* HEADER */}
           <div className="flex items-center mb-2">
@@ -1611,9 +1656,6 @@ const DoctorAvailability: React.FC = () => {
                         '& .MuiInputLabel-root': {
                           color: 'rgba(255, 255, 255, 0.7)',
                         },
-                        '& .Mui-focused': {
-                          borderColor: 'rgba(192, 132, 252, 0.4)',
-                        },
                       },
                     },
                   }}
@@ -1648,9 +1690,6 @@ const DoctorAvailability: React.FC = () => {
                         },
                         '& .MuiInputLabel-root': {
                           color: 'rgba(255, 255, 255, 0.7)',
-                        },
-                        '& .Mui-focused': {
-                          borderColor: 'rgba(192, 132, 252, 0.4)',
                         },
                       },
                     },
@@ -1688,9 +1727,11 @@ const DoctorAvailability: React.FC = () => {
             </Box>
           </div>
 
-          {/* TIME SLOTS - ALREADY SORTED */}
+          {/* TIME SLOTS WITH INLINE ERRORS */}
           {recurringTimeSlots.map((slot, index) => {
             const durationFeedback = getDurationFeedback(slot);
+            const slotErrors = recurringFieldErrors[index] || {};
+
             return (
               <div key={index} className="mb-4 p-3 bg-white/5 rounded-lg">
                 <div className="flex flex-col gap-3">
@@ -1703,7 +1744,13 @@ const DoctorAvailability: React.FC = () => {
                       </label>
                       <input
                         type="time"
-                        className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent"
+                        className={`w-full p-3 bg-white/10 border-2 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent ${
+                          slotErrors.startTime
+                            ? 'border-red-400'
+                            : durationFeedback.isValid
+                              ? 'border-green-400'
+                              : 'border-white/20'
+                        }`}
                         value={slot.startTime}
                         onChange={(e) =>
                           handleRecurringTimeSlotChange(
@@ -1715,6 +1762,13 @@ const DoctorAvailability: React.FC = () => {
                         placeholder="--:--"
                         required
                       />
+                      {/* INLINE ERROR */}
+                      {slotErrors.startTime && (
+                        <div className="text-red-400 text-xs mt-1 flex items-center gap-1">
+                          <WarningIcon sx={{ fontSize: 14 }} />
+                          {slotErrors.startTime}
+                        </div>
+                      )}
                     </div>
 
                     <span className="text-white text-sm whitespace-nowrap px-2">
@@ -1729,10 +1783,10 @@ const DoctorAvailability: React.FC = () => {
                       <input
                         type="time"
                         className={`w-full p-3 bg-white/10 border-2 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent ${
-                          durationFeedback.isValid
-                            ? 'border-green-400'
-                            : slot.startTime
-                              ? 'border-red-400'
+                          slotErrors.endTime
+                            ? 'border-red-400'
+                            : durationFeedback.isValid
+                              ? 'border-green-400'
                               : 'border-white/20'
                         }`}
                         value={slot.endTime}
@@ -1763,6 +1817,13 @@ const DoctorAvailability: React.FC = () => {
                         required
                         disabled={!slot.startTime}
                       />
+                      {/* INLINE ERROR */}
+                      {slotErrors.endTime && (
+                        <div className="text-red-400 text-xs mt-1 flex items-center gap-1">
+                          <WarningIcon sx={{ fontSize: 14 }} />
+                          {slotErrors.endTime}
+                        </div>
+                      )}
                     </div>
 
                     {/* REMOVE BUTTON */}

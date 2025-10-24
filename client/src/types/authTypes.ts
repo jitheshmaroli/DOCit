@@ -313,7 +313,7 @@ export interface PatientSubscription {
 
 export interface UpdateSlotPayload {
   availabilityId: string;
-  slotIndex: number;
+  slotId: string;
   startTime: string;
   endTime: string;
   reason?: string;

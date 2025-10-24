@@ -1,4 +1,5 @@
 export interface TimeSlotDTO {
+  _id?: string;
   startTime: string;
   endTime: string;
   isBooked: boolean;
@@ -13,6 +14,7 @@ export interface SetAvailabilityRequestDTO {
 }
 
 export interface UpdateSlotRequestDTO {
+  // slotId: string;
   startTime: string;
   endTime: string;
 }
@@ -22,7 +24,8 @@ export interface AvailabilityResponseDTO {
   doctorId: string;
   date: string;
   dateKey: string;
-  timeSlots: Array<{ startTime: string; endTime: string; isBooked: boolean }>;
+  timeSlots: TimeSlotDTO[];
+  // timeSlots: Array<{ startTime: string; endTime: string; isBooked: boolean }>;
 }
 
 export interface SetAvailabilityResponseDTO {

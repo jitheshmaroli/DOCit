@@ -102,7 +102,7 @@ export const setAvailabilityThunk = createAsyncThunk(
 export const removeSlotThunk = createAsyncThunk(
   'doctors/removeSlot',
   async (
-    payload: { availabilityId: string; slotIndex: number; reason?: string },
+    payload: { availabilityId: string; slotId: string, reason?: string },
     { rejectWithValue }
   ) => {
     try {

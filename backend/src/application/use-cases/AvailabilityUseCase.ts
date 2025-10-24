@@ -17,6 +17,7 @@ import { DateUtils } from '../../utils/DateUtils';
 import { IValidatorService } from '../../core/interfaces/services/IValidatorService';
 import moment from 'moment';
 import { MAX_REASON_LENGTH, MAX_RECURRING_DAYS } from '../../core/constants/AppConstants';
+import logger from '../../utils/logger';
 
 export class AvailabilityUseCase implements IAvailabilityUseCase {
   constructor(
@@ -62,6 +63,8 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
 
       const startMoment = moment.utc(dto.date);
       const endMoment = moment.utc(dto.recurringEndDate!);
+      logger.debug(startMoment);
+      logger.debug(endMoment);
       const daysDiff = endMoment.diff(startMoment, 'days');
       if (daysDiff > MAX_RECURRING_DAYS) {
         throw new ValidationError(`Recurring period cannot exceed ${MAX_RECURRING_DAYS} days`);
@@ -82,6 +85,7 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
         new Date(dto.recurringEndDate!),
         dto.recurringDays!
       );
+      logger.debug(dates);
       for (const currentDate of dates) {
         const startOfDay = DateUtils.startOfDayUTC(currentDate);
         const existingAvailability = await this._availabilityRepository.findByDoctorAndDate(doctorId, startOfDay);
@@ -216,16 +220,17 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
 
   async removeSlot(
     availabilityId: string,
-    slotIndex: number,
+    slotId: string,
     doctorId: string,
     reason?: string
   ): Promise<AvailabilityResponseDTO | null> {
     //validations
-    this._validatorService.validateRequiredFields({ availabilityId, slotIndex, doctorId });
+    this._validatorService.validateRequiredFields({ availabilityId, slotId, doctorId });
     this._validatorService.validateIdFormat(availabilityId);
+    this._validatorService.validateIdFormat(slotId);
     this._validatorService.validateIdFormat(doctorId);
     if (reason) {
-      this._validatorService.validateLength(reason, 1, 500);
+      this._validatorService.validateLength(reason, 1, MAX_REASON_LENGTH);
     }
 
     const availability = await this._availabilityRepository.findById(availabilityId);
@@ -237,8 +242,11 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
       throw new ValidationError('Unauthorized to modify this availability');
     }
 
-    if (slotIndex >= availability.timeSlots.length) {
-      throw new ValidationError('Invalid slot index');
+    const slotIndex = availability.timeSlots.findIndex((slot) => slot._id?.toString() === slotId);
+    if (slotIndex === -1) {
+      logger.debug(availability.timeSlots);
+      logger.debug(slotId);
+      throw new ValidationError('Slot not found');
     }
 
     const slot = availability.timeSlots[slotIndex];
@@ -275,7 +283,7 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
 
   async updateSlot(
     availabilityId: string,
-    slotIndex: number,
+    slotId: string,
     newSlot: UpdateSlotRequestDTO,
     doctorId: string,
     reason?: string
@@ -283,14 +291,14 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
     //validations
     this._validatorService.validateRequiredFields({
       availabilityId,
-      slotIndex,
+      slotId,
       startTime: newSlot.startTime,
       endTime: newSlot.endTime,
       doctorId,
     });
     this._validatorService.validateIdFormat(availabilityId);
     this._validatorService.validateIdFormat(doctorId);
-    this._validatorService.validatePositiveInteger(slotIndex);
+    this._validatorService.validateIdFormat(slotId);
     this._validatorService.validateTimeSlot(newSlot.startTime, newSlot.endTime);
     if (reason) {
       this._validatorService.validateLength(reason, 1, MAX_REASON_LENGTH);
@@ -305,8 +313,9 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
       throw new ValidationError('Unauthorized to modify this availability');
     }
 
-    if (slotIndex >= availability.timeSlots.length) {
-      throw new ValidationError('Invalid slot index');
+    const slotIndex = availability.timeSlots.findIndex((slot) => slot._id?.toString() === slotId);
+    if (slotIndex === -1) {
+      throw new ValidationError('Slot not found');
     }
 
     const oldSlot = availability.timeSlots[slotIndex];
@@ -338,6 +347,7 @@ export class AvailabilityUseCase implements IAvailabilityUseCase {
     DateUtils.checkOverlappingSlots(tempSlots, availability.date);
 
     availability.timeSlots[slotIndex] = AvailabilityMapper.toTimeSlotEntity({
+      _id: slotId,
       ...newSlot,
       isBooked: oldSlot.isBooked ?? false,
     });

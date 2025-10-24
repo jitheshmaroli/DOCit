@@ -69,16 +69,16 @@ export const setAvailability = async ({
 
 export const removeSlot = async ({
   availabilityId,
-  slotIndex,
+  slotId,
   reason,
 }: {
   availabilityId: string;
-  slotIndex: number;
+  slotId: string;
   reason?: string;
 }) => {
   const response = await api.post(ROUTES.API.DOCTOR.REMOVE_SLOT, {
     availabilityId,
-    slotIndex,
+    slotId,
     reason,
   });
   return response.data;
@@ -86,20 +86,20 @@ export const removeSlot = async ({
 
 export const updateSlot = async ({
   availabilityId,
-  slotIndex,
+  slotId,
   startTime,
   endTime,
   reason,
 }: {
   availabilityId: string;
-  slotIndex: number;
+  slotId: string;
   startTime: string;
   endTime: string;
   reason?: string;
 }) => {
   const response = await api.patch(ROUTES.API.DOCTOR.UPDATE_SLOT, {
     availabilityId,
-    slotIndex,
+    slotId,
     startTime,
     endTime,
     reason,

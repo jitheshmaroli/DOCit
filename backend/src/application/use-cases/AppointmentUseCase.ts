@@ -349,6 +349,7 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     }
 
     if (appointment.status !== AppointmentStatus.PENDING) {
+      logger.debug(`status: ${appointment.status}`);
       throw new ValidationError('Only pending appointments can be marked as completed');
     }
 

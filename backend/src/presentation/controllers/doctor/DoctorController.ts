@@ -80,11 +80,11 @@ export class DoctorController {
       if (!doctorId) {
         throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
-      const { availabilityId, slotIndex, reason } = req.body;
-      if (!availabilityId || slotIndex === undefined) {
+      const { availabilityId, slotId, reason } = req.body;
+      if (!availabilityId || slotId === undefined) {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
-      const availabilityData = await this._availabilityUseCase.removeSlot(availabilityId, slotIndex, doctorId, reason);
+      const availabilityData = await this._availabilityUseCase.removeSlot(availabilityId, slotId, doctorId, reason);
       if (!availabilityData) {
         res.status(HttpStatusCode.OK).json({
           message: ResponseMessages.PLAN_DELETED,
@@ -103,14 +103,14 @@ export class DoctorController {
       if (!doctorId) {
         throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
-      const { availabilityId, slotIndex, startTime, endTime, reason } = req.body;
-      if (!availabilityId || slotIndex === undefined || !startTime || !endTime) {
+      const { availabilityId, slotId, startTime, endTime, reason } = req.body;
+      if (!availabilityId || !slotId || !startTime || !endTime) {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
       const newSlot = { startTime, endTime };
       const availability = await this._availabilityUseCase.updateSlot(
         availabilityId,
-        slotIndex,
+        slotId,
         newSlot,
         doctorId,
         reason
