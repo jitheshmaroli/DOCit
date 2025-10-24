@@ -88,7 +88,7 @@ const DoctorAvailability: React.FC = () => {
     new Map()
   );
 
-  // NEW: Inline validation states
+  //Inline validation states
   const [fieldErrors, setFieldErrors] = useState<{
     [key: number]: {
       startTime?: string;
@@ -121,6 +121,78 @@ const DoctorAvailability: React.FC = () => {
     }));
   };
 
+  //Dynamic validation for today inclusion in recurring
+  const checkTodayValidation = useCallback(
+    (index: number) => {
+      const slot = recurringTimeSlots[index];
+      if (!slot || !slot.startTime) return;
+
+      const today = dayjs();
+      const todayDayOfWeek = today.day();
+      const isTodayIncluded =
+        recurringDays.includes(todayDayOfWeek) &&
+        recurringStartDate &&
+        !recurringStartDate.isAfter(today, 'day') &&
+        recurringEndDate &&
+        !recurringEndDate.isBefore(today, 'day');
+
+      const currentErrors = recurringFieldErrors[index] || {};
+      const newError = { ...currentErrors };
+
+      const todayErrorMsg =
+        'Cannot set time before current time (today is included)';
+
+      if (isTodayIncluded) {
+        const slotTime = dayjs(
+          `${today.format('YYYY-MM-DD')} ${slot.startTime}`
+        );
+        if (slotTime.isBefore(today)) {
+          newError.startTime = todayErrorMsg;
+        } else {
+          // Clear if time is valid
+          if (currentErrors.startTime === todayErrorMsg) {
+            delete newError.startTime;
+          }
+        }
+      } else {
+        // Clear the specific today error if present
+        if (currentErrors.startTime === todayErrorMsg) {
+          delete newError.startTime;
+        }
+      }
+
+      // Only update if changed
+      if (JSON.stringify(newError) !== JSON.stringify(currentErrors)) {
+        setRecurringFieldErrors((prev) => ({
+          ...prev,
+          [index]: newError,
+        }));
+      }
+    },
+    [
+      recurringTimeSlots,
+      recurringFieldErrors,
+      recurringStartDate,
+      recurringEndDate,
+      recurringDays,
+    ]
+  );
+
+  // Re-validate all slots when dates or days change
+  useEffect(() => {
+    console.log('revalidations');
+    recurringTimeSlots.forEach((_, index) => {
+      checkTodayValidation(index);
+    });
+  }, [
+    recurringStartDate,
+    recurringEndDate,
+    recurringDays,
+    checkTodayValidation,
+    recurringTimeSlots.length,
+    recurringTimeSlots,
+  ]);
+
   useEffect(() => {
     if (availability.length > 0) {
       const map = new Map<string, Availability>();
@@ -130,6 +202,21 @@ const DoctorAvailability: React.FC = () => {
       setAvailabilityMap(map);
     }
   }, [availability]);
+
+  // Sync timeSlots with latest availability when modal is open
+  useEffect(() => {
+    if (isModalOpen && selectedDate) {
+      const dateKey = dayjs(selectedDate).format(DEFAULT_DATE_FORMAT);
+      const existingAvailability = availabilityMap.get(dateKey);
+      if (existingAvailability) {
+        setSelectedAvailabilityId(existingAvailability._id || null);
+        setTimeSlots([...existingAvailability.timeSlots]);
+        setOriginalSlotCount(existingAvailability.timeSlots.length);
+        setNewSlots([]);
+        setFieldErrors({});
+      }
+    }
+  }, [availabilityMap, isModalOpen, selectedDate]);
 
   const fetchAvailability = useCallback(() => {
     if (user?.role === 'doctor') {
@@ -184,7 +271,7 @@ const DoctorAvailability: React.FC = () => {
     setTimeSlots(existingSlots);
     setOriginalSlotCount(existingSlots.length);
     setNewSlots([]);
-    setFieldErrors({}); // Clear all slot errors
+    setFieldErrors({});
     setIsModalOpen(true);
   };
 
@@ -192,7 +279,7 @@ const DoctorAvailability: React.FC = () => {
     const newSlot = { startTime: '', endTime: '' };
     setTimeSlots([...timeSlots, newSlot]);
     setNewSlots([...newSlots, newSlot]);
-    clearSlotErrors(timeSlots.length); // Clear errors for new slot
+    clearSlotErrors(timeSlots.length);
   };
 
   const handleTimeSlotChange = (
@@ -200,7 +287,7 @@ const DoctorAvailability: React.FC = () => {
     field: 'startTime' | 'endTime',
     value: string
   ) => {
-    // Clear previous errors for this slot
+    
     clearSlotErrors(index);
 
     const timeRegex = new RegExp(
@@ -340,6 +427,9 @@ const DoctorAvailability: React.FC = () => {
         }));
       }
     }
+
+    // Check today validation after time change
+    checkTodayValidation(index);
   };
 
   const handleRemoveTimeSlot = async (index: number) => {
@@ -418,7 +508,10 @@ const DoctorAvailability: React.FC = () => {
           `${dayjs(selectedDate).format('YYYY-MM-DD')} ${slot.startTime}`
         );
         if (slotTime.isBefore(now)) {
-          errors.startTime = 'Cannot update to a time before current time';
+          showError('Cannot update to a time before current time');
+          setEditDialogOpen(false);
+          setSelectedSlotIndex(null);
+          return;
         }
       }
 
@@ -810,9 +903,9 @@ const DoctorAvailability: React.FC = () => {
       return;
     }
 
-    // NEW: Check for today's past time if today is included in recurring dates
+    // Check for today's past time if today is included in recurring dates
     const today = dayjs();
-    const todayDayOfWeek = today.day(); // 0 = Sunday, 1 = Monday, etc.
+    const todayDayOfWeek = today.day();
     const isTodayIncluded =
       recurringDays.includes(todayDayOfWeek) &&
       !recurringStartDate.isAfter(today, 'day') &&
@@ -821,13 +914,16 @@ const DoctorAvailability: React.FC = () => {
     if (isTodayIncluded) {
       recurringTimeSlots.forEach((slot, index) => {
         if (slot.startTime) {
-          const slotTime = dayjs(`${today.format('YYYY-MM-DD')} ${slot.startTime}`);
+          const slotTime = dayjs(
+            `${today.format('YYYY-MM-DD')} ${slot.startTime}`
+          );
           if (slotTime.isBefore(today)) {
             setRecurringFieldErrors((prev) => ({
               ...prev,
               [index]: {
                 ...prev[index],
-                startTime: 'Cannot set time before current time (today is included)',
+                startTime:
+                  'Cannot set time before current time (today is included)',
               },
             }));
             invalidSlots.push(index);
@@ -837,7 +933,9 @@ const DoctorAvailability: React.FC = () => {
     }
 
     if (invalidSlots.length > 0) {
-      showError('Please fix all time slot errors, including current time validation for today');
+      showError(
+        'Please fix all time slot errors, including current time validation for today'
+      );
       return;
     }
 
@@ -852,14 +950,24 @@ const DoctorAvailability: React.FC = () => {
     }
 
     try {
+      // Convert local Dayjs to UTC midnight Date
+      const utcStartDate = dayjs
+        .utc(recurringStartDate!.format('YYYY-MM-DD'))
+        .toDate();
+      const utcEndDate = dayjs
+        .utc(recurringEndDate!.format('YYYY-MM-DD'))
+        .toDate();
+
       const payload = {
-        date: recurringStartDate.toDate(),
+        date: utcStartDate,
         timeSlots: recurringTimeSlots,
         isRecurring: true,
-        recurringEndDate: recurringEndDate.toDate(),
+        recurringEndDate: utcEndDate,
         recurringDays,
       };
-      const response = (await dispatch(setAvailabilityThunk(payload)).unwrap()) as SetAvailabilityResponse;
+      const response = (await dispatch(
+        setAvailabilityThunk(payload)
+      ).unwrap()) as SetAvailabilityResponse;
       showSuccess('Recurring availability set successfully');
       if (response.conflicts.length > 0) {
         const newErrors = new Map(conflictErrors);
@@ -1320,7 +1428,7 @@ const DoctorAvailability: React.FC = () => {
                             backgroundColor: 'rgba(255, 255, 255, 0.1)',
                             borderRadius: '8px',
                             '& fieldset': {
-                              borderColor: !slotErrors.reason
+                              borderColor: slotErrors.reason
                                 ? 'rgb(239, 68, 68)'
                                 : 'rgba(255, 255, 255, 0.2)',
                             },
@@ -1373,7 +1481,9 @@ const DoctorAvailability: React.FC = () => {
                                   timeSlots[index].startTime,
                                   timeSlots[index].endTime
                                 )
-                              )
+                              ) ||
+                              (timeSlots[index].isBooked &&
+                                !(editingReasons[index] || '').trim())
                             }
                             sx={{
                               minWidth: '40px',
@@ -1384,7 +1494,9 @@ const DoctorAvailability: React.FC = () => {
                                 DateUtils.isValidSlotDuration(
                                   timeSlots[index].startTime,
                                   timeSlots[index].endTime
-                                )
+                                ) &&
+                                (!timeSlots[index].isBooked ||
+                                  (editingReasons[index] || '').trim())
                                   ? 'rgba(34, 197, 94, 0.4)'
                                   : 'rgba(255, 255, 255, 0.1)',
                               color:
@@ -1393,7 +1505,9 @@ const DoctorAvailability: React.FC = () => {
                                 DateUtils.isValidSlotDuration(
                                   timeSlots[index].startTime,
                                   timeSlots[index].endTime
-                                )
+                                ) &&
+                                (!timeSlots[index].isBooked ||
+                                  (editingReasons[index] || '').trim())
                                   ? 'white'
                                   : 'rgba(255, 255, 255, 0.5)',
                               '&:hover': {
@@ -1403,7 +1517,9 @@ const DoctorAvailability: React.FC = () => {
                                   DateUtils.isValidSlotDuration(
                                     timeSlots[index].startTime,
                                     timeSlots[index].endTime
-                                  )
+                                  ) &&
+                                  (!timeSlots[index].isBooked ||
+                                    (editingReasons[index] || '').trim())
                                     ? 'rgba(34, 197, 94, 0.8)'
                                     : 'rgba(255, 255, 255, 0.15)',
                                 transform: 'scale(1.05)',

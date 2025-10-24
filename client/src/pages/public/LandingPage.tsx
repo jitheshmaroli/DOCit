@@ -5,7 +5,6 @@ import Header from '../../components/common/Header';
 import Footer from '../../components/common/Footer';
 import bannerImg from '../../assets/hero-illustration.jpeg';
 import serviceImg from '../../assets/service1.jpeg';
-import doctorImg from '../../assets/doctor1.jpeg';
 import videoConsultIcon from '../../assets/icons/videoConsultIcon.png';
 import bookingIcon from '../../assets/icons/bookingIcon.png';
 import prescriptionIcon from '../../assets/icons/prescriptionIcon.png';
@@ -253,7 +252,7 @@ const LandingPage: React.FC = () => {
           </div>
         </section>
 
-        {/* Doctors Section - Enhanced */}
+        {/* Doctors Section - Enhanced
         <section className="py-20 bg-[#320A6B]/10">
           <div className="container mx-auto px-4 md:px-16">
             <motion.h2
@@ -299,10 +298,10 @@ const LandingPage: React.FC = () => {
               ))}
             </motion.div>
           </div>
-        </section>
+        </section> */}
 
         {/* CTA Section */}
-        <section className="py-20 bg-[#0F828C]/10">
+        <section className="py-20 bg-[#320A6B]/10">
           <div className="container mx-auto px-4 md:px-16 text-center">
             <motion.h2
               initial={{ opacity: 0, scale: 0.9 }}

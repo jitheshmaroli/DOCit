@@ -159,7 +159,9 @@ const DoctorAppointmentDetails: React.FC = () => {
 
   const handleStartVideoCall = async () => {
     if (!appointment || !appointment.patientId._id || !user?._id) {
-      showError('Cannot start video call: Missing appointment or patient information');
+      showError(
+        'Cannot start video call: Missing appointment or patient information'
+      );
       return;
     }
     try {
@@ -253,35 +255,30 @@ const DoctorAppointmentDetails: React.FC = () => {
       return;
     }
     if (!appointment || !user?._id) return;
-    try {
-      const prescription = { medications, notes: notes.trim() || undefined };
-      await dispatch(
-        completeAppointmentThunk({
-          appointmentId: appointment._id,
-          prescription,
-        })
-      ).unwrap();
-      showSuccess('Prescription created successfully');
-      const response = await getAppointmentById(appointmentId!);
-      const appointmentData = response.data;
-      if (appointmentData.prescriptionId) {
-        appointmentData.prescription = {
-          medications: appointmentData.prescriptionId.medications.map(
-            (med: any) => ({
-              name: med.name,
-              dosage: med.dosage,
-              frequency: med.frequency,
-              duration: med.duration,
-            })
-          ),
-          notes: appointmentData.prescriptionId.notes,
-          pdfUrl: appointmentData.prescriptionId.pdfUrl,
-        };
-      }
-      setAppointment(appointmentData);
-    } catch {
-      // toast.error(error?.message || 'Failed to create prescription');
+    const prescription = { medications, notes: notes.trim() || undefined };
+    await dispatch(
+      completeAppointmentThunk({
+        appointmentId: appointment._id,
+        prescription,
+      })
+    ).unwrap();
+    const appointmentData = await getAppointmentById(appointmentId!);
+    if (appointmentData.prescriptionId) {
+      appointmentData.prescription = {
+        medications: appointmentData.prescriptionId.medications.map(
+          (med: any) => ({
+            name: med.name,
+            dosage: med.dosage,
+            frequency: med.frequency,
+            duration: med.duration,
+          })
+        ),
+        notes: appointmentData.prescriptionId.notes,
+        pdfUrl: appointmentData.prescriptionId.pdfUrl,
+      };
     }
+    showSuccess('Prescription created successfully');
+    setAppointment(appointmentData);
   };
 
   const handleCancelAppointment = async (cancellationReason: string) => {
