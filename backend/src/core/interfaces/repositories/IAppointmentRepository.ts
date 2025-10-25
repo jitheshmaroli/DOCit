@@ -4,7 +4,7 @@ import { IBaseRepository } from './IBaseRepository';
 
 export interface IAppointmentRepository extends IBaseRepository<Appointment> {
   findByIdPopulated(appointmentId: string): Promise<Appointment | null>;
-  findUpcomingAppointments(start: Date, end: Date): Promise<Appointment[]>;
+  findUpcomingAppointments(start: Date, end: Date): Promise<ExtendedAppointment[]>;
   findByDoctorAndSlot(doctorId: string, date: Date, startTime: string, endTime: string): Promise<Appointment | null>;
   countByPatientAndDoctor(patientId: string, doctorId: string): Promise<number>;
   countByPatientAndDoctorWithFreeBooking(patientId: string, doctorId: string): Promise<number>;

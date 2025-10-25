@@ -5,6 +5,7 @@ import { PatientSubscriptionModel } from '../database/models/PatientSubscription
 import { PatientSubscription } from '../../core/entities/PatientSubscription';
 import { ObjectId } from 'mongodb';
 import logger from '../../utils/logger';
+import { FilterQuery } from 'mongoose';
 
 export class PatientSubscriptionRepository
   extends BaseRepository<PatientSubscription>
@@ -432,5 +433,9 @@ export class PatientSubscriptionRepository
       .exec();
 
     return subscriptions.map((sub) => this.calculateSubscriptionDetails(sub));
+  }
+  async find(query: FilterQuery<PatientSubscription>): Promise<PatientSubscription[]> {
+    const subscriptions = await this.model.find(query).exec();
+    return subscriptions.map((sub) => sub.toObject() as PatientSubscription);
   }
 }

@@ -5,6 +5,7 @@ import { StripeService } from '../services/StripeService';
 import { ImageUploadService } from '../services/ImageUploadService';
 import { SocketService } from '../services/SocketService';
 import { NotificationService } from '../services/NotificationService';
+import { CronService } from '../services/CronService';
 import JoiService from '../services/JOIService';
 
 import {
@@ -13,6 +14,8 @@ import {
   notificationRepository,
   patientRepository,
   doctorRepository,
+  appointmentRepository,
+  patientSubscriptionRepository,
 } from './repositories';
 
 export const emailService = new EmailService();
@@ -28,4 +31,10 @@ export const socketService = new SocketService(
   notificationRepository
 );
 export const notificationService = new NotificationService(notificationRepository, socketService);
+export const cronService = new CronService(
+  appointmentRepository,
+  patientSubscriptionRepository,
+  emailService,
+  notificationService
+);
 export const validatorService = new JoiService();

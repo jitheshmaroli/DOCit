@@ -5,8 +5,7 @@ import { Server as HttpServer } from 'http';
 import { connectMongoDB } from './infrastructure/database/mongoConnection';
 import createMiddlewares from './infrastructure/di/middlewares';
 import { patientSubscriptionRepository } from './infrastructure/di/repositories';
-import { socketService, notificationService } from './infrastructure/di/services';
-import { appointmentRepository } from './infrastructure/di/repositories';
+import { socketService, cronService } from './infrastructure/di/services';
 import authRoutes from './presentation/routes/authRoutes';
 import adminRoutes from './presentation/routes/adminRoutes';
 import doctorRoutes from './presentation/routes/doctorRoutes';
@@ -19,7 +18,6 @@ import { env } from './config/env';
 import Stripe from 'stripe';
 import logger from './utils/logger';
 import { CustomRequest } from './types';
-import { setupCronJobs } from './utils/cronJobs';
 
 const app = express();
 const server = new HttpServer(app);
@@ -103,7 +101,7 @@ app.use(errorHandler.exec.bind(errorHandler));
 const startServer = async () => {
   try {
     await connectMongoDB(MONGO_URI);
-    setupCronJobs(appointmentRepository, notificationService);
+    cronService.start();
     server.listen(PORT, '0.0.0.0', () => {
       logger.info(`Server running on http://localhost:${PORT} env: ${env.NODE_ENV}`);
     });

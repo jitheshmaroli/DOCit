@@ -21,6 +21,7 @@ const AppointmentSchema = new Schema<Appointment>(
     cancellationReason: { type: String, required: false },
     prescriptionId: { type: Schema.Types.ObjectId, ref: 'Prescription', required: false },
     hasReview: { type: Boolean, default: false },
+    reminderSent: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
