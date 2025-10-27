@@ -5,11 +5,11 @@ const PatientSubscriptionSchema = new Schema<PatientSubscription>(
   {
     patientId: { type: Schema.Types.ObjectId, required: true, ref: 'Patient' },
     planId: { type: Schema.Types.ObjectId, required: true, ref: 'SubscriptionPlan' },
-    startDate: { type: Date, required: true },
-    endDate: { type: Date, required: true },
+    startDate: { type: Date, required: false },
+    endDate: { type: Date, required: false },
     status: {
       type: String,
-      enum: ['active', 'expired', 'cancelled'],
+      enum: ['active', 'expired', 'cancelled', 'pending'],
       default: 'active',
     },
     price: { type: Number, required: true, min: 100 },

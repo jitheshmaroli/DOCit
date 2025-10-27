@@ -11,9 +11,10 @@ import { OTPController } from '../../presentation/controllers/otp/OTPController'
 import { PatientController } from '../../presentation/controllers/patient/PatientController';
 import { PatientProfileController } from '../../presentation/controllers/patient/PatientProfileController';
 import { UserController } from '../../presentation/controllers/user/UserController';
-import { otpService, socketService } from './services';
-
+import { WebhookController } from '../../presentation/controllers/webhook/WebhookController';
+import { otpService, socketService, stripeService } from './services';
 import createUseCase from './useCases';
+
 const {
   subscriptionPlanUseCase,
   specialityUseCase,
@@ -66,6 +67,7 @@ const createControllers = () => {
     ),
     patientProfileController: new PatientProfileController(profileUseCase),
     userController: new UserController(userUseCase),
+    webhookController: new WebhookController(stripeService, subscriptionPlanUseCase),
   };
 };
 

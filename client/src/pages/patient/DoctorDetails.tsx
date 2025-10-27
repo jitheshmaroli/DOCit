@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// F:\DOCit\client\src\pages\patient\DoctorDetails.tsx (updated for polling after payment and resume)
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
@@ -12,6 +14,8 @@ import {
   getPatientAppointmentsForDoctorThunk,
   getDoctorAvailabilityThunk,
   cancelSubscriptionThunk,
+  confirmSubscriptionThunk,
+  resumePendingSubscriptionThunk, // New import
 } from '../../redux/thunks/patientThunk';
 import { clearRefundDetails } from '../../redux/slices/patientSlice';
 import defaultAvatar from '/images/avatar.png';
@@ -81,6 +85,9 @@ const DoctorDetails: React.FC = () => {
   const [currentTimeSlots, setCurrentTimeSlots] = useState<TimeSlot[]>([]);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [isPolling, setIsPolling] = useState(false);
+  const [pollAttempts, setPollAttempts] = useState(0);
+  const [maxPollAttempts] = useState(30);
   const [selectedPlan, setSelectedPlan] = useState<null | {
     id: string;
     price: number;
@@ -97,12 +104,17 @@ const DoctorDetails: React.FC = () => {
   const [modalMode, setModalMode] = useState<'cancel' | 'refund'>('cancel');
   const [reviews, setReviews] = useState<Review[]>([]);
   const [subscriptionsLoaded, setSubscriptionsLoaded] = useState(false);
+  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(
+    null
+  ); // For cleanup
+  const [isResumingPayment, setIsResumingPayment] = useState(false); // New state for UX
 
   const specialityFromState = (location.state as { speciality?: string[] })
     ?.speciality;
 
   const activeSubscription = useMemo(() => {
     if (!doctorId) return null;
+    // Updated: Include pending subscriptions for display
     const subsForDoctor = activeSubscriptions.filter(
       (sub) => sub.plan.doctorId === doctorId && sub.createdAt
     );
@@ -114,6 +126,15 @@ const DoctorDetails: React.FC = () => {
       })[0] || null
     );
   }, [activeSubscriptions, doctorId]);
+
+  const pendingSubscription = useMemo(() => {
+    if (!doctorId || !paymentDetails) return null;
+    return activeSubscriptions.find(
+      (sub) =>
+        sub.stripePaymentId === paymentDetails.paymentIntentId &&
+        sub.status === 'pending'
+    );
+  }, [activeSubscriptions, doctorId, paymentDetails]);
 
   const plans = useMemo(
     () => (doctorId ? doctorPlans[doctorId] || [] : []),
@@ -140,6 +161,55 @@ const DoctorDetails: React.FC = () => {
       (1000 * 60);
     return timeDiffMinutes <= 30;
   }, [activeSubscription]);
+
+  // New: Polling function for confirmSubscription
+  const pollConfirmSubscription = useCallback(
+    async (planId: string, paymentIntentId: string) => {
+      setIsPolling(true);
+      setPollAttempts(0);
+
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      const poll = async () => {
+        try {
+          await dispatch(
+            confirmSubscriptionThunk({ planId, paymentIntentId })
+          ).unwrap();
+          setIsPolling(false);
+          setPollAttempts(0);
+          if (pollingInterval) clearInterval(pollingInterval);
+          showSuccess('Subscription confirmed successfully!');
+          dispatch(getPatientSubscriptionsThunk());
+          setIsSuccessModalOpen(true);
+          return true;
+        } catch (error: any) {
+          setPollAttempts((prev) => prev + 1);
+          if (
+            pollAttempts >= maxPollAttempts ||
+            error.message !==
+              'Subscription is still pending activation. Please wait a moment and try again.'
+          ) {
+            setIsPolling(false);
+            setPollAttempts(0);
+            if (pollingInterval) clearInterval(pollingInterval);
+            showError(
+              'Subscription confirmation timed out. Please refresh the page or contact support.'
+            );
+            return false;
+          }
+          return false;
+        }
+      };
+
+      const success = await poll();
+      if (!success) {
+        // Set up interval (every 2s)
+        const interval = setInterval(poll, 2000);
+        setPollingInterval(interval);
+      }
+    },
+    [dispatch, maxPollAttempts, pollAttempts, pollingInterval]
+  );
 
   useEffect(() => {
     if (doctorId) {
@@ -216,8 +286,9 @@ const DoctorDetails: React.FC = () => {
     }
     return () => {
       dispatch(clearRefundDetails());
+      if (pollingInterval) clearInterval(pollingInterval);
     };
-  }, [dispatch, doctorId, currentPage]);
+  }, [dispatch, doctorId, currentPage, pollingInterval]);
 
   const handleSubscribe = async (planId: string, price: number) => {
     if (!user) {
@@ -236,34 +307,48 @@ const DoctorDetails: React.FC = () => {
     setIsPaymentModalOpen(true);
   };
 
-  const handlePaymentSuccess = (details: PaymentDetails) => {
+  // New handler for resuming payment
+  const handleResumePayment = async (subscriptionId: string) => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    setIsResumingPayment(true);
+    try {
+      const response = await dispatch(
+        resumePendingSubscriptionThunk(subscriptionId)
+      ).unwrap();
+      setSelectedPlan({ id: response.planId, price: response.price });
+      setClientSecret(response.clientSecret);
+      setIsPaymentModalOpen(true);
+    } catch (error: any) {
+      showError(
+        error.message || error || 'Failed to resume payment. Please try subscribing again.'
+      );
+      dispatch(getPatientSubscriptionsThunk());
+      // Optional: Fall back to new subscription if resume fails (e.g., expired intent)
+      // handleSubscribe(activeSubscription!.plan._id, activeSubscription!.plan.price);
+    } finally {
+      setIsResumingPayment(false);
+    }
+  };
+
+  // Updated handlePaymentSuccess
+  const handlePaymentSuccess = async (details: PaymentDetails) => {
     setPaymentDetails(details);
     setIsPaymentModalOpen(false);
-    setIsSuccessModalOpen(true);
-    setSelectedPlan(null);
-    setClientSecret(null);
-    dispatch(getPatientSubscriptionsThunk());
-    // showSuccess('Successfully subscribed to plan');
-    // toast.success('Successfully subscribed to plan', {
-    //   toastId: 'subscription-success',
-    //   autoClose: 3000,
-    // });
+    showSuccess('Payment successful! Confirming subscription...');
+    await pollConfirmSubscription(selectedPlan!.id, details.paymentIntentId); // Fixed arg order
   };
 
   const debouncedCancelSubscription = debounce(async () => {
     if (!doctorId || !activeSubscription?._id) {
       showError('No active subscription to cancel');
-      // toast.error('No active subscription to cancel', {
-      //   toastId: 'no-subscription-error',
-      // });
       setIsCancelSubscriptionModalOpen(false);
       return;
     }
     if (!cancellationReason.trim()) {
       showError('Please provide a cancellation reason');
-      // toast.error('Please provide a cancellation reason', {
-      //   toastId: 'cancellation-reason-error',
-      // });
       return;
     }
     try {
@@ -277,9 +362,6 @@ const DoctorDetails: React.FC = () => {
       setModalMode('refund');
       setCancellationReason('');
       showSuccess('Subscription cancelled successfully');
-      // toast.success('Subscription cancelled successfully', {
-      //   toastId: 'cancel-subscription-success',
-      // });
     } catch {
       setIsCancelSubscriptionModalOpen(false);
       setCancellationReason('');
@@ -297,9 +379,13 @@ const DoctorDetails: React.FC = () => {
     dispatch(clearRefundDetails());
   };
 
+  // Updated handleCloseSuccessModal
   const handleCloseSuccessModal = () => {
     setIsSuccessModalOpen(false);
     setPaymentDetails(null);
+    setIsPolling(false);
+    setPollAttempts(0);
+    if (pollingInterval) clearInterval(pollingInterval);
   };
 
   const handleDateChange = (date: string) => {
@@ -336,9 +422,6 @@ const DoctorDetails: React.FC = () => {
   const handleBookAppointment = async (isFreeBooking: boolean = false) => {
     if (!selectedSlot || !selectedDate || !doctorId) {
       showError('Please select a date and time slot');
-      // toast.error('Please select a date and time slot', {
-      //   toastId: 'booking-selection-error',
-      // });
       return;
     }
     if (
@@ -349,10 +432,6 @@ const DoctorDetails: React.FC = () => {
         showError(
           'Please subscribe to a plan or check free booking eligibility'
         );
-        // toast.error(
-        //   'Please subscribe to a plan or check free booking eligibility',
-        //   { toastId: 'booking-eligibility-error' }
-        // );
         return;
       }
     }
@@ -367,12 +446,6 @@ const DoctorDetails: React.FC = () => {
       })
     ).unwrap();
     showSuccess('Appointment booked successfully');
-    // toast.success('Appointment booked successfully', {
-    //   toastId: 'booking-success',
-    //   position: 'top-right',
-    //   autoClose: 3000,
-    //   theme: 'dark',
-    // });
     setBookingConfirmed(true);
     setSelectedSlot(null);
     dispatch(
@@ -553,7 +626,7 @@ const DoctorDetails: React.FC = () => {
       <Modal
         isOpen={isSuccessModalOpen}
         onClose={handleCloseSuccessModal}
-        title="Payment Successful"
+        title="Subscription Confirmed"
         footer={
           <div className="flex gap-4">
             <button
@@ -570,6 +643,40 @@ const DoctorDetails: React.FC = () => {
           <p>Payment Details:</p>
           <p>Amount: ₹{paymentDetails?.amount.toFixed(2) || 'N/A'}</p>
           <p>Payment ID: {paymentDetails?.paymentIntentId || 'N/A'}</p>
+        </div>
+      </Modal>
+      {/* New: Polling indicator modal */}
+      <Modal
+        isOpen={isPolling}
+        onClose={() => {}} // Prevent close during polling
+        title="Processing Subscription"
+        footer={
+          <div className="flex gap-4">
+            <button
+              onClick={() => {
+                setIsPolling(false);
+                setPollAttempts(0);
+                if (pollingInterval) clearInterval(pollingInterval);
+              }}
+              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
+              disabled={pollAttempts < maxPollAttempts}
+            >
+              Cancel
+            </button>
+            <div className="text-sm text-gray-400">
+              Attempt {pollAttempts + 1}/{maxPollAttempts}...
+            </div>
+          </div>
+        }
+      >
+        <div className="text-center py-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mx-auto mb-2"></div>
+          <p className="text-gray-200">
+            Confirming your subscription. This usually takes 5-10 seconds.
+          </p>
+          <p className="text-sm text-gray-400 mt-2">
+            Do not close this window.
+          </p>
         </div>
       </Modal>
       <div className="container mx-auto px-4">
@@ -690,7 +797,9 @@ const DoctorDetails: React.FC = () => {
               className={`${
                 activeSubscription.status === 'active'
                   ? 'bg-blue-500/20 border-blue-500'
-                  : 'bg-red-500/20 border-red-500'
+                  : activeSubscription.status === 'pending'
+                    ? 'bg-yellow-500/20 border-yellow-500'
+                    : 'bg-red-500/20 border-red-500'
               } border rounded-lg p-4`}
             >
               <h4 className="text-lg font-semibold text-white">
@@ -715,6 +824,21 @@ const DoctorDetails: React.FC = () => {
               <p className="text-sm text-gray-200 mt-2">
                 Status: {activeSubscription.status}
               </p>
+              {activeSubscription.status === 'pending' && (
+                <div className="mt-4">
+                  <p className="text-sm text-yellow-300 mb-2">
+                    Payment is incomplete. Complete it to activate your
+                    subscription.
+                  </p>
+                  <button
+                    onClick={() => handleResumePayment(activeSubscription._id)}
+                    disabled={isResumingPayment}
+                    className="w-full bg-gradient-to-r from-yellow-600 to-orange-600 text-white py-2 rounded-lg hover:from-yellow-700 hover:to-orange-700 transition-all duration-300 disabled:opacity-50"
+                  >
+                    {isResumingPayment ? 'Loading...' : 'Resume Payment'}
+                  </button>
+                </div>
+              )}
               {activeSubscription.status === 'active' &&
                 canCancelSubscription && (
                   <button
@@ -791,6 +915,7 @@ const DoctorDetails: React.FC = () => {
         </div>
 
         {(activeSubscription && activeSubscription.status === 'active') ||
+        (pendingSubscription && pendingSubscription.status === 'pending') ||
         canBookFreeAppointment ? (
           <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">
             <div className="flex items-center justify-between mb-6">
@@ -831,6 +956,15 @@ const DoctorDetails: React.FC = () => {
                       className="w-full bg-gradient-to-r from-green-600 to-teal-600 text-white py-2 rounded-lg hover:from-green-700 hover:to-teal-700 transition-all duration-300"
                     >
                       Confirm Appointment (Subscribed)
+                    </button>
+                  )}
+                {pendingSubscription &&
+                  pendingSubscription.status === 'pending' && (
+                    <button
+                      disabled
+                      className="w-full bg-gray-600 text-white py-2 rounded-lg cursor-not-allowed"
+                    >
+                      Waiting for Subscription Confirmation...
                     </button>
                   )}
                 {(!activeSubscription ||
@@ -907,10 +1041,10 @@ const DoctorDetails: React.FC = () => {
                   planId={selectedPlan.id}
                   price={selectedPlan.price}
                   onSuccess={handlePaymentSuccess}
-                  onError={(error) => {
+                  onError={(error: any) => {
                     showError(error);
-                    // toast.error(error, { toastId: 'payment-error' });
                   }}
+                  isResume={isResumingPayment} // Pass isResume prop
                 />
               </Elements>
               <button
@@ -918,6 +1052,8 @@ const DoctorDetails: React.FC = () => {
                   setIsPaymentModalOpen(false);
                   setSelectedPlan(null);
                   setClientSecret(null);
+                  setIsResumingPayment(false);
+                  dispatch(getPatientSubscriptionsThunk());
                 }}
                 className="mt-4 w-full bg-gray-600 text-white py-2 rounded-lg hover:bg-gray-700 transition-all duration-300"
               >

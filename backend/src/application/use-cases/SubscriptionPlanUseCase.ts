@@ -233,79 +233,169 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
 
     const clientSecret = await this._stripeService.createPaymentIntent(dto.price * 100);
     const paymentIntentId = clientSecret.split('_secret_')[0];
+
+    // Create pending subscription immediately
+    const pendingSubscription: PatientSubscription = {
+      patientId,
+      planId: plan._id,
+      startDate: undefined, // Will be set on activation
+      endDate: undefined, // Will be calculated on activation
+      status: 'pending',
+      price: plan.price,
+      appointmentsUsed: 0,
+      appointmentsLeft: plan.appointmentCount,
+      stripePaymentId: paymentIntentId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    this._validatorService.validateRequiredFields({
+      patientId: pendingSubscription.patientId,
+      planId: pendingSubscription.planId,
+      status: pendingSubscription.status,
+      price: pendingSubscription.price,
+      appointmentsUsed: pendingSubscription.appointmentsUsed,
+      appointmentsLeft: pendingSubscription.appointmentsLeft,
+    });
+    this._validatorService.validateEnum(pendingSubscription.status, ['pending', 'active', 'expired', 'cancelled']);
+    this._validatorService.validatePositiveNumber(Number(pendingSubscription.price));
+
+    await this._patientSubscriptionRepository.create(pendingSubscription);
+
+    logger.info(`Pending subscription created for payment intent: ${paymentIntentId}`);
     return { clientSecret, paymentIntentId };
+  }
+
+  // New method for resuming pending subscription
+  async resumePendingSubscription(
+    patientId: string,
+    subscriptionId: string
+  ): Promise<{ clientSecret: string; planId: string; price: number }> {
+    this._validatorService.validateRequiredFields({ patientId, subscriptionId });
+    this._validatorService.validateIdFormat(patientId);
+    this._validatorService.validateIdFormat(subscriptionId);
+
+    // Fetch the user's subscription from DB
+    const subscription = await this._patientSubscriptionRepository.findById(subscriptionId);
+    if (!subscription) {
+      throw new NotFoundError('Pending subscription not found');
+    }
+    if (subscription.patientId?.toString() !== patientId) {
+      throw new ValidationError('Unauthorized to access this subscription');
+    }
+    if (subscription.status !== 'pending') {
+      throw new ValidationError('Subscription is not pending');
+    }
+    if (!subscription.stripePaymentId) {
+      throw new ValidationError('No payment intent associated with this subscription');
+    }
+
+    // Retrieve the PaymentIntent from Stripe
+    const paymentIntent = await this._stripeService.retrievePaymentIntent(subscription.stripePaymentId);
+    if (paymentIntent.status !== 'requires_payment_method' && paymentIntent.status !== 'requires_confirmation') {
+      throw new ValidationError('Payment intent is not pending and cannot be resumed');
+    }
+
+    // Return the client_secret (and plan details for convenience)
+    const plan = await this._subscriptionPlanRepository.findById(subscription.planId!.toString());
+    if (!plan) {
+      throw new NotFoundError('Plan not found');
+    }
+
+    return {
+      clientSecret: paymentIntent.client_secret!,
+      planId: subscription.planId!.toString(),
+      price: plan.price,
+    };
   }
 
   async confirmSubscription(
     patientId: string,
     dto: ConfirmSubscriptionRequestDTO
   ): Promise<PatientSubscriptionResponseDTO> {
-    //validations
+    //validations (simplified)
     this._validatorService.validateRequiredFields({
       patientId,
       planId: dto.planId,
       paymentIntentId: dto.paymentIntentId,
     });
-
     this._validatorService.validateIdFormat(patientId);
     this._validatorService.validateIdFormat(dto.planId);
     this._validatorService.validateLength(dto.paymentIntentId, 1, 100);
 
+    // Optional: Retrieve PaymentIntent for safety (webhook handles activation)
+    await this._stripeService.retrievePaymentIntent(dto.paymentIntentId);
+
+    // Find subscription by payment intent (created as pending in subscribeToPlan)
+    const subscription = await this._patientSubscriptionRepository.findByStripePaymentId(dto.paymentIntentId);
+    if (!subscription) {
+      throw new NotFoundError('Subscription not found');
+    }
+    if (subscription.patientId?.toString() !== patientId) {
+      throw new ValidationError('Unauthorized to access this subscription');
+    }
+    if (subscription.status !== 'active') {
+      throw new ValidationError('Subscription is still pending activation. Please wait a moment and try again.');
+    }
+
+    // Verify plan still approved
     const plan = await this._subscriptionPlanRepository.findById(dto.planId);
+    if (!plan || plan.status !== 'approved') {
+      throw new ValidationError('Plan is no longer approved');
+    }
+
+    return PatientSubscriptionMapper.toDTO(subscription);
+  }
+
+  async handlePaymentSuccess(paymentIntentId: string): Promise<void> {
+    this._validatorService.validateLength(paymentIntentId, 1, 100);
+
+    const subscription = await this._patientSubscriptionRepository.findByStripePaymentId(paymentIntentId);
+    if (!subscription) {
+      logger.warn(`No pending subscription found for payment intent: ${paymentIntentId}`);
+      return;
+    }
+    if (subscription.status !== 'pending') {
+      logger.info(
+        `Subscription already processed for payment intent: ${paymentIntentId}, status: ${subscription.status}`
+      );
+      return;
+    }
+
+    const planId = subscription.planId?.toString();
+    if (!planId) {
+      throw new NotFoundError('Plan ID not found');
+    }
+    const plan = await this._subscriptionPlanRepository.findById(planId);
     if (!plan) {
+      logger.debug(planId);
       throw new NotFoundError('Plan not found');
     }
-    if (plan.status !== 'approved') {
-      throw new ValidationError('Plan is not approved');
-    }
 
-    const existing = await this._patientSubscriptionRepository.findActiveByPatientAndDoctor(patientId, plan.doctorId!);
-    if (existing) {
-      throw new ValidationError('You are already subscribed to a plan for this doctor');
-    }
+    const patient = await this._patientRepository.findById(subscription.patientId!.toString());
+    if (!patient) throw new NotFoundError('Patient not found');
 
-    await this._stripeService.confirmPaymentIntent(dto.paymentIntentId);
+    const doctor = await this._doctorRepository.findById(plan.doctorId!.toString());
+    if (!doctor) throw new NotFoundError('Doctor not found');
 
+    // Calculate dates
     const startDate = new Date();
     const endDate = moment(startDate).add(plan.validityDays, 'days').toDate();
 
-    const subscription: PatientSubscription = {
-      patientId,
-      planId: dto.planId,
+    // Update to active
+    const updatedSubscription = await this._patientSubscriptionRepository.update(subscription._id!, {
+      status: 'active',
       startDate,
       endDate,
-      status: 'active',
-      price: plan.price,
-      appointmentsUsed: 0,
-      appointmentsLeft: plan.appointmentCount,
-      stripePaymentId: dto.paymentIntentId,
-      createdAt: new Date(),
       updatedAt: new Date(),
-    };
-
-    this._validatorService.validateRequiredFields({
-      patientId: subscription.patientId,
-      planId: subscription.planId,
-      startDate: subscription.startDate,
-      endDate: subscription.endDate,
-      status: subscription.status,
-      price: subscription.price,
-      appointmentsUsed: subscription.appointmentsUsed,
-      appointmentsLeft: subscription.appointmentsLeft,
     });
-    this._validatorService.validateEnum(subscription.status, ['active', 'expired', 'cancelled']);
-    this._validatorService.validatePositiveNumber(Number(subscription.price));
+    if (!updatedSubscription) {
+      throw new ValidationError('Failed to activate subscription');
+    }
 
-    const savedSubscription = await this._patientSubscriptionRepository.create(subscription);
-
-    const patient = await this._patientRepository.findById(patientId);
-    if (!patient) throw new NotFoundError('Patient not found');
-
-    const doctor = await this._doctorRepository.findById(plan.doctorId!);
-    if (!doctor) throw new NotFoundError('Doctor not found');
-
+    // Notifications
     const patientNotification: Notification = {
-      userId: patientId,
+      userId: subscription.patientId,
       type: NotificationType.SUBSCRIPTION_CONFIRMED,
       message: `Your subscription to plan "${plan.name}" with Dr. ${doctor.name} has been confirmed.`,
       isRead: false,
@@ -335,6 +425,7 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
     this._validatorService.validateEnum(patientNotification.type, ['SUBSCRIPTION_CONFIRMED', 'SUBSCRIPTION_CANCELLED']);
     this._validatorService.validateEnum(doctorNotification.type, ['SUBSCRIPTION_CONFIRMED', 'SUBSCRIPTION_CANCELLED']);
 
+    // Emails
     const patientEmailSubject = 'Subscription Confirmation';
     const patientEmailText = `Dear ${patient.name},\n\nYour subscription to the plan "${plan.name}" with Dr. ${doctor.name} has been successfully confirmed. It is valid until ${endDate.toLocaleDateString()} and includes ${plan.appointmentCount} appointments.\n\nBest regards,\nDOCit Team`;
     const doctorEmailSubject = 'New Subscription';
@@ -354,13 +445,14 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
       this._emailService.sendEmail(doctor.email, doctorEmailSubject, doctorEmailText),
     ]);
 
+    // Update patient subscription status
     const activeSubscriptions = await this._patientSubscriptionRepository.findAll();
     const hasActiveSubscriptions = activeSubscriptions.some(
-      (sub) => sub.status === 'active' && sub.patientId?.toString() === patientId
+      (sub) => sub.status === 'active' && sub.patientId?.toString() === subscription.patientId
     );
-    await this._patientRepository.updateSubscriptionStatus(patientId, hasActiveSubscriptions);
+    await this._patientRepository.updateSubscriptionStatus(subscription.patientId!, hasActiveSubscriptions);
 
-    return PatientSubscriptionMapper.toDTO(savedSubscription);
+    logger.info(`Subscription ${subscription._id} activated successfully for payment intent: ${paymentIntentId}`);
   }
 
   async cancelSubscription(

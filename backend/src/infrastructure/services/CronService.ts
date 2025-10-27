@@ -26,7 +26,12 @@ export class CronService implements ICronService {
       await this.runSubscriptionExpiryUpdates();
     });
 
-    logger.info('Cron jobs scheduled: appointment reminders and subscription expiry updates');
+    // New: Every minute, delete pending subs older than 10 mins (fallback to TTL index)
+    cron.schedule('*/1 * * * *', async () => {
+      await this.cleanupPendingSubscriptions();
+    });
+
+    logger.info('Cron jobs scheduled: appointment reminders, subscription expiry updates, and pending cleanup');
   }
 
   private async runAppointmentReminderEmails(): Promise<void> {
@@ -115,6 +120,30 @@ export class CronService implements ICronService {
       }
     } catch (error) {
       logger.error('Error in subscription expiry update cron job:', error);
+    }
+  }
+
+  // New: Clean up pending subscriptions older than 10 minutes
+  private async cleanupPendingSubscriptions(): Promise<void> {
+    try {
+      const tenMinsAgo = new Date(Date.now() - 10 * 60 * 1000);
+      const oldPending = await this._patientSubscriptionRepository.find({
+        status: 'pending',
+        createdAt: { $lt: tenMinsAgo },
+      });
+
+      if (oldPending.length > 0) {
+        for (const sub of oldPending) {
+          try {
+            await this._patientSubscriptionRepository.delete(sub._id!.toString());
+            logger.info(`Deleted timed-out pending subscription: ${sub._id}`);
+          } catch (error) {
+            logger.error(`Failed to delete timed-out subscription ${sub._id}:`, error);
+          }
+        }
+      }
+    } catch (error) {
+      logger.error('Error in pending subscription cleanup cron job:', error);
     }
   }
 }

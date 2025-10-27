@@ -227,6 +227,25 @@ export const confirmSubscription = async (
   }
 };
 
+// New service method for resuming pending subscription
+export const resumePendingSubscription = async (subscriptionId: string) => {
+  try {
+    const response = await api.get(
+      ROUTES.API.PATIENT.SUBSCRIPTIONS.replace(
+        ':subscriptionId',
+        subscriptionId
+      )
+    );
+    return response.data;
+  } catch (error) {
+    const axiosError = error as AxiosError<PatientApiError>;
+    throw new Error(
+      axiosError.response?.data.message ||
+        'Failed to resume pending subscription'
+    );
+  }
+};
+
 export const cancelAppointment = async (
   appointmentId: string,
   cancellationReason?: string

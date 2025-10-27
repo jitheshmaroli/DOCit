@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import {
   getDoctorAvailability,
@@ -11,6 +12,8 @@ import {
   getPatientSubscriptions,
   getDoctor,
   getAppointmentsBySubscription,
+  confirmSubscription,
+  resumePendingSubscription, // New import
 } from '../../services/patientService';
 import {
   GetDoctorAvailabilityPayload,
@@ -197,6 +200,19 @@ export const getPatientSubscriptionsThunk = createAsyncThunk(
   }
 );
 
+// New thunk for resuming pending subscription
+export const resumePendingSubscriptionThunk = createAsyncThunk(
+  'patient/resumePendingSubscription',
+  async (subscriptionId: string, { rejectWithValue }) => {
+    try {
+      const response = await resumePendingSubscription(subscriptionId);
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.error || 'Failed to resume payment');
+    }
+  }
+);
+
 export const getPatientAppointmentsForDoctorThunk = createAsyncThunk<
   { appointments: Appointment[]; totalItems: number; canBookFree?: boolean },
   { doctorId: string; page?: number; limit?: number },
@@ -268,6 +284,20 @@ export const cancelAppointmentThunk = createAsyncThunk<
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to cancel appointment';
       return rejectWithValue(errorMessage);
+    }
+  }
+);
+
+export const confirmSubscriptionThunk = createAsyncThunk(
+  'patient/confirmSubscription',
+  async (
+    { planId, paymentIntentId }: { planId: string; paymentIntentId: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      return await confirmSubscription(planId, paymentIntentId);
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to confirm subscription');
     }
   }
 );

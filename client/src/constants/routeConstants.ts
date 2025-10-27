@@ -12,6 +12,7 @@ export const ROUTES = {
     SIGNUP: '/signup',
     FORGOT_PASSWORD: '/forgot-password',
     NOT_FOUND: '*',
+    UNAUTHORIZED: '/unauthorized',
   },
 
   // Patient Routes
@@ -133,6 +134,9 @@ export const ROUTES = {
         '/patients/subscriptions/:subscriptionId/appointments'
       ),
       SPECIALITIES: apiPath('/patients/specialities'),
+      SUBSCRIPTIONS: apiPath(
+        '/patients/subscriptions/:subscriptionId/resume-payment'
+      ),
     },
 
     MESSAGE: {

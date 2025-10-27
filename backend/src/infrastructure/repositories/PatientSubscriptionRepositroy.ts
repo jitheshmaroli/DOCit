@@ -277,7 +277,7 @@ export class PatientSubscriptionRepository
   }
 
   async findByStripePaymentId(stripePaymentId: string): Promise<PatientSubscription | null> {
-    const subscription = await this.model.findOne({ stripePaymentId }).populate('planId').lean().exec();
+    const subscription = await this.model.findOne({ stripePaymentId }).lean().exec();
     return subscription ? this.calculateSubscriptionDetails(subscription) : null;
   }
 

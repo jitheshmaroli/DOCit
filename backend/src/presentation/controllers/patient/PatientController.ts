@@ -131,6 +131,24 @@ export class PatientController {
     }
   }
 
+  // New method for resuming pending payment
+  async resumePendingPayment(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const patientId = req.user?.id;
+      if (!patientId) {
+        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
+      }
+      const { subscriptionId } = req.params;
+      if (!subscriptionId) {
+        throw new ValidationError(ResponseMessages.BAD_REQUEST);
+      }
+      const response = await this._subscriptionPlanUseCase.resumePendingSubscription(patientId, subscriptionId);
+      res.status(HttpStatusCode.OK).json(response);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async cancelSubscription(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const patientId = req.user?.id;

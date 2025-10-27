@@ -27,9 +27,9 @@ export interface PatientSubscriptionDTO {
   patientId: string;
   planId: string;
   planDetails?: SubscriptionPlan;
-  startDate: string;
-  endDate: string;
-  status: 'active' | 'expired' | 'cancelled';
+  startDate?: string;
+  endDate?: string;
+  status: 'active' | 'expired' | 'cancelled' | 'pending';
   price: number;
   appointmentsUsed: number;
   appointmentsLeft: number;

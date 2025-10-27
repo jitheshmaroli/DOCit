@@ -19,7 +19,6 @@ import {
   cancelAppointment,
 } from '../../services/doctorService';
 import {
-  confirmSubscription,
   getDoctorPlans,
   subscribeToPlan,
 } from '../../services/patientService';
@@ -102,7 +101,7 @@ export const setAvailabilityThunk = createAsyncThunk(
 export const removeSlotThunk = createAsyncThunk(
   'doctors/removeSlot',
   async (
-    payload: { availabilityId: string; slotId: string, reason?: string },
+    payload: { availabilityId: string; slotId: string; reason?: string },
     { rejectWithValue }
   ) => {
     try {
@@ -198,20 +197,6 @@ export const subscribeToPlanThunk = createAsyncThunk(
         );
       }
       return rejectWithValue(error.message || 'Failed to subscribe to plan');
-    }
-  }
-);
-
-export const confirmSubscriptionThunk = createAsyncThunk(
-  'doctors/confirmSubscription',
-  async (
-    { planId, paymentIntentId }: { planId: string; paymentIntentId: string },
-    { rejectWithValue }
-  ) => {
-    try {
-      return await confirmSubscription(planId, paymentIntentId);
-    } catch (error: any) {
-      return rejectWithValue(error.message || 'Failed to confirm subscription');
     }
   }
 );
