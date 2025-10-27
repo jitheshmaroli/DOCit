@@ -68,7 +68,6 @@ const AdminAppointments: React.FC = () => {
         setIsCancelModalOpen(false);
         setSelectedAppointment(null);
       } catch (err) {
-        console.error(`Failed to cancel appointment: ${err}`);
         showError(`Failed to cancel appointment: ${err}`);
       }
     },

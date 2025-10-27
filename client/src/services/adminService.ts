@@ -303,7 +303,6 @@ export const getAllSpecialities = async (
 
 export const createSpeciality = async (name: string): Promise<Speciality> => {
   try {
-    console.log('specialityname:', name);
     const response = await api.post<Speciality>(ROUTES.API.ADMIN.SPECIALITIES, {
       name,
     });

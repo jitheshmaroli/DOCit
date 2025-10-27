@@ -57,8 +57,7 @@ const DoctorDashboard: React.FC = () => {
         });
 
         setData((prev) => ({ ...prev, reportData }));
-      } catch (error) {
-        console.error('Error fetching report:', error);
+      } catch {
         setError('Failed to load report data. Please try again.');
       } finally {
         setIsLoading(false);
@@ -80,8 +79,7 @@ const DoctorDashboard: React.FC = () => {
           limit: planLimit,
         });
         setData(dashboardData);
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
+      } catch {
         setError('Failed to load dashboard data. Please try again.');
       } finally {
         setIsLoading(false);
@@ -102,8 +100,7 @@ const DoctorDashboard: React.FC = () => {
           limit: planLimit,
         });
         setData(dashboardData);
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
+      } catch {
         setError('Failed to load dashboard data. Please try again.');
       } finally {
         setIsLoading(false);

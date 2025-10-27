@@ -65,16 +65,14 @@ export class ChatRepository extends BaseRepository<ChatMessage> implements IChat
 
   async getInbox(userId: string, params: QueryParams): Promise<InboxEntry[]> {
     const { page = 1, limit = 10 } = params;
+    const userObjectId = new mongoose.Types.ObjectId(userId);
 
     const pipeline: PipelineStage[] = [
       {
         $match: {
           $or: [
-            { senderId: new mongoose.Types.ObjectId(userId), deletedBy: { $ne: new mongoose.Types.ObjectId(userId) } },
-            {
-              receiverId: new mongoose.Types.ObjectId(userId),
-              deletedBy: { $ne: new mongoose.Types.ObjectId(userId) },
-            },
+            { senderId: userObjectId, deletedBy: { $ne: userObjectId } },
+            { receiverId: userObjectId, deletedBy: { $ne: userObjectId } },
           ],
         },
       },
@@ -84,12 +82,12 @@ export class ChatRepository extends BaseRepository<ChatMessage> implements IChat
       {
         $group: {
           _id: {
-            $cond: [{ $eq: ['$senderId', userId] }, '$receiverId', '$senderId'],
+            $cond: [{ $eq: ['$senderId', userObjectId] }, '$receiverId', '$senderId'],
           },
           latestMessage: { $first: '$$ROOT' },
           unreadCount: {
             $sum: {
-              $cond: [{ $in: [userId, { $ifNull: ['$unreadBy', []] }] }, 1, 0],
+              $cond: [{ $in: [userObjectId, { $ifNull: ['$unreadBy', []] }] }, 1, 0],
             },
           },
         },

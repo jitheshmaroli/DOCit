@@ -208,7 +208,6 @@ export class PatientSubscriptionRepository
 
     if (!subscription) return null;
 
-    // Update status to expired if appointmentsLeft becomes 0
     const updatedSubscription = this.calculateSubscriptionDetails(subscription);
     if (updatedSubscription.appointmentsLeft <= 0 && updatedSubscription.status === 'active') {
       await this.model

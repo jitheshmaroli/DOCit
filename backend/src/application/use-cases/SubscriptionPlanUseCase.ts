@@ -234,12 +234,11 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
     const clientSecret = await this._stripeService.createPaymentIntent(dto.price * 100);
     const paymentIntentId = clientSecret.split('_secret_')[0];
 
-    // Create pending subscription immediately
     const pendingSubscription: PatientSubscription = {
       patientId,
       planId: plan._id,
-      startDate: undefined, // Will be set on activation
-      endDate: undefined, // Will be calculated on activation
+      startDate: undefined,
+      endDate: undefined,
       status: 'pending',
       price: plan.price,
       appointmentsUsed: 0,
@@ -262,11 +261,9 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
 
     await this._patientSubscriptionRepository.create(pendingSubscription);
 
-    logger.info(`Pending subscription created for payment intent: ${paymentIntentId}`);
     return { clientSecret, paymentIntentId };
   }
 
-  // New method for resuming pending subscription
   async resumePendingSubscription(
     patientId: string,
     subscriptionId: string
@@ -275,7 +272,6 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
     this._validatorService.validateIdFormat(patientId);
     this._validatorService.validateIdFormat(subscriptionId);
 
-    // Fetch the user's subscription from DB
     const subscription = await this._patientSubscriptionRepository.findById(subscriptionId);
     if (!subscription) {
       throw new NotFoundError('Pending subscription not found');
@@ -290,13 +286,11 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
       throw new ValidationError('No payment intent associated with this subscription');
     }
 
-    // Retrieve the PaymentIntent from Stripe
     const paymentIntent = await this._stripeService.retrievePaymentIntent(subscription.stripePaymentId);
     if (paymentIntent.status !== 'requires_payment_method' && paymentIntent.status !== 'requires_confirmation') {
       throw new ValidationError('Payment intent is not pending and cannot be resumed');
     }
 
-    // Return the client_secret (and plan details for convenience)
     const plan = await this._subscriptionPlanRepository.findById(subscription.planId!.toString());
     if (!plan) {
       throw new NotFoundError('Plan not found');
@@ -368,7 +362,6 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
     }
     const plan = await this._subscriptionPlanRepository.findById(planId);
     if (!plan) {
-      logger.debug(planId);
       throw new NotFoundError('Plan not found');
     }
 
@@ -496,15 +489,13 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
       refundDetails = await this._stripeService.createRefund(subscription.stripePaymentId);
     }
 
-    const res = await this._patientSubscriptionRepository.update(dto.subscriptionId, {
+    await this._patientSubscriptionRepository.update(dto.subscriptionId, {
       status: 'cancelled',
       cancellationReason: dto.cancellationReason || 'Patient requested cancellation',
       refundId: refundDetails?.refundId || 'N/A',
       refundAmount: refundDetails?.amount || 0,
       updatedAt: new Date(),
     });
-
-    logger.debug(res);
 
     const planId = subscription.planId?.toString();
     if (!planId) {

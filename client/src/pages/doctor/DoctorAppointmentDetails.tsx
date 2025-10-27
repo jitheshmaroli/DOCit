@@ -171,8 +171,7 @@ const DoctorAppointmentDetails: React.FC = () => {
       });
       setIsVideoCallOpen(true);
       setIsCaller(true);
-    } catch (error) {
-      console.error('Failed to initiate video call:', error);
+    } catch {
       showError('Failed to start video call');
     }
   };

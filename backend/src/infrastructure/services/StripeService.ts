@@ -78,7 +78,6 @@ export class StripeService implements IPaymentService {
       const refundRetrieve = await this._stripe.refunds.retrieve(refund.id);
       logger.debug(JSON.stringify(refundRetrieve, null, 2));
 
-      // Retrieve the PaymentIntent with expanded charges
       const paymentIntent = (await this._stripe.paymentIntents.retrieve(paymentIntentId, {
         expand: ['charges'],
       })) as PaymentIntentWithCharges;
@@ -87,7 +86,6 @@ export class StripeService implements IPaymentService {
 
       let cardLast4: string | undefined = 'N/A';
 
-      // Check if payment_method is available
       if (paymentIntent.payment_method && typeof paymentIntent.payment_method === 'string') {
         const paymentMethod = await this._stripe.paymentMethods.retrieve(paymentIntent.payment_method);
         logger.debug(JSON.stringify(paymentMethod, null, 2));
@@ -151,12 +149,6 @@ export class StripeService implements IPaymentService {
         await subscriptionPlanUseCase.handlePaymentSuccess(paymentIntent.id);
         break;
       }
-      // Add more cases as needed, e.g.:
-      // case 'payment_intent.payment_failed': {
-      //   const failedIntent = event.data.object as Stripe.PaymentIntent;
-      //   // Handle failure (e.g., notify, mark pending as failed)
-      //   break;
-      // }
       default:
         logger.info(`Unhandled webhook event type: ${event.type}`);
     }

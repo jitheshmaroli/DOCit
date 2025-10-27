@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-// import { toast } from 'react-toastify';
 import { MessageSquare, Video } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import { cancelAppointmentThunk } from '../../redux/thunks/patientThunk';
@@ -12,6 +11,7 @@ import { useSocket } from '../../hooks/useSocket';
 import { createReview } from '../../services/patientService';
 import api from '../../services/api';
 import { showError, showInfo, showSuccess } from '../../utils/toastConfig';
+import ROUTES from '../../constants/routeConstants';
 
 interface AppointmentPatient {
   _id: string;
@@ -96,8 +96,7 @@ const AppointmentDetails: React.FC = () => {
   useEffect(() => {
     if (!user?._id) {
       showError('Please log in to view appointment details');
-      // toast.error('Please log in to view appointment details');
-      navigate('/login');
+      navigate(ROUTES.PUBLIC.LOGIN);
     }
   }, [user, navigate]);
 
@@ -137,7 +136,6 @@ const AppointmentDetails: React.FC = () => {
         setAppointment(appt);
       } catch {
         showError('Failed to load appointment details');
-        // toast.error('Failed to load appointment details');
         setAppointment(null);
       } finally {
         setLoading(false);
@@ -166,7 +164,6 @@ const AppointmentDetails: React.FC = () => {
           setIsVideoCallOpen(true);
           setIsCaller(false);
           showInfo(`Incoming call from ${data.callerRole}`);
-          // toast.info(`Incoming call from ${data.callerRole}`);
         }
       },
       onCallAccepted: (data: { appointmentId: string; acceptorId: string }) => {
@@ -174,7 +171,6 @@ const AppointmentDetails: React.FC = () => {
           setIsVideoCallOpen(true);
           setIsCaller(true);
           showSuccess('Call accepted');
-          // toast.success('Call accepted');
         }
       },
       onCallRejected: (data: { appointmentId: string; rejectorId: string }) => {
@@ -182,7 +178,6 @@ const AppointmentDetails: React.FC = () => {
           setIsVideoCallOpen(false);
           setCallerInfo(undefined);
           showInfo('Call rejected');
-          // toast.info('Call rejected');
         }
       },
     };
@@ -220,7 +215,6 @@ const AppointmentDetails: React.FC = () => {
   const handleCancelAppointment = async (cancellationReason: string) => {
     if (!appointmentId || !user?._id) {
       showError('User not authenticated');
-      // toast.error('User not authenticated');
       return;
     }
     try {
@@ -228,13 +222,11 @@ const AppointmentDetails: React.FC = () => {
         cancelAppointmentThunk({ appointmentId, cancellationReason })
       ).unwrap();
       showSuccess('Appointment cancelled successfully');
-      // toast.success('Appointment cancelled successfully');
       setAppointment((prev) =>
         prev ? { ...prev, status: 'cancelled', cancellationReason } : prev
       );
     } catch {
       showError('Failed to cancel appointment');
-      // toast.error('Failed to cancel appointment');
     }
   };
 
@@ -247,9 +239,6 @@ const AppointmentDetails: React.FC = () => {
       showError(
         'Cannot start video call: Missing appointment or doctor information'
       );
-      // toast.error(
-      //   'Cannot start video call: Missing appointment or doctor information'
-      // );
       return;
     }
     try {
@@ -262,7 +251,6 @@ const AppointmentDetails: React.FC = () => {
     } catch (error) {
       console.error('Failed to initiate video call:', error);
       showError('Failed to start video call');
-      // toast.error('Failed to start video call');
     }
   };
 
@@ -277,7 +265,6 @@ const AppointmentDetails: React.FC = () => {
       });
     } else {
       console.error('Cannot open chat: Doctor information missing');
-      // toast.error('Cannot open chat: Doctor information missing');
     }
   };
 
@@ -288,17 +275,14 @@ const AppointmentDetails: React.FC = () => {
       !user?._id
     ) {
       showError('Cannot submit review: Missing required information');
-      // toast.error('Cannot submit review: Missing required information');
       return;
     }
     if (rating < 1 || rating > 5) {
       showError('Please select a rating between 1 and 5');
-      // toast.error('Please select a rating between 1 and 5');
       return;
     }
     if (!comment.trim()) {
       showError('Please enter a comment');
-      // toast.error('Please enter a comment');
       return;
     }
     try {
@@ -310,13 +294,11 @@ const AppointmentDetails: React.FC = () => {
         comment
       );
       showSuccess('Review submitted successfully');
-      // toast.success('Review submitted successfully');
       setAppointment((prev) => (prev ? { ...prev, hasReview: true } : prev));
       setRating(0);
       setComment('');
     } catch {
       showError('Failed to submit review');
-      // toast.error('Failed to submit review');
     } finally {
       setIsSubmittingReview(false);
     }

@@ -134,7 +134,6 @@ export const getAppointmentsThunk = createAsyncThunk<
       const response = await getAppointments(page, limit);
       return response;
     } catch (error: any) {
-      console.error('Error in getAppointmentsThunk:', error);
       return rejectWithValue(error.message || 'Failed to fetch appointments');
     }
   }

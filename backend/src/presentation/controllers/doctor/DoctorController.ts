@@ -11,7 +11,6 @@ import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 import { IAvailabilityUseCase } from '../../../core/interfaces/use-cases/IAvailabilityUseCase';
 import { IPatientUseCase } from '../../../core/interfaces/use-cases/IPatientUseCase';
-import logger from '../../../utils/logger';
 
 export class DoctorController {
   constructor(
@@ -284,7 +283,6 @@ export class DoctorController {
       }
       const query = req.query as QueryParams;
       const stats = await this._reportUseCase.getDoctorDashboardStats(doctorId, query);
-      logger.debug(stats);
       res.status(HttpStatusCode.OK).json(stats);
     } catch (error) {
       next(error);
@@ -308,7 +306,6 @@ export class DoctorController {
         endDate,
       };
       const reports = await this._reportUseCase.getDoctorReports(doctorId, filter);
-      logger.debug(reports);
       res.status(HttpStatusCode.OK).json(reports);
     } catch (error) {
       next(error);

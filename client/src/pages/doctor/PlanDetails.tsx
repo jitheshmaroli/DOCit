@@ -10,6 +10,7 @@ import DataTable, { Column } from '../../components/common/DataTable';
 import Pagination from '../../components/common/Pagination';
 import BackButton from '../../components/common/BackButton';
 import { ITEMS_PER_PAGE } from '../../utils/constants';
+import ROUTES from '../../constants/routeConstants';
 
 const PlanDetails: React.FC = () => {
   const { planId } = useParams<{ planId: string }>();
@@ -45,10 +46,6 @@ const PlanDetails: React.FC = () => {
     const res = patient.subscribedPlans?.find(
       (sub) => sub.planDetails?._id === planId
     );
-    console.log('res:', res);
-    console.log('planid:', planId);
-    console.log('patiet:', patient);
-    console.log('subplans:', patient.subscribedPlans);
     return res;
   };
 
@@ -100,9 +97,12 @@ const PlanDetails: React.FC = () => {
     {
       label: 'View Details',
       onClick: (patient: Patient) =>
-        navigate(`/doctor/patient/${patient._id}`, {
-          state: { from: 'plans' },
-        }),
+        navigate(
+          ROUTES.DOCTOR.PATIENT_DETAILS.replace(':patientId', patient._id),
+          {
+            state: { from: 'plans' },
+          }
+        ),
     },
   ];
 
@@ -130,7 +130,7 @@ const PlanDetails: React.FC = () => {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 shadow-xl">
           <button
-            onClick={() => navigate('/doctor/plans')}
+            onClick={() => navigate(ROUTES.DOCTOR.PLANS)}
             className="mb-4 text-white hover:text-blue-300 flex items-center"
           >
             <svg

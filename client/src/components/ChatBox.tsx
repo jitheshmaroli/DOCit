@@ -1,10 +1,10 @@
+// Updated F:\DOCit\client\src\components\ChatBox.tsx
 import React, { RefObject, useState, useRef, useEffect } from 'react';
-import { ArrowLeft, ArrowDown, Paperclip, Trash2, Smile } from 'lucide-react';
+import { ArrowLeft, ArrowDown, Paperclip, Trash2, Smile, X } from 'lucide-react';
 import EmojiPicker from 'emoji-picker-react';
 import { DateUtils } from '../utils/DateUtils';
 import { MessageThread, Message } from '../types/messageTypes';
 import {
-  sendAttachment,
   addReaction,
   fetchUserStatus,
 } from '../services/messageService';
@@ -16,6 +16,7 @@ interface ChatBoxProps {
   inputRef: RefObject<HTMLInputElement | null>;
   onMessageChange: (value: string) => void;
   onSendMessage: (e: React.FormEvent) => void;
+  onSendAttachment: (file: File) => void;
   onBackToInbox: () => void;
   messagesEndRef: RefObject<HTMLDivElement | null>;
   chatContainerRef: RefObject<HTMLDivElement | null>;
@@ -33,6 +34,7 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
     inputRef,
     onMessageChange,
     onSendMessage,
+    onSendAttachment,
     onBackToInbox,
     messagesEndRef,
     chatContainerRef,
@@ -164,32 +166,26 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
       if (file) {
         setSelectedFile(file);
       }
+      // Reset input to allow same file re-selection
+      e.target.value = '';
     };
 
-    const handleFileUpload = async () => {
-      if (selectedFile && thread.receiverId) {
-        try {
-          const savedMessage = await sendAttachment(
-            thread.receiverId,
-            selectedFile
-          );
-          await emit('sendMessage', {
-            ...savedMessage,
-            isSender: true,
-            senderName: thread.senderName,
-            unreadBy: [thread.receiverId],
-          });
-          setSelectedFile(null);
-          if (chatContainerRef.current) {
-            chatContainerRef.current.scrollTo({
-              top: chatContainerRef.current.scrollHeight,
-              behavior: 'smooth',
-            });
-          }
-        } catch (error) {
-          console.error('Failed to send attachment:', error);
-        }
+    const handleFormSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      const hasText = newMessage.trim();
+      const hasFile = !!selectedFile;
+
+      if (hasText) {
+        onSendMessage(e);
       }
+
+      if (hasFile) {
+        const fileToSend = selectedFile!;
+        setSelectedFile(null);
+        onSendAttachment(fileToSend);
+      }
+
+      onMessageChange('');
     };
 
     const handleDeleteMessage = (messageId: string) => {
@@ -419,28 +415,7 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
             </span>
           </button>
         )}
-        {selectedFile && (
-          <div className="mt-2 p-2 bg-white/10 rounded-lg flex items-center justify-between">
-            <span className="text-gray-200 truncate max-w-[80%]">
-              {selectedFile.name} ({(selectedFile.size / 1024).toFixed(2)} KB)
-            </span>
-            <div className="flex gap-2">
-              <button
-                onClick={handleFileUpload}
-                className="text-green-400 hover:text-green-500"
-              >
-                Upload
-              </button>
-              <button
-                onClick={() => setSelectedFile(null)}
-                className="text-red-400 hover:text-red-500"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
-        <form onSubmit={onSendMessage} className="mt-4 flex gap-2 items-center">
+        <form onSubmit={handleFormSubmit} className="mt-4 flex flex-col gap-2">
           <div className="relative flex-1">
             <input
               type="text"
@@ -470,6 +445,36 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
               </div>
             )}
           </div>
+          {selectedFile && (
+            <div className="flex items-center gap-2 p-2 bg-white/10 rounded-lg border border-white/20">
+              {selectedFile.type.startsWith('image/') ? (
+                <img
+                  src={URL.createObjectURL(selectedFile)}
+                  alt="Preview"
+                  className="w-12 h-12 rounded object-cover flex-shrink-0"
+                />
+              ) : (
+                <div className="w-12 h-12 bg-gray-600 rounded flex items-center justify-center flex-shrink-0">
+                  <Paperclip className="w-5 h-5 text-white" />
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-white truncate">
+                  {selectedFile.name}
+                </p>
+                <p className="text-xs text-gray-400">
+                  {(selectedFile.size / 1024).toFixed(1)} KB
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedFile(null)}
+                className="p-1 text-gray-400 hover:text-white transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
           <input
             type="file"
             ref={fileInputRef}
@@ -479,7 +484,7 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
           />
           <button
             type="submit"
-            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-medium rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
+            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-medium rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300 self-end"
             disabled={!newMessage.trim() && !selectedFile}
           >
             Send

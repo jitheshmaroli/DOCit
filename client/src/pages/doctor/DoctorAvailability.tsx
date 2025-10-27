@@ -180,7 +180,6 @@ const DoctorAvailability: React.FC = () => {
 
   // Re-validate all slots when dates or days change
   useEffect(() => {
-    console.log('revalidations');
     recurringTimeSlots.forEach((_, index) => {
       checkTodayValidation(index);
     });

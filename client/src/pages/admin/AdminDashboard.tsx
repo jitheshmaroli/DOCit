@@ -100,7 +100,6 @@ const AdminDashboard: React.FC = () => {
         setStats(statsData);
       } catch (error) {
         console.error('Error fetching dashboard stats:', error);
-        // toast.error('Failed to load dashboard data');
       } finally {
         setLoading(false);
       }
@@ -124,7 +123,6 @@ const AdminDashboard: React.FC = () => {
   const fetchReports = async () => {
     if (!validateForm()) {
       showError('Please fix the form errors');
-      // toast.error('Please fix the form errors');
       return;
     }
     try {
@@ -141,7 +139,6 @@ const AdminDashboard: React.FC = () => {
       setReportData(reportItems);
     } catch (error) {
       console.error('Error fetching reports:', error);
-      // toast.error('Failed to fetch reports');
       setReportData([]);
     } finally {
       setLoading(false);
@@ -151,7 +148,6 @@ const AdminDashboard: React.FC = () => {
   const generatePDF = () => {
     if (reportData.length === 0) {
       showWarning('No report data available to export');
-      // toast.warn('No report data available to export');
       return;
     }
     const doc = new jsPDF();

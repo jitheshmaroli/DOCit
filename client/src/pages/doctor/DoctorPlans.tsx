@@ -18,6 +18,7 @@ import {
   SubscriptionPlan,
 } from '../../types/subscriptionTypes';
 import { showError, showSuccess } from '../../utils/toastConfig';
+import ROUTES from '../../constants/routeConstants';
 
 const DoctorPlans: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -40,6 +41,10 @@ const DoctorPlans: React.FC = () => {
     appointmentCount: '',
   });
   const [formErrors, setFormErrors] = useState<FormErrors>({});
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<boolean>(false);
+  const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(
+    null
+  );
 
   useEffect(() => {
     if (user?.role === 'doctor') {
@@ -152,39 +157,37 @@ const DoctorPlans: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleDeletePlan = async (plan: SubscriptionPlan) => {
-    if (window.confirm('Are you sure you want to delete this plan?')) {
-      await dispatch(deleteSubscriptionPlanThunk(plan._id)).unwrap();
-      showSuccess('Plan deleted successfully');
-      dispatch(
-        getSubscriptionPlansThunk({
-          page: currentPage,
-          limit: ITEMS_PER_PAGE,
-        })
-      );
-      // try {
-      //   await dispatch(deleteSubscriptionPlanThunk(plan._id)).unwrap();
-      //   showSuccess('Plan deleted successfully');
-      //   // toast.success('Plan deleted successfully');
-      //   dispatch(
-      //     getSubscriptionPlansThunk({
-      //       page: currentPage,
-      //       limit: ITEMS_PER_PAGE,
-      //     })
-      //   );
-      // } catch (error: any) {
-      //   const errorMessage =
-      //     error?.message ||
-      //     (error as Error)?.message ||
-      //     error ||
-      //     'Unknown error';
-      //   toast.error(`Failed to delete plan: ${errorMessage}`);
-      // }
+  const handleDeletePlan = (plan: SubscriptionPlan) => {
+    setSelectedPlan(plan);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDeletePlan = async () => {
+    if (selectedPlan) {
+      try {
+        await dispatch(deleteSubscriptionPlanThunk(selectedPlan._id)).unwrap();
+        showSuccess('Plan deleted successfully');
+        dispatch(
+          getSubscriptionPlansThunk({
+            page: currentPage,
+            limit: ITEMS_PER_PAGE,
+          })
+        );
+      } catch (error: any) {
+        const errorMessage =
+          error?.message ||
+          (error as Error)?.message ||
+          error ||
+          'Unknown error';
+        showError(`Failed to delete plan: ${errorMessage}`);
+      }
+      setIsDeleteModalOpen(false);
+      setSelectedPlan(null);
     }
   };
 
   const handleViewDetails = (plan: SubscriptionPlan) => {
-    navigate(`/doctor/plan-details/${plan._id}`);
+    navigate(ROUTES.DOCTOR.PLAN_DETAILS.replace(':planId', plan._id));
   };
 
   const handlePageChange = (page: number) => {
@@ -437,6 +440,36 @@ const DoctorPlans: React.FC = () => {
                 className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
               >
                 {isEditMode ? 'Update' : 'Submit'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isDeleteModalOpen && selectedPlan && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 shadow-xl w-full max-w-md">
+            <h2 className="text-xl font-bold text-white mb-4">
+              Confirm Delete
+            </h2>
+            <p className="text-white mb-6">
+              Are you sure you want to delete {selectedPlan.name || 'Unknown'}?
+            </p>
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={() => {
+                  setIsDeleteModalOpen(false);
+                  setSelectedPlan(null);
+                }}
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeletePlan}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all duration-300"
+              >
+                Delete
               </button>
             </div>
           </div>

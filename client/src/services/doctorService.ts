@@ -220,7 +220,6 @@ export const getAppointedPatients = async (page: number, limit: number) => {
   const response = await api.get(ROUTES.API.DOCTOR.APPOINTED_PATIENTS, {
     params: { page, limit },
   });
-  console.log('patients:', response.data);
   return response.data;
 };
 
@@ -271,7 +270,6 @@ export const fetchDashboardData = async ({
       status: plan.status,
       expired: plan.status === 'expired',
     }));
-    console.log('statsresponse:', statsResponse);
 
     return {
       stats: statsResponse,

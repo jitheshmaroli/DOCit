@@ -7,6 +7,7 @@ import useAuth from '../../hooks/useAuth';
 import NotificationDropdown from './NotificationDropdown';
 import { useSocket } from '../../hooks/useSocket';
 import { LogOut } from 'lucide-react';
+import ROUTES from '../../constants/routeConstants';
 
 const Header: React.FC = () => {
   const location = useLocation();
@@ -21,30 +22,27 @@ const Header: React.FC = () => {
 
   const patientNavItems = [
     { name: 'Home', path: '/' },
-    { name: 'Find Doctor', path: '/patient/find-doctor' },
-    { name: 'Subscriptions', path: '/patient/subscriptions' },
-    { name: 'Messages', path: '/patient/messages' },
+    { name: 'Find Doctor', path: ROUTES.PATIENT.FIND_DOCTOR },
+    { name: 'Subscriptions', path: ROUTES.PATIENT.SUBSCRIPTIONS },
+    { name: 'Messages', path: ROUTES.PATIENT.MESSAGES },
   ];
 
-  const landingNavItems = [
-    { name: 'Home', path: '/' },
-    { name: 'About', path: '/about' },
-  ];
+  const landingNavItems = [{ name: 'Home', path: ROUTES.PUBLIC.LANDING }];
 
   let dashboardPath = '';
   if (user) {
     switch (user.role) {
       case 'admin':
-        dashboardPath = '/admin/dashboard';
+        dashboardPath = ROUTES.ADMIN.DASHBOARD;
         break;
       case 'doctor':
-        dashboardPath = '/doctor/dashboard';
+        dashboardPath = ROUTES.DOCTOR.DASHBOARD;
         break;
       case 'patient':
-        dashboardPath = '/patient/find-doctor';
+        dashboardPath = ROUTES.PATIENT.FIND_DOCTOR;
         break;
       default:
-        dashboardPath = '/login';
+        dashboardPath = ROUTES.PUBLIC.LOGIN;
         break;
     }
   }
@@ -160,7 +158,10 @@ const Header: React.FC = () => {
                   <NotificationDropdown userId={user?._id} />
                   {isPatientRoute && (
                     <div className="flex items-center">
-                      <Link to="/patient/profile" className="flex items-center">
+                      <Link
+                        to={ROUTES.PATIENT.PROFILE}
+                        className="flex items-center"
+                      >
                         <div className="w-8 h-8 rounded-full bg-[#78B9B5]/50 flex items-center justify-center text-white font-medium overflow-hidden">
                           {user?.profilePicture ? (
                             <img
@@ -251,17 +252,17 @@ const Header: React.FC = () => {
                   </Link>
                 ) : (
                   <>
-                    {location.pathname !== '/login' && (
+                    {location.pathname !== ROUTES.PUBLIC.LOGIN && (
                       <Link
-                        to="/login"
+                        to={ROUTES.PUBLIC.LOGIN}
                         className="py-2 px-4 text-[#B7DEE6] hover:text-[#78B9B5] rounded transition-colors"
                       >
                         Login
                       </Link>
                     )}
-                    {location.pathname !== '/signup' && (
+                    {location.pathname !== ROUTES.PUBLIC.SIGNUP && (
                       <Link
-                        to="/signup"
+                        to={ROUTES.PUBLIC.SIGNUP}
                         className="py-2 px-4 text-[#B7DEE6] hover:text-[#78B9B5] rounded transition-colors"
                         state={{ role: 'patient' }}
                       >
@@ -275,7 +276,7 @@ const Header: React.FC = () => {
                   <>
                     {isPatientRoute && (
                       <Link
-                        to="/patient/profile"
+                        to={ROUTES.PATIENT.PROFILE}
                         className={`py-2 px-4 text-[#B7DEE6] hover:text-[#78B9B5] rounded transition-colors ${
                           location.pathname === '/patient/profile'
                             ? 'text-[#78B9B5] font-medium bg-[#78B9B5]/10'

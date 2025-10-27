@@ -3,7 +3,6 @@ import { toast } from 'react-toastify';
 import { useAppSelector, useAppDispatch } from '../redux/hooks';
 import { clearError as clearDoctorError } from '../redux/slices/doctorSlice';
 import { clearError as clearPatientError } from '../redux/slices/patientSlice';
-// Add other slice clears as needed (e.g., authSlice if you have one)
 
 const ToastManager: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -13,7 +12,7 @@ const ToastManager: React.FC = () => {
   useEffect(() => {
     if (doctorError) {
       toast.error(doctorError, {
-        toastId: 'doctor-error', // Unique ID to prevent duplicates
+        toastId: 'doctor-error',
         autoClose: 3000,
       });
       dispatch(clearDoctorError());
@@ -25,17 +24,15 @@ const ToastManager: React.FC = () => {
   useEffect(() => {
     if (patientError) {
       toast.error(patientError, {
-        toastId: 'patient-error', // Unique ID
+        toastId: 'patient-error',
         autoClose: 3000,
       });
       dispatch(clearPatientError());
     }
   }, [patientError, dispatch]);
 
-  // Add similar for other slices (e.g., auth errors, etc.)
-  // You can also add success toasts here if needed, e.g., from subscriptionStatus
 
-  return null; // This is a headless component
+  return null;
 };
 
 export default ToastManager;

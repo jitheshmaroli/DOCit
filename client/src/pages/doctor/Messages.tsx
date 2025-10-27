@@ -10,6 +10,7 @@ import {
   fetchPartnerDetails,
   deleteMessage,
   markAsRead,
+  sendAttachment,
 } from '../../services/messageService';
 import {
   Message,
@@ -19,7 +20,7 @@ import {
 } from '../../types/messageTypes';
 import { useSocket } from '../../hooks/useSocket';
 import ROUTES from '../../constants/routeConstants';
-import { showSuccess } from '../../utils/toastConfig';
+import { showError, showSuccess } from '../../utils/toastConfig';
 
 const Messages = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -35,7 +36,7 @@ const Messages = () => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
-  const { connect, registerHandlers } = useSocket();
+  const { connect, registerHandlers, emit } = useSocket();
 
   const isAtBottom = useCallback(() => {
     if (!chatContainerRef.current) return true;
@@ -62,6 +63,83 @@ const Messages = () => {
     inputRef.current?.focus();
   };
 
+  const handleSendAttachment = async (file: File) => {
+    if (!selectedThread?.receiverId || !user?._id) return;
+
+    try {
+      const senderName = user.name || 'User';
+      const savedMessage = await sendAttachment(
+        selectedThread.receiverId,
+        senderName,
+        file
+      );
+      const displayText = file.type.startsWith('image/') ? 'Photo' : file.name;
+      const updatedMessage: Message = {
+        _id: savedMessage._id,
+        message: displayText,
+        senderId: user._id,
+        senderName,
+        createdAt: savedMessage.createdAt,
+        isSender: true,
+        receiverId: selectedThread.receiverId,
+        unreadBy: [selectedThread.receiverId],
+        attachment: savedMessage.attachment,
+        reactions: savedMessage.reactions || [],
+      };
+
+      await emit('sendMessage', updatedMessage);
+
+      setSelectedThread((prev) =>
+        prev
+          ? {
+              ...prev,
+              messages: [...prev.messages, updatedMessage],
+              createdAt: updatedMessage.createdAt,
+              latestMessage: {
+                _id: updatedMessage._id,
+                message: displayText,
+                createdAt: updatedMessage.createdAt,
+                isSender: true,
+              },
+              unreadCount: 0,
+            }
+          : prev
+      );
+
+      setThreads((prev) => {
+        const threadIndex = prev.findIndex(
+          (t) => t.receiverId === selectedThread.receiverId
+        );
+        if (threadIndex >= 0) {
+          const updatedThreads = [...prev];
+          updatedThreads[threadIndex] = {
+            ...updatedThreads[threadIndex],
+            messages: [...updatedThreads[threadIndex].messages, updatedMessage],
+            createdAt: updatedMessage.createdAt,
+            latestMessage: {
+              _id: updatedMessage._id,
+              message: displayText,
+              createdAt: updatedMessage.createdAt,
+              isSender: true,
+            },
+            unreadCount: 0,
+          };
+          return updatedThreads.sort(
+            (a, b) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+        }
+        // Handle new thread if needed (unlikely for attachments)
+        return prev;
+      });
+
+      setTimeout(scrollToBottom, 100);
+    } catch (error) {
+      console.error('Failed to send attachment:', error);
+      showError('Failed to send attachment');
+    }
+  };
+
   useEffect(() => {
     if (!user?._id) return;
 
@@ -85,6 +163,11 @@ const Messages = () => {
           );
         }
 
+        const displayText =
+          message.message ||
+          (message.attachment?.type?.startsWith('image/')
+            ? 'Photo'
+            : message.attachment?.name || 'Media');
         const newMessageObj: Message = {
           ...message,
           senderName: partnerName,
@@ -118,7 +201,7 @@ const Messages = () => {
               createdAt: message.createdAt,
               latestMessage: {
                 _id: message._id,
-                message: message.message,
+                message: displayText,
                 createdAt: message.createdAt,
                 isSender: false,
               },
@@ -142,7 +225,7 @@ const Messages = () => {
             partnerProfilePicture,
             latestMessage: {
               _id: message._id,
-              message: message.message,
+              message: displayText,
               createdAt: message.createdAt,
               isSender: false,
             },
@@ -173,7 +256,7 @@ const Messages = () => {
               createdAt: message.createdAt,
               latestMessage: {
                 _id: message._id,
-                message: message.message,
+                message: displayText,
                 createdAt: message.createdAt,
                 isSender: false,
               },
@@ -245,6 +328,7 @@ const Messages = () => {
     selectedThread?.receiverId,
     selectedThread?.id,
     isAtBottom,
+    emit,
   ]);
 
   const { sendMessage } = useSendMessage();
@@ -301,7 +385,6 @@ const Messages = () => {
         );
       } catch (error) {
         console.error('Fetch inbox error:', error);
-        // toast.error('Failed to load inbox');
       } finally {
         setLoading(false);
       }
@@ -359,7 +442,6 @@ const Messages = () => {
             navigate(ROUTES.DOCTOR.MESSAGES, { replace: true });
           } catch (error) {
             console.error('Failed to create new thread:', error);
-            // toast.error('Failed to open chat');
             navigate(ROUTES.DOCTOR.MESSAGES, { replace: true });
           }
         };
@@ -412,7 +494,6 @@ const Messages = () => {
         }, 100);
       } catch (error) {
         console.error('Fetch messages error:', error);
-        // toast.error('Failed to load messages');
       }
     };
     loadMessages();
@@ -542,16 +623,13 @@ const Messages = () => {
         )
       );
       showSuccess('Messages deleted successfully');
-      // toast.success('Messages deleted successfully');
     } catch (error) {
       console.error('Failed to delete messages:', error);
-      // toast.error('Failed to delete messages');
     }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 py-8 px-4 sm:px-6 lg:px-8">
-      {/* <ToastContainer position="bottom-right" autoClose={3000} theme="dark" /> */}
       <div className="container mx-auto">
         <h2 className="text-2xl sm:text-3xl font-semibold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text mb-6">
           Messages
@@ -589,6 +667,7 @@ const Messages = () => {
               inputRef={inputRef}
               onMessageChange={setNewMessage}
               onSendMessage={handleSendMessage}
+              onSendAttachment={handleSendAttachment}
               onBackToInbox={() => setSelectedThread(null)}
               messagesEndRef={messagesEndRef}
               chatContainerRef={chatContainerRef}

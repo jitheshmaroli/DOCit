@@ -10,6 +10,7 @@ import {
   fetchPartnerDetails,
   deleteMessage,
   markAsRead,
+  sendAttachment,
 } from '../../../services/messageService';
 import {
   Message,
@@ -21,6 +22,7 @@ import { useSocket } from '../../../hooks/useSocket';
 import ROUTES from '../../../constants/routeConstants';
 import { useAppSelector } from '../../../redux/hooks';
 import { RootState } from '../../../redux/store';
+import { showError } from '../../../utils/toastConfig';
 
 const Messages: React.FC = () => {
   const { user } = useAppSelector((state: RootState) => state.auth);
@@ -36,7 +38,7 @@ const Messages: React.FC = () => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
-  const { connect, registerHandlers } = useSocket();
+  const { connect, registerHandlers, emit } = useSocket();
   const patientId = user?._id;
 
   useEffect(() => {
@@ -70,6 +72,82 @@ const Messages: React.FC = () => {
     inputRef.current?.focus();
   };
 
+  const handleSendAttachment = async (file: File) => {
+    if (!selectedThread?.receiverId || !patientId) return;
+
+    try {
+      const senderName = user.name || 'User';
+      const savedMessage = await sendAttachment(
+        selectedThread.receiverId,
+        senderName,
+        file
+      );
+      const displayText = file.type.startsWith('image/') ? 'Photo' : file.name;
+      const updatedMessage: Message = {
+        _id: savedMessage._id,
+        message: displayText,
+        senderId: patientId,
+        senderName,
+        createdAt: savedMessage.createdAt,
+        isSender: true,
+        receiverId: selectedThread.receiverId,
+        unreadBy: [selectedThread.receiverId],
+        attachment: savedMessage.attachment,
+        reactions: savedMessage.reactions || [],
+      };
+
+      await emit('sendMessage', updatedMessage);
+
+      setSelectedThread((prev) =>
+        prev
+          ? {
+              ...prev,
+              messages: [...prev.messages, updatedMessage],
+              createdAt: updatedMessage.createdAt,
+              latestMessage: {
+                _id: updatedMessage._id,
+                message: displayText,
+                createdAt: updatedMessage.createdAt,
+                isSender: true,
+              },
+              unreadCount: 0,
+            }
+          : prev
+      );
+
+      setThreads((prev) => {
+        const threadIndex = prev.findIndex(
+          (t) => t.receiverId === selectedThread.receiverId
+        );
+        if (threadIndex >= 0) {
+          const updatedThreads = [...prev];
+          updatedThreads[threadIndex] = {
+            ...updatedThreads[threadIndex],
+            messages: [...updatedThreads[threadIndex].messages, updatedMessage],
+            createdAt: updatedMessage.createdAt,
+            latestMessage: {
+              _id: updatedMessage._id,
+              message: displayText,
+              createdAt: updatedMessage.createdAt,
+              isSender: true,
+            },
+            unreadCount: 0,
+          };
+          return updatedThreads.sort(
+            (a, b) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+        }
+        return prev;
+      });
+
+      setTimeout(scrollToBottom, 100);
+    } catch (error) {
+      console.error('Failed to send attachment:', error);
+      showError('Failed to send attachment');
+    }
+  };
+
   useEffect(() => {
     if (!patientId) return;
 
@@ -93,6 +171,11 @@ const Messages: React.FC = () => {
           );
         }
 
+        const displayText =
+          message.message ||
+          (message.attachment?.type?.startsWith('image/')
+            ? 'Photo'
+            : message.attachment?.name || 'Media');
         const newMessageObj: Message = {
           ...message,
           senderName: partnerName,
@@ -126,7 +209,7 @@ const Messages: React.FC = () => {
               createdAt: message.createdAt,
               latestMessage: {
                 _id: message._id,
-                message: message.message,
+                message: displayText,
                 createdAt: message.createdAt,
                 isSender: false,
               },
@@ -150,7 +233,7 @@ const Messages: React.FC = () => {
             partnerProfilePicture,
             latestMessage: {
               _id: message._id,
-              message: message.message,
+              message: displayText,
               createdAt: message.createdAt,
               isSender: false,
             },
@@ -181,7 +264,7 @@ const Messages: React.FC = () => {
               createdAt: message.createdAt,
               latestMessage: {
                 _id: message._id,
-                message: message.message,
+                message: displayText,
                 createdAt: message.createdAt,
                 isSender: false,
               },
@@ -246,6 +329,7 @@ const Messages: React.FC = () => {
     navigate,
     selectedThread?.receiverId,
     isAtBottom,
+    emit,
   ]);
 
   const { sendMessage } = useSendMessage();
@@ -323,7 +407,6 @@ const Messages: React.FC = () => {
             t.receiverId === threadId ? { ...t, unreadCount: 0 } : t
           )
         );
-        
       } else {
         const createNewThread = async () => {
           try {
@@ -356,12 +439,6 @@ const Messages: React.FC = () => {
             setSelectedThread(newThread);
           } catch (error) {
             console.error('Failed to create new thread:', error);
-            // toast.error('Failed to open chat', {
-            //   position: 'bottom-right',
-            //   autoClose: 3000,
-            //   className:
-            //     'bg-white/10 backdrop-blur-lg border border-white/20 rounded-lg',
-            // });
           }
         };
         createNewThread();
@@ -541,12 +618,6 @@ const Messages: React.FC = () => {
             : thread
         )
       );
-      // toast.success('Messages deleted successfully', {
-      //   position: 'bottom-right',
-      //   autoClose: 3000,
-      //   className:
-      //     'bg-white/10 backdrop-blur-lg border border-white/20 rounded-lg',
-      // });
     } catch (error) {
       console.error('Failed to delete messages:', error);
     }
@@ -603,6 +674,7 @@ const Messages: React.FC = () => {
               inputRef={inputRef}
               onMessageChange={setNewMessage}
               onSendMessage={handleSendMessage}
+              onSendAttachment={handleSendAttachment}
               onBackToInbox={() => setSelectedThread(null)}
               messagesEndRef={messagesEndRef}
               chatContainerRef={chatContainerRef}

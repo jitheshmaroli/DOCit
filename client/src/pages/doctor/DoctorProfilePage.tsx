@@ -12,6 +12,7 @@ import api from '../../services/api';
 import { Experience, Speciality } from '../../types/doctorTypes';
 import { showError, showSuccess } from '../../utils/toastConfig';
 import Modal from '../../components/common/Modal';
+import ROUTES from '../../constants/routeConstants';
 
 interface FormData {
   name: string;
@@ -61,7 +62,9 @@ const DoctorProfilePage: React.FC = () => {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const specialitiesResponse = await api.get(`/api/doctors/specialities`);
+        const specialitiesResponse = await api.get(
+          ROUTES.API.DOCTOR.SPECIALITIES
+        );
         const specialitiesData = specialitiesResponse.data;
         setSpecialities(specialitiesData);
 
@@ -104,8 +107,7 @@ const DoctorProfilePage: React.FC = () => {
         setProfilePicture(imageUrl);
         setPreviewImage(imageUrl);
         setExperienceErrors(data.experiences?.map(() => ({})) || []);
-      } catch (error) {
-        console.error('Error fetching doctor profile:', error);
+      } catch {
         showError('Failed to load profile');
       }
     };
@@ -398,7 +400,10 @@ const DoctorProfilePage: React.FC = () => {
       formDataToSend.append('location', formData.location);
       formDataToSend.append('speciality', formData.speciality);
       formDataToSend.append('gender', formData.gender);
-      formDataToSend.append('allowFreeBooking', String(formData.allowFreeBooking));
+      formDataToSend.append(
+        'allowFreeBooking',
+        String(formData.allowFreeBooking)
+      );
       formDataToSend.append(
         'experiences',
         JSON.stringify(
@@ -829,7 +834,9 @@ const DoctorProfilePage: React.FC = () => {
             </>
           }
         >
-          <p className="text-white">Are you sure you want to update your profile?</p>
+          <p className="text-white">
+            Are you sure you want to update your profile?
+          </p>
         </Modal>
       </div>
     </div>

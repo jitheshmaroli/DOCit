@@ -135,9 +135,6 @@ export const getPatientSubscriptionsThunk = createAsyncThunk(
       const formattedSubscriptions = await Promise.all(
         subscriptions.map(async (subscription: PatientSubscription) => {
           if (!subscription.planId || !subscription?.planDetails?.doctorId) {
-            console.warn(
-              `Skipping doctor fetch for subscription ${subscription._id}: missing planId or doctorId`
-            );
             return {
               _id: subscription._id,
               plan: {
@@ -200,7 +197,6 @@ export const getPatientSubscriptionsThunk = createAsyncThunk(
   }
 );
 
-// New thunk for resuming pending subscription
 export const resumePendingSubscriptionThunk = createAsyncThunk(
   'patient/resumePendingSubscription',
   async (subscriptionId: string, { rejectWithValue }) => {

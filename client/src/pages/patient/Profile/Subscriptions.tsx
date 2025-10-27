@@ -129,11 +129,6 @@ const Subscriptions: React.FC = () => {
   const debouncedCancelSubscription = debounce(async () => {
     if (!selectedSubscriptionId || !cancellationReason.trim()) {
       showError('Please provide a cancellation reason');
-      // toast.error('Please provide a cancellation reason', {
-      //   position: 'bottom-right',
-      //   autoClose: 3000,
-      //   className: 'bg-white/10 backdrop-blur-lg border border-white/20 rounded-lg',
-      // });
       return;
     }
     try {
@@ -145,20 +140,8 @@ const Subscriptions: React.FC = () => {
       ).unwrap();
       setModalMode('refund');
       showSuccess('Subscription cancelled successfully!');
-      // toast.success('Subscription cancelled successfully!', {
-      //   position: 'bottom-right',
-      //   autoClose: 3000,
-      //   className:
-      //     'bg-white/10 backdrop-blur-lg border border-white/20 rounded-lg',
-      // });
     } catch {
       showError('Failed to cancel subscription');
-      // toast.error('Failed to cancel subscription', {
-      //   position: 'bottom-right',
-      //   autoClose: 3000,
-      //   className:
-      //     'bg-white/10 backdrop-blur-lg border border-white/20 rounded-lg',
-      // });
       setIsCancelSubscriptionModalOpen(false);
       setCancellationReason('');
     }

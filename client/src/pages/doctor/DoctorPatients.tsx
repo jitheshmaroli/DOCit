@@ -7,6 +7,7 @@ import { getAppointedPatients } from '../../services/doctorService';
 import { ITEMS_PER_PAGE } from '../../utils/constants';
 import { Patient } from '../../types/authTypes';
 import { showError } from '../../utils/toastConfig';
+import ROUTES from '../../constants/routeConstants';
 
 const DoctorPatients: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -48,7 +49,11 @@ const DoctorPatients: React.FC = () => {
       header: 'Name',
       accessor: (patient) => (
         <button
-          onClick={() => navigate(`/doctor/patient/${patient._id}`)}
+          onClick={() =>
+            navigate(
+              ROUTES.DOCTOR.PATIENT_DETAILS.replace(':patientId', patient._id)
+            )
+          }
           className="hover:underline hover:text-blue-300 focus:outline-none"
         >
           {patient.name || 'N/A'}
@@ -89,9 +94,12 @@ const DoctorPatients: React.FC = () => {
     {
       label: 'View Details',
       onClick: (patient: Patient) =>
-        navigate(`/doctor/patient/${patient._id}`, {
-          state: { from: 'patients' },
-        }),
+        navigate(
+          ROUTES.DOCTOR.PATIENT_DETAILS.replace(':patientId', patient._id),
+          {
+            state: { from: 'patients' },
+          }
+        ),
       className: 'bg-purple-600 hover:bg-purple-700',
     },
   ];

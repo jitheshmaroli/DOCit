@@ -23,12 +23,6 @@ const server = new HttpServer(app);
 const PORT = env.PORT;
 const MONGO_URI = env.MONGO_URI;
 const CLIENT_URL = env.CLIENT_URL;
-// const STRIPE_SECRET_KEY = env.STRIPE_SECRET_KEY;
-// const STRIPE_WEBHOOK_SECRET = env.STRIPE_WEBHOOK_SECRET;
-
-// const stripe = new Stripe(STRIPE_SECRET_KEY, {
-//   apiVersion: '2025-05-28.basil',
-// });
 
 // Initialize Socket.IO
 socketService.initialize(server);
@@ -42,7 +36,6 @@ app.use(
     allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
   })
 );
-// app.use(express.raw({ type: 'application/json' })); // For Stripe webhook
 app.use('/api/webhook', webhookRoutes);
 app.use(express.json());
 app.use(cookieParser());
@@ -60,32 +53,6 @@ app.use('/api/user', userRoutes);
 app.use('/api/otp', otpRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/notifications', notificationRoutes);
-
-// // Stripe webhook
-// app.post('/api/webhook/stripe', async (req: CustomRequest, res: Response) => {
-//   const sig = req.headers['stripe-signature'] as string;
-
-//   try {
-//     const event = stripe.webhooks.constructEvent(req.body, sig, STRIPE_WEBHOOK_SECRET);
-
-//     if (event.type === 'payment_intent.succeeded') {
-//       const paymentIntent = event.data.object;
-//       const subscription = await patientSubscriptionRepository.findByStripePaymentId(paymentIntent.id);
-//       if (subscription && subscription.status === 'active') {
-//         logger.info(`Payment already processed for payment intent: ${paymentIntent.id}`);
-//         res.status(200).json({ received: true });
-//         return;
-//       }
-//       logger.warn(`Subscription not found for payment intent: ${paymentIntent.id}`);
-//     }
-
-//     res.status(200).json({ received: true });
-//   } catch (err: unknown) {
-//     const message = err instanceof Stripe.errors.StripeError ? err.message : (err as Error).message || 'Unknown error';
-//     logger.error(`Webhook error: ${message}`, err);
-//     res.status(400).send(`Webhook Error: ${message}`);
-//   }
-// });
 
 // Root route
 app.get('/', (req: CustomRequest, res: Response) => {

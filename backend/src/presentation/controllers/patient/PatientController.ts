@@ -12,7 +12,6 @@ import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
 import { IAvailabilityUseCase } from '../../../core/interfaces/use-cases/IAvailabilityUseCase';
 import { IDoctorUseCase } from '../../../core/interfaces/use-cases/IDoctorUseCase';
-import logger from '../../../utils/logger';
 
 export class PatientController {
   constructor(
@@ -286,7 +285,6 @@ export class PatientController {
         responseData = await this._appointmentUseCase.getPatientAppointmentsForDoctor(patientsAppointmentRequestData);
       } else {
         responseData = await this._appointmentUseCase.getPatientAppointments(patientId, queryParams);
-        logger.debug(responseData);
       }
 
       res.status(HttpStatusCode.OK).json(responseData);

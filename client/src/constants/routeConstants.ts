@@ -19,6 +19,7 @@ export const ROUTES = {
   PATIENT: {
     BASE: '/patient',
     FIND_DOCTOR: '/patient/find-doctor',
+    SUBSCRIPTIONS: '/patient/subscriptions',
     PROFILE: '/patient/profile',
     DOCTOR_DETAILS: '/patient/doctors/:doctorId',
     APPOINTMENT_DETAILS: '/patient/appointment/:appointmentId',
@@ -35,7 +36,9 @@ export const ROUTES = {
     APPOINTMENTS: '/doctor/appointments',
     MESSAGES: '/doctor/messages',
     PLANS: '/doctor/plans',
+    PATIENTS: '/doctor/patients',
     PATIENT_DETAILS: '/doctor/patient/:patientId',
+    PLAN_DETAILS: '/doctor/plan-details/:planId',
     APPOINTMENT_DETAILS: '/doctor/appointment/:appointmentId',
   },
 
@@ -121,6 +124,7 @@ export const ROUTES = {
       APPOINTMENTS: apiPath('/patients/appointments'),
       BOOK_APPOINTMENT: apiPath('/patients/appointments'),
       CANCEL_APPOINTMENT: apiPath('/patients/appointments/:appointmentId'),
+      APPOINTMENT_DETAILS: apiPath('/patients/appointments/:appointmentId'),
       DOCTOR_PLANS: apiPath('/patients/doctors/:doctorId/plans'),
       SUBSCRIBE_TO_PLAN: apiPath('/patients/subscriptions'),
       CONFIRM_SUBSCRIPTION: apiPath('/patients/subscriptions/confirm'),

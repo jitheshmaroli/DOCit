@@ -54,7 +54,6 @@ export default class JoiService implements IValidatorService {
   }
 
   public validatePhoneNumber(phoneNumber: string): boolean {
-    // Assuming Indian phone numbers: 10 digits, optional +91
     const schema = Joi.string().pattern(/^\+?91[6-9]\d{9}$|^[6-9]\d{9}$/);
     const { error } = schema.validate(phoneNumber);
     if (error) {
@@ -73,7 +72,6 @@ export default class JoiService implements IValidatorService {
   }
 
   public validateTimeFormat(time: string): boolean {
-    // Assuming 24-hour format HH:MM as used in appointment slots (e.g., "09:00")
     const schema = Joi.string().pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/);
     const { error } = schema.validate(time);
     if (error) {
@@ -155,7 +153,6 @@ export default class JoiService implements IValidatorService {
   }
 
   public validateLicenseNumber(license: string): boolean {
-    // Assuming a simple alphanumeric pattern for license numbers (customize as needed)
     const schema = Joi.string().min(5).max(50).alphanum();
     const { error } = schema.validate(license);
     if (error) {
@@ -168,7 +165,7 @@ export default class JoiService implements IValidatorService {
     this.validateTimeFormat(startTime);
     this.validateTimeFormat(endTime);
 
-    // Additional logic: ensure startTime < endTime (basic check, assuming same day)
+    // startTime < endTime (basic check, assuming same day)
     const startParts = startTime.split(':').map(Number);
     const endParts = endTime.split(':').map(Number);
     const startMinutes = startParts[0] * 60 + startParts[1];
@@ -178,7 +175,7 @@ export default class JoiService implements IValidatorService {
       throw new ValidationError('Start time must be before end time');
     }
 
-    // Slot duration check (e.g., min 15 min, max 120 min - customizable)
+    // Slot duration check
     const duration = endMinutes - startMinutes;
     if (duration < 15 || duration > 120) {
       throw new ValidationError('Time slot duration must be between 15 and 120 minutes');

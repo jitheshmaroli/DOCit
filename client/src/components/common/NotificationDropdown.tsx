@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Bell, X, Trash2 } from 'lucide-react';
 import { AppNotification } from '../../types/authTypes';
@@ -22,6 +22,8 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const { registerHandlers } = useSocket();
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!userId) return;
@@ -46,6 +48,25 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
     };
     loadNotifications();
   }, [registerHandlers, userId]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        isOpen &&
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [isOpen]);
 
   const handleToggleDropdown = () => {
     setIsOpen(!isOpen);
@@ -97,7 +118,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
     document.getElementById('notifications-portal') || document.body;
 
   const dropdownContent = (
-    <div className="fixed top-20 right-4 w-80 sm:w-96 bg-gray-900/95 backdrop-blur-lg rounded-xl shadow-2xl border border-white/10 z-[10000] max-h-[70vh] overflow-y-auto">
+    <div ref={dropdownRef} className="fixed top-20 right-4 w-80 sm:w-96 bg-gray-900/95 backdrop-blur-lg rounded-xl shadow-2xl border border-white/10 z-[10000] max-h-[70vh] overflow-y-auto">
       <div className="p-4 border-b border-white/10 flex justify-between items-center">
         <h3 className="text-lg font-semibold text-white">Notifications</h3>
         {notifications.length > 0 && (
@@ -152,6 +173,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
   return (
     <div className="relative z-[10000]">
       <button
+        ref={buttonRef}
         onClick={handleToggleDropdown}
         className="relative p-2 text-gray-200 hover:text-purple-400 focus:outline-none transition-colors duration-200"
         aria-label="Notifications"

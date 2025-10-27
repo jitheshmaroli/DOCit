@@ -1,5 +1,5 @@
 import { SubscriptionPlan } from '../../core/entities/SubscriptionPlan';
-import { AppointmentDTO } from './AppointmentDTOs'; // Import AppointmentDTO
+import { AppointmentDTO } from './AppointmentDTOs';
 
 export interface PatientDTO {
   _id?: string;

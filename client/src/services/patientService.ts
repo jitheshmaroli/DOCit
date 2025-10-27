@@ -26,12 +26,9 @@ export const getDoctors = async () => {
 
 export const getDoctor = async (doctorId: string): Promise<Doctor | null> => {
   try {
-    console.log('doctorid thunk:', doctorId);
-
     const response = await api.get(
       ROUTES.API.PATIENT.DOCTOR_BY_ID.replace(':doctorId', doctorId)
     );
-    console.log('doctorDetails:', response.data);
     return response.data || null;
   } catch (error) {
     const axiosError = error as AxiosError<PatientApiError>;
@@ -227,7 +224,6 @@ export const confirmSubscription = async (
   }
 };
 
-// New service method for resuming pending subscription
 export const resumePendingSubscription = async (subscriptionId: string) => {
   try {
     const response = await api.get(

@@ -7,14 +7,14 @@ import Pagination from '../../components/common/Pagination';
 import DataTable, { Column } from '../../components/common/DataTable';
 import { Appointment } from '../../types/authTypes';
 import { ITEMS_PER_PAGE } from '../../utils/constants';
+import ROUTES from '../../constants/routeConstants';
 
 const DoctorAppointments: React.FC = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const {
-    appointments = [],
-    totalItems,
-  } = useAppSelector((state) => state.doctors);
+  const { appointments = [], totalItems } = useAppSelector(
+    (state) => state.doctors
+  );
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -34,9 +34,15 @@ const DoctorAppointments: React.FC = () => {
       accessor: (appt) => (
         <button
           onClick={() =>
-            navigate(`/doctor/patient/${appt.patientId._id}`, {
-              state: { from: 'appointments' },
-            })
+            navigate(
+              ROUTES.DOCTOR.PATIENT_DETAILS.replace(
+                'patientId',
+                appt.patientId._id
+              ),
+              {
+                state: { from: 'appointments' },
+              }
+            )
           }
           className="hover:underline hover:text-blue-300 focus:outline-none"
         >
@@ -75,7 +81,9 @@ const DoctorAppointments: React.FC = () => {
     {
       label: 'View Details',
       onClick: (appt: Appointment) =>
-        navigate(`/doctor/appointment/${appt._id}`),
+        navigate(
+          ROUTES.DOCTOR.APPOINTMENT_DETAILS.replace(':appointmentId', appt._id)
+        ),
       className: 'bg-purple-600 hover:bg-purple-700',
     },
   ];

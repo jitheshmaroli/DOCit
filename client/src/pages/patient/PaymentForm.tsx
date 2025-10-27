@@ -19,7 +19,7 @@ interface PaymentFormProps {
   price: number;
   onSuccess: (details: PaymentDetails) => void;
   onError: (error: string) => void;
-  isResume?: boolean; // New optional prop
+  isResume?: boolean;
 }
 
 const PaymentForm: React.FC<PaymentFormProps> = ({
@@ -27,7 +27,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   price,
   onSuccess,
   onError,
-  isResume = false, // Default false
+  isResume = false,
 }) => {
   const stripe = useStripe();
   const elements = useElements();

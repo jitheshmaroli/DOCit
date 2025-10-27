@@ -75,8 +75,7 @@ const PersonalInformation = () => {
         const imageUrl = getImageUrl(data.profilePicture);
         setProfilePicture(imageUrl);
         setPreviewImage(imageUrl);
-      } catch (error) {
-        console.error('Error fetching profile:', error);
+      } catch {
         showError('Failed to load profile data');
       }
     };
@@ -207,7 +206,7 @@ const PersonalInformation = () => {
     e.preventDefault();
 
     if (!validateForm()) {
-      await showError('Please fill all required fields correctly');
+      showError('Please fill all required fields correctly');
       return;
     }
 
@@ -250,13 +249,12 @@ const PersonalInformation = () => {
       setPreviewImage(imageUrl);
       setFile(null);
       setIsModalOpen(false);
-      await showSuccess('Profile updated successfully!');
-    } catch (error) {
-      console.error('Error updating profile:', error);
+      showSuccess('Profile updated successfully!');
+    } catch {
       setPreviewImage(profilePicture);
       setFile(null);
       setIsModalOpen(false);
-      await showError('Error updating profile');
+      showError('Error updating profile');
     }
   };
 

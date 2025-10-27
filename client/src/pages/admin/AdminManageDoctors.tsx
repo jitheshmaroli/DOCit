@@ -149,7 +149,6 @@ const AdminManageDoctors: React.FC = () => {
         licenseNumber: '',
       });
     } catch (err) {
-      console.error(`Failed to create doctor: ${err}`);
       showError(`Failed to create doctor: ${err}`);
     }
   }, [dispatch, newDoctor, validateForm]);
@@ -173,7 +172,6 @@ const AdminManageDoctors: React.FC = () => {
         licenseNumber: '',
       });
     } catch (err) {
-      console.error(`Failed to update doctor: ${err}`);
       showError(`Failed to update doctor: ${err}`);
     }
   }, [dispatch, editDoctor, validateForm]);
@@ -187,7 +185,6 @@ const AdminManageDoctors: React.FC = () => {
         setIsDeleteModalOpen(false);
         setSelectedDoctor(null);
       } catch (err) {
-        console.error(`Failed to delete doctor: ${err}`);
         showError(`Failed to delete doctor: ${err}`);
       }
     },
@@ -206,7 +203,6 @@ const AdminManageDoctors: React.FC = () => {
         setIsBlockModalOpen(false);
         setSelectedDoctor(null);
       } catch (err) {
-        console.error(`Failed to ${action} doctor: ${err}`);
         showError(`Failed to ${action} doctor: ${err}`);
       }
     },
@@ -222,7 +218,6 @@ const AdminManageDoctors: React.FC = () => {
         setIsVerifyModalOpen(false);
         setSelectedDoctor(null);
       } catch (err) {
-        console.error(`Failed to verify doctor: ${err}`);
         showError(`Failed to verify doctor: ${err}`);
       }
     },

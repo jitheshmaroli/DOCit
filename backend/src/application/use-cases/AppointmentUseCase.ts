@@ -185,7 +185,6 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       throw new ValidationError('Unauthorized: Doctor ID does not match appointment');
     }
 
-    // Ensure the appointment is in the future
     const appointmentDateTime = new Date(
       `${new Date(appointment.date).toISOString().split('T')[0]}T${appointment.startTime}:00Z`
     );
@@ -349,7 +348,6 @@ export class AppointmentUseCase implements IAppointmentUseCase {
     }
 
     if (appointment.status !== AppointmentStatus.PENDING) {
-      logger.debug(`status: ${appointment.status}`);
       throw new ValidationError('Only pending appointments can be marked as completed');
     }
 

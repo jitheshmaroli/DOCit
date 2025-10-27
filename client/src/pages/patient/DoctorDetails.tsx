@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// F:\DOCit\client\src\pages\patient\DoctorDetails.tsx (updated for polling after payment and resume)
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
@@ -15,7 +14,7 @@ import {
   getDoctorAvailabilityThunk,
   cancelSubscriptionThunk,
   confirmSubscriptionThunk,
-  resumePendingSubscriptionThunk, // New import
+  resumePendingSubscriptionThunk,
 } from '../../redux/thunks/patientThunk';
 import { clearRefundDetails } from '../../redux/slices/patientSlice';
 import defaultAvatar from '/images/avatar.png';
@@ -85,7 +84,7 @@ const DoctorDetails: React.FC = () => {
   const [currentTimeSlots, setCurrentTimeSlots] = useState<TimeSlot[]>([]);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
-  const [isPolling, setIsPolling] = useState(false);
+  // const [isPolling, setIsPolling] = useState(false);
   const [pollAttempts, setPollAttempts] = useState(0);
   const [maxPollAttempts] = useState(30);
   const [selectedPlan, setSelectedPlan] = useState<null | {
@@ -106,15 +105,14 @@ const DoctorDetails: React.FC = () => {
   const [subscriptionsLoaded, setSubscriptionsLoaded] = useState(false);
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(
     null
-  ); // For cleanup
-  const [isResumingPayment, setIsResumingPayment] = useState(false); // New state for UX
+  );
+  const [isResumingPayment, setIsResumingPayment] = useState(false);
 
   const specialityFromState = (location.state as { speciality?: string[] })
     ?.speciality;
 
   const activeSubscription = useMemo(() => {
     if (!doctorId) return null;
-    // Updated: Include pending subscriptions for display
     const subsForDoctor = activeSubscriptions.filter(
       (sub) => sub.plan.doctorId === doctorId && sub.createdAt
     );
@@ -162,10 +160,9 @@ const DoctorDetails: React.FC = () => {
     return timeDiffMinutes <= 30;
   }, [activeSubscription]);
 
-  // New: Polling function for confirmSubscription
   const pollConfirmSubscription = useCallback(
     async (planId: string, paymentIntentId: string) => {
-      setIsPolling(true);
+      // setIsPolling(true);
       setPollAttempts(0);
 
       await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -175,7 +172,7 @@ const DoctorDetails: React.FC = () => {
           await dispatch(
             confirmSubscriptionThunk({ planId, paymentIntentId })
           ).unwrap();
-          setIsPolling(false);
+          // setIsPolling(false);
           setPollAttempts(0);
           if (pollingInterval) clearInterval(pollingInterval);
           showSuccess('Subscription confirmed successfully!');
@@ -189,7 +186,7 @@ const DoctorDetails: React.FC = () => {
             error.message !==
               'Subscription is still pending activation. Please wait a moment and try again.'
           ) {
-            setIsPolling(false);
+            // setIsPolling(false);
             setPollAttempts(0);
             if (pollingInterval) clearInterval(pollingInterval);
             showError(
@@ -203,7 +200,6 @@ const DoctorDetails: React.FC = () => {
 
       const success = await poll();
       if (!success) {
-        // Set up interval (every 2s)
         const interval = setInterval(poll, 2000);
         setPollingInterval(interval);
       }
@@ -307,7 +303,6 @@ const DoctorDetails: React.FC = () => {
     setIsPaymentModalOpen(true);
   };
 
-  // New handler for resuming payment
   const handleResumePayment = async (subscriptionId: string) => {
     if (!user) {
       navigate('/login');
@@ -326,19 +321,16 @@ const DoctorDetails: React.FC = () => {
         error.message || error || 'Failed to resume payment. Please try subscribing again.'
       );
       dispatch(getPatientSubscriptionsThunk());
-      // Optional: Fall back to new subscription if resume fails (e.g., expired intent)
-      // handleSubscribe(activeSubscription!.plan._id, activeSubscription!.plan.price);
     } finally {
       setIsResumingPayment(false);
     }
   };
 
-  // Updated handlePaymentSuccess
   const handlePaymentSuccess = async (details: PaymentDetails) => {
     setPaymentDetails(details);
     setIsPaymentModalOpen(false);
     showSuccess('Payment successful! Confirming subscription...');
-    await pollConfirmSubscription(selectedPlan!.id, details.paymentIntentId); // Fixed arg order
+    await pollConfirmSubscription(selectedPlan!.id, details.paymentIntentId);
   };
 
   const debouncedCancelSubscription = debounce(async () => {
@@ -379,11 +371,10 @@ const DoctorDetails: React.FC = () => {
     dispatch(clearRefundDetails());
   };
 
-  // Updated handleCloseSuccessModal
   const handleCloseSuccessModal = () => {
     setIsSuccessModalOpen(false);
     setPaymentDetails(null);
-    setIsPolling(false);
+    // setIsPolling(false);
     setPollAttempts(0);
     if (pollingInterval) clearInterval(pollingInterval);
   };
@@ -645,10 +636,10 @@ const DoctorDetails: React.FC = () => {
           <p>Payment ID: {paymentDetails?.paymentIntentId || 'N/A'}</p>
         </div>
       </Modal>
-      {/* New: Polling indicator modal */}
-      <Modal
+      {/* Polling indicator modal */}
+      {/* <Modal
         isOpen={isPolling}
-        onClose={() => {}} // Prevent close during polling
+        onClose={() => {}}
         title="Processing Subscription"
         footer={
           <div className="flex gap-4">
@@ -678,7 +669,7 @@ const DoctorDetails: React.FC = () => {
             Do not close this window.
           </p>
         </div>
-      </Modal>
+      </Modal> */}
       <div className="container mx-auto px-4">
         <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">
           <h2 className="text-2xl font-bold text-white mb-6">Doctor Details</h2>
@@ -1044,7 +1035,7 @@ const DoctorDetails: React.FC = () => {
                   onError={(error: any) => {
                     showError(error);
                   }}
-                  isResume={isResumingPayment} // Pass isResume prop
+                  isResume={isResumingPayment}
                 />
               </Elements>
               <button

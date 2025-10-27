@@ -167,8 +167,7 @@ export const loginThunk = createAsyncThunk(
 
           thunkAPI.dispatch(setUser(user));
           return user;
-        } catch (error) {
-          console.error('Failed to fetch user profile:', error);
+        } catch {
           return thunkAPI.rejectWithValue({
             message: 'Logged in but failed to fetch profile',
             statusCode: 200,
@@ -240,7 +239,6 @@ export const checkAuthThunk = createAsyncThunk(
           thunkAPI.dispatch(setUser(user));
           return user;
         } catch (refreshError) {
-          console.error('Refresh token failed in checkAuth:', refreshError);
           thunkAPI.dispatch(clearUser());
           return handleError(refreshError, thunkAPI);
         }

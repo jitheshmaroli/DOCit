@@ -6,7 +6,7 @@ const router = Router();
 // Controllers
 const { webhookController } = createControllers();
 
-// Stripe webhook (no auth needed)
+// Stripe webhook
 router.use('/stripe', raw({ type: 'application/json' }));
 router.post('/stripe', webhookController.handleStripeWebhook.bind(webhookController));
 

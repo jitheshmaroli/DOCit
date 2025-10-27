@@ -8,7 +8,6 @@ import { ValidationError } from '../../../utils/errors';
 import { QueryParams } from '../../../types/authTypes';
 import { HttpStatusCode } from '../../../core/constants/HttpStatusCode';
 import { ResponseMessages } from '../../../core/constants/ResponseMessages';
-import logger from '../../../utils/logger';
 
 export class AdminController {
   constructor(
@@ -22,7 +21,6 @@ export class AdminController {
   async getDashboardStats(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const stats = await this._reportUseCase.getAdminDashboardStats();
-      logger.debug(stats);
       res.status(HttpStatusCode.OK).json(stats);
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
@@ -44,7 +42,6 @@ export class AdminController {
         startDate,
         endDate,
       });
-      logger.debug(reportData);
       res.status(HttpStatusCode.OK).json(reportData);
     } catch (error) {
       next(error);
@@ -103,7 +100,6 @@ export class AdminController {
       };
       const { data, totalItems } = await this._appointmentUseCase.getAllAppointments(queryParams);
       const appointmentDTOs = data;
-      logger.debug(data);
 
       res.status(HttpStatusCode.OK).json({
         data: appointmentDTOs,

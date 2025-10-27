@@ -118,7 +118,6 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
 
     socket.off('error').on('error', (error: { message: string }) => {
       console.error('Socket error:', error);
-      // toast.error(error.message);
       handlersRef.current.onError?.(error);
     });
   };
@@ -160,7 +159,6 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
 
       newSocket.on('connect_error', (error) => {
         console.error('Socket connection error:', error.message);
-        // toast.error('Failed to connect to real-time service');
         connectionPromiseRef.current = null;
         reject(error);
       });
@@ -206,7 +204,6 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
       | { appointmentId: string; receiverId: string; isMuted: boolean }
   ): Promise<void> => {
     if (!userIdRef.current) {
-      // toast.error('User not authenticated for real-time communication');
       return;
     }
 
@@ -215,7 +212,6 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
         await connect(userIdRef.current);
       } catch (error) {
         console.error('Failed to reconnect for emit:', event, error);
-        // toast.error('Failed to emit event due to connection issues');
         return;
       }
     }
@@ -224,7 +220,6 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
       socket.emit(event, data);
     } else {
       console.warn('Socket is not connected, cannot emit:', event);
-      // toast.error('Socket not connected');
     }
   };
 

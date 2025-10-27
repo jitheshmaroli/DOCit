@@ -26,7 +26,6 @@ export class CronService implements ICronService {
       await this.runSubscriptionExpiryUpdates();
     });
 
-    // New: Every minute, delete pending subs older than 10 mins (fallback to TTL index)
     cron.schedule('*/1 * * * *', async () => {
       await this.cleanupPendingSubscriptions();
     });
@@ -123,7 +122,6 @@ export class CronService implements ICronService {
     }
   }
 
-  // New: Clean up pending subscriptions older than 10 minutes
   private async cleanupPendingSubscriptions(): Promise<void> {
     try {
       const tenMinsAgo = new Date(Date.now() - 10 * 60 * 1000);
