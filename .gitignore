@@ -13,6 +13,4 @@ client/.env.development
 client/.env.production
 client/build/
 client/dist/
-client/public/
-client/src/assets/
 client/.vite/
