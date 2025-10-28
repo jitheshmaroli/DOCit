@@ -160,9 +160,12 @@ export class PatientUseCase implements IPatientUseCase {
     this._validatorService.validateIdFormat(doctorId);
 
     const distinctPatientIds = await this._appointmentRepository.getDistinctPatientIdsByDoctor(doctorId);
-    const extendedParams = { ...params, ids: distinctPatientIds };
-    const result = await this._patientRepository.findAllWithQuery(extendedParams);
-    return PatientMapper.toPaginatedResponseDTO(result.data.map(PatientMapper.toDTO), result.totalItems, params);
+    if (distinctPatientIds.length > 0) {
+      const extendedParams = { ...params, ids: distinctPatientIds };
+      const result = await this._patientRepository.findAllWithQuery(extendedParams);
+      return PatientMapper.toPaginatedResponseDTO(result.data.map(PatientMapper.toDTO), result.totalItems, params);
+    }
+    return PatientMapper.toPaginatedResponseDTO([], 0, params);
   }
 
   async getPatientActiveSubscription(patientId: string, doctorId: string): Promise<PatientSubscriptionDTO | null> {

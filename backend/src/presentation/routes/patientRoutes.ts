@@ -53,7 +53,6 @@ router.delete(
   patientAuth,
   patientController.cancelSubscription.bind(patientController)
 );
-// New route for resuming pending payment
 router.get(
   '/subscriptions/:subscriptionId/resume-payment',
   patientAuth,

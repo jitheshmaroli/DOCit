@@ -149,7 +149,10 @@ const DoctorDetails: React.FC = () => {
     if (
       !activeSubscription ||
       activeSubscription.status !== 'active' ||
-      !activeSubscription.createdAt
+      !activeSubscription.createdAt ||
+      activeSubscription.plan.appointmentCount -
+        activeSubscription.appointmentsLeft >
+        0
     ) {
       return false;
     }
@@ -318,7 +321,9 @@ const DoctorDetails: React.FC = () => {
       setIsPaymentModalOpen(true);
     } catch (error: any) {
       showError(
-        error.message || error || 'Failed to resume payment. Please try subscribing again.'
+        error.message ||
+          error ||
+          'Failed to resume payment. Please try subscribing again.'
       );
       dispatch(getPatientSubscriptionsThunk());
     } finally {

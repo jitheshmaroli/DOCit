@@ -111,7 +111,8 @@ const Subscriptions: React.FC = () => {
 
   const canCancelSubscription = (subscription: ExtendedPatientSubscription) => {
     if (subscription.status !== 'active') return false;
-    if (subscription.appointmentsUsed > 0) return false;
+    if (subscription.plan?.appointmentCount - subscription.appointmentsLeft > 0)
+      return false;
     if (!subscription.createdAt) return false;
     const createdAt = dayjs(subscription.createdAt);
     const now = dayjs();
@@ -560,28 +561,19 @@ const Subscriptions: React.FC = () => {
                             >
                               Book Appointment
                             </motion.button>
-                            <motion.button
-                              whileHover={{ scale: 1.05 }}
-                              whileTap={{ scale: 0.95 }}
-                              className={`flex-1 px-6 py-3 rounded-lg text-sm font-medium transition-all duration-300 shadow-md ${
-                                canCancelSubscription(subscription)
-                                  ? 'bg-gradient-to-r from-red-600 to-red-700 text-white hover:from-red-700 hover:to-red-800'
-                                  : 'bg-gray-600/50 text-gray-400 cursor-not-allowed'
-                              }`}
-                              onClick={() =>
-                                handleCancelSubscription(subscription._id)
-                              }
-                              disabled={
-                                !canCancelSubscription(subscription) || loading
-                              }
-                              title={
-                                !canCancelSubscription(subscription)
-                                  ? 'Cancellation only allowed within 30 minutes of subscription and if no appointments are used'
-                                  : ''
-                              }
-                            >
-                              Cancel Subscription
-                            </motion.button>
+                            {canCancelSubscription(subscription) && (
+                              <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                className="flex-1 bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-3 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300 text-sm font-medium shadow-md"
+                                onClick={() =>
+                                  handleCancelSubscription(subscription._id)
+                                }
+                                disabled={loading}
+                              >
+                                Cancel Subscription
+                              </motion.button>
+                            )}
                           </>
                         ) : canRenewSubscription(
                             subscription.status,

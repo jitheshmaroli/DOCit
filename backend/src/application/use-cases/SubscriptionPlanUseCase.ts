@@ -317,7 +317,7 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
     this._validatorService.validateIdFormat(dto.planId);
     this._validatorService.validateLength(dto.paymentIntentId, 1, 100);
 
-    // Optional: Retrieve PaymentIntent for safety (webhook handles activation)
+    // Retrieve PaymentIntent for safety (webhook handles activation)
     await this._stripeService.retrievePaymentIntent(dto.paymentIntentId);
 
     // Find subscription by payment intent (created as pending in subscribeToPlan)

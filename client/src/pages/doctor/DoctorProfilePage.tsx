@@ -660,10 +660,10 @@ const DoctorProfilePage: React.FC = () => {
                       onChange={handleChange}
                       className="w-full h-[60.93px] bg-white/10 border border-white/20 rounded-lg px-4 mt-1 text-[14px] text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
                     >
-                      <option value="">Select Gender</option>
-                      <option value="Male">Male</option>
-                      <option value="Female">Female</option>
-                      <option value="Other">Other</option>
+                      <option value="" className="bg-gray-800 text-white">Select Gender</option>
+                      <option value="Male" className="bg-gray-800 text-white">Male</option>
+                      <option value="Female" className="bg-gray-800 text-white">Female</option>
+                      <option value="Other" className="bg-gray-800 text-white">Other</option>
                     </select>
                     {errors.gender && (
                       <p className="text-red-500 text-[12px]">

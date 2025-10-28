@@ -127,7 +127,6 @@ export class ChatUseCase implements IChatUseCase {
     const inboxResponses: InboxResponseDTO[] = [];
     await Promise.all(
       inboxEntries.map(async (entry) => {
-        logger.debug(entry);
         const partnerId = entry.partnerId.toString();
         this._validatorService.validateIdFormat(partnerId);
 
