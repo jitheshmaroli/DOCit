@@ -51,7 +51,7 @@ export class ChatController {
       const sendAttachmentData = {
         receiverId,
         message: '',
-        senderName,
+        senderName: userId,
       };
       const chatMessage = await this._chatUseCase.sendMessage(sendAttachmentData, file);
       res.status(HttpStatusCode.CREATED).json(chatMessage);

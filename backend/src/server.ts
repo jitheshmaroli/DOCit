@@ -4,9 +4,7 @@ import cookieParser from 'cookie-parser';
 import { Server as HttpServer } from 'http';
 import { connectMongoDB } from './infrastructure/database/mongoConnection';
 import createMiddlewares from './infrastructure/di/middlewares';
-import { patientSubscriptionRepository } from './infrastructure/di/repositories';
-import { socketService, notificationService } from './infrastructure/di/services';
-import { appointmentRepository } from './infrastructure/di/repositories';
+import { socketService, cronService } from './infrastructure/di/services';
 import authRoutes from './presentation/routes/authRoutes';
 import adminRoutes from './presentation/routes/adminRoutes';
 import doctorRoutes from './presentation/routes/doctorRoutes';
@@ -15,23 +13,16 @@ import otpRoutes from './presentation/routes/otpRoutes';
 import userRoutes from './presentation/routes/userRoutes';
 import chatRoutes from './presentation/routes/chatRoutes';
 import notificationRoutes from './presentation/routes/notificationRoutes';
+import webhookRoutes from './presentation/routes/webhookRoutes';
 import { env } from './config/env';
-import Stripe from 'stripe';
 import logger from './utils/logger';
 import { CustomRequest } from './types';
-import { setupCronJobs } from './utils/cronJobs';
 
 const app = express();
 const server = new HttpServer(app);
 const PORT = env.PORT;
 const MONGO_URI = env.MONGO_URI;
 const CLIENT_URL = env.CLIENT_URL;
-const STRIPE_SECRET_KEY = env.STRIPE_SECRET_KEY;
-const STRIPE_WEBHOOK_SECRET = env.STRIPE_WEBHOOK_SECRET;
-
-const stripe = new Stripe(STRIPE_SECRET_KEY, {
-  apiVersion: '2025-05-28.basil',
-});
 
 // Initialize Socket.IO
 socketService.initialize(server);
@@ -45,8 +36,8 @@ app.use(
     allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
   })
 );
+app.use('/api/webhook', webhookRoutes);
 app.use(express.json());
-app.use(express.raw({ type: 'application/json' })); // For Stripe webhook
 app.use(cookieParser());
 app.use((req: CustomRequest, res: Response, next: NextFunction) => {
   logger.info(`${req.method} ${req.url}`, { ip: req.ip });
@@ -63,32 +54,6 @@ app.use('/api/otp', otpRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/notifications', notificationRoutes);
 
-// Stripe webhook
-app.post('/api/webhook/stripe', async (req: CustomRequest, res: Response) => {
-  const sig = req.headers['stripe-signature'] as string;
-
-  try {
-    const event = stripe.webhooks.constructEvent(req.body, sig, STRIPE_WEBHOOK_SECRET);
-
-    if (event.type === 'payment_intent.succeeded') {
-      const paymentIntent = event.data.object;
-      const subscription = await patientSubscriptionRepository.findByStripePaymentId(paymentIntent.id);
-      if (subscription && subscription.status === 'active') {
-        logger.info(`Payment already processed for payment intent: ${paymentIntent.id}`);
-        res.status(200).json({ received: true });
-        return;
-      }
-      logger.warn(`Subscription not found for payment intent: ${paymentIntent.id}`);
-    }
-
-    res.status(200).json({ received: true });
-  } catch (err: unknown) {
-    const message = err instanceof Stripe.errors.StripeError ? err.message : (err as Error).message || 'Unknown error';
-    logger.error(`Webhook error: ${message}`, err);
-    res.status(400).send(`Webhook Error: ${message}`);
-  }
-});
-
 // Root route
 app.get('/', (req: CustomRequest, res: Response) => {
   logger.info('Root endpoint accessed');
@@ -103,7 +68,7 @@ app.use(errorHandler.exec.bind(errorHandler));
 const startServer = async () => {
   try {
     await connectMongoDB(MONGO_URI);
-    setupCronJobs(appointmentRepository, notificationService);
+    cronService.start();
     server.listen(PORT, '0.0.0.0', () => {
       logger.info(`Server running on http://localhost:${PORT} env: ${env.NODE_ENV}`);
     });

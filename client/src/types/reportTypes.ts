@@ -1,5 +1,4 @@
-import { Appointment } from "./authTypes";
-
+import { Appointment } from './authTypes';
 
 interface TopSubscriber {
   patientId: string;
@@ -29,6 +28,10 @@ export interface AdminDashboardStats {
   topSubscribers: TopSubscriber[];
   topPatients: TopPatient[];
   topDoctors: TopDoctor[];
+  cancelledStats: {
+    count: number;
+    totalRefunded: number;
+  };
 }
 
 export interface DoctorDashboardStats {
@@ -37,6 +40,11 @@ export interface DoctorDashboardStats {
   appointmentsThroughPlans: number;
   freeAppointments: number;
   totalRevenue: number;
+  cancelledStats: {
+    count: number;
+    totalRefunded: number;
+  };
+  totalPlans?: number;
   planWiseRevenue: Array<{
     planId: string;
     planName: string;
@@ -46,7 +54,6 @@ export interface DoctorDashboardStats {
     appointmentsLeft: number;
   }>;
 }
-
 
 export interface ReportFilter {
   type: 'daily' | 'monthly' | 'yearly';

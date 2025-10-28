@@ -6,6 +6,7 @@ import { NotFoundError, ValidationError } from '../../utils/errors';
 import { DoctorDTO, PaginatedDoctorResponseDTO } from '../dtos/DoctorDTOs';
 import { DoctorMapper } from '../mappers/DoctorMapper';
 import { IValidatorService } from '../../core/interfaces/services/IValidatorService';
+import logger from '../../utils/logger';
 
 export class DoctorUseCase implements IDoctorUseCase {
   constructor(
@@ -169,7 +170,9 @@ export class DoctorUseCase implements IDoctorUseCase {
     this._validatorService.validateIdFormat(doctorId);
 
     const doctor = await this._doctorRepository.getDoctorDetails(doctorId);
+    logger.debug('doctor', { doctor });
     if (!doctor) {
+      logger.debug(doctor);
       throw new NotFoundError('Doctor not found');
     }
     return DoctorMapper.toDTO(doctor);

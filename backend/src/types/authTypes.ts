@@ -18,6 +18,8 @@ export interface QueryParams {
   experience?: string;
   gender?: string;
   minRating?: number;
+  startDate?: Date;
+  endDate?: Date;
 }
 
 export interface PaginatedResponse<T> {

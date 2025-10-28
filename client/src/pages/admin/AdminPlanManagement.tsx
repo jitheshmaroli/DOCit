@@ -9,8 +9,9 @@ import {
 import DataTable from '../../components/common/DataTable';
 import SearchBar from '../../components/common/SearchBar';
 import Pagination from '../../components/common/Pagination';
-import { toast } from 'react-toastify';
+import Modal from '../../components/common/Modal';
 import { SubscriptionPlan } from '../../types/subscriptionTypes';
+import { showSuccess, showError } from '../../utils/toastConfig';
 
 const AdminPlanManagement: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -24,6 +25,8 @@ const AdminPlanManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
   const itemsPerPage = 5;
 
   useEffect(() => {
@@ -46,9 +49,9 @@ const AdminPlanManagement: React.FC = () => {
     async (plan: SubscriptionPlan) => {
       try {
         await dispatch(approvePlanThunk(plan._id)).unwrap();
-        toast.success('Plan approved successfully');
+        showSuccess('Plan approved successfully');
       } catch (err) {
-        toast.error(`Failed to approve plan: ${err}`);
+        showError(`Failed to approve plan: ${err}`);
       }
     },
     [dispatch]
@@ -58,26 +61,29 @@ const AdminPlanManagement: React.FC = () => {
     async (plan: SubscriptionPlan) => {
       try {
         await dispatch(rejectPlanThunk(plan._id)).unwrap();
-        toast.success('Plan rejected successfully');
+        showSuccess('Plan rejected successfully');
       } catch (err) {
-        toast.error(`Failed to reject plan: ${err}`);
+        showError(`Failed to reject plan: ${err}`);
       }
     },
     [dispatch]
   );
 
   const handleDeletePlan = useCallback(
-    async (plan: SubscriptionPlan) => {
-      if (window.confirm('Are you sure you want to delete this plan?')) {
-        try {
-          await dispatch(deletePlanThunk(plan._id)).unwrap();
-          toast.success('Plan deleted successfully');
-        } catch (err) {
-          toast.error(`Failed to delete plan: ${err}`);
-        }
+    async () => {
+      if (!selectedPlan) return;
+      try {
+        await dispatch(deletePlanThunk(selectedPlan._id)).unwrap();
+        showSuccess('Plan deleted successfully');
+        setIsDeleteModalOpen(false);
+        setSelectedPlan(null);
+      } catch (err) {
+        showError(`Failed to delete plan: ${err}`);
+        setIsDeleteModalOpen(false);
+        setSelectedPlan(null);
       }
     },
-    [dispatch]
+    [dispatch, selectedPlan]
   );
 
   const columns = useMemo(
@@ -85,7 +91,7 @@ const AdminPlanManagement: React.FC = () => {
       {
         header: 'Name',
         accessor: (plan: SubscriptionPlan): React.ReactNode => {
-          const maxLength = 20; // Maximum length for the plan name
+          const maxLength = 20;
           const displayName =
             plan.name && plan.name.length > maxLength
               ? `${plan.name.substring(0, maxLength)}...`
@@ -105,7 +111,7 @@ const AdminPlanManagement: React.FC = () => {
         header: 'Doctor',
         accessor: (plan: SubscriptionPlan): React.ReactNode => {
           const doctorName = plan.doctorName || plan.doctorId || 'N/A';
-          const maxLength = 20; // Maximum length for the doctor name
+          const maxLength = 20;
           const displayName =
             doctorName.length > maxLength
               ? `${doctorName.substring(0, maxLength)}...`
@@ -168,11 +174,14 @@ const AdminPlanManagement: React.FC = () => {
       },
       {
         label: 'Delete',
-        onClick: handleDeletePlan,
+        onClick: (plan: SubscriptionPlan) => {
+          setSelectedPlan(plan);
+          setIsDeleteModalOpen(true);
+        },
         className: 'bg-red-600 hover:bg-red-700 px-3 py-1 rounded-lg text-sm',
       },
     ],
-    [handleApprovePlan, handleRejectPlan, handleDeletePlan]
+    [handleApprovePlan, handleRejectPlan]
   );
 
   const handlePageChange = useCallback((page: number) => {
@@ -217,6 +226,39 @@ const AdminPlanManagement: React.FC = () => {
         totalPages={totalPages}
         onPageChange={handlePageChange}
       />
+      {isDeleteModalOpen && selectedPlan && (
+        <Modal
+          isOpen={isDeleteModalOpen}
+          onClose={() => {
+            setIsDeleteModalOpen(false);
+            setSelectedPlan(null);
+          }}
+          title="Confirm Delete"
+          footer={
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setIsDeleteModalOpen(false);
+                  setSelectedPlan(null);
+                }}
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeletePlan}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all duration-300"
+              >
+                Delete
+              </button>
+            </div>
+          }
+        >
+          <p className="text-white">
+            Are you sure you want to delete the plan "{selectedPlan.name || 'Unknown'}"?
+          </p>
+        </Modal>
+      )}
     </div>
   );
 };

@@ -90,16 +90,19 @@ export class AdminController {
 
   async getAllAppointments(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const params = req.query as QueryParams;
-      const { data, totalItems } = await this._appointmentUseCase.getAllAppointments(params);
+      const queryParams: QueryParams = {
+        page: req.query.page ? parseInt(String(req.query.page)) : 1,
+        limit: req.query.limit ? parseInt(String(req.query.limit)) : 5,
+        search: req.query.search ? String(req.query.search) : undefined,
+        sortBy: req.query.sortBy ? String(req.query.sortBy) : undefined,
+        sortOrder: req.query.sortOrder ? (String(req.query.sortOrder) as 'asc' | 'desc') : undefined,
+        status: req.query.status ? String(req.query.status) : undefined,
+      };
+      const { data, totalItems } = await this._appointmentUseCase.getAllAppointments(queryParams);
       const appointmentDTOs = data;
-      const { page = 1, limit = 10 } = params;
-      const totalPages = Math.ceil(totalItems / limit);
 
       res.status(HttpStatusCode.OK).json({
         data: appointmentDTOs,
-        totalPages,
-        currentPage: page,
         totalItems,
       });
     } catch (error) {

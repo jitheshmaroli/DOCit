@@ -18,10 +18,10 @@ import {
   getSubscribedPatientsThunk,
 } from '../thunks/doctorThunk';
 import { SubscriptionPlan } from '../../types/subscriptionTypes';
+import { Availability } from '../../types/aailabilityTypes';
 
 interface DoctorState {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  availability: any[];
+  availability: Availability[];
   doctors: Doctor[];
   selectedDoctor: Doctor | null;
   doctorPlans: { [doctorId: string]: SubscriptionPlan[] };

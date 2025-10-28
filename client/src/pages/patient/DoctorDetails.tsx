@@ -1,7 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { toast, ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import {
   fetchDoctorByIdThunk,
@@ -14,12 +13,10 @@ import {
   getPatientAppointmentsForDoctorThunk,
   getDoctorAvailabilityThunk,
   cancelSubscriptionThunk,
+  confirmSubscriptionThunk,
+  resumePendingSubscriptionThunk,
 } from '../../redux/thunks/patientThunk';
-import { clearError as clearDoctorError } from '../../redux/slices/doctorSlice';
-import {
-  clearError as clearPatientError,
-  clearRefundDetails,
-} from '../../redux/slices/patientSlice';
+import { clearRefundDetails } from '../../redux/slices/patientSlice';
 import defaultAvatar from '/images/avatar.png';
 import { getImageUrl } from '../../utils/config';
 import useAuth from '../../hooks/useAuth';
@@ -35,6 +32,7 @@ import { getDoctorReviews } from '../../services/patientService';
 import { debounce } from 'lodash';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { ITEMS_PER_PAGE } from '../../utils/constants';
+import { showError, showSuccess } from '../../utils/toastConfig';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);
 
@@ -70,8 +68,6 @@ const DoctorDetails: React.FC = () => {
     selectedDoctor,
     doctorPlans,
     loading: doctorLoading,
-    error: doctorError,
-    subscriptionStatus,
   } = useAppSelector((state) => state.doctors);
   const {
     activeSubscriptions,
@@ -79,7 +75,6 @@ const DoctorDetails: React.FC = () => {
     totalItems,
     canBookFree,
     loading: patientLoading,
-    error: patientError,
     lastRefundDetails,
   } = useAppSelector((state) => state.patient);
   const [selectedDate, setSelectedDate] = useState<string>('');
@@ -89,6 +84,9 @@ const DoctorDetails: React.FC = () => {
   const [currentTimeSlots, setCurrentTimeSlots] = useState<TimeSlot[]>([]);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  // const [isPolling, setIsPolling] = useState(false);
+  const [pollAttempts, setPollAttempts] = useState(0);
+  const [maxPollAttempts] = useState(30);
   const [selectedPlan, setSelectedPlan] = useState<null | {
     id: string;
     price: number;
@@ -105,6 +103,10 @@ const DoctorDetails: React.FC = () => {
   const [modalMode, setModalMode] = useState<'cancel' | 'refund'>('cancel');
   const [reviews, setReviews] = useState<Review[]>([]);
   const [subscriptionsLoaded, setSubscriptionsLoaded] = useState(false);
+  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(
+    null
+  );
+  const [isResumingPayment, setIsResumingPayment] = useState(false);
 
   const specialityFromState = (location.state as { speciality?: string[] })
     ?.speciality;
@@ -122,6 +124,15 @@ const DoctorDetails: React.FC = () => {
       })[0] || null
     );
   }, [activeSubscriptions, doctorId]);
+
+  const pendingSubscription = useMemo(() => {
+    if (!doctorId || !paymentDetails) return null;
+    return activeSubscriptions.find(
+      (sub) =>
+        sub.stripePaymentId === paymentDetails.paymentIntentId &&
+        sub.status === 'pending'
+    );
+  }, [activeSubscriptions, doctorId, paymentDetails]);
 
   const plans = useMemo(
     () => (doctorId ? doctorPlans[doctorId] || [] : []),
@@ -149,6 +160,53 @@ const DoctorDetails: React.FC = () => {
     return timeDiffMinutes <= 30;
   }, [activeSubscription]);
 
+  const pollConfirmSubscription = useCallback(
+    async (planId: string, paymentIntentId: string) => {
+      // setIsPolling(true);
+      setPollAttempts(0);
+
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      const poll = async () => {
+        try {
+          await dispatch(
+            confirmSubscriptionThunk({ planId, paymentIntentId })
+          ).unwrap();
+          // setIsPolling(false);
+          setPollAttempts(0);
+          if (pollingInterval) clearInterval(pollingInterval);
+          showSuccess('Subscription confirmed successfully!');
+          dispatch(getPatientSubscriptionsThunk());
+          setIsSuccessModalOpen(true);
+          return true;
+        } catch (error: any) {
+          setPollAttempts((prev) => prev + 1);
+          if (
+            pollAttempts >= maxPollAttempts ||
+            error.message !==
+              'Subscription is still pending activation. Please wait a moment and try again.'
+          ) {
+            // setIsPolling(false);
+            setPollAttempts(0);
+            if (pollingInterval) clearInterval(pollingInterval);
+            showError(
+              'Subscription confirmation timed out. Please refresh the page or contact support.'
+            );
+            return false;
+          }
+          return false;
+        }
+      };
+
+      const success = await poll();
+      if (!success) {
+        const interval = setInterval(poll, 2000);
+        setPollingInterval(interval);
+      }
+    },
+    [dispatch, maxPollAttempts, pollAttempts, pollingInterval]
+  );
+
   useEffect(() => {
     if (doctorId) {
       setSubscriptionsLoaded(false);
@@ -157,9 +215,7 @@ const DoctorDetails: React.FC = () => {
         .then(() => {
           setSubscriptionsLoaded(true);
         })
-        .catch((error) => {
-          console.error('Failed to fetch subscriptions:', error);
-          toast.error('Failed to load subscription data');
+        .catch(() => {
           setSubscriptionsLoaded(true);
         });
 
@@ -210,12 +266,8 @@ const DoctorDetails: React.FC = () => {
           } else {
             setAvailableDates([]);
             setAvailability([]);
-            toast.warn('No available dates found for this doctor');
           }
         } else {
-          toast.error(
-            (result.payload as string) || 'Failed to load available dates'
-          );
           setAvailableDates([]);
           setAvailability([]);
         }
@@ -225,75 +277,70 @@ const DoctorDetails: React.FC = () => {
           setReviews(reviews);
         })
         .catch(() => {
-          toast.error('Failed to load reviews');
           setReviews([]);
         });
     }
     return () => {
       dispatch(clearRefundDetails());
+      if (pollingInterval) clearInterval(pollingInterval);
     };
-  }, [dispatch, doctorId, currentPage]);
-
-  useEffect(() => {
-    if (doctorError) {
-      toast.error(doctorError);
-      dispatch(clearDoctorError());
-    }
-    if (patientError) {
-      toast.error(patientError);
-      dispatch(clearPatientError());
-    }
-    if (subscriptionStatus === 'success') {
-      toast.success('Successfully subscribed to plan');
-      dispatch(getPatientSubscriptionsThunk());
-      setIsPaymentModalOpen(false);
-      setSelectedPlan(null);
-      setClientSecret(null);
-    } else if (subscriptionStatus === 'failed') {
-      toast.error('Failed to subscribe to plan');
-    }
-  }, [doctorError, patientError, subscriptionStatus, dispatch]);
+  }, [dispatch, doctorId, currentPage, pollingInterval]);
 
   const handleSubscribe = async (planId: string, price: number) => {
     if (!user) {
-      toast.error('Please log in to subscribe');
       navigate('/login');
       return;
     }
+
+    const response = await dispatch(
+      subscribeToPlanThunk({
+        planId,
+        price,
+      })
+    ).unwrap();
+    setSelectedPlan({ id: planId, price });
+    setClientSecret(response.clientSecret);
+    setIsPaymentModalOpen(true);
+  };
+
+  const handleResumePayment = async (subscriptionId: string) => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    setIsResumingPayment(true);
     try {
       const response = await dispatch(
-        subscribeToPlanThunk({
-          planId,
-          price,
-        })
+        resumePendingSubscriptionThunk(subscriptionId)
       ).unwrap();
-      setSelectedPlan({ id: planId, price });
+      setSelectedPlan({ id: response.planId, price: response.price });
       setClientSecret(response.clientSecret);
       setIsPaymentModalOpen(true);
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Failed to initiate payment';
-      toast.error(errorMessage);
+    } catch (error: any) {
+      showError(
+        error.message || error || 'Failed to resume payment. Please try subscribing again.'
+      );
+      dispatch(getPatientSubscriptionsThunk());
+    } finally {
+      setIsResumingPayment(false);
     }
   };
 
-  const handlePaymentSuccess = (details: PaymentDetails) => {
+  const handlePaymentSuccess = async (details: PaymentDetails) => {
     setPaymentDetails(details);
     setIsPaymentModalOpen(false);
-    setIsSuccessModalOpen(true);
-    setSelectedPlan(null);
-    setClientSecret(null);
-    dispatch(getPatientSubscriptionsThunk());
+    showSuccess('Payment successful! Confirming subscription...');
+    await pollConfirmSubscription(selectedPlan!.id, details.paymentIntentId);
   };
 
   const debouncedCancelSubscription = debounce(async () => {
     if (!doctorId || !activeSubscription?._id) {
-      toast.error('No active subscription to cancel');
+      showError('No active subscription to cancel');
       setIsCancelSubscriptionModalOpen(false);
       return;
     }
     if (!cancellationReason.trim()) {
-      toast.error('Please provide a cancellation reason');
+      showError('Please provide a cancellation reason');
       return;
     }
     try {
@@ -306,12 +353,8 @@ const DoctorDetails: React.FC = () => {
       dispatch(getPatientSubscriptionsThunk());
       setModalMode('refund');
       setCancellationReason('');
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : 'Failed to cancel subscription';
-      toast.error(errorMessage);
+      showSuccess('Subscription cancelled successfully');
+    } catch {
       setIsCancelSubscriptionModalOpen(false);
       setCancellationReason('');
     }
@@ -331,6 +374,9 @@ const DoctorDetails: React.FC = () => {
   const handleCloseSuccessModal = () => {
     setIsSuccessModalOpen(false);
     setPaymentDetails(null);
+    // setIsPolling(false);
+    setPollAttempts(0);
+    if (pollingInterval) clearInterval(pollingInterval);
   };
 
   const handleDateChange = (date: string) => {
@@ -366,7 +412,7 @@ const DoctorDetails: React.FC = () => {
 
   const handleBookAppointment = async (isFreeBooking: boolean = false) => {
     if (!selectedSlot || !selectedDate || !doctorId) {
-      toast.error('Please select a date and time slot');
+      showError('Please select a date and time slot');
       return;
     }
     if (
@@ -374,110 +420,98 @@ const DoctorDetails: React.FC = () => {
       (!activeSubscription || activeSubscription.status !== 'active')
     ) {
       if (!canBookFreeAppointment) {
-        toast.error(
+        showError(
           'Please subscribe to a plan or check free booking eligibility'
         );
         return;
       }
     }
-    try {
-      const bookingDate = DateUtils.parseToUTC(selectedDate);
-      await dispatch(
-        bookAppointmentThunk({
-          doctorId,
-          date: bookingDate,
-          startTime: selectedSlot.startTime,
-          endTime: selectedSlot.endTime,
-          isFreeBooking,
-        })
-      ).unwrap();
-      toast.success('Appointment booked successfully', {
-        position: 'top-right',
-        autoClose: 3000,
-        theme: 'dark',
-      });
-      setBookingConfirmed(true);
-      setSelectedSlot(null);
-      dispatch(
-        getPatientAppointmentsForDoctorThunk({
-          doctorId,
-          page: currentPage,
-          limit: ITEMS_PER_PAGE,
-        })
-      );
-      dispatch(getPatientSubscriptionsThunk());
-      dispatch(
-        getDoctorAvailabilityThunk({ doctorId, startDate: new Date() })
-      ).then((result) => {
-        if (getDoctorAvailabilityThunk.fulfilled.match(result)) {
-          const payload = result.payload as {
-            date: string;
-            timeSlots: TimeSlot[];
-          }[];
-          if (Array.isArray(payload)) {
-            const validAvailability = payload
-              .filter((entry) => entry.timeSlots.length > 0)
-              .map((entry) => ({
-                date: entry.date.split('T')[0],
-                timeSlots: entry.timeSlots.filter((slot) => !slot.isBooked),
-              }));
-            setAvailability(validAvailability);
-            const dates = validAvailability
-              .map((entry) => {
-                const dateStr = entry.date;
-                if (dateStr && !isNaN(new Date(dateStr).getTime())) {
-                  const normalizedDate = DateUtils.formatToISO(
-                    DateUtils.parseToUTC(dateStr)
-                  ).split('T')[0];
-                  const dateObj = new Date(normalizedDate);
-                  const today = new Date();
-                  today.setHours(0, 0, 0, 0);
-                  if (dateObj >= today) {
-                    return normalizedDate;
-                  }
+    const bookingDate = DateUtils.parseToUTC(selectedDate);
+    await dispatch(
+      bookAppointmentThunk({
+        doctorId,
+        date: bookingDate,
+        startTime: selectedSlot.startTime,
+        endTime: selectedSlot.endTime,
+        isFreeBooking,
+      })
+    ).unwrap();
+    showSuccess('Appointment booked successfully');
+    setBookingConfirmed(true);
+    setSelectedSlot(null);
+    dispatch(
+      getPatientAppointmentsForDoctorThunk({
+        doctorId,
+        page: currentPage,
+        limit: ITEMS_PER_PAGE,
+      })
+    );
+    dispatch(getPatientSubscriptionsThunk());
+    dispatch(
+      getDoctorAvailabilityThunk({ doctorId, startDate: new Date() })
+    ).then((result) => {
+      if (getDoctorAvailabilityThunk.fulfilled.match(result)) {
+        const payload = result.payload as {
+          date: string;
+          timeSlots: TimeSlot[];
+        }[];
+        if (Array.isArray(payload)) {
+          const validAvailability = payload
+            .filter((entry) => entry.timeSlots.length > 0)
+            .map((entry) => ({
+              date: entry.date.split('T')[0],
+              timeSlots: entry.timeSlots.filter((slot) => !slot.isBooked),
+            }));
+          setAvailability(validAvailability);
+          const dates = validAvailability
+            .map((entry) => {
+              const dateStr = entry.date;
+              if (dateStr && !isNaN(new Date(dateStr).getTime())) {
+                const normalizedDate = DateUtils.formatToISO(
+                  DateUtils.parseToUTC(dateStr)
+                ).split('T')[0];
+                const dateObj = new Date(normalizedDate);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                if (dateObj >= today) {
+                  return normalizedDate;
                 }
-                return null;
-              })
-              .filter((date): date is string => date !== null);
-            const uniqueDates = [...new Set(dates)];
-            setAvailableDates(uniqueDates);
-            if (selectedDate) {
-              const selectedAvail = validAvailability.find(
-                (avail) => avail.date === selectedDate
-              );
-              const slots = selectedAvail
-                ? selectedAvail.timeSlots.filter((slot) => {
-                    if (!slot.startTime || !slot.endTime || slot.isBooked)
-                      return false;
-                    const now = new Date();
-                    const slotDate = new Date(selectedDate);
-                    const endTime = new Date(`${selectedDate}T${slot.endTime}`);
-                    if (slotDate.toDateString() === now.toDateString()) {
-                      return endTime > now;
-                    }
-                    return slotDate >= now;
-                  })
-                : [];
-              setCurrentTimeSlots(slots);
-            }
-          } else {
-            setAvailableDates([]);
-            setAvailability([]);
-            setCurrentTimeSlots([]);
-            toast.warn('No available dates found for this doctor');
+              }
+              return null;
+            })
+            .filter((date): date is string => date !== null);
+          const uniqueDates = [...new Set(dates)];
+          setAvailableDates(uniqueDates);
+          if (selectedDate) {
+            const selectedAvail = validAvailability.find(
+              (avail) => avail.date === selectedDate
+            );
+            const slots = selectedAvail
+              ? selectedAvail.timeSlots.filter((slot) => {
+                  if (!slot.startTime || !slot.endTime || slot.isBooked)
+                    return false;
+                  const now = new Date();
+                  const slotDate = new Date(selectedDate);
+                  const endTime = new Date(`${selectedDate}T${slot.endTime}`);
+                  if (slotDate.toDateString() === now.toDateString()) {
+                    return endTime > now;
+                  }
+                  return slotDate >= now;
+                })
+              : [];
+            setCurrentTimeSlots(slots);
           }
         } else {
-          toast.error(
-            (result.payload as string) || 'Failed to load available dates'
-          );
           setAvailableDates([]);
           setAvailability([]);
           setCurrentTimeSlots([]);
         }
-      });
-    } catch (error: unknown) {
-      toast.error(`Failed to book appointment: ${error}`);
-    }
+      } else {
+        setAvailableDates([]);
+        setAvailability([]);
+        setCurrentTimeSlots([]);
+      }
+    });
   };
 
   const handlePageChange = (page: number) => {
@@ -509,12 +543,6 @@ const DoctorDetails: React.FC = () => {
       className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 py-8"
       key={doctorId}
     >
-      <ToastContainer
-        position="top-right"
-        autoClose={3000}
-        theme="dark"
-        className="fixed top-4 right-4 z-60"
-      />
       <Modal
         isOpen={isCancelSubscriptionModalOpen}
         onClose={handleCloseCancelSubscriptionModal}
@@ -589,7 +617,7 @@ const DoctorDetails: React.FC = () => {
       <Modal
         isOpen={isSuccessModalOpen}
         onClose={handleCloseSuccessModal}
-        title="Payment Successful"
+        title="Subscription Confirmed"
         footer={
           <div className="flex gap-4">
             <button
@@ -608,6 +636,40 @@ const DoctorDetails: React.FC = () => {
           <p>Payment ID: {paymentDetails?.paymentIntentId || 'N/A'}</p>
         </div>
       </Modal>
+      {/* Polling indicator modal */}
+      {/* <Modal
+        isOpen={isPolling}
+        onClose={() => {}}
+        title="Processing Subscription"
+        footer={
+          <div className="flex gap-4">
+            <button
+              onClick={() => {
+                setIsPolling(false);
+                setPollAttempts(0);
+                if (pollingInterval) clearInterval(pollingInterval);
+              }}
+              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
+              disabled={pollAttempts < maxPollAttempts}
+            >
+              Cancel
+            </button>
+            <div className="text-sm text-gray-400">
+              Attempt {pollAttempts + 1}/{maxPollAttempts}...
+            </div>
+          </div>
+        }
+      >
+        <div className="text-center py-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mx-auto mb-2"></div>
+          <p className="text-gray-200">
+            Confirming your subscription. This usually takes 5-10 seconds.
+          </p>
+          <p className="text-sm text-gray-400 mt-2">
+            Do not close this window.
+          </p>
+        </div>
+      </Modal> */}
       <div className="container mx-auto px-4">
         <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">
           <h2 className="text-2xl font-bold text-white mb-6">Doctor Details</h2>
@@ -726,12 +788,13 @@ const DoctorDetails: React.FC = () => {
               className={`${
                 activeSubscription.status === 'active'
                   ? 'bg-blue-500/20 border-blue-500'
-                  : 'bg-red-500/20 border-red-500'
+                  : activeSubscription.status === 'pending'
+                    ? 'bg-yellow-500/20 border-yellow-500'
+                    : 'bg-red-500/20 border-red-500'
               } border rounded-lg p-4`}
             >
               <h4 className="text-lg font-semibold text-white">
-                {activeSubscription.status === 'active' ? 'Active' : 'Expired'}{' '}
-                Plan: {activeSubscription.plan.name}
+                {activeSubscription.status} Plan: {activeSubscription.plan.name}
               </h4>
               <p className="text-sm text-gray-200 mt-2">
                 Description: {activeSubscription.plan.description || 'N/A'}
@@ -752,6 +815,21 @@ const DoctorDetails: React.FC = () => {
               <p className="text-sm text-gray-200 mt-2">
                 Status: {activeSubscription.status}
               </p>
+              {activeSubscription.status === 'pending' && (
+                <div className="mt-4">
+                  <p className="text-sm text-yellow-300 mb-2">
+                    Payment is incomplete. Complete it to activate your
+                    subscription.
+                  </p>
+                  <button
+                    onClick={() => handleResumePayment(activeSubscription._id)}
+                    disabled={isResumingPayment}
+                    className="w-full bg-gradient-to-r from-yellow-600 to-orange-600 text-white py-2 rounded-lg hover:from-yellow-700 hover:to-orange-700 transition-all duration-300 disabled:opacity-50"
+                  >
+                    {isResumingPayment ? 'Loading...' : 'Resume Payment'}
+                  </button>
+                </div>
+              )}
               {activeSubscription.status === 'active' &&
                 canCancelSubscription && (
                   <button
@@ -828,6 +906,7 @@ const DoctorDetails: React.FC = () => {
         </div>
 
         {(activeSubscription && activeSubscription.status === 'active') ||
+        (pendingSubscription && pendingSubscription.status === 'pending') ||
         canBookFreeAppointment ? (
           <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">
             <div className="flex items-center justify-between mb-6">
@@ -868,6 +947,15 @@ const DoctorDetails: React.FC = () => {
                       className="w-full bg-gradient-to-r from-green-600 to-teal-600 text-white py-2 rounded-lg hover:from-green-700 hover:to-teal-700 transition-all duration-300"
                     >
                       Confirm Appointment (Subscribed)
+                    </button>
+                  )}
+                {pendingSubscription &&
+                  pendingSubscription.status === 'pending' && (
+                    <button
+                      disabled
+                      className="w-full bg-gray-600 text-white py-2 rounded-lg cursor-not-allowed"
+                    >
+                      Waiting for Subscription Confirmation...
                     </button>
                   )}
                 {(!activeSubscription ||
@@ -944,9 +1032,10 @@ const DoctorDetails: React.FC = () => {
                   planId={selectedPlan.id}
                   price={selectedPlan.price}
                   onSuccess={handlePaymentSuccess}
-                  onError={(error) => {
-                    toast.error(error);
+                  onError={(error: any) => {
+                    showError(error);
                   }}
+                  isResume={isResumingPayment}
                 />
               </Elements>
               <button
@@ -954,6 +1043,8 @@ const DoctorDetails: React.FC = () => {
                   setIsPaymentModalOpen(false);
                   setSelectedPlan(null);
                   setClientSecret(null);
+                  setIsResumingPayment(false);
+                  dispatch(getPatientSubscriptionsThunk());
                 }}
                 className="mt-4 w-full bg-gray-600 text-white py-2 rounded-lg hover:bg-gray-700 transition-all duration-300"
               >

@@ -11,9 +11,9 @@ import {
 } from 'recharts';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { toast } from 'react-toastify';
 import { getDashboardStats, getReports } from '../../services/adminService';
 import { validateDate } from '../../utils/validation';
+import { showError, showWarning } from '../../utils/toastConfig';
 
 interface TopSubscriber {
   patientId: string;
@@ -43,6 +43,10 @@ interface DashboardStats {
   topSubscribers: TopSubscriber[];
   topPatients: TopPatient[];
   topDoctors: TopDoctor[];
+  cancelledStats: {
+    count: number;
+    totalRefunded: number;
+  };
 }
 
 interface ReportFilter {
@@ -69,6 +73,10 @@ const AdminDashboard: React.FC = () => {
     topSubscribers: [],
     topPatients: [],
     topDoctors: [],
+    cancelledStats: {
+      count: 0,
+      totalRefunded: 0,
+    },
   });
   const [reportType, setReportType] = useState<ReportFilter['type']>('monthly');
   const [startDate, setStartDate] = useState<string>(
@@ -92,7 +100,6 @@ const AdminDashboard: React.FC = () => {
         setStats(statsData);
       } catch (error) {
         console.error('Error fetching dashboard stats:', error);
-        toast.error('Failed to load dashboard data');
       } finally {
         setLoading(false);
       }
@@ -115,7 +122,7 @@ const AdminDashboard: React.FC = () => {
 
   const fetchReports = async () => {
     if (!validateForm()) {
-      toast.error('Please fix the form errors');
+      showError('Please fix the form errors');
       return;
     }
     try {
@@ -132,7 +139,6 @@ const AdminDashboard: React.FC = () => {
       setReportData(reportItems);
     } catch (error) {
       console.error('Error fetching reports:', error);
-      toast.error('Failed to fetch reports');
       setReportData([]);
     } finally {
       setLoading(false);
@@ -141,7 +147,7 @@ const AdminDashboard: React.FC = () => {
 
   const generatePDF = () => {
     if (reportData.length === 0) {
-      toast.warn('No report data available to export');
+      showWarning('No report data available to export');
       return;
     }
     const doc = new jsPDF();
@@ -189,7 +195,7 @@ const AdminDashboard: React.FC = () => {
       </h1>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           {
             title: 'Total Doctors',
@@ -220,6 +226,22 @@ const AdminDashboard: React.FC = () => {
             value: `₹${stats.totalRevenue.toFixed(2)}`,
             icon: '💰',
             gradient: 'from-red-600 to-red-800',
+          },
+          {
+            title: 'Cancelled Plans',
+            value: stats.cancelledStats.count,
+            icon: '❌',
+            gradient: 'from-red-600 to-red-800',
+            description: 'Cancelled subscriptions',
+            isNegative: true,
+          },
+          {
+            title: 'Total Refunded',
+            value: `₹${stats.cancelledStats.totalRefunded.toFixed(2)}`,
+            icon: '↩️',
+            gradient: 'from-orange-600 to-orange-800',
+            description: 'Refunded amount',
+            isNegative: true,
           },
         ].map((stat) => (
           <div

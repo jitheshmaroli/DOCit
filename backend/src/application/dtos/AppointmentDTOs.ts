@@ -97,6 +97,8 @@ export interface AppointmentDTO {
   prescriptionId?: string;
   prescription?: PrescriptionDTO;
   hasReview?: boolean;
+  patientName?: string;
+  doctorName?: string;
 }
 export enum AppointmentStatus {
   PENDING = 'pending',

@@ -1,9 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { toast } from 'react-toastify';
-import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import { fetchInvoiceDetails } from '../../services/patientService';
-import { clearError as clearPatientError } from '../../redux/slices/patientSlice';
 
 interface InvoiceDetails {
   paymentIntentId: string;
@@ -17,9 +14,7 @@ interface InvoiceDetails {
 
 const InvoiceDetails: React.FC = () => {
   const { paymentIntentId } = useParams<{ paymentIntentId: string }>();
-  const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const { error: patientError } = useAppSelector((state) => state.patient);
   const [invoice, setInvoice] = useState<InvoiceDetails | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -30,19 +25,11 @@ const InvoiceDetails: React.FC = () => {
           setInvoice(data);
           setLoading(false);
         })
-        .catch((error) => {
-          toast.error(error.message || 'Failed to fetch invoice details');
+        .catch(() => {
           setLoading(false);
         });
     }
   }, [paymentIntentId]);
-
-  useEffect(() => {
-    if (patientError) {
-      toast.error(patientError);
-      dispatch(clearPatientError());
-    }
-  }, [patientError, dispatch]);
 
   if (loading) {
     return (

@@ -1,6 +1,6 @@
 import mongoose, { FilterQuery } from 'mongoose';
 import { IAppointmentRepository } from '../../core/interfaces/repositories/IAppointmentRepository';
-import { Appointment } from '../../core/entities/Appointment';
+import { Appointment, ExtendedAppointment } from '../../core/entities/Appointment';
 import { QueryParams } from '../../types/authTypes';
 import { DateUtils } from '../../utils/DateUtils';
 import { AppointmentModel } from '../database/models/AppointmentModel';
@@ -11,6 +11,9 @@ import { AppointmentStatus } from '../../application/dtos/AppointmentDTOs';
 import { PrescriptionModel } from '../database/models/PrescriptionModel';
 import { ObjectId } from 'mongodb';
 import { PipelineStage } from 'mongoose';
+import { Patient } from '../../core/entities/Patient';
+import { Doctor } from '../../core/entities/Doctor';
+import logger from '../../utils/logger';
 
 export class AppointmentRepository extends BaseRepository<Appointment> implements IAppointmentRepository {
   constructor() {
@@ -42,18 +45,79 @@ export class AppointmentRepository extends BaseRepository<Appointment> implement
     return (appointment as Appointment) ?? null;
   }
 
-  async findUpcomingAppointments(start: Date, end: Date): Promise<Appointment[]> {
+  async findUpcomingAppointments(start: Date, end: Date): Promise<ExtendedAppointment[]> {
     const startOfDay = DateUtils.startOfDayUTC(start);
     const endOfDay = DateUtils.endOfDayUTC(end);
 
-    const appointments = await this.model
-      .find({
-        date: { $gte: startOfDay, $lte: endOfDay },
-        status: 'pending',
-      })
-      .populate('patientId', 'name')
-      .populate('doctorId', 'name profilePicture speciality qualifications gender')
-      .exec();
+    const pipeline: PipelineStage[] = [
+      {
+        $match: {
+          date: { $gte: startOfDay, $lte: endOfDay },
+          status: 'pending',
+        },
+      },
+      {
+        $lookup: {
+          from: 'patients',
+          localField: 'patientId',
+          foreignField: '_id',
+          as: 'patient',
+        },
+      },
+      {
+        $unwind: {
+          path: '$patient',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $lookup: {
+          from: 'doctors',
+          localField: 'doctorId',
+          foreignField: '_id',
+          as: 'doctor',
+        },
+      },
+      {
+        $unwind: {
+          path: '$doctor',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          patientId: 1,
+          doctorId: 1,
+          patientSubscriptionId: 1,
+          slotId: 1,
+          date: 1,
+          startTime: 1,
+          endTime: 1,
+          status: 1,
+          isFreeBooking: 1,
+          bookingTime: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          reminderSent: 1,
+          cancellationReason: 1,
+          prescriptionId: 1,
+          hasReview: 1,
+          patient: {
+            _id: '$patient._id',
+            name: '$patient.name',
+            email: '$patient.email',
+          },
+          doctor: {
+            _id: '$doctor._id',
+            name: '$doctor.name',
+            email: '$doctor.email',
+          },
+        },
+      },
+    ];
+
+    const appointments = await this.model.aggregate(pipeline).exec();
 
     const filteredAppointments = appointments.filter((appt) => {
       try {
@@ -65,7 +129,7 @@ export class AppointmentRepository extends BaseRepository<Appointment> implement
       }
     });
 
-    return filteredAppointments.map((appt) => appt.toObject() as Appointment);
+    return filteredAppointments as ExtendedAppointment[];
   }
 
   async findByDoctorAndSlot(
@@ -215,7 +279,7 @@ export class AppointmentRepository extends BaseRepository<Appointment> implement
 
   async getDistinctPatientIdsByDoctor(doctorId: string): Promise<string[]> {
     const results = await this.model.aggregate([
-      { $match: { doctorId } },
+      { $match: { doctorId: new ObjectId(doctorId) } },
       { $group: { _id: '$patientId' } },
       { $project: { _id: 1 } },
     ]);
@@ -301,36 +365,124 @@ export class AppointmentRepository extends BaseRepository<Appointment> implement
     };
   }
 
-  async findAllWithQuery(params: QueryParams): Promise<{ data: Appointment[]; totalItems: number }> {
-    const { search = '', page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc', status } = params;
-    const query: FilterQuery<Appointment> = {};
+  async findAllWithQuery(params: QueryParams): Promise<{ data: ExtendedAppointment[]; totalItems: number }> {
+    const {
+      search = '',
+      page = 1,
+      limit = 10,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+      status,
+      startDate,
+      endDate,
+    } = params;
+
+    logger.debug(`params:`, { params });
+
+    const pipeline: PipelineStage[] = [];
+    const match: FilterQuery<Appointment> = {};
+
+    if (status !== undefined) {
+      match.status = status;
+    }
+
+    if (startDate && endDate) {
+      const start = DateUtils.startOfDayUTC(startDate);
+      const end = DateUtils.endOfDayUTC(endDate);
+      match.date = { $gte: start, $lte: end };
+    }
 
     if (search) {
-      const patientIds = await PatientModel.find({ name: { $regex: search, $options: 'i' } }, '_id').exec();
-      const doctorIds = await DoctorModel.find({ name: { $regex: search, $options: 'i' } }, '_id').exec();
-      query.$or = [
-        { patientId: { $in: patientIds.map((p: { _id: string }) => p._id) } },
-        { doctorId: { $in: doctorIds.map((d: { _id: string }) => d._id) } },
+      const patientIds = await PatientModel.find({ name: { $regex: search, $options: 'i' } }, '_id').lean();
+      const doctorIds = await DoctorModel.find({ name: { $regex: search, $options: 'i' } }, '_id').lean();
+
+      match.$or = [
+        { patientId: { $in: patientIds.map((p: Patient) => p._id) } },
+        { doctorId: { $in: doctorIds.map((d: Doctor) => d._id) } },
       ];
     }
 
-    if (status !== undefined) {
-      query.status = status;
-    }
+    pipeline.push({ $match: match });
 
-    const appointments = await this.model
-      .find(query)
-      .populate('patientId', 'name')
-      .populate('doctorId', 'name')
-      .populate('prescriptionId')
-      .sort({ [sortBy]: sortOrder === 'desc' ? -1 : 1 })
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .exec();
+    pipeline.push({
+      $lookup: {
+        from: 'patients',
+        localField: 'patientId',
+        foreignField: '_id',
+        as: 'patient',
+      },
+    });
+    pipeline.push({ $unwind: { path: '$patient', preserveNullAndEmptyArrays: true } });
 
-    const totalItems = await this.model.countDocuments(query).exec();
+    pipeline.push({
+      $lookup: {
+        from: 'doctors',
+        localField: 'doctorId',
+        foreignField: '_id',
+        as: 'doctor',
+      },
+    });
+    pipeline.push({ $unwind: { path: '$doctor', preserveNullAndEmptyArrays: true } });
 
-    return { data: appointments.map((appt) => appt.toObject() as Appointment), totalItems };
+    pipeline.push({
+      $lookup: {
+        from: 'prescriptions',
+        localField: 'prescriptionId',
+        foreignField: '_id',
+        as: 'prescription',
+      },
+    });
+    pipeline.push({ $unwind: { path: '$prescription', preserveNullAndEmptyArrays: true } });
+
+    pipeline.push({
+      $sort: { [sortBy]: sortOrder === 'desc' ? -1 : 1 },
+    });
+
+    pipeline.push({ $skip: (page - 1) * limit });
+    pipeline.push({ $limit: limit });
+
+    pipeline.push({
+      $project: {
+        _id: 1,
+        patientId: 1,
+        doctorId: 1,
+        patientSubscriptionId: 1,
+        slotId: 1,
+        date: 1,
+        startTime: 1,
+        endTime: 1,
+        status: 1,
+        isFreeBooking: 1,
+        bookingTime: 1,
+        createdAt: 1,
+        updatedAt: 1,
+        reminderSent: 1,
+        cancellationReason: 1,
+        prescriptionId: 1,
+        hasReview: 1,
+        'patient._id': 1,
+        'patient.name': 1,
+        'patient.email': 1,
+        'doctor._id': 1,
+        'doctor.name': 1,
+        'doctor.email': 1,
+        prescription: 1,
+      },
+    });
+
+    const [results, totalCount] = await Promise.all([
+      this.model.aggregate(pipeline).exec(),
+      this.model.countDocuments(match),
+    ]);
+
+    const data = results.map((appt: ExtendedAppointment) => ({
+      ...appt,
+      patientId: appt.patientId?.toString(),
+      doctorId: appt.doctorId?.toString(),
+      prescriptionId: appt.prescriptionId?.toString(),
+    })) as ExtendedAppointment[];
+
+    return { data, totalItems: totalCount };
   }
 
   async completeAppointment(appointmentId: string, prescriptionId: string): Promise<Appointment> {

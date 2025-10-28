@@ -10,6 +10,7 @@ export class AvailabilityMapper {
       date: dateIso,
       dateKey: new Date(dateIso).toISOString().split('T')[0],
       timeSlots: availability.timeSlots.map((slot) => ({
+        _id: slot._id?.toString(),
         startTime: slot.startTime,
         endTime: slot.endTime,
         isBooked: slot.isBooked,

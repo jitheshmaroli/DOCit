@@ -2,6 +2,7 @@ import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
+import { MAX_SLOT_DURATION_MINUTES, MIN_SLOT_DURATION_MINUTES } from '../constants/AppConstants';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -174,4 +175,39 @@ export class DateUtils {
     const expiry = dayjs(expiryDate);
     return expiry.diff(now, 'day');
   };
+
+  // NEW TIME VALIDATION METHODS
+  static addMinutesToTime(timeStr: string, minutes: number): string {
+    const [hours, minutesPart] = timeStr.split(':').map(Number);
+    const totalMinutes = hours * 60 + minutesPart + minutes;
+    const newHours = Math.floor(totalMinutes / 60) % 24;
+    const newMinutes = totalMinutes % 60;
+    return `${newHours.toString().padStart(2, '0')}:${newMinutes.toString().padStart(2, '0')}`;
+  }
+
+  static subtractMinutesFromTime(timeStr: string, minutes: number): string {
+    const [hours, minutesPart] = timeStr.split(':').map(Number);
+    const totalMinutes = hours * 60 + minutesPart - minutes;
+    let newHours = Math.floor(totalMinutes / 60);
+    let newMinutes = totalMinutes % 60;
+    
+    if (newMinutes < 0) {
+      newMinutes += 60;
+      newHours -= 1;
+    }
+    newHours = (newHours + 24) % 24;
+    return `${newHours.toString().padStart(2, '0')}:${newMinutes.toString().padStart(2, '0')}`;
+  }
+
+  static getTimeDifferenceInMinutes(startTime: string, endTime: string): number {
+    const start = dayjs(`1970-01-01 ${startTime}`);
+    const end = dayjs(`1970-01-01 ${endTime}`);
+    return end.diff(start, 'minute');
+  }
+
+  static isValidSlotDuration(startTime: string, endTime: string): boolean {
+    if (!startTime || !endTime) return false;
+    const diff = this.getTimeDifferenceInMinutes(startTime, endTime);
+    return diff >= MIN_SLOT_DURATION_MINUTES && diff <= MAX_SLOT_DURATION_MINUTES;
+  }
 }

@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import { getAppointmentsThunk } from '../../redux/thunks/doctorThunk';
 import { DateUtils } from '../../utils/DateUtils';
@@ -9,15 +7,14 @@ import Pagination from '../../components/common/Pagination';
 import DataTable, { Column } from '../../components/common/DataTable';
 import { Appointment } from '../../types/authTypes';
 import { ITEMS_PER_PAGE } from '../../utils/constants';
+import ROUTES from '../../constants/routeConstants';
 
 const DoctorAppointments: React.FC = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const {
-    appointments = [],
-    totalItems,
-    error,
-  } = useAppSelector((state) => state.doctors);
+  const { appointments = [], totalItems } = useAppSelector(
+    (state) => state.doctors
+  );
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -26,12 +23,6 @@ const DoctorAppointments: React.FC = () => {
       getAppointmentsThunk({ page: currentPage, limit: ITEMS_PER_PAGE })
     );
   }, [dispatch, currentPage]);
-
-  useEffect(() => {
-    if (error) {
-      toast.error(error);
-    }
-  }, [error]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -43,9 +34,15 @@ const DoctorAppointments: React.FC = () => {
       accessor: (appt) => (
         <button
           onClick={() =>
-            navigate(`/doctor/patient/${appt.patientId._id}`, {
-              state: { from: 'appointments' },
-            })
+            navigate(
+              ROUTES.DOCTOR.PATIENT_DETAILS.replace(
+                'patientId',
+                appt.patientId._id
+              ),
+              {
+                state: { from: 'appointments' },
+              }
+            )
           }
           className="hover:underline hover:text-blue-300 focus:outline-none"
         >
@@ -84,7 +81,9 @@ const DoctorAppointments: React.FC = () => {
     {
       label: 'View Details',
       onClick: (appt: Appointment) =>
-        navigate(`/doctor/appointment/${appt._id}`),
+        navigate(
+          ROUTES.DOCTOR.APPOINTMENT_DETAILS.replace(':appointmentId', appt._id)
+        ),
       className: 'bg-purple-600 hover:bg-purple-700',
     },
   ];
@@ -103,7 +102,6 @@ const DoctorAppointments: React.FC = () => {
 
   return (
     <>
-      <ToastContainer position="top-right" autoClose={3000} theme="dark" />
       <div className="bg-white/10 backdrop-blur-lg p-4 sm:p-6 rounded-2xl border border-white/20 shadow-xl">
         <h2 className="text-xl sm:text-2xl font-semibold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent mb-6">
           Appointments

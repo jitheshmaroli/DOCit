@@ -3,6 +3,7 @@ import { env } from '../../config/env';
 import { ValidationError } from '../../utils/errors';
 import { IPaymentService } from '../../core/interfaces/services/IPaymentService';
 import logger from '../../utils/logger';
+import { ISubscriptionPlanUseCase } from '../../core/interfaces/use-cases/ISubscriptionPlanUseCase';
 
 interface PaymentIntentWithCharges extends Stripe.PaymentIntent {
   charges?: {
@@ -77,7 +78,6 @@ export class StripeService implements IPaymentService {
       const refundRetrieve = await this._stripe.refunds.retrieve(refund.id);
       logger.debug(JSON.stringify(refundRetrieve, null, 2));
 
-      // Retrieve the PaymentIntent with expanded charges
       const paymentIntent = (await this._stripe.paymentIntents.retrieve(paymentIntentId, {
         expand: ['charges'],
       })) as PaymentIntentWithCharges;
@@ -86,7 +86,6 @@ export class StripeService implements IPaymentService {
 
       let cardLast4: string | undefined = 'N/A';
 
-      // Check if payment_method is available
       if (paymentIntent.payment_method && typeof paymentIntent.payment_method === 'string') {
         const paymentMethod = await this._stripe.paymentMethods.retrieve(paymentIntent.payment_method);
         logger.debug(JSON.stringify(paymentMethod, null, 2));
@@ -123,6 +122,35 @@ export class StripeService implements IPaymentService {
       return await this._stripe.paymentMethods.retrieve(paymentMethodId);
     } catch (error) {
       throw new ValidationError(`Failed to retrieve payment method: ${(error as Error).message || 'Unknown error'}`);
+    }
+  }
+
+  constructWebhookEvent(payload: Buffer | string, signature: string, webhookSecret: string): Stripe.Event {
+    try {
+      const body = typeof payload === 'string' ? payload : payload.toString();
+      return this._stripe.webhooks.constructEvent(body, signature, webhookSecret);
+    } catch (error) {
+      if (error instanceof Stripe.errors.StripeError) {
+        throw new ValidationError(`Webhook signature verification failed: ${error.message}`);
+      }
+      throw new ValidationError(
+        `Unexpected webhook construction error: ${(error as Error).message || 'Unknown error'}`
+      );
+    }
+  }
+
+  async processWebhookEvent(event: Stripe.Event, subscriptionPlanUseCase: ISubscriptionPlanUseCase): Promise<void> {
+    logger.info(`Processing webhook event: ${event.type}`);
+
+    switch (event.type) {
+      case 'payment_intent.succeeded': {
+        const paymentIntent = event.data.object as Stripe.PaymentIntent;
+        logger.info(`Processing payment_intent.succeeded for ${paymentIntent.id}`);
+        await subscriptionPlanUseCase.handlePaymentSuccess(paymentIntent.id);
+        break;
+      }
+      default:
+        logger.info(`Unhandled webhook event type: ${event.type}`);
     }
   }
 }
