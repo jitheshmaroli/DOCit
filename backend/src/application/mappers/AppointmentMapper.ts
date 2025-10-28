@@ -1,9 +1,9 @@
-import { Appointment } from '../../core/entities/Appointment';
+import { Appointment, ExtendedAppointment } from '../../core/entities/Appointment';
 import { Prescription } from '../../core/entities/Prescription';
 import { AppointmentDTO, PrescriptionDTO } from '../dtos/AppointmentDTOs';
 
 export class AppointmentMapper {
-  static toAppointmentDTO(appointment: Appointment): AppointmentDTO {
+  static toAppointmentDTO(appointment: ExtendedAppointment): AppointmentDTO {
     const dto: AppointmentDTO = {
       _id: appointment._id?.toString(),
       patientId: appointment.patientId ?? '',
@@ -19,6 +19,8 @@ export class AppointmentMapper {
       prescriptionId: appointment.prescriptionId,
       prescription: appointment.prescription,
       hasReview: appointment.hasReview,
+      patientName: appointment.patient?.name,
+      doctorName: appointment.doctor?.name,
     };
 
     return dto;

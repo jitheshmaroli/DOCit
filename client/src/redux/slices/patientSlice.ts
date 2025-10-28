@@ -35,6 +35,7 @@ interface PatientSubscription {
   status: string;
   createdAt?: string;
   expiryDate?: string;
+  stripePaymentId?: string;
 }
 
 interface CancelSubscriptionResponse {

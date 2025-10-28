@@ -12,7 +12,7 @@ const { authMiddleware, chatRoleMiddleware } = createMiddlewares();
 const chatAuth = [authMiddleware.exec, chatRoleMiddleware.exec];
 
 router.post('/', chatAuth, chatController.sendMessage.bind(chatController));
-router.post('/attachment', chatAuth, upload.single('file'), chatController.sendAttachment.bind(chatController));
+router.post('/attachment', chatAuth, upload.single('attachment'), chatController.sendAttachment.bind(chatController));
 router.get('/inbox', chatAuth, chatController.getInbox.bind(chatController));
 router.get('/:receiverId', chatAuth, chatController.getMessages.bind(chatController));
 router.delete('/:messageId', chatAuth, chatController.deleteMessage.bind(chatController));

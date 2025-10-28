@@ -1,8 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
 import { MessageSquare, Video } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import { cancelAppointmentThunk } from '../../redux/thunks/patientThunk';
@@ -12,6 +10,8 @@ import VideoCallModal from '../../components/VideoCallModal';
 import { useSocket } from '../../hooks/useSocket';
 import { createReview } from '../../services/patientService';
 import api from '../../services/api';
+import { showError, showInfo, showSuccess } from '../../utils/toastConfig';
+import ROUTES from '../../constants/routeConstants';
 
 interface AppointmentPatient {
   _id: string;
@@ -95,8 +95,8 @@ const AppointmentDetails: React.FC = () => {
 
   useEffect(() => {
     if (!user?._id) {
-      toast.error('Please log in to view appointment details');
-      navigate('/login');
+      showError('Please log in to view appointment details');
+      navigate(ROUTES.PUBLIC.LOGIN);
     }
   }, [user, navigate]);
 
@@ -135,7 +135,7 @@ const AppointmentDetails: React.FC = () => {
 
         setAppointment(appt);
       } catch {
-        toast.error('Failed to load appointment details');
+        showError('Failed to load appointment details');
         setAppointment(null);
       } finally {
         setLoading(false);
@@ -163,21 +163,21 @@ const AppointmentDetails: React.FC = () => {
           });
           setIsVideoCallOpen(true);
           setIsCaller(false);
-          toast.info(`Incoming call from ${data.callerRole}`);
+          showInfo(`Incoming call from ${data.callerRole}`);
         }
       },
       onCallAccepted: (data: { appointmentId: string; acceptorId: string }) => {
         if (data.appointmentId === appointmentId) {
           setIsVideoCallOpen(true);
           setIsCaller(true);
-          toast.success('Call accepted');
+          showSuccess('Call accepted');
         }
       },
       onCallRejected: (data: { appointmentId: string; rejectorId: string }) => {
         if (data.appointmentId === appointmentId) {
           setIsVideoCallOpen(false);
           setCallerInfo(undefined);
-          toast.info('Call rejected');
+          showInfo('Call rejected');
         }
       },
     };
@@ -214,19 +214,19 @@ const AppointmentDetails: React.FC = () => {
 
   const handleCancelAppointment = async (cancellationReason: string) => {
     if (!appointmentId || !user?._id) {
-      toast.error('User not authenticated');
+      showError('User not authenticated');
       return;
     }
     try {
       await dispatch(
         cancelAppointmentThunk({ appointmentId, cancellationReason })
       ).unwrap();
-      toast.success('Appointment cancelled successfully');
+      showSuccess('Appointment cancelled successfully');
       setAppointment((prev) =>
         prev ? { ...prev, status: 'cancelled', cancellationReason } : prev
       );
     } catch {
-      toast.error('Failed to cancel appointment');
+      showError('Failed to cancel appointment');
     }
   };
 
@@ -236,7 +236,7 @@ const AppointmentDetails: React.FC = () => {
       !user?._id ||
       typeof appointment.doctorId === 'string'
     ) {
-      toast.error(
+      showError(
         'Cannot start video call: Missing appointment or doctor information'
       );
       return;
@@ -250,7 +250,7 @@ const AppointmentDetails: React.FC = () => {
       setIsCaller(true);
     } catch (error) {
       console.error('Failed to initiate video call:', error);
-      toast.error('Failed to start video call');
+      showError('Failed to start video call');
     }
   };
 
@@ -260,11 +260,11 @@ const AppointmentDetails: React.FC = () => {
       typeof appointment.doctorId !== 'string' &&
       appointment.doctorId._id
     ) {
-      navigate(`/patient/messages?thread=${appointment.doctorId._id}`, {
+      navigate(`/patient/messages?thread=${appointment.doctorId?._id}`, {
         replace: true,
       });
     } else {
-      toast.error('Cannot open chat: Doctor information missing');
+      console.error('Cannot open chat: Doctor information missing');
     }
   };
 
@@ -274,15 +274,15 @@ const AppointmentDetails: React.FC = () => {
       typeof appointment.doctorId === 'string' ||
       !user?._id
     ) {
-      toast.error('Cannot submit review: Missing required information');
+      showError('Cannot submit review: Missing required information');
       return;
     }
     if (rating < 1 || rating > 5) {
-      toast.error('Please select a rating between 1 and 5');
+      showError('Please select a rating between 1 and 5');
       return;
     }
     if (!comment.trim()) {
-      toast.error('Please enter a comment');
+      showError('Please enter a comment');
       return;
     }
     try {
@@ -293,12 +293,12 @@ const AppointmentDetails: React.FC = () => {
         rating,
         comment
       );
-      toast.success('Review submitted successfully');
+      showSuccess('Review submitted successfully');
       setAppointment((prev) => (prev ? { ...prev, hasReview: true } : prev));
       setRating(0);
       setComment('');
     } catch {
-      toast.error('Failed to submit review');
+      showError('Failed to submit review');
     } finally {
       setIsSubmittingReview(false);
     }
@@ -337,7 +337,6 @@ const AppointmentDetails: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 py-8">
-      <ToastContainer position="bottom-right" autoClose={3000} theme="dark" />
       <CancelAppointmentModal
         isOpen={isCancelModalOpen}
         onClose={() => setIsCancelModalOpen(false)}

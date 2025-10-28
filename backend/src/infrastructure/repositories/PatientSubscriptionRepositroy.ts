@@ -4,6 +4,8 @@ import { BaseRepository } from './BaseRepository';
 import { PatientSubscriptionModel } from '../database/models/PatientSubscriptionModel';
 import { PatientSubscription } from '../../core/entities/PatientSubscription';
 import { ObjectId } from 'mongodb';
+import logger from '../../utils/logger';
+import { FilterQuery } from 'mongoose';
 
 export class PatientSubscriptionRepository
   extends BaseRepository<PatientSubscription>
@@ -14,21 +16,52 @@ export class PatientSubscriptionRepository
   }
 
   async findActiveByPatientAndDoctor(patientId: string, doctorId: string): Promise<PatientSubscription | null> {
-    const subscription = await this.model
-      .findOne({
-        patientId,
-        status: 'active',
-        endDate: { $gte: new Date() },
-        appointmentsLeft: { $gt: 0 },
-      })
-      .populate({
-        path: 'planId',
-        match: { doctorId },
-      })
-      .lean()
+    if (!ObjectId.isValid(patientId) || !ObjectId.isValid(doctorId)) {
+      logger.error(`Invalid ObjectId - patientId: ${patientId}, doctorId: ${doctorId}`);
+      return null;
+    }
+
+    const subscriptions = await this.model
+      .aggregate([
+        {
+          $match: {
+            patientId: new ObjectId(patientId),
+            status: 'active',
+            endDate: { $gte: new Date() },
+            appointmentsLeft: { $gt: 0 },
+          },
+        },
+        {
+          $lookup: {
+            from: 'subscriptionplans',
+            localField: 'planId',
+            foreignField: '_id',
+            as: 'planDetails',
+          },
+        },
+        {
+          $unwind: {
+            path: '$planDetails',
+            preserveNullAndEmptyArrays: false,
+          },
+        },
+        {
+          $match: {
+            'planDetails.doctorId': new ObjectId(doctorId),
+          },
+        },
+        {
+          $limit: 1,
+        },
+      ])
       .exec();
 
-    return subscription && subscription.planId ? this.calculateSubscriptionDetails(subscription) : null;
+    const subscription = subscriptions[0];
+    if (subscription) {
+      const result = this.calculateSubscriptionDetails(subscription);
+      return result;
+    }
+    return null;
   }
 
   async findByPatient(patientId: string): Promise<PatientSubscription[]> {
@@ -107,7 +140,55 @@ export class PatientSubscriptionRepository
   }
 
   async findAll(): Promise<PatientSubscription[]> {
-    const subscriptions = await this.model.find().populate('planId').lean().exec();
+    const subscriptions = await this.model
+      .aggregate([
+        {
+          $lookup: {
+            from: 'subscriptionplans',
+            localField: 'planId',
+            foreignField: '_id',
+            as: 'planDetails',
+          },
+        },
+        {
+          $unwind: {
+            path: '$planDetails',
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            patientId: 1,
+            planId: 1,
+            planDetails: {
+              _id: '$planDetails._id',
+              doctorId: '$planDetails.doctorId',
+              name: '$planDetails.name',
+              description: '$planDetails.description',
+              price: '$planDetails.price',
+              validityDays: '$planDetails.validityDays',
+              appointmentCount: '$planDetails.appointmentCount',
+              status: '$planDetails.status',
+              createdAt: '$planDetails.createdAt',
+              updatedAt: '$planDetails.updatedAt',
+            },
+            startDate: 1,
+            endDate: 1,
+            status: 1,
+            price: 1,
+            appointmentsUsed: 1,
+            appointmentsLeft: 1,
+            stripePaymentId: 1,
+            createdAt: 1,
+            updatedAt: 1,
+            remainingDays: 1,
+            cancellationReason: 1,
+          },
+        },
+      ])
+      .exec();
+
     return subscriptions.map((sub) => this.calculateSubscriptionDetails(sub));
   }
 
@@ -127,7 +208,6 @@ export class PatientSubscriptionRepository
 
     if (!subscription) return null;
 
-    // Update status to expired if appointmentsLeft becomes 0
     const updatedSubscription = this.calculateSubscriptionDetails(subscription);
     if (updatedSubscription.appointmentsLeft <= 0 && updatedSubscription.status === 'active') {
       await this.model
@@ -142,6 +222,7 @@ export class PatientSubscriptionRepository
         .exec();
       updatedSubscription.status = 'expired';
     }
+    logger.debug('updatedsubscription:', { updatedSubscription });
 
     return updatedSubscription;
   }
@@ -195,7 +276,7 @@ export class PatientSubscriptionRepository
   }
 
   async findByStripePaymentId(stripePaymentId: string): Promise<PatientSubscription | null> {
-    const subscription = await this.model.findOne({ stripePaymentId }).populate('planId').lean().exec();
+    const subscription = await this.model.findOne({ stripePaymentId }).lean().exec();
     return subscription ? this.calculateSubscriptionDetails(subscription) : null;
   }
 
@@ -215,14 +296,32 @@ export class PatientSubscriptionRepository
     return subscriptions.map((sub) => this.calculateSubscriptionDetails(sub));
   }
 
-  async findActiveSubscriptions(): Promise<PatientSubscription[]> {
+  async findByPlan(planId: string): Promise<PatientSubscription[]> {
+    const subscriptions = await PatientSubscriptionModel.find({ planId }).lean();
+    logger.debug(subscriptions);
+    return subscriptions as PatientSubscription[];
+  }
+
+  private calculateSubscriptionDetails(subscription: PatientSubscription): PatientSubscription {
+    const endDate = moment(subscription.endDate);
+    const now = moment();
+    subscription.remainingDays = Math.max(0, endDate.diff(now, 'days'));
+
+    if (subscription.appointmentsLeft <= 0 || endDate.isBefore(now)) {
+      subscription.status = 'expired';
+    }
+
+    subscription.appointmentsLeft = Math.max(0, subscription.appointmentsLeft);
+
+    return subscription;
+  }
+
+  async findNonCancelledSubscriptions(): Promise<PatientSubscription[]> {
     const subscriptions = await this.model
       .aggregate([
         {
           $match: {
-            status: 'active',
-            endDate: { $gte: new Date() },
-            appointmentsLeft: { $gt: 0 },
+            status: { $in: ['active', 'expired'] },
           },
         },
         {
@@ -275,21 +374,67 @@ export class PatientSubscriptionRepository
     return subscriptions.map((sub) => this.calculateSubscriptionDetails(sub));
   }
 
-  async findByPlan(planId: string): Promise<PatientSubscription[]> {
-    const subscriptions = await PatientSubscriptionModel.find({ planId }).lean();
-    return subscriptions as PatientSubscription[];
+  async findCancelledSubscriptions(): Promise<PatientSubscription[]> {
+    const subscriptions = await this.model
+      .aggregate([
+        {
+          $match: {
+            status: 'cancelled',
+          },
+        },
+        {
+          $lookup: {
+            from: 'subscriptionplans',
+            localField: 'planId',
+            foreignField: '_id',
+            as: 'planDetails',
+          },
+        },
+        {
+          $unwind: {
+            path: '$planDetails',
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            patientId: 1,
+            planId: 1,
+            planDetails: {
+              _id: '$planDetails._id',
+              doctorId: '$planDetails.doctorId',
+              name: '$planDetails.name',
+              description: '$planDetails.description',
+              price: '$planDetails.price',
+              validityDays: '$planDetails.validityDays',
+              appointmentCount: '$planDetails.appointmentCount',
+              status: '$planDetails.status',
+              createdAt: '$planDetails.createdAt',
+              updatedAt: '$planDetails.updatedAt',
+            },
+            startDate: 1,
+            endDate: 1,
+            status: 1,
+            price: 1,
+            appointmentsUsed: 1,
+            appointmentsLeft: 1,
+            stripePaymentId: 1,
+            createdAt: 1,
+            updatedAt: 1,
+            remainingDays: 1,
+            cancellationReason: 1,
+            refundId: 1,
+            refundAmount: 1,
+          },
+        },
+      ])
+      .exec();
+
+    return subscriptions.map((sub) => this.calculateSubscriptionDetails(sub));
   }
-
-  private calculateSubscriptionDetails(subscription: PatientSubscription): PatientSubscription {
-    const endDate = moment(subscription.endDate);
-    const now = moment();
-    subscription.remainingDays = Math.max(0, endDate.diff(now, 'days'));
-
-    if (subscription.appointmentsLeft <= 0 || endDate.isBefore(now)) {
-      subscription.status = 'expired';
-    }
-
-    subscription.appointmentsLeft = Math.max(0, subscription.appointmentsLeft);
-    return subscription;
+  async find(query: FilterQuery<PatientSubscription>): Promise<PatientSubscription[]> {
+    const subscriptions = await this.model.find(query).exec();
+    return subscriptions.map((sub) => sub.toObject() as PatientSubscription);
   }
 }

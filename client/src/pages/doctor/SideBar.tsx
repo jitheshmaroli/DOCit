@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
+import ROUTES from '../../constants/routeConstants';
 
 interface DoctorSidebarProps {
   activePage: string;
@@ -26,7 +27,7 @@ const Sidebar: React.FC<DoctorSidebarProps> = ({ activePage, onClose }) => {
     <aside className="w-64 h-full bg-white/10 backdrop-blur-lg border-r border-white/20 flex flex-col shadow-xl">
       <nav className="flex-1 pt-8 px-4 space-y-6">
         <Link
-          to="/doctor/dashboard"
+          to={ROUTES.DOCTOR.DASHBOARD}
           className={`flex items-center gap-3 py-2 px-4 ${isActive('dashboard')} transition-all duration-300`}
           onClick={onClose}
         >
@@ -36,7 +37,7 @@ const Sidebar: React.FC<DoctorSidebarProps> = ({ activePage, onClose }) => {
           <span className="text-[16px]">Dashboard</span>
         </Link>
         <Link
-          to="/doctor/messages"
+          to={ROUTES.DOCTOR.MESSAGES}
           className={`flex items-center gap-3 py-2 px-4 ${isActive('messages')} transition-all duration-300`}
           onClick={onClose}
         >
@@ -46,7 +47,7 @@ const Sidebar: React.FC<DoctorSidebarProps> = ({ activePage, onClose }) => {
           <span className="text-[16px]">Messages</span>
         </Link>
         <Link
-          to="/doctor/appointments"
+          to={ROUTES.DOCTOR.APPOINTMENTS}
           className={`flex items-center gap-3 py-2 px-4 ${isActive('appointments')} transition-all duration-300`}
           onClick={onClose}
         >
@@ -56,7 +57,7 @@ const Sidebar: React.FC<DoctorSidebarProps> = ({ activePage, onClose }) => {
           <span className="text-[16px]">Appointments</span>
         </Link>
         <Link
-          to="/doctor/patients"
+          to={ROUTES.DOCTOR.PATIENTS}
           className={`flex items-center gap-3 py-2 px-4 ${isActive('patients')} transition-all duration-300`}
           onClick={onClose}
         >
@@ -66,7 +67,7 @@ const Sidebar: React.FC<DoctorSidebarProps> = ({ activePage, onClose }) => {
           <span className="text-[16px]">Patients</span>
         </Link>
         <Link
-          to="/doctor/availability"
+          to={ROUTES.DOCTOR.AVAILABILITY}
           className={`flex items-center gap-3 py-2 px-4 ${isActive('availability')} transition-all duration-300`}
           onClick={onClose}
         >
@@ -76,7 +77,7 @@ const Sidebar: React.FC<DoctorSidebarProps> = ({ activePage, onClose }) => {
           <span className="text-[16px]">Availability</span>
         </Link>
         <Link
-          to="/doctor/plans"
+          to={ROUTES.DOCTOR.PLANS}
           className={`flex items-center gap-3 py-2 px-4 ${isActive('plans')} transition-all duration-300`}
           onClick={onClose}
         >
@@ -86,7 +87,7 @@ const Sidebar: React.FC<DoctorSidebarProps> = ({ activePage, onClose }) => {
           <span className="text-[16px]">Plans</span>
         </Link>
         <Link
-          to="/doctor/profile"
+          to={ROUTES.DOCTOR.PROFILE}
           className={`flex items-center gap-3 py-2 px-4 ${isActive('profile')} transition-all duration-300`}
           onClick={onClose}
         >

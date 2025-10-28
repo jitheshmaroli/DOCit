@@ -1,8 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import {
   completeAppointmentThunk,
@@ -10,7 +8,6 @@ import {
 } from '../../redux/thunks/doctorThunk';
 import { DateUtils } from '../../utils/DateUtils';
 import { MessageSquare, Video } from 'lucide-react';
-import api from '../../services/api';
 import VideoCallModal from '../../components/VideoCallModal';
 import CancelAppointmentModal from '../../components/CancelAppointmentModal';
 import { useSocket } from '../../hooks/useSocket';
@@ -26,6 +23,7 @@ import {
   FormErrors,
   Medication,
 } from '../../types/appointmentTypes';
+import { showError, showInfo, showSuccess } from '../../utils/toastConfig';
 
 const DoctorAppointmentDetails: React.FC = () => {
   const { appointmentId } = useParams<{ appointmentId: string }>();
@@ -78,7 +76,7 @@ const DoctorAppointmentDetails: React.FC = () => {
           setNotes(appointmentData.prescriptionId.notes || '');
         }
       } catch {
-        toast.error('Failed to fetch appointment details');
+        showError('Failed to fetch appointment details');
       } finally {
         setLoading(false);
       }
@@ -102,21 +100,20 @@ const DoctorAppointmentDetails: React.FC = () => {
           });
           setIsVideoCallOpen(true);
           setIsCaller(false);
-          toast.info(`Incoming call from ${data.callerRole}`);
+          showInfo(`Incoming call from ${data.callerRole}`);
         }
       },
       onCallAccepted: (data: { appointmentId: string; acceptorId: string }) => {
         if (data.appointmentId === appointmentId) {
           setIsVideoCallOpen(true);
           setIsCaller(true);
-          toast.success('Call accepted');
         }
       },
       onCallRejected: (data: { appointmentId: string; rejectorId: string }) => {
         if (data.appointmentId === appointmentId) {
           setIsVideoCallOpen(false);
           setCallerInfo(undefined);
-          toast.info('Call rejected');
+          showInfo('Call rejected');
         }
       },
     };
@@ -162,7 +159,7 @@ const DoctorAppointmentDetails: React.FC = () => {
 
   const handleStartVideoCall = async () => {
     if (!appointment || !appointment.patientId._id || !user?._id) {
-      toast.error(
+      showError(
         'Cannot start video call: Missing appointment or patient information'
       );
       return;
@@ -174,17 +171,14 @@ const DoctorAppointmentDetails: React.FC = () => {
       });
       setIsVideoCallOpen(true);
       setIsCaller(true);
-    } catch (error) {
-      console.error('Failed to initiate video call:', error);
-      toast.error('Failed to start video call');
+    } catch {
+      showError('Failed to start video call');
     }
   };
 
   const handleOpenChat = () => {
     if (appointment?.patientId._id) {
       navigate(`/doctor/messages?thread=${appointment.patientId._id}`);
-    } else {
-      toast.error('Cannot open chat: Patient information missing');
     }
   };
 
@@ -256,58 +250,51 @@ const DoctorAppointmentDetails: React.FC = () => {
 
   const handleSubmitPrescription = async () => {
     if (!validateForm()) {
-      toast.error('Please fix all form errors');
+      showError('Please fix all form errors');
       return;
     }
     if (!appointment || !user?._id) return;
-    try {
-      const prescription = { medications, notes: notes.trim() || undefined };
-      await dispatch(
-        completeAppointmentThunk({
-          appointmentId: appointment._id,
-          prescription,
-        })
-      ).unwrap();
-      toast.success('Prescription created successfully');
-      const response = await api.get(
-        `/api/doctors/appointments/${appointmentId}`
-      );
-      const appointmentData = response.data;
-      if (appointmentData.prescriptionId) {
-        appointmentData.prescription = {
-          medications: appointmentData.prescriptionId.medications.map(
-            (med: any) => ({
-              name: med.name,
-              dosage: med.dosage,
-              frequency: med.frequency,
-              duration: med.duration,
-            })
-          ),
-          notes: appointmentData.prescriptionId.notes,
-          pdfUrl: appointmentData.prescriptionId.pdfUrl,
-        };
-      }
-      setAppointment(appointmentData);
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to create prescription');
+    const prescription = { medications, notes: notes.trim() || undefined };
+    await dispatch(
+      completeAppointmentThunk({
+        appointmentId: appointment._id,
+        prescription,
+      })
+    ).unwrap();
+    const appointmentData = await getAppointmentById(appointmentId!);
+    if (appointmentData.prescriptionId) {
+      appointmentData.prescription = {
+        medications: appointmentData.prescriptionId.medications.map(
+          (med: any) => ({
+            name: med.name,
+            dosage: med.dosage,
+            frequency: med.frequency,
+            duration: med.duration,
+          })
+        ),
+        notes: appointmentData.prescriptionId.notes,
+        pdfUrl: appointmentData.prescriptionId.pdfUrl,
+      };
     }
+    showSuccess('Prescription created successfully');
+    setAppointment(appointmentData);
   };
 
   const handleCancelAppointment = async (cancellationReason: string) => {
     if (!appointmentId || !user?._id) {
-      toast.error('User not authenticated');
+      showError('User not authenticated');
       return;
     }
     try {
       await dispatch(
         cancelAppointmentThunk({ appointmentId, cancellationReason })
       ).unwrap();
-      toast.success('Appointment cancelled successfully');
+      showSuccess('Appointment cancelled successfully');
       setAppointment((prev) =>
         prev ? { ...prev, status: 'cancelled', cancellationReason } : prev
       );
     } catch {
-      toast.error('Failed to cancel appointment');
+      showError('Failed to cancel appointment');
     }
   };
 
@@ -344,7 +331,6 @@ const DoctorAppointmentDetails: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 py-8">
-      <ToastContainer position="top-right" autoClose={3000} theme="dark" />
       <VideoCallModal
         isOpen={isVideoCallOpen}
         onClose={() => {

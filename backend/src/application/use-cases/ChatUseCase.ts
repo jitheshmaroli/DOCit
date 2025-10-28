@@ -35,9 +35,9 @@ export class ChatUseCase implements IChatUseCase {
       receiverId: message.receiverId,
       message: message.message,
     });
-    this._validatorService.validateIdFormat(message.senderName);
-    this._validatorService.validateIdFormat(message.receiverId);
-    this._validatorService.validateLength(message.message, 1, 2000);
+    // this._validatorService.validateName(message.senderName);
+    // this._validatorService.validateName(message.receiverId);
+    // this._validatorService.validateLength(message.message, 1, 2000);
 
     const sender =
       (await this._patientRepository.findById(message.senderName)) ||

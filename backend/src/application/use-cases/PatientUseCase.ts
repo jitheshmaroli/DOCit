@@ -160,9 +160,12 @@ export class PatientUseCase implements IPatientUseCase {
     this._validatorService.validateIdFormat(doctorId);
 
     const distinctPatientIds = await this._appointmentRepository.getDistinctPatientIdsByDoctor(doctorId);
-    const extendedParams = { ...params, ids: distinctPatientIds };
-    const result = await this._patientRepository.findAllWithQuery(extendedParams);
-    return PatientMapper.toPaginatedResponseDTO(result.data.map(PatientMapper.toDTO), result.totalItems, params);
+    if (distinctPatientIds.length > 0) {
+      const extendedParams = { ...params, ids: distinctPatientIds };
+      const result = await this._patientRepository.findAllWithQuery(extendedParams);
+      return PatientMapper.toPaginatedResponseDTO(result.data.map(PatientMapper.toDTO), result.totalItems, params);
+    }
+    return PatientMapper.toPaginatedResponseDTO([], 0, params);
   }
 
   async getPatientActiveSubscription(patientId: string, doctorId: string): Promise<PatientSubscriptionDTO | null> {
@@ -183,7 +186,7 @@ export class PatientUseCase implements IPatientUseCase {
     this._validatorService.validateRequiredFields({ doctorId });
     this._validatorService.validateIdFormat(doctorId);
 
-    const activeSubscriptions = await this._patientSubscriptionRepository.findActiveSubscriptions();
+    const activeSubscriptions = await this._patientSubscriptionRepository.findAll();
     const patientIds: string[] = [];
     const patientSubscriptions: { [patientId: string]: PatientSubscription[] } = {};
 

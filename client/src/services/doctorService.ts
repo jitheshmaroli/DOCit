@@ -69,16 +69,16 @@ export const setAvailability = async ({
 
 export const removeSlot = async ({
   availabilityId,
-  slotIndex,
+  slotId,
   reason,
 }: {
   availabilityId: string;
-  slotIndex: number;
+  slotId: string;
   reason?: string;
 }) => {
   const response = await api.post(ROUTES.API.DOCTOR.REMOVE_SLOT, {
     availabilityId,
-    slotIndex,
+    slotId,
     reason,
   });
   return response.data;
@@ -86,20 +86,20 @@ export const removeSlot = async ({
 
 export const updateSlot = async ({
   availabilityId,
-  slotIndex,
+  slotId,
   startTime,
   endTime,
   reason,
 }: {
   availabilityId: string;
-  slotIndex: number;
+  slotId: string;
   startTime: string;
   endTime: string;
   reason?: string;
 }) => {
   const response = await api.patch(ROUTES.API.DOCTOR.UPDATE_SLOT, {
     availabilityId,
-    slotIndex,
+    slotId,
     startTime,
     endTime,
     reason,
@@ -193,8 +193,10 @@ export const fetchSpecialities = async () => {
   return response.data;
 };
 
-export const getDashboardStats = async () => {
-  const response = await api.get(ROUTES.API.DOCTOR.DASHBOARD_STATS);
+export const getDashboardStats = async (query: QueryParams = {}) => {
+  const response = await api.get(ROUTES.API.DOCTOR.DASHBOARD_STATS, {
+    params: query,
+  });
   return response.data;
 };
 
@@ -244,7 +246,7 @@ export const fetchDashboardData = async ({
       plansResponse,
       reportsResponse,
     ] = await Promise.all([
-      getDashboardStats(),
+      getDashboardStats({ page, limit }),
       getAppointments(page, limit),
       getSubscriptionPlans({ page, limit }),
       getReports({
@@ -258,18 +260,16 @@ export const fetchDashboardData = async ({
       }),
     ]);
 
-    const plans: Plan[] = plansResponse.data.map(
-      (plan: Plan) => ({
-        id: plan.id,
-        name: plan.name,
-        subscribers:
-          statsResponse.planWiseRevenue.find(
-            (p: PlanWiseRevenue) => p.planId === plan.id
-          )?.subscribers || 0,
-        status: plan.status,
-        expired: plan.status === 'rejected',
-      })
-    );
+    const plans: Plan[] = plansResponse.data.map((plan: Plan) => ({
+      id: plan.id,
+      name: plan.name,
+      subscribers:
+        statsResponse.planWiseRevenue.find(
+          (p: PlanWiseRevenue) => p.planId.toString() === plan.id
+        )?.subscribers || 0,
+      status: plan.status,
+      expired: plan.status === 'expired',
+    }));
 
     return {
       stats: statsResponse,

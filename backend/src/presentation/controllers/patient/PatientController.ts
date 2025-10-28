@@ -57,6 +57,7 @@ export class PatientController {
           throw new ValidationError('Not eligible for free booking');
         }
       }
+
       const appointment = await this._appointmentUseCase.bookAppointment({
         patientId,
         doctorId,
@@ -124,6 +125,24 @@ export class PatientController {
         paymentIntentId,
       });
       res.status(HttpStatusCode.CREATED).json(subscription);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // New method for resuming pending payment
+  async resumePendingPayment(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const patientId = req.user?.id;
+      if (!patientId) {
+        throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
+      }
+      const { subscriptionId } = req.params;
+      if (!subscriptionId) {
+        throw new ValidationError(ResponseMessages.BAD_REQUEST);
+      }
+      const response = await this._subscriptionPlanUseCase.resumePendingSubscription(patientId, subscriptionId);
+      res.status(HttpStatusCode.OK).json(response);
     } catch (error) {
       next(error);
     }
@@ -207,11 +226,6 @@ export class PatientController {
   async getDoctor(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const { doctorId } = req.params;
-
-      if (!mongoose.Types.ObjectId.isValid(doctorId)) {
-        res.status(HttpStatusCode.BAD_REQUEST).json({ message: ResponseMessages.BAD_REQUEST });
-        return;
-      }
 
       const doctor = await this._doctorUseCase.getDoctor(doctorId);
       if (!doctor) {

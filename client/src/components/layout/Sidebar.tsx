@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 import { X } from 'lucide-react';
+import ROUTES from '../../constants/routeConstants';
 
 interface SidebarProps {
   activePage: string;
@@ -42,25 +43,25 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, isOpen }) => {
       <nav className="flex-1 py-4">
         <ul>
           {[
-            { to: '/admin/dashboard', label: 'Dashboard', icon: '📊' },
+            { to:ROUTES.ADMIN.DASHBOARD, label: 'Dashboard', icon: '📊' },
             {
-              to: '/admin/manage-patients',
+              to:ROUTES.ADMIN.MANAGE_PATIENTS,
               label: 'Manage Patients',
               icon: '👥',
             },
             {
-              to: '/admin/manage-doctors',
+              to:ROUTES.ADMIN.MANAGE_DOCTORS,
               label: 'Manage Doctors',
               icon: '👨‍⚕️',
             },
-            { to: '/admin/specialities', label: 'Specialities', icon: '🩺' },
+            { to:ROUTES.ADMIN.SPECIALITIES, label: 'Specialities', icon: '🩺' },
             {
-              to: '/admin/appointments',
+              to:ROUTES.ADMIN.APPOINTMENTS,
               label: 'View Appointments',
               icon: '📅',
             },
             {
-              to: '/admin/plan-management',
+              to:ROUTES.ADMIN.PLAN_MANAGEMENT,
               label: 'Plan Management',
               icon: '💼',
             },

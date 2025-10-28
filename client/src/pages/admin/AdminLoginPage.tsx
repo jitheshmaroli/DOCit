@@ -6,6 +6,7 @@ import { resetAuthState } from '../../redux/slices/authSlice';
 import { RootState } from '../../redux/store';
 import useAuth from '../../hooks/useAuth';
 import { validateEmail, validateLoginPassword } from '../../utils/validation';
+import ROUTES from '../../constants/routeConstants';
 
 const AdminLoginPage: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -37,7 +38,7 @@ const AdminLoginPage: React.FC = () => {
 
   useEffect(() => {
     if (user && user.role === 'admin') {
-      navigate('/admin/dashboard');
+      navigate(ROUTES.ADMIN.DASHBOARD);
     }
   }, [user, navigate]);
 

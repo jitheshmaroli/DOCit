@@ -19,6 +19,10 @@ export interface AdminDashboardStatsResponseDTO {
   topSubscribers: Array<{ patientId: string; patientName: string; subscriptionCount: number; totalSpent: number }>;
   topPatients: Array<{ patientId: string; patientName: string; appointmentCount: number }>;
   topDoctors: Array<{ doctorId: string; doctorName: string; subscriberCount: number }>;
+  cancelledStats: {
+    count: number;
+    totalRefunded: number;
+  };
 }
 
 export interface DoctorDashboardStatsResponseDTO {
@@ -35,4 +39,9 @@ export interface DoctorDashboardStatsResponseDTO {
     appointmentsUsed: number;
     appointmentsLeft: number;
   }>;
+  totalPlans: number;
+  cancelledStats: {
+    count: number;
+    totalRefunded: number;
+  };
 }

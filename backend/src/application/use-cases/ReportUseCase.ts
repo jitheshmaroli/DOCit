@@ -24,6 +24,8 @@ import { Appointment } from '../../core/entities/Appointment';
 import { Doctor } from '../../core/entities/Doctor';
 import { Patient } from '../../core/entities/Patient';
 import { ReportMapper } from '../mappers/ReportMapper';
+import logger from '../../utils/logger';
+import { QueryParams } from '../../types/authTypes';
 
 export class ReportUseCase implements IReportUseCase {
   constructor(
@@ -43,7 +45,7 @@ export class ReportUseCase implements IReportUseCase {
     const normalizedStartDate = startDate ? DateUtils.startOfDayUTC(new Date(startDate)) : undefined;
     const normalizedEndDate = endDate ? DateUtils.endOfDayUTC(new Date(endDate)) : undefined;
 
-    const subscriptions = await this._patientSubscriptionRepository.findActiveSubscriptions();
+    const subscriptions = await this._patientSubscriptionRepository.findNonCancelledSubscriptions();
     const appointments = await this._appointmentRepository.findAllWithQuery({});
 
     const reportData = this._generateReportData(
@@ -75,13 +77,14 @@ export class ReportUseCase implements IReportUseCase {
     const normalizedStartDate = startDate ? DateUtils.startOfDayUTC(new Date(startDate)) : undefined;
     const normalizedEndDate = endDate ? DateUtils.endOfDayUTC(new Date(endDate)) : undefined;
 
-    const subscriptions = await this._patientSubscriptionRepository.findActiveSubscriptions();
+    const subscriptions = await this._patientSubscriptionRepository.findNonCancelledSubscriptions();
+
     const doctorSubscriptions = await Promise.all(
       subscriptions.map(async (sub) => {
-        const planId = typeof sub.planId === 'string' ? sub.planId : sub.planId;
+        const planId = sub.planId?.toString();
         if (!planId) return null;
         const plan = await this._subscriptionPlanRepository.findById(planId);
-        return plan?.doctorId === doctorId ? sub : null;
+        return plan?.doctorId?.toString() === doctorId ? sub : null;
       })
     ).then((results) => results.filter((sub): sub is PatientSubscription => sub !== null));
 
@@ -101,16 +104,22 @@ export class ReportUseCase implements IReportUseCase {
   async getAdminDashboardStats(): Promise<AdminDashboardStatsResponseDTO> {
     const [plans, subscriptions, appointments, doctors, patients] = await Promise.all([
       this._subscriptionPlanRepository.findAllWithQuery({}),
-      this._patientSubscriptionRepository.findActiveSubscriptions(),
+      this._patientSubscriptionRepository.findNonCancelledSubscriptions(),
       this._appointmentRepository.findAllWithQuery({}),
       this._doctorRepository.findAllWithQuery({}),
       this._patientRepository.findAllWithQuery({}),
     ]);
+    const cancelledSubscriptions = await this._patientSubscriptionRepository.findCancelledSubscriptions();
 
     const activePlans = plans.data.filter((plan: SubscriptionPlan) => plan.status === 'approved').length;
     const totalRevenue = subscriptions.reduce((sum: number, sub: PatientSubscription) => sum + sub.price, 0);
 
-    // Calculate top subscribers
+    const cancelledCount = cancelledSubscriptions.length;
+    const totalRefunded = cancelledSubscriptions.reduce(
+      (sum: number, sub: PatientSubscription) => sum + (sub.refundAmount || 0),
+      0
+    );
+
     const subscriptionCounts = subscriptions.reduce(
       (acc: Record<string, { count: number; totalSpent: number; patientName: string }>, sub: PatientSubscription) => {
         const patientId = sub.patientId;
@@ -146,7 +155,6 @@ export class ReportUseCase implements IReportUseCase {
       .sort((a, b) => b.subscriptionCount - a.subscriptionCount || b.totalSpent - a.totalSpent)
       .slice(0, 5);
 
-    // Calculate top patients by appointment count
     const appointmentCounts = appointments.data.reduce(
       (acc: Record<string, { count: number; patientName: string }>, appt: Appointment) => {
         const patientId = appt.patientId;
@@ -154,8 +162,8 @@ export class ReportUseCase implements IReportUseCase {
           return acc;
         }
         const patientIdStr = patientId.toString();
-        const patientName =
-          patients.data.find((p: Patient) => p._id && p._id.toString() === patientIdStr)?.name || 'Unknown';
+        const patient = patients.data.find((p: Patient) => p._id && p._id.toString() === patientIdStr);
+        const patientName = patient?.name || 'Unknown';
 
         if (!acc[patientIdStr]) {
           acc[patientIdStr] = { count: 0, patientName: patientName };
@@ -175,10 +183,9 @@ export class ReportUseCase implements IReportUseCase {
       .sort((a, b) => b.appointmentCount - a.appointmentCount)
       .slice(0, 5);
 
-    // Calculate top doctors by subscriber count
     const doctorSubscriberCounts = subscriptions.reduce(
       (acc: Record<string, { count: number; doctorName: string }>, sub: PatientSubscription) => {
-        const planId = typeof sub.planId === 'string' ? sub.planId : sub.planId;
+        const planId = sub.planId?.toString();
         if (!planId) {
           return acc;
         }
@@ -189,7 +196,6 @@ export class ReportUseCase implements IReportUseCase {
         const doctorId = plan.doctorId;
         if (!doctorId) {
           throw new NotFoundError(`Invalid doctorId in plan: ${plan._id || 'unknown'}`);
-          return acc;
         }
         const doctorIdStr = doctorId.toString();
         if (!acc[doctorIdStr]) {
@@ -226,12 +232,16 @@ export class ReportUseCase implements IReportUseCase {
       topSubscribers,
       topPatients,
       topDoctors,
+      cancelledStats: {
+        count: cancelledCount,
+        totalRefunded,
+      },
     };
 
     return ReportMapper.toAdminDashboardStatsResponseDTO(stats);
   }
 
-  async getDoctorDashboardStats(doctorId: string): Promise<DoctorDashboardStatsResponseDTO> {
+  async getDoctorDashboardStats(doctorId: string, query: QueryParams = {}): Promise<DoctorDashboardStatsResponseDTO> {
     if (!doctorId) {
       throw new ValidationError('Doctor ID is required');
     }
@@ -241,14 +251,26 @@ export class ReportUseCase implements IReportUseCase {
       throw new ValidationError('Doctor not found');
     }
 
-    const plans = await this._subscriptionPlanRepository.findApprovedByDoctor(doctorId);
-    const activePlans = plans.filter((plan) => plan.status === 'approved').length;
+    const plansResponse = await this._subscriptionPlanRepository.findByDoctor(doctorId, {
+      ...query,
+      status: 'approved',
+    });
+    const plans = plansResponse.data;
+    const totalPlans = plansResponse.totalItems;
 
-    const subscriptions = await this._patientSubscriptionRepository.findActiveSubscriptions();
+    const subscriptions = await this._patientSubscriptionRepository.findNonCancelledSubscriptions();
+    const cancelledSubscriptions = await this._patientSubscriptionRepository.findCancelledSubscriptions();
+
     const doctorSubscriptions = subscriptions.filter((sub) => {
-      const planId = typeof sub.planId === 'string' ? sub.planId : sub.planId;
-      const plan = plans.find((p) => p._id?.toString() === planId);
-      return plan?.doctorId === doctorId && sub.status === 'active';
+      const planId = sub.planId;
+      const plan = plans.find((p) => p._id?.toString() === planId?.toString());
+      return plan?.doctorId?.toString() === doctorId;
+    });
+
+    const doctorCancelled = cancelledSubscriptions.filter((sub) => {
+      const planId = sub.planId;
+      const plan = plans.find((p) => p._id?.toString() === planId?.toString());
+      return plan?.doctorId?.toString() === doctorId;
     });
 
     const totalSubscribers = doctorSubscriptions.length;
@@ -256,7 +278,7 @@ export class ReportUseCase implements IReportUseCase {
     const planWiseRevenue = await Promise.all(
       plans.map(async (plan) => {
         const planSubscriptions = doctorSubscriptions.filter((sub) => {
-          const planId = typeof sub.planId === 'string' ? sub.planId : sub.planId;
+          const planId = sub.planId?.toString();
           return planId === plan._id?.toString();
         });
         const subscribers = planSubscriptions.length;
@@ -287,13 +309,24 @@ export class ReportUseCase implements IReportUseCase {
 
     const totalRevenue = planWiseRevenue.reduce((sum, plan) => sum + plan.revenue, 0);
 
+    const cancelledCount = doctorCancelled.length;
+    const totalRefunded = doctorCancelled.reduce(
+      (sum: number, sub: PatientSubscription) => sum + (sub.refundAmount || 0),
+      0
+    );
+
     const stats = {
-      activePlans,
+      activePlans: totalPlans,
       totalSubscribers,
       appointmentsThroughPlans,
       freeAppointments,
       totalRevenue,
       planWiseRevenue,
+      totalPlans,
+      cancelledStats: {
+        count: cancelledCount,
+        totalRefunded,
+      },
     };
 
     return ReportMapper.toDoctorDashboardStatsResponseDTO(stats);
@@ -359,7 +392,7 @@ export class ReportUseCase implements IReportUseCase {
     endDate?: Date
   ): MonthlyReportData[] {
     const monthlyMap: Record<string, { appointments: number; revenue: number }> = {};
-
+    logger.debug(subscriptions);
     subscriptions.forEach((sub) => {
       const month = DateUtils.startOfMonthUTC(sub.createdAt!).toISOString().slice(0, 7);
       if (!monthlyMap[month]) {

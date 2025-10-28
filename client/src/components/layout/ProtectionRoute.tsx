@@ -5,6 +5,7 @@ import { RootState } from '../../redux/store';
 import { useEffect } from 'react';
 import { useAppDispatch } from '../../redux/hooks';
 import { checkAuthThunk } from '../../redux/thunks/authThunks';
+import ROUTES from '../../constants/routeConstants';
 
 interface ProtectedRouteProps {
   roles?: UserRole[];
@@ -14,8 +15,8 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute = ({
   roles,
-  redirectUnauthenticated = '/login',
-  redirectUnauthorized = '/unauthorized',
+  redirectUnauthenticated = ROUTES.PUBLIC.LOGIN,
+  redirectUnauthorized =  ROUTES.PUBLIC.UNAUTHORIZED,
 }: ProtectedRouteProps) => {
   const location = useLocation();
   const dispatch = useAppDispatch();

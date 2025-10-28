@@ -5,9 +5,9 @@ export interface PatientSubscription {
   patientId?: string;
   planId?: string;
   planDetails?: SubscriptionPlan;
-  startDate: Date;
-  endDate: Date;
-  status: 'active' | 'expired' | 'cancelled';
+  startDate?: Date;
+  endDate?: Date;
+  status: 'active' | 'expired' | 'cancelled' | 'pending';
   price: number;
   appointmentsUsed: number;
   appointmentsLeft: number;

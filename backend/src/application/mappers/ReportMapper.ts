@@ -41,13 +41,18 @@ export class ReportMapper {
       freeAppointments: stats.freeAppointments,
       totalRevenue: stats.totalRevenue,
       planWiseRevenue: stats.planWiseRevenue.map((plan) => ({
-        planId: plan.planId,
+        planId: plan.planId.toString(),
         planName: plan.planName,
         subscribers: plan.subscribers,
         revenue: plan.revenue,
         appointmentsUsed: plan.appointmentsUsed,
         appointmentsLeft: plan.appointmentsLeft,
       })),
+      totalPlans: stats.totalPlans,
+      cancelledStats: {
+        count: stats.cancelledStats.count,
+        totalRefunded: stats.cancelledStats.totalRefunded,
+      },
     };
   }
 
@@ -74,6 +79,10 @@ export class ReportMapper {
         doctorName: doctor.doctorName,
         subscriberCount: doctor.subscriberCount,
       })),
+      cancelledStats: {
+        count: stats.cancelledStats.count,
+        totalRefunded: stats.cancelledStats.totalRefunded,
+      },
     };
   }
 }

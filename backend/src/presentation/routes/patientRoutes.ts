@@ -53,6 +53,11 @@ router.delete(
   patientAuth,
   patientController.cancelSubscription.bind(patientController)
 );
+router.get(
+  '/subscriptions/:subscriptionId/resume-payment',
+  patientAuth,
+  patientController.resumePendingPayment.bind(patientController)
+);
 
 //invoice route
 router.get('/invoice/:paymentIntentId', patientAuth, patientController.getInvoiceDetails.bind(patientController));

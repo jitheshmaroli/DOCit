@@ -92,6 +92,7 @@ export class AppointmentUseCase implements IAppointmentUseCase {
         dto.patientId,
         dto.doctorId
       );
+
       if (!activeSubscription) {
         throw new ValidationError('A subscription is required for non-free bookings');
       }
@@ -184,7 +185,6 @@ export class AppointmentUseCase implements IAppointmentUseCase {
       throw new ValidationError('Unauthorized: Doctor ID does not match appointment');
     }
 
-    // Ensure the appointment is in the future
     const appointmentDateTime = new Date(
       `${new Date(appointment.date).toISOString().split('T')[0]}T${appointment.startTime}:00Z`
     );
@@ -439,6 +439,15 @@ export class AppointmentUseCase implements IAppointmentUseCase {
   }
 
   async getAllAppointments(params: QueryParams): Promise<GetAppointmentsResponseDTO> {
+    // Validate query params
+    this._validatorService.validatePositiveInteger(params.page || 1, 1);
+    this._validatorService.validatePositiveInteger(params.limit || 10, 1);
+    if (params.search) this._validatorService.validateLength(params.search, 1, 100);
+    if (params.sortBy)
+      this._validatorService.validateEnum(params.sortBy, ['createdAt', 'date', 'bookingTime', 'startTime']);
+    if (params.sortOrder) this._validatorService.validateEnum(params.sortOrder, ['asc', 'desc']);
+    if (params.status) this._validatorService.validateEnum(params.status, Object.values(AppointmentStatus));
+
     const result = await this._appointmentRepository.findAllWithQuery(params);
     return {
       data: result.data.map((appointment) => AppointmentMapper.toAppointmentDTO(appointment)),

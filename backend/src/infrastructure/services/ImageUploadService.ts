@@ -1,6 +1,7 @@
 import { v2 as cloudinary } from 'cloudinary';
 import { env } from '../../config/env';
 import { IImageUploadService } from '../../core/interfaces/services/IImageUploadService';
+import { MAX_FILE_SIZE_BYTES } from '../../core/constants/AppConstants';
 
 export class ImageUploadService implements IImageUploadService {
   constructor() {
@@ -45,9 +46,8 @@ export class ImageUploadService implements IImageUploadService {
       }
 
       // Validate file size
-      const maxSizeBytes = Number(env.MAX_FILE_SIZE_BYTES) || 10 * 1024 * 1024; // Default to 10MB
-      if (file.size > maxSizeBytes) {
-        throw new Error(`File size exceeds limit of ${maxSizeBytes / (1024 * 1024)}MB`);
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        throw new Error(`File size exceeds limit of ${MAX_FILE_SIZE_BYTES / (1024 * 1024)}MB`);
       }
 
       const accessMode = folder === 'doctor-proofs' ? 'authenticated' : 'public';

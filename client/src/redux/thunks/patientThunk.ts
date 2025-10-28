@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import {
   getDoctorAvailability,
@@ -11,6 +12,8 @@ import {
   getPatientSubscriptions,
   getDoctor,
   getAppointmentsBySubscription,
+  confirmSubscription,
+  resumePendingSubscription, // New import
 } from '../../services/patientService';
 import {
   GetDoctorAvailabilityPayload,
@@ -132,9 +135,6 @@ export const getPatientSubscriptionsThunk = createAsyncThunk(
       const formattedSubscriptions = await Promise.all(
         subscriptions.map(async (subscription: PatientSubscription) => {
           if (!subscription.planId || !subscription?.planDetails?.doctorId) {
-            console.warn(
-              `Skipping doctor fetch for subscription ${subscription._id}: missing planId or doctorId`
-            );
             return {
               _id: subscription._id,
               plan: {
@@ -193,6 +193,18 @@ export const getPatientSubscriptionsThunk = createAsyncThunk(
           ? error.message
           : 'Failed to fetch patient subscriptions';
       return rejectWithValue(errorMessage);
+    }
+  }
+);
+
+export const resumePendingSubscriptionThunk = createAsyncThunk(
+  'patient/resumePendingSubscription',
+  async (subscriptionId: string, { rejectWithValue }) => {
+    try {
+      const response = await resumePendingSubscription(subscriptionId);
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.error || 'Failed to resume payment');
     }
   }
 );
@@ -268,6 +280,20 @@ export const cancelAppointmentThunk = createAsyncThunk<
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to cancel appointment';
       return rejectWithValue(errorMessage);
+    }
+  }
+);
+
+export const confirmSubscriptionThunk = createAsyncThunk(
+  'patient/confirmSubscription',
+  async (
+    { planId, paymentIntentId }: { planId: string; paymentIntentId: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      return await confirmSubscription(planId, paymentIntentId);
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to confirm subscription');
     }
   }
 );

@@ -26,8 +26,6 @@ export const getDoctors = async () => {
 
 export const getDoctor = async (doctorId: string): Promise<Doctor | null> => {
   try {
-    console.log('doctorid thunk:', doctorId);
-
     const response = await api.get(
       ROUTES.API.PATIENT.DOCTOR_BY_ID.replace(':doctorId', doctorId)
     );
@@ -226,6 +224,24 @@ export const confirmSubscription = async (
   }
 };
 
+export const resumePendingSubscription = async (subscriptionId: string) => {
+  try {
+    const response = await api.get(
+      ROUTES.API.PATIENT.SUBSCRIPTIONS.replace(
+        ':subscriptionId',
+        subscriptionId
+      )
+    );
+    return response.data;
+  } catch (error) {
+    const axiosError = error as AxiosError<PatientApiError>;
+    throw new Error(
+      axiosError.response?.data.message ||
+        'Failed to resume pending subscription'
+    );
+  }
+};
+
 export const cancelAppointment = async (
   appointmentId: string,
   cancellationReason?: string
@@ -338,4 +354,16 @@ export const getAppointmentsBySubscription = async (
     ),
     { params }
   );
+};
+
+export const fetchSpecialities = async () => {
+  try {
+    const response = await api.get(ROUTES.API.PATIENT.SPECIALITIES);
+    return response.data;
+  } catch (error) {
+    const axiosError = error as AxiosError<PatientApiError>;
+    throw new Error(
+      axiosError.response?.data.message || 'Failed to fetch specialities'
+    );
+  }
 };

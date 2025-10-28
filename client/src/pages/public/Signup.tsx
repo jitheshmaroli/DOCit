@@ -508,7 +508,7 @@ const SignupPage: React.FC = () => {
                 onChange={(e) =>
                   setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))
                 }
-                className="w-full p-3 bg-[#0F828C]/10 border border-[#78B9B5]/20 rounded-lg text-[#0F828C] placeholder-[#78B9B5] focus:outline-none focus:ring-2 focus:ring-[#0F828C]"
+                className="w-full p-3 bg-[#0F828C]/10 border border-[#78B9B5]/20 rounded-lg text-white placeholder-[#78B9B5] focus:outline-none focus:ring-2 focus:ring-[#0F828C]"
                 maxLength={6}
                 required
               />

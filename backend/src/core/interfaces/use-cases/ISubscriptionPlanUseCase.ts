@@ -32,8 +32,14 @@ export interface ISubscriptionPlanUseCase {
     patientId: string,
     dto: SubscribeToPlanRequestDTO
   ): Promise<{ clientSecret: string; paymentIntentId: string }>;
+  resumePendingSubscription(
+    patientId: string,
+    subscriptionId: string
+  ): Promise<{ clientSecret: string; planId: string; price: number }>;
   confirmSubscription(patientId: string, dto: ConfirmSubscriptionRequestDTO): Promise<PatientSubscriptionResponseDTO>;
+  handlePaymentSuccess(paymentIntentId: string): Promise<void>;
   cancelSubscription(patientId: string, dto: CancelSubscriptionRequestDTO): Promise<CancelSubscriptionResponseDTO>;
   getPatientSubscriptions(patientId: string): Promise<PatientSubscriptionResponseDTO[]>;
   getPlanSubscriptionCounts(planId: string): Promise<PlanSubscriptionCountsResponseDTO>;
+  notifySubscriptionExpiration(subscriptionId: string): Promise<void>;
 }

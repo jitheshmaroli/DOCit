@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { toast } from 'react-toastify';
 import { useAppDispatch } from '../../redux/hooks';
-import { confirmSubscriptionThunk } from '../../redux/thunks/doctorThunk';
 import {
   PaymentElement,
   useStripe,
   useElements,
 } from '@stripe/react-stripe-js';
 import useAuth from '../../hooks/useAuth';
+import { showSuccess } from '../../utils/toastConfig';
+import { confirmSubscriptionThunk } from '../../redux/thunks/patientThunk';
 
 interface PaymentDetails {
   paymentIntentId: string;
@@ -19,6 +19,7 @@ interface PaymentFormProps {
   price: number;
   onSuccess: (details: PaymentDetails) => void;
   onError: (error: string) => void;
+  isResume?: boolean;
 }
 
 const PaymentForm: React.FC<PaymentFormProps> = ({
@@ -26,6 +27,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
   price,
   onSuccess,
   onError,
+  isResume = false,
 }) => {
   const stripe = useStripe();
   const elements = useElements();
@@ -81,7 +83,11 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         };
 
         onSuccess(paymentDetails);
-        toast.success('Payment successful! Subscribed to plan.');
+        showSuccess(
+          isResume 
+            ? 'Payment completed! Confirming subscription...' 
+            : 'Payment successful! Subscribed to plan.'
+        );
       } else {
         throw new Error('Payment not completed');
       }
@@ -89,7 +95,6 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
       onError(errorMessage);
-      toast.error(`Payment failed: ${errorMessage}`);
     } finally {
       setIsProcessing(false);
     }
@@ -121,7 +126,8 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         disabled={!stripe || isProcessing}
         className="w-full bg-gradient-to-r from-green-600 to-teal-600 text-white py-2 rounded-lg hover:from-green-700 hover:to-teal-700 transition-all duration-300 disabled:opacity-50"
       >
-        {isProcessing ? 'Processing...' : `Pay ₹${price.toFixed(2)}`}
+        {isProcessing ? 'Processing...' : 
+         (isResume ? 'Complete Payment' : `Pay ₹${price.toFixed(2)}`)}
       </button>
     </form>
   );

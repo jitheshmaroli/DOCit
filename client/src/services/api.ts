@@ -53,7 +53,6 @@ api.interceptors.response.use(
         originalRequest.url?.includes(ROUTES.API.AUTH.REFRESH_TOKEN) ||
         originalRequest.url?.includes(ROUTES.API.AUTH.LOGOUT)
       ) {
-        console.error('401 error on auth endpoint:', data?.message);
         return Promise.reject({ message: data?.message, status });
       }
 

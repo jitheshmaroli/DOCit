@@ -273,11 +273,11 @@ export const createSpecialityThunk = createAsyncThunk<
 
 export const updateSpecialityThunk = createAsyncThunk<
   Speciality,
-  { id: string; name: string },
+  { id: string; specialityName: string },
   { rejectValue: string }
->('admin/updateSpeciality', async ({ id, name }, { rejectWithValue }) => {
+>('admin/updateSpeciality', async ({ id, specialityName }, { rejectWithValue }) => {
   try {
-    return await updateSpeciality(id, name);
+    return await updateSpeciality(id, specialityName);
   } catch (error: any) {
     return rejectWithValue(error.message || 'Failed to update speciality');
   }

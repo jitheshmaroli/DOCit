@@ -26,8 +26,8 @@ export interface Appointment {
 }
 
 export interface ExtendedAppointment extends Appointment {
-  patient: Patient;
-  doctor: Doctor;
-  plan: SubscriptionPlan;
-  prescription: Prescription;
+  patient?: Patient;
+  doctor?: Doctor;
+  plan?: SubscriptionPlan;
+  prescription?: Prescription;
 }

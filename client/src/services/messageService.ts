@@ -1,7 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { AxiosError } from 'axios';
 import {
   ChatMessageResponse,
   InboxThreadResponse,
+  Message,
   MessageApiError,
 } from '../types/messageTypes';
 import api from './api';
@@ -43,7 +45,6 @@ export const fetchPartnerDetails = async (userId: string) => {
     return response.data;
   } catch (error) {
     const axiosError = error as AxiosError<MessageApiError>;
-    console.error('Fetch partner details error:', axiosError);
     throw new Error(
       axiosError.response?.data.message || 'Failed to fetch partner details'
     );
@@ -90,24 +91,26 @@ export const sendMessage = async (
   }
 };
 
-export const sendAttachment = async (receiverId: string, file: File) => {
+export const sendAttachment = async (
+  receiverId: string,
+  senderName: string,
+  file: File
+): Promise<Message> => {
+  const formData = new FormData();
+  formData.append('attachment', file);
+  formData.append('receiverId', receiverId);
+  formData.append('senderName', senderName);
+
   try {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('receiverId', receiverId);
-    const response = await api.post<ChatMessageResponse>(
-      ROUTES.API.MESSAGE.SEND_ATTACHMENT,
-      formData,
-      {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      }
-    );
+    const response = await api.post('/api/chat/attachment', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
     return response.data;
-  } catch (error) {
-    const axiosError = error as AxiosError<MessageApiError>;
-    throw new Error(
-      axiosError.response?.data.message || 'Failed to send attachment'
-    );
+  } catch (error: any) {
+    console.error('Send attachment error:', error);
+    throw new Error('Failed to send attachment');
   }
 };
 

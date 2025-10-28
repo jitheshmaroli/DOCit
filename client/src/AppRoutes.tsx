@@ -42,7 +42,6 @@ const AppRoutes = () => {
 
   useEffect(() => {
     const handleLogout = () => {
-      console.log('Handling auth:logout event');
       dispatch(clearUser());
       navigate('/login', { replace: true });
     };
