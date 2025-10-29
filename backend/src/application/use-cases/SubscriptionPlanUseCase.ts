@@ -287,6 +287,17 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
     }
 
     const paymentIntent = await this._stripeService.retrievePaymentIntent(subscription.stripePaymentId);
+
+    if (paymentIntent.status === 'succeeded') {
+      await this.handlePaymentSuccess(subscription.stripePaymentId);
+      const updatedSubscription = await this._patientSubscriptionRepository.findById(subscriptionId);
+      if (updatedSubscription?.status === 'active') {
+        throw new ValidationError(
+          'Subscription has already been paid and activated. Please refresh the page to see the updated status.'
+        );
+      }
+    }
+
     if (paymentIntent.status !== 'requires_payment_method' && paymentIntent.status !== 'requires_confirmation') {
       throw new ValidationError('Payment intent is not pending and cannot be resumed');
     }
@@ -317,10 +328,8 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
     this._validatorService.validateIdFormat(dto.planId);
     this._validatorService.validateLength(dto.paymentIntentId, 1, 100);
 
-    // Retrieve PaymentIntent for safety (webhook handles activation)
     await this._stripeService.retrievePaymentIntent(dto.paymentIntentId);
 
-    // Find subscription by payment intent (created as pending in subscribeToPlan)
     const subscription = await this._patientSubscriptionRepository.findByStripePaymentId(dto.paymentIntentId);
     if (!subscription) {
       throw new NotFoundError('Subscription not found');
@@ -328,17 +337,39 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
     if (subscription.patientId?.toString() !== patientId) {
       throw new ValidationError('Unauthorized to access this subscription');
     }
-    if (subscription.status !== 'active') {
-      throw new ValidationError('Subscription is still pending activation. Please wait a moment and try again.');
+    if (subscription.status === 'active') {
+      return PatientSubscriptionMapper.toDTO(subscription);
     }
 
-    // Verify plan still approved
     const plan = await this._subscriptionPlanRepository.findById(dto.planId);
     if (!plan || plan.status !== 'approved') {
       throw new ValidationError('Plan is no longer approved');
     }
 
-    return PatientSubscriptionMapper.toDTO(subscription);
+    if (subscription.status === 'pending') {
+      const maxWaitTime = 30000;
+      const checkInterval = 1000;
+      let elapsed = 0;
+
+      while (elapsed < maxWaitTime) {
+        await new Promise((resolve) => setTimeout(resolve, checkInterval));
+        elapsed += checkInterval;
+
+        // Check if subscription is now active
+        const updatedSubscription = await this._patientSubscriptionRepository.findByStripePaymentId(
+          dto.paymentIntentId
+        );
+        if (updatedSubscription && updatedSubscription.status === 'active') {
+          return PatientSubscriptionMapper.toDTO(updatedSubscription);
+        }
+      }
+
+      throw new ValidationError(
+        'Subscription activation is taking longer than expected. Please check your subscription status in a moment.'
+      );
+    }
+
+    throw new ValidationError(`Subscription is in unexpected state: ${subscription.status}`);
   }
 
   async handlePaymentSuccess(paymentIntentId: string): Promise<void> {
