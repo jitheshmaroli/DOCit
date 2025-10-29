@@ -1,13 +1,10 @@
 import React, { useState } from 'react';
-import { useAppDispatch } from '../../redux/hooks';
 import {
   PaymentElement,
   useStripe,
   useElements,
 } from '@stripe/react-stripe-js';
 import useAuth from '../../hooks/useAuth';
-import { showSuccess } from '../../utils/toastConfig';
-import { confirmSubscriptionThunk } from '../../redux/thunks/patientThunk';
 
 interface PaymentDetails {
   paymentIntentId: string;
@@ -31,7 +28,6 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
 }) => {
   const stripe = useStripe();
   const elements = useElements();
-  const dispatch = useAppDispatch();
   const { user } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -46,8 +42,6 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
     setIsProcessing(true);
 
     try {
-      sessionStorage.setItem('planId', planId);
-
       const { error, paymentIntent } = await stripe.confirmPayment({
         elements,
         confirmParams: {
@@ -68,26 +62,12 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
       }
 
       if (paymentIntent?.status === 'succeeded') {
-        await dispatch(
-          confirmSubscriptionThunk({
-            planId,
-            paymentIntentId: paymentIntent.id,
-          })
-        ).unwrap();
-
-        sessionStorage.removeItem('planId');
-
         const paymentDetails: PaymentDetails = {
           paymentIntentId: paymentIntent.id,
-          amount: paymentIntent.amount / 100, // Convert from cents to INR
+          amount: paymentIntent.amount / 100,
         };
 
         onSuccess(paymentDetails);
-        showSuccess(
-          isResume 
-            ? 'Payment completed! Confirming subscription...' 
-            : 'Payment successful! Subscribed to plan.'
-        );
       } else {
         throw new Error('Payment not completed');
       }
@@ -126,8 +106,11 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         disabled={!stripe || isProcessing}
         className="w-full bg-gradient-to-r from-green-600 to-teal-600 text-white py-2 rounded-lg hover:from-green-700 hover:to-teal-700 transition-all duration-300 disabled:opacity-50"
       >
-        {isProcessing ? 'Processing...' : 
-         (isResume ? 'Complete Payment' : `Pay ₹${price.toFixed(2)}`)}
+        {isProcessing
+          ? 'Processing...'
+          : isResume
+            ? 'Complete Payment'
+            : `Pay ₹${price.toFixed(2)}`}
       </button>
     </form>
   );
