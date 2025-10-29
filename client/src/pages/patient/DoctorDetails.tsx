@@ -84,7 +84,7 @@ const DoctorDetails: React.FC = () => {
   const [currentTimeSlots, setCurrentTimeSlots] = useState<TimeSlot[]>([]);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
-  // const [isPolling, setIsPolling] = useState(false);
+  const [isPolling, setIsPolling] = useState(false);
   const [pollAttempts, setPollAttempts] = useState(0);
   const [maxPollAttempts] = useState(30);
   const [selectedPlan, setSelectedPlan] = useState<null | {
@@ -165,7 +165,7 @@ const DoctorDetails: React.FC = () => {
 
   const pollConfirmSubscription = useCallback(
     async (planId: string, paymentIntentId: string) => {
-      // setIsPolling(true);
+      setIsPolling(true);
       setPollAttempts(0);
 
       await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -175,10 +175,10 @@ const DoctorDetails: React.FC = () => {
           await dispatch(
             confirmSubscriptionThunk({ planId, paymentIntentId })
           ).unwrap();
-          // setIsPolling(false);
+          setIsPolling(false);
           setPollAttempts(0);
           if (pollingInterval) clearInterval(pollingInterval);
-          showSuccess('Subscription confirmed successfully!');
+          // showSuccess('Subscription confirmed successfully!');
           dispatch(getPatientSubscriptionsThunk());
           setIsSuccessModalOpen(true);
           return true;
@@ -189,7 +189,7 @@ const DoctorDetails: React.FC = () => {
             error.message !==
               'Subscription is still pending activation. Please wait a moment and try again.'
           ) {
-            // setIsPolling(false);
+            setIsPolling(false);
             setPollAttempts(0);
             if (pollingInterval) clearInterval(pollingInterval);
             showError(
@@ -334,7 +334,7 @@ const DoctorDetails: React.FC = () => {
   const handlePaymentSuccess = async (details: PaymentDetails) => {
     setPaymentDetails(details);
     setIsPaymentModalOpen(false);
-    showSuccess('Payment successful! Confirming subscription...');
+    // showSuccess('Payment successful! Confirming subscription...');
     await pollConfirmSubscription(selectedPlan!.id, details.paymentIntentId);
   };
 
@@ -642,7 +642,7 @@ const DoctorDetails: React.FC = () => {
         </div>
       </Modal>
       {/* Polling indicator modal */}
-      {/* <Modal
+      <Modal
         isOpen={isPolling}
         onClose={() => {}}
         title="Processing Subscription"
@@ -674,7 +674,7 @@ const DoctorDetails: React.FC = () => {
             Do not close this window.
           </p>
         </div>
-      </Modal> */}
+      </Modal>
       <div className="container mx-auto px-4">
         <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">
           <h2 className="text-2xl font-bold text-white mb-6">Doctor Details</h2>
