@@ -156,45 +156,39 @@ const AdminManagePatients: React.FC = () => {
     }
   }, [dispatch, editPatient, validateForm]);
 
-  const handleDeletePatient = useCallback(
-    async () => {
-      if (!selectedPatient) return;
-      try {
-        await dispatch(deletePatientThunk(selectedPatient._id)).unwrap();
-        showSuccess('Patient deleted successfully');
-        setIsDeleteModalOpen(false);
-        setSelectedPatient(null);
-      } catch (err) {
-        showError(`Failed to delete patient: ${err}`);
-        setIsDeleteModalOpen(false);
-        setSelectedPatient(null);
-      }
-    },
-    [dispatch, selectedPatient]
-  );
+  const handleDeletePatient = useCallback(async () => {
+    if (!selectedPatient) return;
+    try {
+      await dispatch(deletePatientThunk(selectedPatient._id)).unwrap();
+      showSuccess('Patient deleted successfully');
+      setIsDeleteModalOpen(false);
+      setSelectedPatient(null);
+    } catch (err) {
+      showError(`Failed to delete patient: ${err}`);
+      setIsDeleteModalOpen(false);
+      setSelectedPatient(null);
+    }
+  }, [dispatch, selectedPatient]);
 
-  const handleBlockPatient = useCallback(
-    async () => {
-      if (!selectedPatient) return;
-      const action = selectedPatient.isBlocked ? 'unblock' : 'block';
-      try {
-        await dispatch(
-          blockPatientThunk({
-            id: selectedPatient._id,
-            isBlocked: !selectedPatient.isBlocked,
-          })
-        ).unwrap();
-        showSuccess(`Patient ${action}ed successfully`);
-        setIsBlockModalOpen(false);
-        setSelectedPatient(null);
-      } catch (err) {
-        showError(`Failed to ${action} patient: ${err}`);
-        setIsBlockModalOpen(false);
-        setSelectedPatient(null);
-      }
-    },
-    [dispatch, selectedPatient]
-  );
+  const handleBlockPatient = useCallback(async () => {
+    if (!selectedPatient) return;
+    const action = selectedPatient.isBlocked ? 'unblock' : 'block';
+    try {
+      await dispatch(
+        blockPatientThunk({
+          id: selectedPatient._id,
+          isBlocked: !selectedPatient.isBlocked,
+        })
+      ).unwrap();
+      showSuccess(`Patient ${action}ed successfully`);
+      setIsBlockModalOpen(false);
+      setSelectedPatient(null);
+    } catch (err) {
+      showError(`Failed to ${action} patient: ${err}`);
+      setIsBlockModalOpen(false);
+      setSelectedPatient(null);
+    }
+  }, [dispatch, selectedPatient]);
 
   const columns = useMemo(
     () => [
@@ -621,7 +615,9 @@ const AdminManagePatients: React.FC = () => {
             setIsBlockModalOpen(false);
             setSelectedPatient(null);
           }}
-          title={selectedPatient.isBlocked ? "Confirm Unblock" : "Confirm Block"}
+          title={
+            selectedPatient.isBlocked ? 'Confirm Unblock' : 'Confirm Block'
+          }
           footer={
             <div className="flex justify-end gap-3">
               <button
@@ -647,7 +643,9 @@ const AdminManagePatients: React.FC = () => {
           }
         >
           <p className="text-white">
-            Are you sure you want to {selectedPatient.isBlocked ? 'unblock' : 'block'} {selectedPatient.name || 'Unknown'}?
+            Are you sure you want to{' '}
+            {selectedPatient.isBlocked ? 'unblock' : 'block'}{' '}
+            {selectedPatient.name || 'Unknown'}?
           </p>
         </Modal>
       )}

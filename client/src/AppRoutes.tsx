@@ -35,6 +35,7 @@ import PersonalInformation from './pages/patient/Profile/PersonalInformation';
 import PatientMessages from './pages/patient/Profile/Messages';
 import DoctorPatients from './pages/doctor/DoctorPatients';
 import InvoiceDetails from './pages/patient/InvoiceDetails';
+import MedicalHistory from './pages/patient/MedicalHistory';
 
 const AppRoutes = () => {
   const navigate = useNavigate();
@@ -69,6 +70,7 @@ const AppRoutes = () => {
           <Route path="subscriptions" element={<Subscriptions />} />
           <Route path="messages" element={<PatientMessages />} />
           <Route path="profile" element={<PersonalInformation />} />
+          <Route path="medical-history" element={<MedicalHistory />} />
           <Route path="doctors/:doctorId" element={<DoctorDetails />} />
           <Route
             path="appointment/:appointmentId"

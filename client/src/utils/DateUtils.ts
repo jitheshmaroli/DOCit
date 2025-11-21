@@ -2,7 +2,10 @@ import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
-import { MAX_SLOT_DURATION_MINUTES, MIN_SLOT_DURATION_MINUTES } from '../constants/AppConstants';
+import {
+  MAX_SLOT_DURATION_MINUTES,
+  MIN_SLOT_DURATION_MINUTES,
+} from '../constants/AppConstants';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -190,7 +193,7 @@ export class DateUtils {
     const totalMinutes = hours * 60 + minutesPart - minutes;
     let newHours = Math.floor(totalMinutes / 60);
     let newMinutes = totalMinutes % 60;
-    
+
     if (newMinutes < 0) {
       newMinutes += 60;
       newHours -= 1;
@@ -199,7 +202,10 @@ export class DateUtils {
     return `${newHours.toString().padStart(2, '0')}:${newMinutes.toString().padStart(2, '0')}`;
   }
 
-  static getTimeDifferenceInMinutes(startTime: string, endTime: string): number {
+  static getTimeDifferenceInMinutes(
+    startTime: string,
+    endTime: string
+  ): number {
     const start = dayjs(`1970-01-01 ${startTime}`);
     const end = dayjs(`1970-01-01 ${endTime}`);
     return end.diff(start, 'minute');
@@ -208,6 +214,8 @@ export class DateUtils {
   static isValidSlotDuration(startTime: string, endTime: string): boolean {
     if (!startTime || !endTime) return false;
     const diff = this.getTimeDifferenceInMinutes(startTime, endTime);
-    return diff >= MIN_SLOT_DURATION_MINUTES && diff <= MAX_SLOT_DURATION_MINUTES;
+    return (
+      diff >= MIN_SLOT_DURATION_MINUTES && diff <= MAX_SLOT_DURATION_MINUTES
+    );
   }
 }

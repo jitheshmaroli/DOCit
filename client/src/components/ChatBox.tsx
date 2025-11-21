@@ -1,13 +1,16 @@
-// Updated F:\DOCit\client\src\components\ChatBox.tsx
 import React, { RefObject, useState, useRef, useEffect } from 'react';
-import { ArrowLeft, ArrowDown, Paperclip, Trash2, Smile, X } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowDown,
+  Paperclip,
+  Trash2,
+  Smile,
+  X,
+} from 'lucide-react';
 import EmojiPicker from 'emoji-picker-react';
 import { DateUtils } from '../utils/DateUtils';
 import { MessageThread, Message } from '../types/messageTypes';
-import {
-  addReaction,
-  fetchUserStatus,
-} from '../services/messageService';
+import { addReaction, fetchUserStatus } from '../services/messageService';
 import { useSocket } from '../hooks/useSocket';
 
 interface ChatBoxProps {

@@ -129,7 +129,6 @@ const Messages = () => {
               new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           );
         }
-        // Handle new thread if needed (unlikely for attachments)
         return prev;
       });
 
@@ -318,8 +317,6 @@ const Messages = () => {
     });
 
     connect(user._id);
-
-    // Cleanup is handled by SocketContext
   }, [
     user?._id,
     connect,
@@ -342,7 +339,7 @@ const Messages = () => {
           inboxThreads.map(async (thread: InboxThreadResponse) => {
             let senderName = thread.senderName || 'Unknown';
             let partnerProfilePicture: string | undefined;
-            let role: 'patient' | 'doctor' = 'patient'; // Default to patient
+            let role: 'patient' | 'doctor' = 'patient';
             try {
               const partner = await fetchPartnerDetails(thread.receiverId);
               senderName = partner.name;

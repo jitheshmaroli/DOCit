@@ -98,22 +98,19 @@ const AdminSpecialityManagement: React.FC = () => {
     setIsModalOpen(true);
   }, []);
 
-  const handleDeleteSpeciality = useCallback(
-    async () => {
-      if (!selectedSpeciality) return;
-      try {
-        await dispatch(deleteSpecialityThunk(selectedSpeciality._id)).unwrap();
-        await showSuccess('Speciality deleted successfully');
-        setIsDeleteModalOpen(false);
-        setSelectedSpeciality(null);
-      } catch (err) {
-        await showError(`Failed to delete speciality: ${err}`);
-        setIsDeleteModalOpen(false);
-        setSelectedSpeciality(null);
-      }
-    },
-    [dispatch, selectedSpeciality]
-  );
+  const handleDeleteSpeciality = useCallback(async () => {
+    if (!selectedSpeciality) return;
+    try {
+      await dispatch(deleteSpecialityThunk(selectedSpeciality._id)).unwrap();
+      await showSuccess('Speciality deleted successfully');
+      setIsDeleteModalOpen(false);
+      setSelectedSpeciality(null);
+    } catch (err) {
+      await showError(`Failed to delete speciality: ${err}`);
+      setIsDeleteModalOpen(false);
+      setSelectedSpeciality(null);
+    }
+  }, [dispatch, selectedSpeciality]);
 
   const handleAddSpeciality = useCallback(() => {
     setSelectedSpeciality(null);
@@ -296,7 +293,8 @@ const AdminSpecialityManagement: React.FC = () => {
           }
         >
           <p className="text-white">
-            Are you sure you want to delete the speciality "{selectedSpeciality.name || 'Unknown'}"?
+            Are you sure you want to delete the speciality "
+            {selectedSpeciality.name || 'Unknown'}"?
           </p>
         </Modal>
       )}

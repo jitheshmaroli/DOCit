@@ -462,7 +462,9 @@ const DoctorDashboard: React.FC = () => {
                   <td className="p-2 text-right">
                     {format(new Date(appt.date), 'MMM d, yyyy')}
                   </td>
-                  <td className="p-2 text-right">{appt.startTime} - {appt.endTime}</td>
+                  <td className="p-2 text-right">
+                    {appt.startTime} - {appt.endTime}
+                  </td>
                   <td
                     className={`p-2 text-right ${
                       appt.status === 'pending'
