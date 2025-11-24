@@ -188,6 +188,7 @@ export interface Appointment {
   reminderSent?: boolean;
   prescription?: Prescription;
   patientSubscriptionId: string;
+  doctorProfilePicture: string;
 }
 
 export interface Prescription {

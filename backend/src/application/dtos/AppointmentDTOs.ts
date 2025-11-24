@@ -99,7 +99,10 @@ export interface AppointmentDTO {
   hasReview?: boolean;
   patientName?: string;
   doctorName?: string;
+  doctorProfilePicture?: string;
+  doctorProfilePicturePublicId?: string;
 }
+
 export enum AppointmentStatus {
   PENDING = 'pending',
   COMPLETED = 'completed',

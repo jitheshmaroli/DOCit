@@ -20,6 +20,8 @@ export interface QueryParams {
   minRating?: number;
   startDate?: Date;
   endDate?: Date;
+  dateFrom?: Date;
+  dateTo?: Date;
 }
 
 export interface PaginatedResponse<T> {

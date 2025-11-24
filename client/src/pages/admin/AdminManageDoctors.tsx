@@ -176,53 +176,47 @@ const AdminManageDoctors: React.FC = () => {
     }
   }, [dispatch, editDoctor, validateForm]);
 
-  const handleDeleteDoctor = useCallback(
-    async () => {
-      if (!selectedDoctor) return;
-      try {
-        await dispatch(deleteDoctorThunk(selectedDoctor._id)).unwrap();
-        showSuccess('Doctor deleted successfully');
-        setIsDeleteModalOpen(false);
-        setSelectedDoctor(null);
-      } catch (err) {
-        showError(`Failed to delete doctor: ${err}`);
-      }
-    },
-    [dispatch, selectedDoctor]
-  );
+  const handleDeleteDoctor = useCallback(async () => {
+    if (!selectedDoctor) return;
+    try {
+      await dispatch(deleteDoctorThunk(selectedDoctor._id)).unwrap();
+      showSuccess('Doctor deleted successfully');
+      setIsDeleteModalOpen(false);
+      setSelectedDoctor(null);
+    } catch (err) {
+      showError(`Failed to delete doctor: ${err}`);
+    }
+  }, [dispatch, selectedDoctor]);
 
-  const handleBlockDoctor = useCallback(
-    async () => {
-      if (!selectedDoctor) return;
-      const action = selectedDoctor.isBlocked ? 'unblock' : 'block';
-      try {
-        await dispatch(
-          blockDoctorThunk({ id: selectedDoctor._id, isBlocked: !selectedDoctor.isBlocked })
-        ).unwrap();
-        showSuccess(`Doctor ${action}ed successfully`);
-        setIsBlockModalOpen(false);
-        setSelectedDoctor(null);
-      } catch (err) {
-        showError(`Failed to ${action} doctor: ${err}`);
-      }
-    },
-    [dispatch, selectedDoctor]
-  );
+  const handleBlockDoctor = useCallback(async () => {
+    if (!selectedDoctor) return;
+    const action = selectedDoctor.isBlocked ? 'unblock' : 'block';
+    try {
+      await dispatch(
+        blockDoctorThunk({
+          id: selectedDoctor._id,
+          isBlocked: !selectedDoctor.isBlocked,
+        })
+      ).unwrap();
+      showSuccess(`Doctor ${action}ed successfully`);
+      setIsBlockModalOpen(false);
+      setSelectedDoctor(null);
+    } catch (err) {
+      showError(`Failed to ${action} doctor: ${err}`);
+    }
+  }, [dispatch, selectedDoctor]);
 
-  const handleVerifyDoctor = useCallback(
-    async () => {
-      if (!selectedDoctor) return;
-      try {
-        await dispatch(verifyDoctorThunk(selectedDoctor._id)).unwrap();
-        showSuccess('Doctor verified successfully');
-        setIsVerifyModalOpen(false);
-        setSelectedDoctor(null);
-      } catch (err) {
-        showError(`Failed to verify doctor: ${err}`);
-      }
-    },
-    [dispatch, selectedDoctor]
-  );
+  const handleVerifyDoctor = useCallback(async () => {
+    if (!selectedDoctor) return;
+    try {
+      await dispatch(verifyDoctorThunk(selectedDoctor._id)).unwrap();
+      showSuccess('Doctor verified successfully');
+      setIsVerifyModalOpen(false);
+      setSelectedDoctor(null);
+    } catch (err) {
+      showError(`Failed to verify doctor: ${err}`);
+    }
+  }, [dispatch, selectedDoctor]);
 
   const columns = useMemo(
     () => [
@@ -784,7 +778,7 @@ const AdminManageDoctors: React.FC = () => {
             setIsBlockModalOpen(false);
             setSelectedDoctor(null);
           }}
-          title={selectedDoctor.isBlocked ? "Confirm Unblock" : "Confirm Block"}
+          title={selectedDoctor.isBlocked ? 'Confirm Unblock' : 'Confirm Block'}
           footer={
             <div className="flex justify-end gap-3">
               <button
@@ -810,7 +804,9 @@ const AdminManageDoctors: React.FC = () => {
           }
         >
           <p className="text-white">
-            Are you sure you want to {selectedDoctor.isBlocked ? 'unblock' : 'block'} {selectedDoctor.name}?
+            Are you sure you want to{' '}
+            {selectedDoctor.isBlocked ? 'unblock' : 'block'}{' '}
+            {selectedDoctor.name}?
           </p>
         </Modal>
       )}

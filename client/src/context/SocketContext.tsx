@@ -17,14 +17,40 @@ interface SocketHandlers {
   onReceiveMessage?: (message: Message) => void;
   onReceiveNotification?: (notification: AppNotification) => void;
   onError?: (error: { message: string }) => void;
-  onReceiveReaction?: (data: { messageId: string; emoji: string; userId: string }) => void;
-  onIncomingCall?: (data: { appointmentId: string; callerId: string; callerRole: string }) => void;
-  onCallAccepted?: (data: { appointmentId: string; acceptorId: string }) => void;
-  onCallRejected?: (data: { appointmentId: string; rejectorId: string }) => void;
-  onSignal?: (data: { appointmentId: string; senderId: string; signal: SignalData }) => void;
+  onReceiveReaction?: (data: {
+    messageId: string;
+    emoji: string;
+    userId: string;
+  }) => void;
+  onIncomingCall?: (data: {
+    appointmentId: string;
+    callerId: string;
+    callerRole: string;
+  }) => void;
+  onCallAccepted?: (data: {
+    appointmentId: string;
+    acceptorId: string;
+  }) => void;
+  onCallRejected?: (data: {
+    appointmentId: string;
+    rejectorId: string;
+  }) => void;
+  onSignal?: (data: {
+    appointmentId: string;
+    senderId: string;
+    signal: SignalData;
+  }) => void;
   onCallEnded?: (data: { appointmentId: string; enderId: string }) => void;
-  onHandRaise?: (data: { appointmentId: string; userId: string; isRaised: boolean }) => void;
-  onMuteStatus?: (data: { appointmentId: string; userId: string; isMuted: boolean }) => void;
+  onHandRaise?: (data: {
+    appointmentId: string;
+    userId: string;
+    isRaised: boolean;
+  }) => void;
+  onMuteStatus?: (data: {
+    appointmentId: string;
+    userId: string;
+    isMuted: boolean;
+  }) => void;
   onUserStatusUpdate?: (status: UserStatus) => void;
 }
 
@@ -58,7 +84,9 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [userStatuses, setUserStatuses] = useState<Map<string, UserStatus>>(new Map());
+  const [userStatuses, setUserStatuses] = useState<Map<string, UserStatus>>(
+    new Map()
+  );
   const userIdRef = useRef<string | null>(null);
   const handlersRef = useRef<SocketHandlers>({});
   const connectionPromiseRef = useRef<Promise<void> | null>(null);
@@ -71,50 +99,103 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
       handlersRef.current.onReceiveMessage?.(message);
     });
 
-    socket.off('receiveNotification').on('receiveNotification', (notification: AppNotification) => {
-      handlersRef.current.onReceiveNotification?.(notification);
-    });
-
-    socket.off('receiveReaction').on('receiveReaction', (data: { messageId: string; emoji: string; userId: string }) => {
-      handlersRef.current.onReceiveReaction?.(data);
-    });
-
-    socket.off('incomingCall').on('incomingCall', (data: { appointmentId: string; callerId: string; callerRole: string }) => {
-      handlersRef.current.onIncomingCall?.(data);
-    });
-
-    socket.off('callAccepted').on('callAccepted', (data: { appointmentId: string; acceptorId: string }) => {
-      handlersRef.current.onCallAccepted?.(data);
-    });
-
-    socket.off('callRejected').on('callRejected', (data: { appointmentId: string; rejectorId: string }) => {
-      handlersRef.current.onCallRejected?.(data);
-    });
-
-    socket.off('signal').on('signal', (data: { appointmentId: string; senderId: string; signal: SignalData }) => {
-      handlersRef.current.onSignal?.(data);
-    });
-
-    socket.off('callEnded').on('callEnded', (data: { appointmentId: string; enderId: string }) => {
-      handlersRef.current.onCallEnded?.(data);
-    });
-
-    socket.off('handRaise').on('handRaise', (data: { appointmentId: string; userId: string; isRaised: boolean }) => {
-      handlersRef.current.onHandRaise?.(data);
-    });
-
-    socket.off('muteStatus').on('muteStatus', (data: { appointmentId: string; userId: string; isMuted: boolean }) => {
-      handlersRef.current.onMuteStatus?.(data);
-    });
-
-    socket.off('userStatusUpdate').on('userStatusUpdate', (status: UserStatus) => {
-      setUserStatuses((prev) => {
-        const newStatuses = new Map(prev);
-        newStatuses.set(status.userId, status);
-        return newStatuses;
+    socket
+      .off('receiveNotification')
+      .on('receiveNotification', (notification: AppNotification) => {
+        handlersRef.current.onReceiveNotification?.(notification);
       });
-      handlersRef.current.onUserStatusUpdate?.(status);
-    });
+
+    socket
+      .off('receiveReaction')
+      .on(
+        'receiveReaction',
+        (data: { messageId: string; emoji: string; userId: string }) => {
+          handlersRef.current.onReceiveReaction?.(data);
+        }
+      );
+
+    socket
+      .off('incomingCall')
+      .on(
+        'incomingCall',
+        (data: {
+          appointmentId: string;
+          callerId: string;
+          callerRole: string;
+        }) => {
+          handlersRef.current.onIncomingCall?.(data);
+        }
+      );
+
+    socket
+      .off('callAccepted')
+      .on(
+        'callAccepted',
+        (data: { appointmentId: string; acceptorId: string }) => {
+          handlersRef.current.onCallAccepted?.(data);
+        }
+      );
+
+    socket
+      .off('callRejected')
+      .on(
+        'callRejected',
+        (data: { appointmentId: string; rejectorId: string }) => {
+          handlersRef.current.onCallRejected?.(data);
+        }
+      );
+
+    socket
+      .off('signal')
+      .on(
+        'signal',
+        (data: {
+          appointmentId: string;
+          senderId: string;
+          signal: SignalData;
+        }) => {
+          handlersRef.current.onSignal?.(data);
+        }
+      );
+
+    socket
+      .off('callEnded')
+      .on('callEnded', (data: { appointmentId: string; enderId: string }) => {
+        handlersRef.current.onCallEnded?.(data);
+      });
+
+    socket
+      .off('handRaise')
+      .on(
+        'handRaise',
+        (data: {
+          appointmentId: string;
+          userId: string;
+          isRaised: boolean;
+        }) => {
+          handlersRef.current.onHandRaise?.(data);
+        }
+      );
+
+    socket
+      .off('muteStatus')
+      .on(
+        'muteStatus',
+        (data: { appointmentId: string; userId: string; isMuted: boolean }) => {
+          handlersRef.current.onMuteStatus?.(data);
+        }
+      );
+
+    socket
+      .off('userStatusUpdate')
+      .on('userStatusUpdate', (status: UserStatus) => {
+        setUserStatuses((prev) => {
+          const newStatuses = new Map(prev);
+          newStatuses.set(status.userId, status);
+          return newStatuses;
+        });
+        handlersRef.current.onUserStatusUpdate?.(status);
+      });
 
     socket.off('error').on('error', (error: { message: string }) => {
       console.error('Socket error:', error);
@@ -166,7 +247,10 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
       newSocket.on('disconnect', (reason) => {
         console.log('Socket disconnected:', reason);
         setIsConnected(false);
-        if (reason === 'io server disconnect' || reason === 'io client disconnect') {
+        if (
+          reason === 'io server disconnect' ||
+          reason === 'io client disconnect'
+        ) {
           userIdRef.current = null;
           connectionPromiseRef.current = null;
           setSocket(null);

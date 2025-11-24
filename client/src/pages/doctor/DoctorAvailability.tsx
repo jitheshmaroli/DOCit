@@ -286,7 +286,6 @@ const DoctorAvailability: React.FC = () => {
     field: 'startTime' | 'endTime',
     value: string
   ) => {
-    
     clearSlotErrors(index);
 
     const timeRegex = new RegExp(

@@ -43,25 +43,29 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, isOpen }) => {
       <nav className="flex-1 py-4">
         <ul>
           {[
-            { to:ROUTES.ADMIN.DASHBOARD, label: 'Dashboard', icon: '📊' },
+            { to: ROUTES.ADMIN.DASHBOARD, label: 'Dashboard', icon: '📊' },
             {
-              to:ROUTES.ADMIN.MANAGE_PATIENTS,
+              to: ROUTES.ADMIN.MANAGE_PATIENTS,
               label: 'Manage Patients',
               icon: '👥',
             },
             {
-              to:ROUTES.ADMIN.MANAGE_DOCTORS,
+              to: ROUTES.ADMIN.MANAGE_DOCTORS,
               label: 'Manage Doctors',
               icon: '👨‍⚕️',
             },
-            { to:ROUTES.ADMIN.SPECIALITIES, label: 'Specialities', icon: '🩺' },
             {
-              to:ROUTES.ADMIN.APPOINTMENTS,
+              to: ROUTES.ADMIN.SPECIALITIES,
+              label: 'Specialities',
+              icon: '🩺',
+            },
+            {
+              to: ROUTES.ADMIN.APPOINTMENTS,
               label: 'View Appointments',
               icon: '📅',
             },
             {
-              to:ROUTES.ADMIN.PLAN_MANAGEMENT,
+              to: ROUTES.ADMIN.PLAN_MANAGEMENT,
               label: 'Plan Management',
               icon: '💼',
             },

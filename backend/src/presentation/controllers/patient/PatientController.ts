@@ -130,7 +130,6 @@ export class PatientController {
     }
   }
 
-  // New method for resuming pending payment
   async resumePendingPayment(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const patientId = req.user?.id;
@@ -267,12 +266,28 @@ export class PatientController {
       if (!patientId) {
         throw new ValidationError(ResponseMessages.USER_NOT_FOUND);
       }
-      const { doctorId, page = 1, limit = 5, status } = req.query;
+      const {
+        doctorId,
+        search,
+        page = 1,
+        limit = 10,
+        status,
+        dateFrom,
+        dateTo,
+        sortBy = 'date',
+        sortOrder = 'desc',
+      } = req.query;
+
       const queryParams: QueryParams = {
         page: parseInt(String(page)),
         limit: parseInt(String(limit)),
         status: status as string | undefined,
         patientId,
+        search: search as string | undefined,
+        dateFrom: dateFrom ? new Date(dateFrom as string) : undefined,
+        dateTo: dateTo ? new Date(dateTo as string) : undefined,
+        sortBy: sortBy as string,
+        sortOrder: sortOrder as 'asc' | 'desc',
       };
 
       let responseData;

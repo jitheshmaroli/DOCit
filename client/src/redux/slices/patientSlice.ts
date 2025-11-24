@@ -10,6 +10,7 @@ import {
   cancelAppointmentThunk,
   cancelSubscriptionThunk,
   getAppointmentsBySubscriptionThunk,
+  getPaginatedPatientAppointmentsThunk,
 } from '../thunks/patientThunk';
 import {
   AvailabilityPayload,
@@ -46,9 +47,9 @@ interface CancelSubscriptionResponse {
 
 interface PatientState {
   activeSubscriptions: PatientSubscription[];
-  appointments: { [key: string]: Appointment[] }; // Keyed by doctorId or subscriptionId
-  totalItems: number; // For DoctorDetails
-  totalItemsBySubscription: { [subscriptionId: string]: number }; // For Subscriptions
+  appointments: { [key: string]: Appointment[] };
+  totalItems: number;
+  totalItemsBySubscription: { [subscriptionId: string]: number };
   availability: AvailabilityPayload[];
   timeSlots: TimeSlot[];
   canBookFree: boolean;
@@ -334,7 +335,39 @@ const patientSlice = createSlice({
       .addCase(cancelSubscriptionThunk.rejected, (state, action) => {
         state.error = action.payload as string;
         state.loading = false;
-      });
+      })
+      .addCase(getPaginatedPatientAppointmentsThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(
+        getPaginatedPatientAppointmentsThunk.fulfilled,
+        (state, action) => {
+          state.appointments = {};
+          state.totalItems =
+            action.payload.totalItems ?? action.payload.appointments.length;
+          action.payload.appointments.forEach((appt) => {
+            const doctorKey =
+              typeof appt.doctorId === 'string'
+                ? appt.doctorId
+                : appt.doctorId?._id || '';
+            if (doctorKey) {
+              if (!state.appointments[doctorKey]) {
+                state.appointments[doctorKey] = [];
+              }
+              state.appointments[doctorKey].push(appt);
+            }
+          });
+          state.loading = false;
+        }
+      )
+      .addCase(
+        getPaginatedPatientAppointmentsThunk.rejected,
+        (state, action) => {
+          state.error = action.payload as string;
+          state.loading = false;
+        }
+      );
   },
 });
 

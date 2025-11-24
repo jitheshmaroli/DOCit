@@ -1,14 +1,18 @@
-// Updated F:\DOCit\client\src\components\ChatBox.tsx
 import React, { RefObject, useState, useRef, useEffect } from 'react';
-import { ArrowLeft, ArrowDown, Paperclip, Trash2, Smile, X } from 'lucide-react';
-import EmojiPicker from 'emoji-picker-react';
+import {
+  ArrowLeft,
+  ArrowDown,
+  Paperclip,
+  Trash2,
+  Smile,
+  X,
+} from 'lucide-react';
+import EmojiPicker, { Theme } from 'emoji-picker-react';
 import { DateUtils } from '../utils/DateUtils';
 import { MessageThread, Message } from '../types/messageTypes';
-import {
-  addReaction,
-  fetchUserStatus,
-} from '../services/messageService';
+import { addReaction, fetchUserStatus } from '../services/messageService';
 import { useSocket } from '../hooks/useSocket';
+import { IoIosSend } from 'react-icons/io';
 
 interface ChatBoxProps {
   thread: MessageThread;
@@ -415,47 +419,19 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
             </span>
           </button>
         )}
-        <form onSubmit={handleFormSubmit} className="mt-4 flex flex-col gap-2">
-          <div className="relative flex-1">
-            <input
-              type="text"
-              value={newMessage}
-              onChange={(e) => onMessageChange(e.target.value)}
-              placeholder="Type a message..."
-              className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white/20 transition-all duration-300"
-              ref={inputRef}
-            />
-            <button
-              type="button"
-              className="absolute right-12 top-1/2 transform -translate-y-1/2 p-2"
-              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-            >
-              😊
-            </button>
-            <button
-              type="button"
-              className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Paperclip className="w-5 h-5 text-white" />
-            </button>
-            {showEmojiPicker && (
-              <div className="absolute bottom-14 right-0 z-10">
-                <EmojiPicker onEmojiClick={handleEmojiClick} />
-              </div>
-            )}
-          </div>
+        <form onSubmit={handleFormSubmit} className="mt-4">
+          {/* Selected File Preview */}
           {selectedFile && (
-            <div className="flex items-center gap-2 p-2 bg-white/10 rounded-lg border border-white/20">
+            <div className="mb-3 flex items-center gap-3 p-3 bg-white/10 rounded-xl border border-white/20">
               {selectedFile.type.startsWith('image/') ? (
                 <img
                   src={URL.createObjectURL(selectedFile)}
                   alt="Preview"
-                  className="w-12 h-12 rounded object-cover flex-shrink-0"
+                  className="w-16 h-16 rounded-lg object-cover"
                 />
               ) : (
-                <div className="w-12 h-12 bg-gray-600 rounded flex items-center justify-center flex-shrink-0">
-                  <Paperclip className="w-5 h-5 text-white" />
+                <div className="w-16 h-16 bg-gray-600 rounded-lg flex items-center justify-center">
+                  <Paperclip className="w-8 h-8 text-white" />
                 </div>
               )}
               <div className="flex-1 min-w-0">
@@ -471,10 +447,53 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
                 onClick={() => setSelectedFile(null)}
                 className="p-1 text-gray-400 hover:text-white transition-colors"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
           )}
+
+          {/* Input + Send Button */}
+          <div className="relative flex items-center gap-3">
+            <button
+              type="button"
+              className="p-2 text-gray-400 hover:text-white transition-colors"
+              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+            >
+              <Smile className="w-6 h-6" />
+            </button>
+
+            <input
+              type="text"
+              value={newMessage}
+              onChange={(e) => onMessageChange(e.target.value)}
+              placeholder="Message..."
+              className="flex-1 px-4 py-3 bg-white/10 border border-white/20 rounded-full text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white/20 transition-all duration-300 text-sm"
+              ref={inputRef}
+            />
+
+            {/* Attachment Button */}
+            <button
+              type="button"
+              className="p-2 text-gray-400 hover:text-white transition-colors"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Paperclip className="w-6 h-6 rotate-45" />
+            </button>
+
+            {/* Send Button - Only show icon when there's content */}
+            {newMessage.trim() || selectedFile ? (
+              <button
+                type="submit"
+                className="absolute right-2 p-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-full hover:from-purple-700 hover:to-blue-700 transition-all duration-300 shadow-lg"
+              >
+                <IoIosSend className="w-6 h-6" />
+              </button>
+            ) : (
+              <div className="w-10" />
+            )}
+          </div>
+
+          {/* Hidden file input */}
           <input
             type="file"
             ref={fileInputRef}
@@ -482,13 +501,20 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
             onChange={handleFileChange}
             accept="image/*,.pdf,.doc,.docx"
           />
-          <button
-            type="submit"
-            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-medium rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300 self-end"
-            disabled={!newMessage.trim() && !selectedFile}
-          >
-            Send
-          </button>
+
+          {/* Emoji Picker */}
+          {showEmojiPicker && (
+            <div className="absolute bottom-16 left-10 z-50">
+              <div className="bg-gray-800 rounded-lg shadow-2xl border border-gray-700">
+                <EmojiPicker
+                  onEmojiClick={handleEmojiClick}
+                  theme={Theme.DARK}
+                  height={350}
+                  width={320}
+                />
+              </div>
+            </div>
+          )}
         </form>
       </div>
     );

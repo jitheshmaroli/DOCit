@@ -479,7 +479,9 @@ const PersonalInformation = () => {
             </>
           }
         >
-          <p className="text-white">Are you sure you want to update your profile?</p>
+          <p className="text-white">
+            Are you sure you want to update your profile?
+          </p>
         </Modal>
       </div>
     </div>
