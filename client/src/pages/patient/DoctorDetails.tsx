@@ -659,9 +659,6 @@ const DoctorDetails: React.FC = () => {
             >
               Cancel
             </button>
-            <div className="text-sm text-gray-400">
-              Attempt {pollAttempts + 1}/{maxPollAttempts}...
-            </div>
           </div>
         }
       >

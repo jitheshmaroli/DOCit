@@ -59,20 +59,17 @@ const AdminAppointments: React.FC = () => {
     setTotalPages(totalPagesFromState.appointments);
   }, [totalPagesFromState.appointments]);
 
-  const handleCancelAppointment = useCallback(
-    async () => {
-      if (!selectedAppointment) return;
-      try {
-        await dispatch(cancelAppointmentThunk(selectedAppointment._id)).unwrap();
-        showSuccess('Appointment cancelled successfully');
-        setIsCancelModalOpen(false);
-        setSelectedAppointment(null);
-      } catch (err) {
-        showError(`Failed to cancel appointment: ${err}`);
-      }
-    },
-    [dispatch, selectedAppointment]
-  );
+  const handleCancelAppointment = useCallback(async () => {
+    if (!selectedAppointment) return;
+    try {
+      await dispatch(cancelAppointmentThunk(selectedAppointment._id)).unwrap();
+      showSuccess('Appointment cancelled successfully');
+      setIsCancelModalOpen(false);
+      setSelectedAppointment(null);
+    } catch (err) {
+      showError(`Failed to cancel appointment: ${err}`);
+    }
+  }, [dispatch, selectedAppointment]);
 
   const handleViewDetails = useCallback((appointment: Appointment) => {
     setSelectedAppointment(appointment);
@@ -432,7 +429,9 @@ const AdminAppointments: React.FC = () => {
           }
         >
           <p className="text-white">
-            Are you sure you want to cancel the appointment for {selectedAppointment.patientName} with {selectedAppointment.doctorName}?
+            Are you sure you want to cancel the appointment for{' '}
+            {selectedAppointment.patientName} with{' '}
+            {selectedAppointment.doctorName}?
           </p>
         </Modal>
       )}

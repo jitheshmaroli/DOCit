@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import {
   getDoctorAvailability,
@@ -13,7 +12,7 @@ import {
   getDoctor,
   getAppointmentsBySubscription,
   confirmSubscription,
-  resumePendingSubscription, // New import
+  resumePendingSubscription,
 } from '../../services/patientService';
 import {
   GetDoctorAvailabilityPayload,
@@ -23,6 +22,8 @@ import {
 } from '../../types/authTypes';
 import { DateUtils } from '../../utils/DateUtils';
 import { CancelSubscriptionResponse } from '../../types/subscriptionTypes';
+import api from '../../services/api';
+import ROUTES from '../../constants/routeConstants';
 
 export const getDoctorAvailabilityThunk = createAsyncThunk(
   'patient/getDoctorAvailability',
@@ -203,8 +204,10 @@ export const resumePendingSubscriptionThunk = createAsyncThunk(
     try {
       const response = await resumePendingSubscription(subscriptionId);
       return response;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.error || 'Failed to resume payment');
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to resume payment';
+      return rejectWithValue(errorMessage);
     }
   }
 );
@@ -223,6 +226,56 @@ export const getPatientAppointmentsForDoctorThunk = createAsyncThunk<
         limit
       );
       return response;
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to fetch appointments';
+      return rejectWithValue(errorMessage);
+    }
+  }
+);
+
+export const getPaginatedPatientAppointmentsThunk = createAsyncThunk<
+  { appointments: Appointment[]; totalItems: number },
+  {
+    page?: number;
+    limit?: number;
+    status?: string;
+    search?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+  },
+  { rejectValue: string }
+>(
+  'patient/getPaginatedAppointments',
+  async (
+    {
+      page = 1,
+      limit = 10,
+      status,
+      search,
+      dateFrom,
+      dateTo,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+    },
+    { rejectWithValue }
+  ) => {
+    try {
+      const response = await api.get(ROUTES.API.PATIENT.APPOINTMENTS, {
+        params: {
+          page,
+          limit,
+          status,
+          search,
+          dateFrom,
+          dateTo,
+          sortBy,
+          sortOrder,
+        },
+      });
+      return response.data;
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to fetch appointments';
@@ -292,8 +345,12 @@ export const confirmSubscriptionThunk = createAsyncThunk(
   ) => {
     try {
       return await confirmSubscription(planId, paymentIntentId);
-    } catch (error: any) {
-      return rejectWithValue(error.message || 'Failed to confirm subscription');
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Failed to confirm subscription';
+      return rejectWithValue(errorMessage);
     }
   }
 );

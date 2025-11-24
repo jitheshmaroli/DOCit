@@ -23,11 +23,9 @@ interface Filters {
 const FindDoctor: React.FC = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const {
-    doctors,
-    totalItems,
-    loading,
-  } = useAppSelector((state) => state.doctors);
+  const { doctors, totalItems, loading } = useAppSelector(
+    (state) => state.doctors
+  );
   const [specialities, setSpecialities] = useState<string[]>([]);
   const [filters, setFilters] = useState<Filters>({
     searchQuery: '',

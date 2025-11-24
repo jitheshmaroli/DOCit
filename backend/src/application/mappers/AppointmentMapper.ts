@@ -21,6 +21,8 @@ export class AppointmentMapper {
       hasReview: appointment.hasReview,
       patientName: appointment.patient?.name,
       doctorName: appointment.doctor?.name,
+      doctorProfilePicture: appointment.doctor?.profilePicture,
+      doctorProfilePicturePublicId: appointment.doctor?.profilePicturePublicId,
     };
 
     return dto;

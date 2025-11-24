@@ -16,11 +16,13 @@ interface ProtectedRouteProps {
 const ProtectedRoute = ({
   roles,
   redirectUnauthenticated = ROUTES.PUBLIC.LOGIN,
-  redirectUnauthorized =  ROUTES.PUBLIC.UNAUTHORIZED,
+  redirectUnauthorized = ROUTES.PUBLIC.UNAUTHORIZED,
 }: ProtectedRouteProps) => {
   const location = useLocation();
   const dispatch = useAppDispatch();
-  const { user, loading, initialAuthCheckComplete } = useSelector((state: RootState) => state.auth);
+  const { user, loading, initialAuthCheckComplete } = useSelector(
+    (state: RootState) => state.auth
+  );
 
   useEffect(() => {
     if (!initialAuthCheckComplete) {

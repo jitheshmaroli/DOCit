@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import mongoose, { FilterQuery } from 'mongoose';
 import { IAppointmentRepository } from '../../core/interfaces/repositories/IAppointmentRepository';
 import { Appointment, ExtendedAppointment } from '../../core/entities/Appointment';
@@ -375,6 +376,9 @@ export class AppointmentRepository extends BaseRepository<Appointment> implement
       status,
       startDate,
       endDate,
+      dateFrom,
+      dateTo,
+      patientId,
     } = params;
 
     logger.debug(`params:`, { params });
@@ -382,16 +386,34 @@ export class AppointmentRepository extends BaseRepository<Appointment> implement
     const pipeline: PipelineStage[] = [];
     const match: FilterQuery<Appointment> = {};
 
-    if (status !== undefined) {
+    // Status filter: only if non-empty
+    if (status !== undefined && status !== '') {
       match.status = status;
     }
 
-    if (startDate && endDate) {
-      const start = DateUtils.startOfDayUTC(startDate);
-      const end = DateUtils.endOfDayUTC(endDate);
+    // Date range filter
+    if (dateFrom || dateTo) {
+      const dateMatch: any = {};
+      if (dateFrom) {
+        dateMatch.$gte = DateUtils.startOfDayUTC(new Date(dateFrom));
+      }
+      if (dateTo) {
+        dateMatch.$lte = DateUtils.endOfDayUTC(new Date(dateTo));
+      }
+      match.date = dateMatch;
+    } else if (startDate && endDate) {
+      // Legacy support
+      const start = DateUtils.startOfDayUTC(new Date(startDate));
+      const end = DateUtils.endOfDayUTC(new Date(endDate));
       match.date = { $gte: start, $lte: end };
     }
 
+    // Patient filter
+    if (patientId) {
+      match.patientId = new mongoose.Types.ObjectId(patientId);
+    }
+
+    // Search filter
     if (search) {
       const patientIds = await PatientModel.find({ name: { $regex: search, $options: 'i' } }, '_id').lean();
       const doctorIds = await DoctorModel.find({ name: { $regex: search, $options: 'i' } }, '_id').lean();
@@ -404,6 +426,7 @@ export class AppointmentRepository extends BaseRepository<Appointment> implement
 
     pipeline.push({ $match: match });
 
+    // Lookups remain the same
     pipeline.push({
       $lookup: {
         from: 'patients',
@@ -466,20 +489,25 @@ export class AppointmentRepository extends BaseRepository<Appointment> implement
         'doctor._id': 1,
         'doctor.name': 1,
         'doctor.email': 1,
+        'doctor.profilePicture': 1,
         prescription: 1,
       },
     });
 
-    const [results, totalCount] = await Promise.all([
-      this.model.aggregate(pipeline).exec(),
-      this.model.countDocuments(match),
-    ]);
+    const countPipeline = [{ $match: match }, { $count: 'total' }];
+    const countResult = await this.model.aggregate(countPipeline).exec();
+    const totalCount = countResult[0]?.total || 0;
+
+    const results = await this.model.aggregate(pipeline).exec();
 
     const data = results.map((appt: ExtendedAppointment) => ({
       ...appt,
       patientId: appt.patientId?.toString(),
       doctorId: appt.doctorId?.toString(),
       prescriptionId: appt.prescriptionId?.toString(),
+      patientName: appt.patient?.name,
+      doctorName: appt.doctor?.name,
+      doctorProfilePicture: appt.doctor?.profilePicture,
     })) as ExtendedAppointment[];
 
     return { data, totalItems: totalCount };

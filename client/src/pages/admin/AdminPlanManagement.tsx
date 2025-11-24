@@ -26,7 +26,9 @@ const AdminPlanManagement: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(
+    null
+  );
   const itemsPerPage = 5;
 
   useEffect(() => {
@@ -69,22 +71,19 @@ const AdminPlanManagement: React.FC = () => {
     [dispatch]
   );
 
-  const handleDeletePlan = useCallback(
-    async () => {
-      if (!selectedPlan) return;
-      try {
-        await dispatch(deletePlanThunk(selectedPlan._id)).unwrap();
-        showSuccess('Plan deleted successfully');
-        setIsDeleteModalOpen(false);
-        setSelectedPlan(null);
-      } catch (err) {
-        showError(`Failed to delete plan: ${err}`);
-        setIsDeleteModalOpen(false);
-        setSelectedPlan(null);
-      }
-    },
-    [dispatch, selectedPlan]
-  );
+  const handleDeletePlan = useCallback(async () => {
+    if (!selectedPlan) return;
+    try {
+      await dispatch(deletePlanThunk(selectedPlan._id)).unwrap();
+      showSuccess('Plan deleted successfully');
+      setIsDeleteModalOpen(false);
+      setSelectedPlan(null);
+    } catch (err) {
+      showError(`Failed to delete plan: ${err}`);
+      setIsDeleteModalOpen(false);
+      setSelectedPlan(null);
+    }
+  }, [dispatch, selectedPlan]);
 
   const columns = useMemo(
     () => [
@@ -255,7 +254,8 @@ const AdminPlanManagement: React.FC = () => {
           }
         >
           <p className="text-white">
-            Are you sure you want to delete the plan "{selectedPlan.name || 'Unknown'}"?
+            Are you sure you want to delete the plan "
+            {selectedPlan.name || 'Unknown'}"?
           </p>
         </Modal>
       )}
