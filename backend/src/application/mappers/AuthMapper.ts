@@ -46,6 +46,7 @@ export class AuthMapper {
         email: entity.email,
         name: entity.name!,
         role,
+        hasPassword: entity.hasPassword,
       },
       accessToken,
       refreshToken,

@@ -5,6 +5,7 @@ export interface GetUserResponseDTO {
   _id: string;
   email: string;
   name?: string;
+  hasPassword?: boolean;
   role: UserRole;
   phone?: string;
   age?: string;

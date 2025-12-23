@@ -5,7 +5,7 @@ import { PatientSubscriptionModel } from '../database/models/PatientSubscription
 import { PatientSubscription } from '../../core/entities/PatientSubscription';
 import { ObjectId } from 'mongodb';
 import logger from '../../utils/logger';
-import { FilterQuery } from 'mongoose';
+import { ClientSession, FilterQuery } from 'mongoose';
 
 export class PatientSubscriptionRepository
   extends BaseRepository<PatientSubscription>
@@ -300,6 +300,30 @@ export class PatientSubscriptionRepository
     const subscriptions = await PatientSubscriptionModel.find({ planId }).lean();
     logger.debug(subscriptions);
     return subscriptions as PatientSubscription[];
+  }
+
+  async countActiveSubscriptions(patientId: string, session?: ClientSession): Promise<number> {
+    if (!ObjectId.isValid(patientId)) {
+      logger.error(`Invalid ObjectId for patientId: ${patientId}`);
+      return 0;
+    }
+
+    const countQuery = this.model.countDocuments(
+      {
+        patientId: new ObjectId(patientId),
+        status: 'active',
+        endDate: { $gte: new Date() },
+        appointmentsLeft: { $gt: 0 },
+      },
+      { session }
+    );
+
+    return await countQuery.exec();
+  }
+
+  async hasActiveSubscriptions(patientId: string, session?: ClientSession): Promise<boolean> {
+    const count = await this.countActiveSubscriptions(patientId, session);
+    return count > 0;
   }
 
   private calculateSubscriptionDetails(subscription: PatientSubscription): PatientSubscription {

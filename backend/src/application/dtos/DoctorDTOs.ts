@@ -3,6 +3,7 @@ export interface DoctorDTO {
   email: string;
   name?: string;
   password?: string;
+  hasPassword?: boolean;
   phone?: string;
   qualifications?: string[];
   licenseNumber?: string;

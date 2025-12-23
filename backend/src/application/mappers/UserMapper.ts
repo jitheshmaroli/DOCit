@@ -13,6 +13,7 @@ export class UserMapper {
       name: entity.name,
       role,
       phone: entity.phone,
+      hasPassword: entity.hasPassword,
       isBlocked: entity.isBlocked,
       lastSeen: entity.lastSeen?.toISOString(),
       createdAt: entity.createdAt?.toISOString(),

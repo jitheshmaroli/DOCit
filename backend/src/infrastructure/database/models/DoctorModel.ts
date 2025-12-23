@@ -31,6 +31,7 @@ const DoctorSchema = new Schema<Doctor>(
     isOnline: { type: Boolean, default: false },
     reviewIds: { type: [String] },
     isOtpVerified: { type: Boolean, default: false },
+    hasPassword: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

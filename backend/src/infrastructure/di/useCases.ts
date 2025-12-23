@@ -37,6 +37,7 @@ import {
   socketService,
   notificationService,
   validatorService,
+  mongoTransactionService,
 } from './services';
 
 const createUseCases = () => ({
@@ -78,7 +79,8 @@ const createUseCases = () => ({
     stripeService,
     notificationService,
     emailService,
-    validatorService
+    validatorService,
+    mongoTransactionService
   ),
   doctorUseCase: new DoctorUseCase(doctorRepository, specialityRepository, validatorService),
   patientUseCase: new PatientUseCase(

@@ -19,6 +19,7 @@ const PatientSchema = new Schema<Patient>(
     lastSeen: { type: Date },
     isOnline: { type: Boolean, default: false },
     isOtpVerified: { type: Boolean, default: false },
+    hasPassword: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

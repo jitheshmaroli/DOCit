@@ -1,7 +1,7 @@
 export interface Doctor {
   _id?: string;
   email: string;
-  password?: string;
+  password?: string | null;
   name?: string;
   phone?: string;
   qualifications?: string[];
@@ -28,6 +28,7 @@ export interface Doctor {
   isOtpVerified?: boolean;
   averageRating?: number;
   reviewIds?: string[];
+  hasPassword?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }

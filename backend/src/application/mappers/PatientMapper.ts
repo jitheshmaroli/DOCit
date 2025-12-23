@@ -9,6 +9,7 @@ export class PatientMapper {
       _id: entity._id,
       email: entity.email,
       name: entity.name,
+      hasPassword: entity.hasPassword,
       phone: entity.phone,
       age: entity.age,
       isSubscribed: entity.isSubscribed,

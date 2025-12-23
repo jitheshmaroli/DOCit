@@ -3,7 +3,7 @@ import { PatientSubscription } from './PatientSubscription';
 export interface Patient {
   _id?: string;
   email: string;
-  password?: string;
+  password?: string | null;
   name?: string;
   phone?: string;
   age?: string;
@@ -19,6 +19,7 @@ export interface Patient {
   isOnline?: boolean;
   isOtpVerified?: boolean;
   subscribedPlans?: PatientSubscription[];
+  hasPassword?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }

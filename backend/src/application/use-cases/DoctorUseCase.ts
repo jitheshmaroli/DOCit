@@ -170,7 +170,6 @@ export class DoctorUseCase implements IDoctorUseCase {
     this._validatorService.validateIdFormat(doctorId);
 
     const doctor = await this._doctorRepository.getDoctorDetails(doctorId);
-    logger.debug('doctor', { doctor });
     if (!doctor) {
       logger.debug(doctor);
       throw new NotFoundError('Doctor not found');

@@ -2,6 +2,7 @@ export interface Admin {
   _id?: string;
   email: string;
   password?: string;
+  hasPassword?: boolean;
   name?: string;
   phone?: string;
   refreshToken?: string;

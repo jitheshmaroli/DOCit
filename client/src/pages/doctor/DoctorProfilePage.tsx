@@ -4,15 +4,22 @@ import {
   validateName,
   validatePhone,
   validateNumeric,
+  validatePassword,
+  validateConfirmPassword,
 } from '../../utils/validation';
 import { RootState } from '../../redux/store';
 import { useAppSelector } from '../../redux/hooks';
 import { getImageUrl } from '../../utils/config';
-import api from '../../services/api';
 import { Experience, Speciality } from '../../types/doctorTypes';
 import { showError, showSuccess } from '../../utils/toastConfig';
 import Modal from '../../components/common/Modal';
-import ROUTES from '../../constants/routeConstants';
+import { FaRegEye, FaRegEyeSlash } from 'react-icons/fa';
+import {
+  changeDoctorPassword,
+  fetchSpecialities,
+  setDoctorPassword,
+} from '../../services/doctorService';
+import api from '../../services/api';
 
 interface FormData {
   name: string;
@@ -30,7 +37,6 @@ interface FormData {
 
 const DoctorProfilePage: React.FC = () => {
   const { user } = useAppSelector((state: RootState) => state.auth);
-
   const [formData, setFormData] = useState<FormData>({
     name: '',
     email: '',
@@ -57,15 +63,30 @@ const DoctorProfilePage: React.FC = () => {
   const [hasChanges, setHasChanges] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [isSetPassword, setIsSetPassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordErrors, setPasswordErrors] = useState<{
+    current: string;
+    new: string;
+    confirm: string;
+  }>({
+    current: '',
+    new: '',
+    confirm: '',
+  });
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const doctorId = user?._id;
 
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const specialitiesResponse = await api.get(
-          ROUTES.API.DOCTOR.SPECIALITIES
-        );
-        const specialitiesData = specialitiesResponse.data;
+        const specialitiesData = await fetchSpecialities();
         setSpecialities(specialitiesData);
 
         const response = await api.get(`/api/doctors/profile`);
@@ -112,9 +133,7 @@ const DoctorProfilePage: React.FC = () => {
       }
     };
 
-    if (doctorId) {
-      fetchProfile();
-    }
+    if (doctorId) fetchProfile();
   }, [doctorId]);
 
   useEffect(() => {
@@ -134,26 +153,22 @@ const DoctorProfilePage: React.FC = () => {
         'licenseProof',
       ];
       for (const field of simpleFields) {
-        if (formData[field] !== initialFormData[field]) {
-          return true;
-        }
+        if (formData[field] !== initialFormData[field]) return true;
       }
 
-      if (formData.experiences.length !== initialFormData.experiences.length) {
+      if (formData.experiences.length !== initialFormData.experiences.length)
         return true;
-      }
-      for (let i = 0; i < formData.experiences.length; i++) {
-        const currentExp = formData.experiences[i];
-        const initialExp = initialFormData.experiences[i];
-        if (
-          currentExp.hospitalName !== initialExp.hospitalName ||
-          currentExp.department !== initialExp.department ||
-          currentExp.years !== initialExp.years
-        ) {
-          return true;
-        }
-      }
 
+      for (let i = 0; i < formData.experiences.length; i++) {
+        const current = formData.experiences[i];
+        const initial = initialFormData.experiences[i];
+        if (
+          current.hospitalName !== initial.hospitalName ||
+          current.department !== initial.department ||
+          current.years !== initial.years
+        )
+          return true;
+      }
       return false;
     };
 
@@ -178,9 +193,7 @@ const DoctorProfilePage: React.FC = () => {
       return;
 
     setFormData((prev) => ({ ...prev, [name]: newValue }));
-    if (typeof newValue === 'string') {
-      validateField(name, newValue);
-    }
+    if (typeof newValue === 'string') validateField(name, newValue);
   };
 
   const handleExperienceChange = (
@@ -189,7 +202,6 @@ const DoctorProfilePage: React.FC = () => {
     value: string
   ) => {
     if (field === 'years' && value.length > 2) return;
-
     setFormData((prev) => ({
       ...prev,
       experiences: prev.experiences.map((exp, i) =>
@@ -223,9 +235,7 @@ const DoctorProfilePage: React.FC = () => {
       const selectedFile = e.target.files[0];
       setFile(selectedFile);
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreviewImage(reader.result as string);
-      };
+      reader.onloadend = () => setPreviewImage(reader.result as string);
       reader.readAsDataURL(selectedFile);
     }
   };
@@ -292,7 +302,6 @@ const DoctorProfilePage: React.FC = () => {
     setExperienceErrors((prev) => {
       const newErrors = [...prev];
       newErrors[index] = { ...newErrors[index] };
-
       switch (field) {
         case 'hospitalName':
           newErrors[index].hospitalName = !value
@@ -335,15 +344,12 @@ const DoctorProfilePage: React.FC = () => {
       ) {
         validateField(key, value as string);
         if (!value) {
-          newErrors[key] = `${
-            key.charAt(0).toUpperCase() + key.slice(1)
-          } is required`;
+          newErrors[key] =
+            `${key.charAt(0).toUpperCase() + key.slice(1)} is required`;
           isValid = false;
         } else if (errors[key]) {
           newErrors[key] = errors[key];
           isValid = false;
-        } else {
-          newErrors[key] = undefined;
         }
       }
     });
@@ -352,6 +358,7 @@ const DoctorProfilePage: React.FC = () => {
       validateExperienceField(index, 'hospitalName', exp.hospitalName);
       validateExperienceField(index, 'department', exp.department);
       validateExperienceField(index, 'years', exp.years);
+
       const expErrors: Record<string, string | undefined> = {
         hospitalName: !exp.hospitalName
           ? 'Hospital Name is required'
@@ -363,6 +370,7 @@ const DoctorProfilePage: React.FC = () => {
             ? 'Years must be between 0-99'
             : undefined),
       };
+
       if (
         !exp.hospitalName ||
         !exp.department ||
@@ -379,14 +387,12 @@ const DoctorProfilePage: React.FC = () => {
     return isValid;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!validateForm()) {
       showError('Please fill all required fields correctly');
       return;
     }
-
     setIsModalOpen(true);
   };
 
@@ -413,12 +419,10 @@ const DoctorProfilePage: React.FC = () => {
           }))
         )
       );
-      if (file) {
-        formDataToSend.append('profilePicture', file);
-      }
-      if (licenseProofFile) {
+
+      if (file) formDataToSend.append('profilePicture', file);
+      if (licenseProofFile)
         formDataToSend.append('licenseProof', licenseProofFile);
-      }
 
       const response = await api.patch(`/api/doctors/profile`, formDataToSend, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -432,6 +436,7 @@ const DoctorProfilePage: React.FC = () => {
         speciality: speciality ? speciality.name : formData.speciality,
         licenseProof: response.data.licenseProof || formData.licenseProof,
       };
+
       setFormData(updatedFormData);
       setInitialFormData(updatedFormData);
       const imageUrl = getImageUrl(response.data.profilePicture);
@@ -447,6 +452,83 @@ const DoctorProfilePage: React.FC = () => {
       setLicenseProofFile(null);
       setIsModalOpen(false);
       showError(error.response?.data?.message || 'Error updating profile');
+    }
+  };
+
+  // Password Management Handlers
+  const openPasswordModal = (isSet: boolean) => {
+    setIsSetPassword(isSet);
+    setIsPasswordModalOpen(true);
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setPasswordErrors({ current: '', new: '', confirm: '' });
+  };
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    if (name === 'currentPassword') setCurrentPassword(value);
+    if (name === 'newPassword') setNewPassword(value);
+    if (name === 'confirmPassword') setConfirmPassword(value);
+
+    setPasswordErrors((prev) => ({
+      ...prev,
+      [name === 'newPassword'
+        ? 'new'
+        : name === 'confirmPassword'
+          ? 'confirm'
+          : 'current']:
+        name === 'newPassword'
+          ? validatePassword(value) || ''
+          : name === 'confirmPassword'
+            ? validateConfirmPassword(newPassword, value) || ''
+            : prev.current,
+    }));
+  };
+
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const newError = validatePassword(newPassword) || '';
+    const confirmError =
+      validateConfirmPassword(newPassword, confirmPassword) || '';
+    let currentError = '';
+
+    if (!isSetPassword) {
+      currentError = !currentPassword ? 'Current password is required' : '';
+    }
+
+    setPasswordErrors({
+      current: currentError,
+      new: newError,
+      confirm: confirmError,
+    });
+
+    if (currentError || newError || confirmError) {
+      showError('Please correct the errors');
+      return;
+    }
+
+    try {
+      if (isSetPassword) {
+        await setDoctorPassword(newPassword);
+      } else {
+        await changeDoctorPassword(currentPassword, newPassword);
+      }
+      showSuccess(
+        isSetPassword
+          ? 'Password set successfully'
+          : 'Password changed successfully'
+      );
+
+      setIsPasswordModalOpen(false);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setPasswordErrors({ current: '', new: '', confirm: '' });
+    } catch (error) {
+      const err = error as { message?: string };
+      showError(err.message || 'Failed to update password');
     }
   };
 
@@ -468,14 +550,16 @@ const DoctorProfilePage: React.FC = () => {
                     src={previewImage}
                     alt="Profile Preview"
                     className="w-full h-full object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = '/images/avatar.png';
-                    }}
+                    onError={(e) =>
+                      ((e.target as HTMLImageElement).src =
+                        '/images/avatar.png')
+                    }
                   />
                 ) : (
                   <span className="text-[24px] font-bold text-white">DR</span>
                 )}
               </div>
+
               <label className="w-[190px] h-[45.7px] bg-purple-500/20 text-purple-300 text-[12px] rounded-lg hover:bg-purple-500/30 transition-colors flex items-center justify-center cursor-pointer">
                 Change Photo
                 <input
@@ -485,6 +569,7 @@ const DoctorProfilePage: React.FC = () => {
                   onChange={handlePhotoChange}
                 />
               </label>
+
               <div className="mt-4">
                 <label className="text-[12px] text-gray-200">
                   License Proof (PDF)
@@ -511,13 +596,20 @@ const DoctorProfilePage: React.FC = () => {
                   </div>
                 )}
               </div>
+
+              {/* Change Password Button */}
+              <button
+                onClick={() => openPasswordModal(user?.hasPassword === false)}
+                className="mt-4 w-[190px] h-[45.7px] bg-gradient-to-r from-red-600 to-pink-600 text-white text-[12px] rounded-lg hover:from-red-700 hover:to-pink-700 transition-all duration-300"
+              >
+                {user?.hasPassword ? 'Change Password' : 'Set Password'}
+              </button>
             </div>
 
             <div className="flex-1">
               <h2 className="text-[18px] font-bold text-white mb-2">
                 Dr. {formData.name}
               </h2>
-
               <h3 className="text-[16px] font-bold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent mb-4">
                 Personal Information
               </h3>
@@ -540,6 +632,7 @@ const DoctorProfilePage: React.FC = () => {
                       <p className="text-red-500 text-[12px]">{errors.name}</p>
                     )}
                   </div>
+
                   <div>
                     <label className="text-[12px] text-gray-200">
                       Email Address
@@ -550,6 +643,7 @@ const DoctorProfilePage: React.FC = () => {
                       </span>
                     </div>
                   </div>
+
                   <div>
                     <label className="text-[12px] text-gray-200">
                       Phone Number <span className="text-red-500">*</span>
@@ -566,6 +660,7 @@ const DoctorProfilePage: React.FC = () => {
                       <p className="text-red-500 text-[12px]">{errors.phone}</p>
                     )}
                   </div>
+
                   <div>
                     <label className="text-[12px] text-gray-200">
                       License Number <span className="text-red-500">*</span>
@@ -584,6 +679,7 @@ const DoctorProfilePage: React.FC = () => {
                       </p>
                     )}
                   </div>
+
                   <div>
                     <label className="text-[12px] text-gray-200">
                       Qualifications (comma-separated){' '}
@@ -603,6 +699,7 @@ const DoctorProfilePage: React.FC = () => {
                       </p>
                     )}
                   </div>
+
                   <div>
                     <label className="text-[12px] text-gray-200">
                       Location <span className="text-red-500">*</span>
@@ -621,6 +718,7 @@ const DoctorProfilePage: React.FC = () => {
                       </p>
                     )}
                   </div>
+
                   <div>
                     <label className="text-[12px] text-gray-200">
                       Speciality <span className="text-red-500">*</span>
@@ -650,6 +748,7 @@ const DoctorProfilePage: React.FC = () => {
                       </p>
                     )}
                   </div>
+
                   <div>
                     <label className="text-[12px] text-gray-200">
                       Gender <span className="text-red-500">*</span>
@@ -679,6 +778,7 @@ const DoctorProfilePage: React.FC = () => {
                       </p>
                     )}
                   </div>
+
                   <div className="col-span-2">
                     <label className="text-[12px] text-gray-200 flex items-center gap-2">
                       Allow Free Booking
@@ -694,6 +794,7 @@ const DoctorProfilePage: React.FC = () => {
                       </span>
                     </label>
                   </div>
+
                   <div className="col-span-2">
                     <label className="text-[12px] text-gray-200">
                       Work Experience
@@ -727,6 +828,7 @@ const DoctorProfilePage: React.FC = () => {
                               </p>
                             )}
                           </div>
+
                           <div>
                             <label className="text-[12px] text-gray-200">
                               Department/Position
@@ -750,6 +852,7 @@ const DoctorProfilePage: React.FC = () => {
                               </p>
                             )}
                           </div>
+
                           <div>
                             <label className="text-[12px] text-gray-200">
                               Years
@@ -793,7 +896,7 @@ const DoctorProfilePage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="mt-6">
+                <div className="mt-6 flex justify-end gap-4">
                   <button
                     type="submit"
                     disabled={!hasChanges}
@@ -811,6 +914,7 @@ const DoctorProfilePage: React.FC = () => {
           </div>
         </div>
 
+        {/* Profile Update Confirmation Modal */}
         <Modal
           isOpen={isModalOpen}
           onClose={() => {
@@ -845,6 +949,129 @@ const DoctorProfilePage: React.FC = () => {
           <p className="text-white">
             Are you sure you want to update your profile?
           </p>
+        </Modal>
+
+        {/* Password Management Modal (Set / Change) */}
+        <Modal
+          isOpen={isPasswordModalOpen}
+          onClose={() => {
+            setIsPasswordModalOpen(false);
+            setCurrentPassword('');
+            setNewPassword('');
+            setConfirmPassword('');
+            setPasswordErrors({ current: '', new: '', confirm: '' });
+          }}
+          title={isSetPassword ? 'Set Password' : 'Change Password'}
+          footer={
+            <>
+              <button
+                onClick={handlePasswordSubmit}
+                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
+              >
+                {isSetPassword ? 'Set Password' : 'Change Password'}
+              </button>
+              <button
+                onClick={() => {
+                  setIsPasswordModalOpen(false);
+                  setCurrentPassword('');
+                  setNewPassword('');
+                  setConfirmPassword('');
+                  setPasswordErrors({ current: '', new: '', confirm: '' });
+                }}
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
+              >
+                Cancel
+              </button>
+            </>
+          }
+        >
+          <form onSubmit={handlePasswordSubmit} className="space-y-4">
+            {!isSetPassword && (
+              <div>
+                <label className="block text-sm text-gray-200 mb-1">
+                  Current Password
+                </label>
+                <div className="relative">
+                  <input
+                    type={showCurrentPassword ? 'text' : 'password'}
+                    name="currentPassword"
+                    value={currentPassword}
+                    onChange={handlePasswordChange}
+                    className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                    placeholder="Enter current password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                  >
+                    {showCurrentPassword ? <FaRegEyeSlash /> : <FaRegEye />}
+                  </button>
+                </div>
+                {passwordErrors.current && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {passwordErrors.current}
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm text-gray-200 mb-1">
+                New Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showNewPassword ? 'text' : 'password'}
+                  name="newPassword"
+                  value={newPassword}
+                  onChange={handlePasswordChange}
+                  className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                  placeholder="Enter new password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                >
+                  {showNewPassword ? <FaRegEyeSlash /> : <FaRegEye />}
+                </button>
+              </div>
+              {passwordErrors.new && (
+                <p className="text-red-500 text-xs mt-1">
+                  {passwordErrors.new}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm text-gray-200 mb-1">
+                Confirm New Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  name="confirmPassword"
+                  value={confirmPassword}
+                  onChange={handlePasswordChange}
+                  className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                  placeholder="Confirm new password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                >
+                  {showConfirmPassword ? <FaRegEyeSlash /> : <FaRegEye />}
+                </button>
+              </div>
+              {passwordErrors.confirm && (
+                <p className="text-red-500 text-xs mt-1">
+                  {passwordErrors.confirm}
+                </p>
+              )}
+            </div>
+          </form>
         </Modal>
       </div>
     </div>

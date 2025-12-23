@@ -367,3 +367,21 @@ export const fetchSpecialities = async () => {
     );
   }
 };
+
+export const setPatientPassword = async (newPassword: string) => {
+  const response = await api.post(ROUTES.API.PATIENT.SET_PASSWORD, {
+    newPassword,
+  });
+  return response.data;
+};
+
+export const changePatientPassword = async (
+  currentPassword: string,
+  newPassword: string
+) => {
+  const response = await api.post(ROUTES.API.PATIENT.CHANGE_PASSWORD, {
+    currentPassword,
+    newPassword,
+  });
+  return response.data;
+};
