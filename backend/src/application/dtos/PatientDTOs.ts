@@ -6,6 +6,7 @@ export interface PatientDTO {
   email: string;
   name?: string;
   password?: string;
+  hasPassword?: boolean;
   phone?: string;
   age?: string;
   isSubscribed?: boolean;

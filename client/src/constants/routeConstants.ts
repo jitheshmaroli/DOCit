@@ -115,6 +115,8 @@ export const ROUTES = {
       ),
       APPOINTED_PATIENTS: apiPath('/doctors/patients/appointed'),
       CANCEL_APPOINTMENT: apiPath('/doctors/appointments/cancel'),
+      SET_PASSWORD: apiPath('/doctors/set-password'),
+      CHANGE_PASSWORD: apiPath('/doctors/change-password'),
     },
 
     PATIENT: {
@@ -142,6 +144,8 @@ export const ROUTES = {
       SUBSCRIPTIONS: apiPath(
         '/patients/subscriptions/:subscriptionId/resume-payment'
       ),
+      SET_PASSWORD: apiPath('/patients/set-password'),
+      CHANGE_PASSWORD: apiPath('/patients/change-password'),
     },
 
     MESSAGE: {

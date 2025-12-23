@@ -27,6 +27,7 @@ import {
 import { SubscriptionPlanMapper } from '../mappers/SubscriptionPlanMapper';
 import { PatientSubscriptionMapper } from '../mappers/PatientSubscriptionMapper';
 import logger from '../../utils/logger';
+import { ITransactionService } from '../../core/interfaces/services/ITransactionService';
 
 export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
   constructor(
@@ -37,7 +38,8 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
     private _stripeService: StripeService,
     private _notificationService: INotificationService,
     private _emailService: IEmailService,
-    private _validatorService: IValidatorService
+    private _validatorService: IValidatorService,
+    private _transactionService: ITransactionService
   ) {}
 
   async createSubscriptionPlan(
@@ -355,7 +357,6 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
         await new Promise((resolve) => setTimeout(resolve, checkInterval));
         elapsed += checkInterval;
 
-        // Check if subscription is now active
         const updatedSubscription = await this._patientSubscriptionRepository.findByStripePaymentId(
           dto.paymentIntentId
         );
@@ -375,51 +376,100 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
   async handlePaymentSuccess(paymentIntentId: string): Promise<void> {
     this._validatorService.validateLength(paymentIntentId, 1, 100);
 
-    const subscription = await this._patientSubscriptionRepository.findByStripePaymentId(paymentIntentId);
-    if (!subscription) {
-      logger.warn(`No pending subscription found for payment intent: ${paymentIntentId}`);
-      return;
-    }
-    if (subscription.status !== 'pending') {
-      logger.info(
-        `Subscription already processed for payment intent: ${paymentIntentId}, status: ${subscription.status}`
+    let subscriptionId: string | undefined;
+    let patientId: string | undefined;
+    let calculatedEndDate: Date | undefined;
+
+    await this._transactionService.withTransaction(async (session) => {
+      const subscription = await this._patientSubscriptionRepository.findByStripePaymentId(paymentIntentId, session);
+      if (!subscription) {
+        logger.warn(`No pending subscription found for payment intent: ${paymentIntentId}`);
+        return;
+      }
+      if (subscription.status !== 'pending') {
+        logger.info(
+          `Subscription already processed for payment intent: ${paymentIntentId}, status: ${subscription.status}`
+        );
+        return;
+      }
+
+      const planId = subscription.planId?.toString();
+      if (!planId) {
+        throw new NotFoundError('Plan ID not found');
+      }
+
+      const plan = await this._subscriptionPlanRepository.findById(planId, session);
+      if (!plan) {
+        throw new NotFoundError('Plan not found');
+      }
+
+      const patient = await this._patientRepository.findById(subscription.patientId!.toString(), session);
+      if (!patient) throw new NotFoundError('Patient not found');
+
+      const doctor = await this._doctorRepository.findById(plan.doctorId!.toString(), session);
+      if (!doctor) throw new NotFoundError('Doctor not found');
+
+      const startDate = new Date();
+      const endDate = moment(startDate).add(plan.validityDays, 'days').toDate();
+
+      subscriptionId = subscription._id!.toString();
+      patientId = subscription.patientId!.toString();
+      calculatedEndDate = endDate;
+
+      // Activate subscription
+      const updatedSubscription = await this._patientSubscriptionRepository.update(
+        subscription._id!,
+        {
+          status: 'active',
+          startDate,
+          endDate,
+          updatedAt: new Date(),
+        },
+        session
       );
+
+      if (!updatedSubscription) {
+        throw new ValidationError('Failed to activate subscription');
+      }
+
+      // update patient's hasActiveSubscriptions flag
+      const hasActiveSubscriptions = await this._patientSubscriptionRepository.hasActiveSubscriptions(
+        subscription.patientId!.toString(),
+        session
+      );
+      await this._patientRepository.updateSubscriptionStatus(subscription.patientId!, hasActiveSubscriptions, session);
+    });
+
+    if (!subscriptionId || !patientId || !calculatedEndDate) {
       return;
     }
 
-    const planId = subscription.planId?.toString();
+    logger.info(`Subscription ${subscriptionId} activated successfully for payment intent: ${paymentIntentId}`);
+
+    const freshSubscription = await this._patientSubscriptionRepository.findById(subscriptionId);
+    if (!freshSubscription || freshSubscription.status !== 'active') {
+      logger.warn(`Subscription not active after transaction for ${paymentIntentId}`);
+      return;
+    }
+
+    const planId = freshSubscription.planId?.toString();
     if (!planId) {
-      throw new NotFoundError('Plan ID not found');
+      logger.error('Plan ID missing after activation');
+      return;
     }
+
     const plan = await this._subscriptionPlanRepository.findById(planId);
-    if (!plan) {
-      throw new NotFoundError('Plan not found');
-    }
+    const patient = await this._patientRepository.findById(patientId);
+    const doctor = await this._doctorRepository.findById(plan!.doctorId!.toString());
 
-    const patient = await this._patientRepository.findById(subscription.patientId!.toString());
-    if (!patient) throw new NotFoundError('Patient not found');
-
-    const doctor = await this._doctorRepository.findById(plan.doctorId!.toString());
-    if (!doctor) throw new NotFoundError('Doctor not found');
-
-    // Calculate dates
-    const startDate = new Date();
-    const endDate = moment(startDate).add(plan.validityDays, 'days').toDate();
-
-    // Update to active
-    const updatedSubscription = await this._patientSubscriptionRepository.update(subscription._id!, {
-      status: 'active',
-      startDate,
-      endDate,
-      updatedAt: new Date(),
-    });
-    if (!updatedSubscription) {
-      throw new ValidationError('Failed to activate subscription');
+    if (!plan || !patient || !doctor) {
+      logger.error(`Missing plan/patient/doctor after successful activation for payment intent: ${paymentIntentId}`);
+      return;
     }
 
     // Notifications
     const patientNotification: Notification = {
-      userId: subscription.patientId,
+      userId: patientId,
       type: NotificationType.SUBSCRIPTION_CONFIRMED,
       message: `Your subscription to plan "${plan.name}" with Dr. ${doctor.name} has been confirmed.`,
       isRead: false,
@@ -434,6 +484,7 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
       createdAt: new Date(),
     };
 
+    // Validation
     this._validatorService.validateRequiredFields({
       patientNotificationUserId: patientNotification.userId,
       patientNotificationMessage: patientNotification.message,
@@ -442,8 +493,8 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
       doctorNotificationMessage: doctorNotification.message,
       doctorNotificationType: doctorNotification.type,
     });
-    this._validatorService.validateIdFormat(patientNotification.userId!.toString());
-    this._validatorService.validateIdFormat(doctorNotification.userId!.toString());
+    this._validatorService.validateIdFormat(patientNotification.userId!);
+    // this._validatorService.validateIdFormat(doctorNotification.userId!);
     this._validatorService.validateLength(patientNotification.message, 1, 1000);
     this._validatorService.validateLength(doctorNotification.message, 1, 1000);
     this._validatorService.validateEnum(patientNotification.type, ['SUBSCRIPTION_CONFIRMED', 'SUBSCRIPTION_CANCELLED']);
@@ -451,9 +502,10 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
 
     // Emails
     const patientEmailSubject = 'Subscription Confirmation';
-    const patientEmailText = `Dear ${patient.name},\n\nYour subscription to the plan "${plan.name}" with Dr. ${doctor.name} has been successfully confirmed. It is valid until ${endDate.toLocaleDateString()} and includes ${plan.appointmentCount} appointments.\n\nBest regards,\nDOCit Team`;
+    const patientEmailText = `Dear ${patient.name},\n\nYour subscription to the plan "${plan.name}" with Dr. ${doctor.name} has been successfully confirmed. It is valid until ${calculatedEndDate.toLocaleDateString()} and includes ${plan.appointmentCount} appointments.\n\nBest regards,\nDOCit Team`;
+
     const doctorEmailSubject = 'New Subscription';
-    const doctorEmailText = `Dear Dr. ${doctor.name},\n\n${patient.name} has subscribed to your plan "${plan.name}". The subscription is valid until ${endDate.toLocaleDateString()}.\n\nBest regards,\nDOCit Team`;
+    const doctorEmailText = `Dear Dr. ${doctor.name},\n\n${patient.name} has subscribed to your plan "${plan.name}". The subscription is valid until ${calculatedEndDate.toLocaleDateString()}.\n\nBest regards,\nDOCit Team`;
 
     this._validatorService.validateEmailFormat(patient.email);
     this._validatorService.validateEmailFormat(doctor.email);
@@ -462,21 +514,13 @@ export class SubscriptionPlanUseCase implements ISubscriptionPlanUseCase {
     this._validatorService.validateLength(patientEmailText, 1, 1000);
     this._validatorService.validateLength(doctorEmailText, 1, 1000);
 
+    // Send notifications and emails
     await Promise.all([
       this._notificationService.sendNotification(patientNotification),
       this._notificationService.sendNotification(doctorNotification),
       this._emailService.sendEmail(patient.email, patientEmailSubject, patientEmailText),
       this._emailService.sendEmail(doctor.email, doctorEmailSubject, doctorEmailText),
     ]);
-
-    // Update patient subscription status
-    const activeSubscriptions = await this._patientSubscriptionRepository.findAll();
-    const hasActiveSubscriptions = activeSubscriptions.some(
-      (sub) => sub.status === 'active' && sub.patientId?.toString() === subscription.patientId
-    );
-    await this._patientRepository.updateSubscriptionStatus(subscription.patientId!, hasActiveSubscriptions);
-
-    logger.info(`Subscription ${subscription._id} activated successfully for payment intent: ${paymentIntentId}`);
   }
 
   async cancelSubscription(

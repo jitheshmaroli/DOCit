@@ -5,7 +5,7 @@ import { getMulterUploader } from '../../utils/multerConfig';
 
 const router = express.Router();
 
-const { doctorController, doctorProfileController } = createControllers();
+const { doctorController, doctorProfileController, sharedAuthController } = createControllers();
 const { authMiddleware, doctorRoleMiddleware } = createMiddlewares();
 
 const upload = getMulterUploader('doctor-files', 'image-and-pdf');
@@ -67,5 +67,9 @@ router.get(
   doctorAuth,
   doctorController.getPlanSubscriptionCounts.bind(doctorController)
 );
+
+// password routes
+router.post('/set-password', doctorAuth, sharedAuthController.setPassword.bind(sharedAuthController));
+router.post('/change-password', doctorAuth, sharedAuthController.changePassword.bind(sharedAuthController));
 
 export default router;

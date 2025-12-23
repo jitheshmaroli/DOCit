@@ -27,6 +27,7 @@ export interface Doctor {
   allowFreeBooking?: boolean;
   licenseProof?: string;
   licenseProofPublicId?: string;
+  hasPassword?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -142,6 +143,7 @@ export interface User {
   phone?: string;
   isBlocked?: boolean;
   profilePicture?: string;
+  hasPassword?: boolean;
 }
 
 export interface Speciality {
@@ -165,6 +167,7 @@ export interface Patient {
   profilePicture?: string;
   profilePicturePublicId?: string;
   subscribedPlans?: PatientSubscription[];
+  hasPassword?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }

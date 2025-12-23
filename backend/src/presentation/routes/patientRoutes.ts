@@ -6,7 +6,7 @@ import { getMulterUploader } from '../../utils/multerConfig';
 const router = express.Router();
 
 // Controllers
-const { patientController, patientProfileController } = createControllers();
+const { patientController, patientProfileController, sharedAuthController } = createControllers();
 const { authMiddleware, patientRoleMiddleware } = createMiddlewares();
 
 // Multer setup
@@ -74,5 +74,9 @@ router.patch(
 // Review routes
 router.post('/review', patientAuth, patientController.createReview.bind(patientController));
 router.get('/doctors/:doctorId/reviews', patientAuth, patientController.getDoctorReviews.bind(patientController));
+
+// password routes
+router.post('/set-password', patientAuth, sharedAuthController.setPassword.bind(sharedAuthController));
+router.post('/change-password', patientAuth, sharedAuthController.changePassword.bind(sharedAuthController));
 
 export default router;
