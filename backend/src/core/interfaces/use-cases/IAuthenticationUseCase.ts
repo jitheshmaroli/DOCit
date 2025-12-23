@@ -23,4 +23,6 @@ export interface IAuthenticationUseCase {
   refreshToken(refreshToken: string): Promise<RefreshTokenResponseDTO>;
   logout(userId: string, role: UserRole): Promise<LogoutResponseDTO>;
   resendSignupOTP(email: string, role: UserRole): Promise<ResendSignupOTPResponseDTO>;
+  changePassword(userId: string, role: UserRole, currentPassword: string, newPassword: string): Promise<void>;
+  setPassword(userId: string, role: UserRole, newPassword: string): Promise<void>;
 }

@@ -164,4 +164,66 @@ export class SharedAuthController {
       next(error);
     }
   }
+
+  async setPassword(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user?.id;
+      const userRole = req.user?.role;
+
+      if (!userId || !userRole) {
+        throw new AuthenticationError('Unauthorized');
+      }
+
+      const { newPassword } = req.body;
+
+      if (!newPassword) {
+        throw new ValidationError('New password is required');
+      }
+
+      if (!validatePassword(newPassword)) {
+        throw new ValidationError(
+          'Password must be at least 8 characters, contain uppercase, lowercase, number, and special character'
+        );
+      }
+
+      await this._authenticationUseCase.setPassword(userId, userRole, newPassword);
+
+      res.status(HttpStatusCode.OK).json({
+        message: 'Password set successfully',
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async changePassword(req: CustomRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user?.id;
+      const userRole = req.user?.role;
+
+      if (!userId || !userRole) {
+        throw new AuthenticationError('Unauthorized');
+      }
+
+      const { currentPassword, newPassword } = req.body;
+
+      if (!currentPassword || !newPassword) {
+        throw new ValidationError('Current and new password are required');
+      }
+
+      if (!validatePassword(newPassword)) {
+        throw new ValidationError(
+          'New password must be at least 8 characters, contain uppercase, lowercase, number, and special character'
+        );
+      }
+
+      await this._authenticationUseCase.changePassword(userId, userRole, currentPassword, newPassword);
+
+      res.status(HttpStatusCode.OK).json({
+        message: 'Password changed successfully',
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }

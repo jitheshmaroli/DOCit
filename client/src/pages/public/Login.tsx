@@ -154,12 +154,12 @@ const LoginPage: React.FC = () => {
 
           {/* Messages */}
           {apiError && apiError !== 'Invalid email or password' && (
-            <div className="mb-4 p-3 bg-[#320A6B]/20 text-[#320A6B] rounded-lg text-sm">
+            <div className="mb-4 p-3 bg-[#320A6B]/20 text-[#ff0000] rounded-lg text-sm">
               {apiError}
             </div>
           )}
           {message && (
-            <div className="mb-4 p-3 bg-[#78B9B5]/20 text-[#0F828C] rounded-lg text-sm">
+            <div className="mb-4 p-3 bg-[#78B9B5]/20 text-[#ffffff] rounded-lg text-sm">
               {message}
             </div>
           )}

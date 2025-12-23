@@ -286,3 +286,21 @@ export const fetchDashboardData = async ({
     throw new Error('Failed to fetch dashboard data');
   }
 };
+
+export const setDoctorPassword = async (newPassword: string) => {
+  const response = await api.post(ROUTES.API.DOCTOR.SET_PASSWORD, {
+    newPassword,
+  });
+  return response.data;
+};
+
+export const changeDoctorPassword = async (
+  currentPassword: string,
+  newPassword: string
+) => {
+  const response = await api.post(ROUTES.API.DOCTOR.CHANGE_PASSWORD, {
+    currentPassword,
+    newPassword,
+  });
+  return response.data;
+};

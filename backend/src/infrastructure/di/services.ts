@@ -17,6 +17,7 @@ import {
   appointmentRepository,
   patientSubscriptionRepository,
 } from './repositories';
+import { MongoTransactionService } from '../services/MongoTransactionService';
 
 export const emailService = new EmailService();
 export const tokenService = new TokenService();
@@ -38,3 +39,4 @@ export const cronService = new CronService(
   notificationService
 );
 export const validatorService = new JoiService();
+export const mongoTransactionService = new MongoTransactionService();

@@ -80,6 +80,7 @@ export interface VerifySignupOTPResponseDTO {
     email: string;
     name: string;
     role: UserRole.Patient | UserRole.Doctor;
+    hasPassword?: boolean;
   };
   accessToken: string;
   refreshToken: string;

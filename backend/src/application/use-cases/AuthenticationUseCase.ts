@@ -273,4 +273,81 @@ export class AuthenticationUseCase implements IAuthenticationUseCase {
     await this._otpService.sendOTP(email);
     return { message: 'OTP sent successfully' };
   }
+
+  async setPassword(userId: string, role: UserRole, newPassword: string): Promise<void> {
+    this._validatorService.validateRequiredFields({ userId, role, newPassword });
+    this._validatorService.validatePassword(newPassword);
+
+    let user: Patient | Doctor | null = null;
+
+    if (role === UserRole.Patient) {
+      user = await this._patientRepository.findById(userId);
+    } else if (role === UserRole.Doctor) {
+      user = await this._doctorRepository.findById(userId);
+    }
+
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+
+    if (user.hasPassword) {
+      throw new ValidationError('Password already set. Use change password instead.');
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    if (role === UserRole.Patient) {
+      await this._patientRepository.update(userId, {
+        password: hashedPassword,
+        hasPassword: true,
+        updatedAt: new Date(),
+      });
+    } else if (role === UserRole.Doctor) {
+      await this._doctorRepository.update(userId, {
+        password: hashedPassword,
+        hasPassword: true,
+        updatedAt: new Date(),
+      });
+    }
+  }
+
+  async changePassword(userId: string, role: UserRole, currentPassword: string, newPassword: string): Promise<void> {
+    this._validatorService.validateRequiredFields({ userId, role, currentPassword, newPassword });
+    this._validatorService.validatePassword(newPassword);
+
+    let user: Patient | Doctor | null = null;
+
+    if (role === UserRole.Patient) {
+      user = await this._patientRepository.findById(userId);
+    } else if (role === UserRole.Doctor) {
+      user = await this._doctorRepository.findById(userId);
+    }
+
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+
+    if (!user.hasPassword || !user.password) {
+      throw new ValidationError('No password set. Please set a password first.');
+    }
+
+    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isCurrentPasswordValid) {
+      throw new AuthenticationError('Current password is incorrect');
+    }
+
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+
+    if (role === UserRole.Patient) {
+      await this._patientRepository.update(userId, {
+        password: hashedNewPassword,
+        updatedAt: new Date(),
+      });
+    } else if (role === UserRole.Doctor) {
+      await this._doctorRepository.update(userId, {
+        password: hashedNewPassword,
+        updatedAt: new Date(),
+      });
+    }
+  }
 }

@@ -8,6 +8,7 @@ export class DoctorMapper {
       _id: entity._id,
       email: entity.email,
       name: entity.name,
+      hasPassword: entity.hasPassword,
       phone: entity.phone,
       qualifications: entity.qualifications,
       licenseNumber: entity.licenseNumber,

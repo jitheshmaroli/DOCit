@@ -133,6 +133,7 @@ export const verifySignUpOtpThunk = createAsyncThunk(
         email: response.email,
         name: response.name,
         role: payload.role as 'patient' | 'doctor',
+        hasPassword: response.hasPassword,
       };
 
       thunkAPI.dispatch(setUser(user));
@@ -163,6 +164,7 @@ export const loginThunk = createAsyncThunk(
             name: userResponse.name,
             role: userResponse.role || payload.role,
             profilePicture: userResponse.profilePicture,
+            hasPassword: userResponse.hasPassword,
           };
 
           thunkAPI.dispatch(setUser(user));
@@ -220,6 +222,7 @@ export const checkAuthThunk = createAsyncThunk(
         role: response.role || expectedRole,
         phone: response.phone,
         profilePicture: response.profilePicture,
+        hasPassword: response.hasPassword,
       };
 
       thunkAPI.dispatch(setUser(user));
@@ -235,6 +238,7 @@ export const checkAuthThunk = createAsyncThunk(
             email: response.email,
             role: response.role || expectedRole,
             phone: response.phone,
+            hasPassword: response.hasPassword,
           };
           thunkAPI.dispatch(setUser(user));
           return user;
@@ -301,6 +305,7 @@ export const googleSignInPatientThunk = createAsyncThunk(
           role: 'patient',
           email: userResponse.email,
           name: userResponse.name,
+          hasPassword: response.hasPassword,
         };
         thunkAPI.dispatch(setUser(user));
         return user;
@@ -329,6 +334,7 @@ export const googleSignInDoctorThunk = createAsyncThunk(
           role: 'doctor',
           email: userResponse.email,
           name: userResponse.name,
+          hasPassword: response.hasPassword,
         };
         thunkAPI.dispatch(setUser(user));
         return user;

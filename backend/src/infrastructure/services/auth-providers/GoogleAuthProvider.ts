@@ -76,7 +76,13 @@ export class GoogleAuthProvider implements IAuthProvider {
         updatedAt: new Date(),
       };
       if (role === UserRole.Patient) {
-        user = await repo.create({ ...newUserData, isSubscribed: false, isOtpVerified: true });
+        user = await repo.create({
+          ...newUserData,
+          isSubscribed: false,
+          isOtpVerified: true,
+          password: null,
+          hasPassword: false,
+        });
       } else {
         user = await repo.create({ ...newUserData, isVerified: false, allowFreeBooking: true, isOtpVerified: true });
       }
