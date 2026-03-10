@@ -14,7 +14,7 @@ import {
 import Logo from '../components/common/Logo';
 import DashboardSidebar, {
   SidebarNavItem,
-} from '../components/common/DashboardSideBar';
+} from '../components/common/DashboardSidebar';
 import { useAppSelector } from '../redux/hooks';
 import useAuth from '../hooks/useAuth';
 import ROUTES from '../constants/routeConstants';
