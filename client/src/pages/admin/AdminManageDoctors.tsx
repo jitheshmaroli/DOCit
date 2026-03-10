@@ -1,10 +1,4 @@
-import React, {
-  useState,
-  useCallback,
-  useMemo,
-  useEffect,
-  useRef,
-} from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import {
   listDoctorsThunk,
@@ -31,6 +25,14 @@ import {
 } from '../../utils/validation';
 import { ITEMS_PER_PAGE } from '../../utils/constants';
 import { showError, showSuccess } from '../../utils/toastConfig';
+import {
+  Stethoscope,
+  Plus,
+  AlertTriangle,
+  ShieldCheck,
+  ShieldOff,
+  ExternalLink,
+} from 'lucide-react';
 
 const AdminManageDoctors: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -68,7 +70,6 @@ const AdminManageDoctors: React.FC = () => {
   const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
   const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     dispatch(getAllSpecialitiesThunk({ page: 1, limit: 10 }));
@@ -88,14 +89,12 @@ const AdminManageDoctors: React.FC = () => {
         sortOrder,
         speciality: specialtyFilter !== 'all' ? specialtyFilter : undefined,
       };
-
       if (statusFilter !== 'all') {
         if (statusFilter === 'verified') params.isVerified = true;
         if (statusFilter === 'unverified') params.isVerified = false;
         if (statusFilter === 'blocked') params.isBlocked = true;
         if (statusFilter === 'active') params.isBlocked = false;
       }
-
       dispatch(listDoctorsThunk(params));
     }
   }, [
@@ -112,6 +111,15 @@ const AdminManageDoctors: React.FC = () => {
     setTotalPages(totalPagesFromState.doctors);
   }, [totalPagesFromState.doctors]);
 
+  const resetFormErrors = () =>
+    setFormErrors({
+      name: '',
+      email: '',
+      password: '',
+      phone: '',
+      licenseNumber: '',
+    });
+
   const validateForm = useCallback((doctor: typeof newDoctor | Doctor) => {
     const errors = {
       name: validateName(doctor.name) || '',
@@ -122,7 +130,7 @@ const AdminManageDoctors: React.FC = () => {
       licenseNumber: validateLicenseNumber(doctor.licenseNumber) || '',
     };
     setFormErrors(errors);
-    return Object.values(errors).every((error) => !error);
+    return Object.values(errors).every((e) => !e);
   }, []);
 
   const handleCreateDoctor = useCallback(async () => {
@@ -141,13 +149,7 @@ const AdminManageDoctors: React.FC = () => {
         phone: '',
         licenseNumber: '',
       });
-      setFormErrors({
-        name: '',
-        email: '',
-        password: '',
-        phone: '',
-        licenseNumber: '',
-      });
+      resetFormErrors();
     } catch (err) {
       showError(`Failed to create doctor: ${err}`);
     }
@@ -164,13 +166,7 @@ const AdminManageDoctors: React.FC = () => {
       ).unwrap();
       showSuccess('Doctor updated successfully');
       setEditDoctor(null);
-      setFormErrors({
-        name: '',
-        email: '',
-        password: '',
-        phone: '',
-        licenseNumber: '',
-      });
+      resetFormErrors();
     } catch (err) {
       showError(`Failed to update doctor: ${err}`);
     }
@@ -229,15 +225,14 @@ const AdminManageDoctors: React.FC = () => {
               ? `${doctor.name.substring(0, maxLength)}...`
               : doctor.name || 'Unknown';
           return (
-            <div className="flex items-center">
+            <div className="flex items-center gap-3">
               <Avatar
                 name={doctor.name || 'Unknown'}
                 id={doctor._id}
                 profilePicture={doctor.profilePicture}
               />
               <span
-                className="ml-4 text-sm font-medium text-white truncate"
-                style={{ maxWidth: '150px' }}
+                className="text-sm font-medium text-text-primary truncate max-w-[150px]"
                 title={doctor.name || 'Unknown'}
               >
                 {displayName}
@@ -248,16 +243,8 @@ const AdminManageDoctors: React.FC = () => {
         className: 'align-middle',
         minWidth: '200px',
       },
-      {
-        header: 'Email',
-        accessor: 'email' as keyof Doctor,
-        minWidth: '200px',
-      },
-      {
-        header: 'Phone',
-        accessor: 'phone' as keyof Doctor,
-        minWidth: '120px',
-      },
+      { header: 'Email', accessor: 'email' as keyof Doctor, minWidth: '200px' },
+      { header: 'Phone', accessor: 'phone' as keyof Doctor, minWidth: '120px' },
       {
         header: 'License',
         accessor: 'licenseNumber' as keyof Doctor,
@@ -265,35 +252,32 @@ const AdminManageDoctors: React.FC = () => {
       },
       {
         header: 'License Proof',
-        accessor: (doctor: Doctor): React.ReactNode => (
-          <div>
-            {doctor.licenseProof ? (
-              <a
-                href={doctor.licenseProof}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-400 hover:text-blue-500 underline"
-              >
-                View License
-              </a>
-            ) : (
-              <span className="text-gray-400">No License</span>
-            )}
-          </div>
-        ),
+        accessor: (doctor: Doctor): React.ReactNode =>
+          doctor.licenseProof ? (
+            <a
+              href={doctor.licenseProof}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-primary-600 hover:text-primary-700 text-xs font-medium"
+            >
+              <ExternalLink size={12} /> View
+            </a>
+          ) : (
+            <span className="text-text-muted text-xs">No License</span>
+          ),
         minWidth: '120px',
       },
       {
         header: 'Status',
         accessor: (doctor: Doctor): React.ReactNode => (
-          <div className="flex flex-nowrap gap-2">
+          <div className="flex flex-wrap gap-1.5">
             <span
-              className={`px-2 py-1 text-xs font-semibold rounded-full ${doctor.isVerified ? 'bg-green-500/20 text-green-300' : 'bg-gray-500/20 text-gray-300'}`}
+              className={`badge ${doctor.isVerified ? 'badge-success' : 'badge-neutral'}`}
             >
               {doctor.isVerified ? 'Verified' : 'Unverified'}
             </span>
             <span
-              className={`px-2 py-1 text-xs font-semibold rounded-full ${doctor.isBlocked ? 'bg-red-500/20 text-red-300' : 'bg-gray-500/20 text-gray-300'}`}
+              className={`badge ${doctor.isBlocked ? 'badge-error' : 'badge-neutral'}`}
             >
               {doctor.isBlocked ? 'Blocked' : 'Active'}
             </span>
@@ -310,7 +294,7 @@ const AdminManageDoctors: React.FC = () => {
       {
         label: 'Edit',
         onClick: (doctor: Doctor) => setEditDoctor(doctor),
-        className: 'bg-purple-600 hover:bg-purple-700 px-3 py-1 rounded-lg',
+        className: 'btn-secondary text-xs px-3 py-1.5',
       },
       {
         label: 'Delete',
@@ -318,7 +302,7 @@ const AdminManageDoctors: React.FC = () => {
           setSelectedDoctor(doctor);
           setIsDeleteModalOpen(true);
         },
-        className: 'bg-red-600 hover:bg-red-700 px-3 py-1 rounded-lg',
+        className: 'btn-danger text-xs px-3 py-1.5',
       },
       {
         label: 'Block',
@@ -326,7 +310,8 @@ const AdminManageDoctors: React.FC = () => {
           setSelectedDoctor(doctor);
           setIsBlockModalOpen(true);
         },
-        className: 'bg-yellow-600 hover:bg-yellow-700 px-3 py-1 rounded-lg',
+        className:
+          'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors',
         condition: (doctor: Doctor) => !doctor.isBlocked,
       },
       {
@@ -335,7 +320,8 @@ const AdminManageDoctors: React.FC = () => {
           setSelectedDoctor(doctor);
           setIsBlockModalOpen(true);
         },
-        className: 'bg-green-600 hover:bg-green-700 px-3 py-1 rounded-lg',
+        className:
+          'bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors',
         condition: (doctor: Doctor) => doctor.isBlocked,
       },
       {
@@ -344,7 +330,8 @@ const AdminManageDoctors: React.FC = () => {
           setSelectedDoctor(doctor);
           setIsVerifyModalOpen(true);
         },
-        className: 'bg-purple-600 hover:bg-purple-700 px-3 py-1 rounded-lg',
+        className:
+          'bg-primary-50 text-primary-700 border border-primary-200 hover:bg-primary-100 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors',
         condition: (doctor: Doctor) => !doctor.isVerified,
       },
     ],
@@ -365,10 +352,7 @@ const AdminManageDoctors: React.FC = () => {
   const specialtyOptions = useMemo(
     () => [
       { value: 'all', label: 'All Specialties' },
-      ...specialities.map((specialty) => ({
-        value: specialty.name,
-        label: specialty.name,
-      })),
+      ...specialities.map((s) => ({ value: s.name, label: s.name })),
     ],
     [specialities]
   );
@@ -383,99 +367,186 @@ const AdminManageDoctors: React.FC = () => {
     []
   );
 
-  const handlePageChange = useCallback((page: number) => {
-    setCurrentPage(page);
-  }, []);
-
+  const handlePageChange = useCallback(
+    (page: number) => setCurrentPage(page),
+    []
+  );
   const handleSearch = useCallback((term: string) => {
     setSearchTerm(term.trim());
     setCurrentPage(1);
   }, []);
 
-  return (
-    <div className="bg-white/10 backdrop-blur-lg p-4 sm:p-6 lg:p-8 rounded-2xl border border-white/20 shadow-xl">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-        <SearchBar
-          value={searchTerm}
-          onChange={handleSearch}
-          placeholder="Search doctors..."
-        />
-        <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-          <FilterSelect
-            value={statusFilter}
-            options={statusOptions}
-            onChange={setStatusFilter}
-            label="Status"
-            className="w-full sm:w-48"
-          />
-          <FilterSelect
-            value={specialtyFilter}
-            options={specialtyOptions}
-            onChange={setSpecialtyFilter}
-            label="Specialty"
-            className="w-full sm:w-48"
-          />
-          <FilterSelect
-            value={sortFilter}
-            options={sortOptions}
-            onChange={setSortFilter}
-            label="Sort By"
-            className="w-full sm:w-48"
-          />
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-3 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300 shadow-lg hover:shadow-xl"
-          >
-            + Add Doctor
+  // Shared form field renderer
+  const FormField = ({
+    label,
+    type = 'text',
+    placeholder,
+    value,
+    error,
+    onChange,
+  }: {
+    label: string;
+    type?: string;
+    placeholder: string;
+    value: string;
+    error: string;
+    onChange: (v: string) => void;
+  }) => (
+    <div>
+      <label className="label">{label}</label>
+      <input
+        type={type}
+        placeholder={placeholder}
+        className={`input ${error ? 'input-error' : ''}`}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      {error && <p className="error-text">{error}</p>}
+    </div>
+  );
+
+  const ConfirmModal = ({
+    isOpen,
+    onClose,
+    title,
+    message,
+    onConfirm,
+    confirmLabel,
+    confirmClass,
+  }: {
+    isOpen: boolean;
+    onClose: () => void;
+    title: string;
+    message: React.ReactNode;
+    onConfirm: () => void;
+    confirmLabel: string;
+    confirmClass: string;
+  }) => (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={title}
+      footer={
+        <div className="flex justify-end gap-3">
+          <button onClick={onClose} className="btn-secondary">
+            Cancel
+          </button>
+          <button onClick={onConfirm} className={confirmClass}>
+            {confirmLabel}
           </button>
         </div>
+      }
+    >
+      <div className="flex gap-3 items-start">
+        <div className="w-9 h-9 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0">
+          <AlertTriangle size={16} className="text-red-500" />
+        </div>
+        <div className="pt-1 text-sm text-text-secondary">{message}</div>
       </div>
-      <DataTable
-        data={doctors}
-        columns={columns}
-        actions={actions}
-        isLoading={loading}
-        error={error}
-        onRetry={() => {
-          const [sortBy, sortOrder] = sortFilter.split(':') as [
-            string,
-            'asc' | 'desc',
-          ];
-          const params: QueryParams = {
-            page: currentPage,
-            limit: ITEMS_PER_PAGE,
-            search: searchTerm.trim(),
-            sortBy,
-            sortOrder,
-            speciality: specialtyFilter !== 'all' ? specialtyFilter : undefined,
-          };
+    </Modal>
+  );
 
-          if (statusFilter !== 'all') {
-            if (statusFilter === 'verified') params.isVerified = true;
-            if (statusFilter === 'unverified') params.isVerified = false;
-            if (statusFilter === 'blocked') params.isBlocked = true;
-            if (statusFilter === 'active') params.isBlocked = false;
-          }
+  return (
+    <div className="space-y-5">
+      {/* Page Header */}
+      <div className="page-header">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-primary-50 flex items-center justify-center">
+            <Stethoscope size={18} className="text-primary-600" />
+          </div>
+          <div>
+            <h1 className="page-title">Manage Doctors</h1>
+            <p className="page-subtitle">
+              View, verify, and manage all registered doctors
+            </p>
+          </div>
+        </div>
+        <button onClick={() => setIsModalOpen(true)} className="btn-primary">
+          <Plus size={16} />
+          Add Doctor
+        </button>
+      </div>
 
-          dispatch(listDoctorsThunk(params));
-        }}
-      />
-      <Pagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={handlePageChange}
-      />
+      {/* Filters */}
+      <div className="card">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 flex-wrap">
+          <SearchBar
+            value={searchTerm}
+            onChange={handleSearch}
+            placeholder="Search doctors..."
+          />
+          <div className="flex flex-wrap gap-3">
+            <FilterSelect
+              value={statusFilter}
+              options={statusOptions}
+              onChange={setStatusFilter}
+              label="Status"
+              className="w-44"
+            />
+            <FilterSelect
+              value={specialtyFilter}
+              options={specialtyOptions}
+              onChange={setSpecialtyFilter}
+              label="Specialty"
+              className="w-44"
+            />
+            <FilterSelect
+              value={sortFilter}
+              options={sortOptions}
+              onChange={setSortFilter}
+              label="Sort By"
+              className="w-44"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="card p-0 overflow-hidden">
+        <DataTable
+          data={doctors}
+          columns={columns}
+          actions={actions}
+          isLoading={loading}
+          error={error}
+          onRetry={() => {
+            const [sortBy, sortOrder] = sortFilter.split(':') as [
+              string,
+              'asc' | 'desc',
+            ];
+            const params: QueryParams = {
+              page: currentPage,
+              limit: ITEMS_PER_PAGE,
+              search: searchTerm.trim(),
+              sortBy,
+              sortOrder,
+              speciality:
+                specialtyFilter !== 'all' ? specialtyFilter : undefined,
+            };
+            if (statusFilter !== 'all') {
+              if (statusFilter === 'verified') params.isVerified = true;
+              if (statusFilter === 'unverified') params.isVerified = false;
+              if (statusFilter === 'blocked') params.isBlocked = true;
+              if (statusFilter === 'active') params.isBlocked = false;
+            }
+            dispatch(listDoctorsThunk(params));
+          }}
+        />
+        <div className="border-t border-surface-border px-4 py-3">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+          />
+        </div>
+      </div>
+
+      {/* Add Doctor Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => {
           setIsModalOpen(false);
-          setFormErrors({
-            name: '',
-            email: '',
-            password: '',
-            phone: '',
-            licenseNumber: '',
-          });
+          resetFormErrors();
         }}
         title="Add Doctor"
         footer={
@@ -483,135 +554,87 @@ const AdminManageDoctors: React.FC = () => {
             <button
               onClick={() => {
                 setIsModalOpen(false);
-                setFormErrors({
-                  name: '',
-                  email: '',
-                  password: '',
-                  phone: '',
-                  licenseNumber: '',
-                });
+                resetFormErrors();
               }}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
+              className="btn-secondary"
             >
               Cancel
             </button>
-            <button
-              onClick={handleCreateDoctor}
-              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
-            >
-              Submit
+            <button onClick={handleCreateDoctor} className="btn-primary">
+              Create Doctor
             </button>
           </div>
         }
       >
         <div className="space-y-4">
-          <div>
-            <input
-              ref={inputRef}
-              type="text"
-              placeholder="Name"
-              className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-              value={newDoctor.name}
-              onChange={(e) => {
-                setNewDoctor({ ...newDoctor, name: e.target.value });
-                setFormErrors({
-                  ...formErrors,
-                  name: validateName(e.target.value) || '',
-                });
-              }}
-            />
-            {formErrors.name && (
-              <p className="text-red-400 text-xs mt-1">{formErrors.name}</p>
-            )}
-          </div>
-          <div>
-            <input
-              type="email"
-              placeholder="Email"
-              className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-              value={newDoctor.email}
-              onChange={(e) => {
-                setNewDoctor({ ...newDoctor, email: e.target.value });
-                setFormErrors({
-                  ...formErrors,
-                  email: validateEmail(e.target.value) || '',
-                });
-              }}
-            />
-            {formErrors.email && (
-              <p className="text-red-400 text-xs mt-1">{formErrors.email}</p>
-            )}
-          </div>
-          <div>
-            <input
-              type="password"
-              placeholder="Password"
-              className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-              value={newDoctor.password}
-              onChange={(e) => {
-                setNewDoctor({ ...newDoctor, password: e.target.value });
-                setFormErrors({
-                  ...formErrors,
-                  password: validatePassword(e.target.value) || '',
-                });
-              }}
-            />
-            {formErrors.password && (
-              <p className="text-red-400 text-xs mt-1">{formErrors.password}</p>
-            )}
-          </div>
-          <div>
-            <input
-              type="text"
-              placeholder="Phone"
-              className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-              value={newDoctor.phone}
-              onChange={(e) => {
-                setNewDoctor({ ...newDoctor, phone: e.target.value });
-                setFormErrors({
-                  ...formErrors,
-                  phone: validatePhone(e.target.value) || '',
-                });
-              }}
-            />
-            {formErrors.phone && (
-              <p className="text-red-400 text-xs mt-1">{formErrors.phone}</p>
-            )}
-          </div>
-          <div>
-            <input
-              type="text"
-              placeholder="License Number"
-              className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-              value={newDoctor.licenseNumber}
-              onChange={(e) => {
-                setNewDoctor({ ...newDoctor, licenseNumber: e.target.value });
-                setFormErrors({
-                  ...formErrors,
-                  licenseNumber: validateLicenseNumber(e.target.value) || '',
-                });
-              }}
-            />
-            {formErrors.licenseNumber && (
-              <p className="text-red-400 text-xs mt-1">
-                {formErrors.licenseNumber}
-              </p>
-            )}
-          </div>
+          <FormField
+            label="Full Name"
+            placeholder="Dr. John Smith"
+            value={newDoctor.name}
+            error={formErrors.name}
+            onChange={(v) => {
+              setNewDoctor({ ...newDoctor, name: v });
+              setFormErrors({ ...formErrors, name: validateName(v) || '' });
+            }}
+          />
+          <FormField
+            label="Email"
+            type="email"
+            placeholder="doctor@example.com"
+            value={newDoctor.email}
+            error={formErrors.email}
+            onChange={(v) => {
+              setNewDoctor({ ...newDoctor, email: v });
+              setFormErrors({ ...formErrors, email: validateEmail(v) || '' });
+            }}
+          />
+          <FormField
+            label="Password"
+            type="password"
+            placeholder="••••••••"
+            value={newDoctor.password}
+            error={formErrors.password}
+            onChange={(v) => {
+              setNewDoctor({ ...newDoctor, password: v });
+              setFormErrors({
+                ...formErrors,
+                password: validatePassword(v) || '',
+              });
+            }}
+          />
+          <FormField
+            label="Phone"
+            placeholder="+91 98765 43210"
+            value={newDoctor.phone}
+            error={formErrors.phone}
+            onChange={(v) => {
+              setNewDoctor({ ...newDoctor, phone: v });
+              setFormErrors({ ...formErrors, phone: validatePhone(v) || '' });
+            }}
+          />
+          <FormField
+            label="License Number"
+            placeholder="MED-XXXX-XXXX"
+            value={newDoctor.licenseNumber}
+            error={formErrors.licenseNumber}
+            onChange={(v) => {
+              setNewDoctor({ ...newDoctor, licenseNumber: v });
+              setFormErrors({
+                ...formErrors,
+                licenseNumber: validateLicenseNumber(v) || '',
+              });
+            }}
+          />
         </div>
       </Modal>
+
+      {/* Edit Doctor Modal */}
       {editDoctor && (
         <Modal
           isOpen={!!editDoctor}
           onClose={() => {
             setEditDoctor(null);
-            setFormErrors({
-              name: '',
-              email: '',
-              password: '',
-              phone: '',
-              licenseNumber: '',
-            });
+            resetFormErrors();
           }}
           title="Edit Doctor"
           footer={
@@ -619,158 +642,109 @@ const AdminManageDoctors: React.FC = () => {
               <button
                 onClick={() => {
                   setEditDoctor(null);
-                  setFormErrors({
-                    name: '',
-                    email: '',
-                    password: '',
-                    phone: '',
-                    licenseNumber: '',
-                  });
+                  resetFormErrors();
                 }}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
+                className="btn-secondary"
               >
                 Cancel
               </button>
-              <button
-                onClick={handleUpdateDoctor}
-                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
-              >
-                Submit
+              <button onClick={handleUpdateDoctor} className="btn-primary">
+                Save Changes
               </button>
             </div>
           }
         >
           <div className="space-y-4">
+            <FormField
+              label="Full Name"
+              placeholder="Dr. John Smith"
+              value={editDoctor.name}
+              error={formErrors.name}
+              onChange={(v) => {
+                setEditDoctor({ ...editDoctor, name: v });
+                setFormErrors({ ...formErrors, name: validateName(v) || '' });
+              }}
+            />
+            <FormField
+              label="Email"
+              type="email"
+              placeholder="doctor@example.com"
+              value={editDoctor.email}
+              error={formErrors.email}
+              onChange={(v) => {
+                setEditDoctor({ ...editDoctor, email: v });
+                setFormErrors({ ...formErrors, email: validateEmail(v) || '' });
+              }}
+            />
+            <FormField
+              label="Phone"
+              placeholder="+91 98765 43210"
+              value={editDoctor.phone}
+              error={formErrors.phone}
+              onChange={(v) => {
+                setEditDoctor({ ...editDoctor, phone: v });
+                setFormErrors({ ...formErrors, phone: validatePhone(v) || '' });
+              }}
+            />
+            <FormField
+              label="License Number"
+              placeholder="MED-XXXX-XXXX"
+              value={editDoctor.licenseNumber}
+              error={formErrors.licenseNumber}
+              onChange={(v) => {
+                setEditDoctor({ ...editDoctor, licenseNumber: v });
+                setFormErrors({
+                  ...formErrors,
+                  licenseNumber: validateLicenseNumber(v) || '',
+                });
+              }}
+            />
             <div>
-              <input
-                type="text"
-                placeholder="Name"
-                className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                value={editDoctor.name}
-                onChange={(e) => {
-                  setEditDoctor({ ...editDoctor, name: e.target.value });
-                  setFormErrors({
-                    ...formErrors,
-                    name: validateName(e.target.value) || '',
-                  });
-                }}
-              />
-              {formErrors.name && (
-                <p className="text-red-400 text-xs mt-1">{formErrors.name}</p>
-              )}
-            </div>
-            <div>
-              <input
-                type="email"
-                placeholder="Email"
-                className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                value={editDoctor.email}
-                onChange={(e) => {
-                  setEditDoctor({ ...editDoctor, email: e.target.value });
-                  setFormErrors({
-                    ...formErrors,
-                    email: validateEmail(e.target.value) || '',
-                  });
-                }}
-              />
-              {formErrors.email && (
-                <p className="text-red-400 text-xs mt-1">{formErrors.email}</p>
-              )}
-            </div>
-            <div>
-              <input
-                type="text"
-                placeholder="Phone"
-                className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                value={editDoctor.phone}
-                onChange={(e) => {
-                  setEditDoctor({ ...editDoctor, phone: e.target.value });
-                  setFormErrors({
-                    ...formErrors,
-                    phone: validatePhone(e.target.value) || '',
-                  });
-                }}
-              />
-              {formErrors.phone && (
-                <p className="text-red-400 text-xs mt-1">{formErrors.phone}</p>
-              )}
-            </div>
-            <div>
-              <input
-                type="text"
-                placeholder="License Number"
-                className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                value={editDoctor.licenseNumber}
-                onChange={(e) => {
-                  setEditDoctor({
-                    ...editDoctor,
-                    licenseNumber: e.target.value,
-                  });
-                  setFormErrors({
-                    ...formErrors,
-                    licenseNumber: validateLicenseNumber(e.target.value) || '',
-                  });
-                }}
-              />
-              {formErrors.licenseNumber && (
-                <p className="text-red-400 text-xs mt-1">
-                  {formErrors.licenseNumber}
-                </p>
-              )}
-            </div>
-            <div className="w-full p-3">
-              <label className="block text-sm font-medium text-gray-300 mb-1">
-                License Proof
-              </label>
+              <label className="label">License Proof</label>
               {editDoctor.licenseProof ? (
                 <a
                   href={editDoctor.licenseProof}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-400 hover:text-blue-500 underline"
+                  className="inline-flex items-center gap-1.5 text-sm text-primary-600 hover:text-primary-700 font-medium"
                 >
-                  View License Proof
+                  <ExternalLink size={14} /> View License Proof
                 </a>
               ) : (
-                <span className="text-gray-400">No License Proof</span>
+                <span className="text-sm text-text-muted">
+                  No License Proof uploaded
+                </span>
               )}
             </div>
           </div>
         </Modal>
       )}
+
+      {/* Delete Modal */}
       {isDeleteModalOpen && selectedDoctor && (
-        <Modal
+        <ConfirmModal
           isOpen={isDeleteModalOpen}
           onClose={() => {
             setIsDeleteModalOpen(false);
             setSelectedDoctor(null);
           }}
-          title="Confirm Delete"
-          footer={
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => {
-                  setIsDeleteModalOpen(false);
-                  setSelectedDoctor(null);
-                }}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDeleteDoctor}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all duration-300"
-              >
-                Delete
-              </button>
-            </div>
+          title="Delete Doctor"
+          message={
+            <>
+              Permanently delete{' '}
+              <span className="font-semibold text-text-primary">
+                {selectedDoctor.name}
+              </span>
+              ? This action cannot be undone.
+            </>
           }
-        >
-          <p className="text-white">
-            Are you sure you want to delete {selectedDoctor.name}?
-          </p>
-        </Modal>
+          onConfirm={handleDeleteDoctor}
+          confirmLabel="Delete"
+          confirmClass="btn-danger"
+        />
       )}
+
+      {/* Block/Unblock Modal */}
       {isBlockModalOpen && selectedDoctor && (
         <Modal
           isOpen={isBlockModalOpen}
@@ -778,7 +752,7 @@ const AdminManageDoctors: React.FC = () => {
             setIsBlockModalOpen(false);
             setSelectedDoctor(null);
           }}
-          title={selectedDoctor.isBlocked ? 'Confirm Unblock' : 'Confirm Block'}
+          title={selectedDoctor.isBlocked ? 'Unblock Doctor' : 'Block Doctor'}
           footer={
             <div className="flex justify-end gap-3">
               <button
@@ -786,30 +760,48 @@ const AdminManageDoctors: React.FC = () => {
                   setIsBlockModalOpen(false);
                   setSelectedDoctor(null);
                 }}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
+                className="btn-secondary"
               >
                 Cancel
               </button>
               <button
                 onClick={handleBlockDoctor}
-                className={`px-4 py-2 text-white rounded-lg transition-all duration-300 ${
+                className={
                   selectedDoctor.isBlocked
-                    ? 'bg-green-600 hover:bg-green-700'
-                    : 'bg-yellow-600 hover:bg-yellow-700'
-                }`}
+                    ? 'bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors'
+                    : 'bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors'
+                }
               >
                 {selectedDoctor.isBlocked ? 'Unblock' : 'Block'}
               </button>
             </div>
           }
         >
-          <p className="text-white">
-            Are you sure you want to{' '}
-            {selectedDoctor.isBlocked ? 'unblock' : 'block'}{' '}
-            {selectedDoctor.name}?
-          </p>
+          <div className="flex gap-3 items-start">
+            <div
+              className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${selectedDoctor.isBlocked ? 'bg-green-50' : 'bg-amber-50'}`}
+            >
+              {selectedDoctor.isBlocked ? (
+                <ShieldCheck size={16} className="text-green-600" />
+              ) : (
+                <ShieldOff size={16} className="text-amber-600" />
+              )}
+            </div>
+            <p className="pt-1 text-sm text-text-secondary">
+              Are you sure you want to{' '}
+              {selectedDoctor.isBlocked ? 'unblock' : 'block'}{' '}
+              <span className="font-semibold text-text-primary">
+                {selectedDoctor.name}
+              </span>
+              ?
+              {!selectedDoctor.isBlocked &&
+                ' They will no longer be able to access the platform.'}
+            </p>
+          </div>
         </Modal>
       )}
+
+      {/* Verify Modal */}
       {isVerifyModalOpen && selectedDoctor && (
         <Modal
           isOpen={isVerifyModalOpen}
@@ -817,7 +809,7 @@ const AdminManageDoctors: React.FC = () => {
             setIsVerifyModalOpen(false);
             setSelectedDoctor(null);
           }}
-          title="Confirm Verify"
+          title="Verify Doctor"
           footer={
             <div className="flex justify-end gap-3">
               <button
@@ -825,22 +817,29 @@ const AdminManageDoctors: React.FC = () => {
                   setIsVerifyModalOpen(false);
                   setSelectedDoctor(null);
                 }}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
+                className="btn-secondary"
               >
                 Cancel
               </button>
-              <button
-                onClick={handleVerifyDoctor}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all duration-300"
-              >
-                Verify
+              <button onClick={handleVerifyDoctor} className="btn-primary">
+                <ShieldCheck size={15} /> Verify
               </button>
             </div>
           }
         >
-          <p className="text-white">
-            Are you sure you want to verify {selectedDoctor.name}?
-          </p>
+          <div className="flex gap-3 items-start">
+            <div className="w-9 h-9 rounded-full bg-primary-50 flex items-center justify-center flex-shrink-0">
+              <ShieldCheck size={16} className="text-primary-600" />
+            </div>
+            <p className="pt-1 text-sm text-text-secondary">
+              Verify{' '}
+              <span className="font-semibold text-text-primary">
+                {selectedDoctor.name}
+              </span>
+              ? This will grant them full access to the platform as a licensed
+              physician.
+            </p>
+          </div>
         </Modal>
       )}
     </div>

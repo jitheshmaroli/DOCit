@@ -6,13 +6,13 @@ import {
   Trash2,
   Smile,
   X,
+  Send,
 } from 'lucide-react';
 import EmojiPicker, { Theme } from 'emoji-picker-react';
 import { DateUtils } from '../utils/DateUtils';
 import { MessageThread, Message } from '../types/messageTypes';
 import { addReaction, fetchUserStatus } from '../services/messageService';
 import { useSocket } from '../hooks/useSocket';
-import { IoIosSend } from 'react-icons/io';
 
 interface ChatBoxProps {
   thread: MessageThread;
@@ -30,6 +30,8 @@ interface ChatBoxProps {
   onDeleteMessages: (messageIds: string[]) => void;
   currentUserId: string;
 }
+
+const defaultEmojis = ['😊', '👍', '❤️', '😂', '😢', '😮'];
 
 export const ChatBox: React.FC<ChatBoxProps> = React.memo(
   ({
@@ -55,58 +57,88 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
       string | null
     >(null);
     const [messages, setMessages] = useState<Message[]>(thread.messages);
-    const [userStatus, setUserStatus] = useState<{
-      isOnline: boolean;
-      lastSeen: string | null;
-    }>({
+    const [userStatus, setUserStatus] = useState({
       isOnline: thread.isOnline ?? false,
-      lastSeen: thread.lastSeen ?? null,
+      lastSeen: thread.lastSeen ?? (null as string | null),
     });
+    const [showScrollBtn, setShowScrollBtn] = useState(false);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const { registerHandlers, emit, userStatuses } = useSocket();
 
-    const defaultEmojis = ['😊', '👍', '❤️', '😂', '😢', '😮'];
-
+    // Sync messages when thread changes
+    // Replace fully on thread switch, merge-append on new messages within same thread
+    const prevThreadId = useRef<string | null>(null);
     useEffect(() => {
-      const fetchStatus = async () => {
-        if (thread.id && thread.role) {
-          try {
-            const status = await fetchUserStatus(thread.id, thread.role);
-            setUserStatus(status);
-          } catch (error) {
-            console.error('Failed to fetch user status:', error);
+      if (prevThreadId.current !== thread.receiverId) {
+        // Thread switched — full replace and scroll immediately
+        setMessages(thread.messages);
+        prevThreadId.current = thread.receiverId;
+        requestAnimationFrame(() => {
+          if (chatContainerRef.current) {
+            chatContainerRef.current.scrollTop =
+              chatContainerRef.current.scrollHeight;
           }
-        }
+        });
+      } else {
+        // Same thread — only append truly new messages
+        setMessages((prev) => {
+          const existingIds = new Set(prev.map((m) => m._id));
+          const incoming = thread.messages.filter(
+            (m) => !existingIds.has(m._id)
+          );
+          if (incoming.length === 0) return prev;
+          return [...prev, ...incoming];
+        });
+      }
+    }, [thread.messages, thread.receiverId, chatContainerRef]);
+
+    // Auto-scroll when new messages arrive
+    // Only scroll if already at the bottom (don't hijack user reading old messages)
+    const prevMessageCount = useRef(messages.length);
+    useEffect(() => {
+      const added = messages.length > prevMessageCount.current;
+      prevMessageCount.current = messages.length;
+      if (!added) return;
+
+      if (isAtBottom()) {
+        requestAnimationFrame(() => {
+          if (chatContainerRef.current) {
+            chatContainerRef.current.scrollTo({
+              top: chatContainerRef.current.scrollHeight,
+              behavior: 'smooth',
+            });
+          }
+        });
+      }
+    }, [messages.length, isAtBottom, chatContainerRef]);
+
+    // Track scroll position to show/hide scroll-to-bottom button
+    useEffect(() => {
+      const el = chatContainerRef.current;
+      if (!el) return;
+      const onScroll = () => {
+        const { scrollTop, scrollHeight, clientHeight } = el;
+        setShowScrollBtn(scrollTop + clientHeight < scrollHeight - 60);
       };
-      fetchStatus();
+      el.addEventListener('scroll', onScroll, { passive: true });
+      return () => el.removeEventListener('scroll', onScroll);
+    }, [chatContainerRef]);
+
+    // User status
+    useEffect(() => {
+      if (thread.id && thread.role) {
+        fetchUserStatus(thread.id, thread.role)
+          .then(setUserStatus)
+          .catch(() => {});
+      }
     }, [thread.id, thread.role]);
 
     useEffect(() => {
-      const status = userStatuses.get(thread.id);
-      if (status) {
-        setUserStatus({ isOnline: status.isOnline, lastSeen: status.lastSeen });
-      }
+      const s = userStatuses.get(thread.id);
+      if (s) setUserStatus({ isOnline: s.isOnline, lastSeen: s.lastSeen });
     }, [userStatuses, thread.id]);
 
-    useEffect(() => {
-      setMessages((prev) => {
-        const existingIds = new Set(prev.map((msg) => msg._id));
-        const newMessages = thread.messages.filter(
-          (msg) => !existingIds.has(msg._id)
-        );
-        return [...prev, ...newMessages];
-      });
-    }, [thread.messages]);
-
-    useEffect(() => {
-      if (chatContainerRef.current && isAtBottom()) {
-        chatContainerRef.current.scrollTo({
-          top: chatContainerRef.current.scrollHeight,
-          behavior: 'smooth',
-        });
-      }
-    }, [messages, isAtBottom, chatContainerRef]);
-
+    // Socket handlers
     useEffect(() => {
       registerHandlers({
         onReceiveMessage: (message: Message) => {
@@ -115,17 +147,8 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
             message.senderId === thread.receiverId
           ) {
             setMessages((prev) => {
-              if (prev.some((msg) => msg._id === message._id)) {
-                return prev;
-              }
-              const updatedMessages = [...prev, message];
-              if (chatContainerRef.current && isAtBottom()) {
-                chatContainerRef.current.scrollTo({
-                  top: chatContainerRef.current.scrollHeight,
-                  behavior: 'smooth',
-                });
-              }
-              return updatedMessages;
+              if (prev.some((m) => m._id === message._id)) return prev;
+              return [...prev, message];
             });
           }
         },
@@ -135,362 +158,399 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
           userId: string;
         }) => {
           setMessages((prev) =>
-            prev.map((msg) =>
-              msg._id === data.messageId
+            prev.map((m) =>
+              m._id === data.messageId
                 ? {
-                    ...msg,
+                    ...m,
                     reactions: [
-                      ...(msg.reactions || []).filter(
+                      ...(m.reactions || []).filter(
                         (r) => r.userId !== data.userId
                       ),
                       { emoji: data.emoji, userId: data.userId },
                     ],
                   }
-                : msg
+                : m
             )
           );
         },
       });
-
       return () => {
         registerHandlers({
           onReceiveMessage: undefined,
           onReceiveReaction: undefined,
         });
       };
-    }, [thread.receiverId, registerHandlers, isAtBottom, chatContainerRef]);
+    }, [thread.receiverId, registerHandlers]);
 
+    // Handlers
     const handleEmojiClick = (emojiObject: { emoji: string }) => {
       onMessageChange(newMessage + emojiObject.emoji);
       setShowEmojiPicker(false);
     };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) {
-        setSelectedFile(file);
-      }
-      // Reset input to allow same file re-selection
+      const f = e.target.files?.[0];
+      if (f) setSelectedFile(f);
       e.target.value = '';
     };
 
     const handleFormSubmit = (e: React.FormEvent) => {
       e.preventDefault();
-      const hasText = newMessage.trim();
-      const hasFile = !!selectedFile;
-
-      if (hasText) {
-        onSendMessage(e);
-      }
-
-      if (hasFile) {
-        const fileToSend = selectedFile!;
+      if (newMessage.trim()) onSendMessage(e);
+      if (selectedFile) {
+        const f = selectedFile;
         setSelectedFile(null);
-        onSendAttachment(fileToSend);
+        onSendAttachment(f);
       }
-
       onMessageChange('');
+      // Always scroll to bottom when the current user sends a message
+      requestAnimationFrame(() => {
+        if (chatContainerRef.current) {
+          chatContainerRef.current.scrollTo({
+            top: chatContainerRef.current.scrollHeight,
+            behavior: 'smooth',
+          });
+        }
+      });
     };
 
-    const handleDeleteMessage = (messageId: string) => {
-      onDeleteMessages([messageId]);
-    };
-
-    const toggleMessageSelection = (messageId: string) => {
-      setSelectedMessages((prev) =>
-        prev.includes(messageId)
-          ? prev.filter((id) => id !== messageId)
-          : [...prev, messageId]
-      );
+    const handleScrollToBottom = () => {
+      onScrollToBottom();
+      if (chatContainerRef.current) {
+        chatContainerRef.current.scrollTo({
+          top: chatContainerRef.current.scrollHeight,
+          behavior: 'smooth',
+        });
+      }
     };
 
     const handleReaction = async (messageId: string, emoji: string) => {
       try {
-        const message = messages.find((msg) => msg._id === messageId);
-        const existingReaction = message?.reactions?.find(
+        const msg = messages.find((m) => m._id === messageId);
+        const existing = msg?.reactions?.find(
           (r) => r.userId === currentUserId
         );
-
-        if (existingReaction) {
-          await addReaction(messageId, emoji, true);
-        } else {
-          await addReaction(messageId, emoji);
-        }
-        if (!thread.senderId) {
-          throw new Error('Sender ID is not defined');
-        }
-        await emit('sendReaction', {
-          messageId,
-          emoji,
-          userId: currentUserId,
-        });
+        await addReaction(messageId, emoji, !!existing);
+        if (!thread.senderId) throw new Error('Sender ID not defined');
+        await emit('sendReaction', { messageId, emoji, userId: currentUserId });
         setReactionPickerMessageId(null);
-      } catch (error) {
-        console.error('Failed to add reaction:', error);
+      } catch {
+        /* ignore */
       }
     };
 
-    const toggleReactionPicker = (messageId: string) => {
-      setReactionPickerMessageId((prev) =>
-        prev === messageId ? null : messageId
-      );
-    };
-
     return (
-      <div className="relative w-full lg:w-2/3 bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-4 sm:p-6 flex flex-col h-full">
-        <div className="flex justify-between items-center border-b border-white/20 pb-3 mb-4">
+      <div className="relative w-full lg:w-2/3 card flex flex-col min-h-0 overflow-hidden">
+        {/* ── Header ── */}
+        <div className="flex items-center justify-between px-4 py-3.5 border-b border-surface-border flex-shrink-0">
           <div className="flex items-center gap-3">
             <button
-              className="lg:hidden p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all duration-300"
               onClick={onBackToInbox}
-              title="Back to Inbox"
+              className="lg:hidden p-1.5 rounded-xl hover:bg-surface-muted transition-colors"
+              title="Back"
             >
-              <ArrowLeft className="w-5 h-5 text-white"></ArrowLeft>
+              <ArrowLeft size={18} className="text-text-secondary" />
             </button>
             <div className="relative">
-              <img
-                src={thread.partnerProfilePicture}
-                alt={thread.senderName}
-                className="w-10 h-10 rounded-full object-cover border-2 border-white/20"
-              />
+              {thread.partnerProfilePicture ? (
+                <img
+                  src={thread.partnerProfilePicture}
+                  alt={thread.senderName}
+                  className="w-9 h-9 rounded-full object-cover border border-surface-border"
+                />
+              ) : (
+                <div className="w-9 h-9 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 font-bold text-sm">
+                  {thread.senderName?.charAt(0).toUpperCase() || '?'}
+                </div>
+              )}
               {userStatus.isOnline && (
-                <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></span>
+                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-400 border-2 border-white rounded-full" />
               )}
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-white">
+              <p className="text-sm font-semibold text-text-primary leading-tight">
                 {thread.senderName}
-              </h3>
-              <p className="text-xs text-gray-400">
-                {userStatus.isOnline
-                  ? 'Online'
-                  : userStatus.lastSeen
-                    ? `Last seen ${DateUtils.formatLastSeen(userStatus.lastSeen)}`
-                    : 'Offline'}
+              </p>
+              <p className="text-xs text-text-muted leading-tight">
+                {userStatus.isOnline ? (
+                  <span className="text-emerald-500 font-medium">Online</span>
+                ) : userStatus.lastSeen ? (
+                  `Last seen ${DateUtils.formatLastSeen(userStatus.lastSeen)}`
+                ) : (
+                  'Offline'
+                )}
               </p>
             </div>
           </div>
           {selectedMessages.length > 0 && (
             <button
-              className="p-2 rounded-full bg-red-500 hover:bg-red-600 transition-all duration-300"
-              onClick={() => onDeleteMessages(selectedMessages)}
-              title="Delete Selected Messages"
+              onClick={() => {
+                onDeleteMessages(selectedMessages);
+                setSelectedMessages([]);
+              }}
+              className="flex items-center gap-1.5 text-xs font-semibold text-error hover:bg-red-50 px-3 py-1.5 rounded-xl border border-red-100 transition-colors"
             >
-              <Trash2 className="w-5 h-5 text-white"></Trash2>
+              <Trash2 size={13} /> Delete ({selectedMessages.length})
             </button>
           )}
         </div>
+
         <div
-          className="flex-1 overflow-y-auto space-y-4 px-2 scrollbar-thin scrollbar-thumb-purple-500 scrollbar-track-transparent"
-          style={{
-            maxHeight: 'calc(100vh - 16rem)',
-            overscrollBehavior: 'contain',
-          }}
           ref={chatContainerRef}
+          className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-3 scrollbar-thin scrollbar-thumb-surface-border scrollbar-track-transparent"
+          style={{ overscrollBehavior: 'contain' }}
         >
           {messages.length === 0 ? (
-            <div className="text-gray-200 text-center py-8">
-              No messages yet
+            <div className="flex flex-col items-center justify-center h-full py-12 text-center">
+              <p className="text-sm text-text-muted">
+                No messages yet. Say hello! 👋
+              </p>
             </div>
           ) : (
-            messages.map((message) => (
-              <div
-                key={message._id}
-                className={`flex ${message.isSender ? 'justify-end' : 'justify-start'} mb-2 items-center group relative`}
-                onClick={() => toggleMessageSelection(message._id)}
-              >
-                <div className="flex items-center gap-2">
-                  {message.isSender && (
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                      <button
-                        onClick={() => toggleReactionPicker(message._id)}
-                        className="p-1 rounded-full hover:bg-gray-600/50"
-                        title="Add Reaction"
-                      >
-                        <Smile className="w-4 h-4 text-gray-300"></Smile>
-                      </button>
-                      <button
-                        onClick={() => handleDeleteMessage(message._id)}
-                        className="p-1 rounded-full hover:bg-red-600/50"
-                        title="Delete Message"
-                      >
-                        <Trash2 className="w-4 h-4 text-red-400"></Trash2>
-                      </button>
-                    </div>
-                  )}
-                  <div
-                    className={`max-w-[70%] p-3 rounded-xl shadow-md ${
-                      message.isSender
-                        ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white'
-                        : 'bg-white/20 text-gray-200'
-                    } ${selectedMessages.includes(message._id) ? 'ring-2 ring-red-500' : ''}`}
-                  >
-                    {message.attachment ? (
-                      <div>
-                        {message.attachment.type.startsWith('image/') ? (
-                          <img
-                            src={message.attachment.url}
-                            alt={message.attachment.name}
-                            className="max-w-full h-auto rounded-lg mb-2"
-                          />
-                        ) : (
-                          <a
-                            href={message.attachment.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-400 hover:underline"
-                          >
-                            {message.attachment.name}
-                          </a>
-                        )}
+            messages.map((message) => {
+              const isSender = message.isSender;
+              const isSelected = selectedMessages.includes(message._id);
+              return (
+                <div
+                  key={message._id}
+                  className={`flex ${isSender ? 'justify-end' : 'justify-start'} group relative`}
+                >
+                  <div className="flex items-end gap-1.5 max-w-[75%]">
+                    {/* Actions — left side for sender */}
+                    {isSender && (
+                      <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity self-end mb-1">
+                        <button
+                          onClick={() =>
+                            setReactionPickerMessageId((p) =>
+                              p === message._id ? null : message._id
+                            )
+                          }
+                          className="p-1 rounded-lg hover:bg-surface-muted"
+                          title="React"
+                        >
+                          <Smile size={13} className="text-text-muted" />
+                        </button>
+                        <button
+                          onClick={() => onDeleteMessages([message._id])}
+                          className="p-1 rounded-lg hover:bg-red-50 text-error"
+                          title="Delete"
+                        >
+                          <Trash2 size={13} />
+                        </button>
                       </div>
-                    ) : (
-                      <p>{message.message}</p>
                     )}
-                    <p className="text-xs text-gray-400 mt-1">
-                      {DateUtils.formatCreatedAtTime(message.createdAt)}
-                      {message.isSender && (
-                        <span className="ml-2">
-                          {message.unreadBy?.includes(thread.receiverId)
-                            ? 'Sent'
-                            : 'Seen'}
-                        </span>
+
+                    {/* Bubble */}
+                    <div
+                      onClick={() =>
+                        setSelectedMessages((p) =>
+                          p.includes(message._id)
+                            ? p.filter((id) => id !== message._id)
+                            : [...p, message._id]
+                        )
+                      }
+                      className={`px-3.5 py-2.5 rounded-2xl cursor-pointer transition-all ${
+                        isSender
+                          ? 'bg-gradient-to-br from-primary-500 to-teal-500 text-white rounded-br-sm'
+                          : 'bg-surface-muted text-text-primary rounded-bl-sm border border-surface-border'
+                      } ${isSelected ? 'ring-2 ring-error ring-offset-1' : ''}`}
+                    >
+                      {message.attachment ? (
+                        <div>
+                          {message.attachment.type.startsWith('image/') ? (
+                            <img
+                              src={message.attachment.url}
+                              alt={message.attachment.name}
+                              className="max-w-full max-h-48 rounded-xl mb-1 object-cover"
+                            />
+                          ) : (
+                            <a
+                              href={message.attachment.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={`underline text-sm ${isSender ? 'text-white/80' : 'text-primary-600'}`}
+                            >
+                              📎 {message.attachment.name}
+                            </a>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-sm leading-relaxed">
+                          {message.message}
+                        </p>
                       )}
-                    </p>
-                    {message.reactions && message.reactions.length > 0 && (
-                      <div className="flex gap-1 mt-1">
-                        {message.reactions.map((reaction, index) => (
-                          <span key={index} className="text-sm">
-                            {reaction.emoji}
-                          </span>
-                        ))}
+                      <div
+                        className={`flex items-center gap-1.5 mt-1 ${isSender ? 'justify-end' : 'justify-start'}`}
+                      >
+                        <span
+                          className={`text-[10px] ${isSender ? 'text-white/60' : 'text-text-muted'}`}
+                        >
+                          {DateUtils.formatCreatedAtTime(message.createdAt)}
+                          {isSender && (
+                            <span className="ml-1">
+                              {message.unreadBy?.includes(thread.receiverId)
+                                ? '✓'
+                                : '✓✓'}
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                      {message.reactions && message.reactions.length > 0 && (
+                        <div className="flex gap-0.5 mt-1 flex-wrap">
+                          {message.reactions.map((r, i) => (
+                            <span key={i} className="text-sm">
+                              {r.emoji}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Actions — right side for receiver */}
+                    {!isSender && (
+                      <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity self-end mb-1">
+                        <button
+                          onClick={() =>
+                            setReactionPickerMessageId((p) =>
+                              p === message._id ? null : message._id
+                            )
+                          }
+                          className="p-1 rounded-lg hover:bg-surface-muted"
+                          title="React"
+                        >
+                          <Smile size={13} className="text-text-muted" />
+                        </button>
+                        <button
+                          onClick={() => onDeleteMessages([message._id])}
+                          className="p-1 rounded-lg hover:bg-red-50 text-error"
+                          title="Delete"
+                        >
+                          <Trash2 size={13} />
+                        </button>
                       </div>
                     )}
                   </div>
-                  {!message.isSender && (
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                      <button
-                        onClick={() => toggleReactionPicker(message._id)}
-                        className="p-1 rounded-full hover:bg-gray-600/50"
-                        title="Add Reaction"
-                      >
-                        <Smile className="w-4 h-4 text-gray-300"></Smile>
-                      </button>
-                      <button
-                        onClick={() => handleDeleteMessage(message._id)}
-                        className="p-1 rounded-full hover:bg-red-600/50"
-                        title="Delete Message"
-                      >
-                        <Trash2 className="w-4 h-4 text-red-400"></Trash2>
-                      </button>
+
+                  {/* Reaction picker */}
+                  {reactionPickerMessageId === message._id && (
+                    <div
+                      className={`absolute z-20 bottom-full mb-1 ${isSender ? 'right-0' : 'left-0'}`}
+                    >
+                      <div className="bg-white border border-surface-border rounded-2xl shadow-modal px-2 py-1.5 flex gap-1">
+                        {defaultEmojis.map((emoji) => (
+                          <button
+                            key={emoji}
+                            onClick={() => handleReaction(message._id, emoji)}
+                            className="text-lg p-1 rounded-lg hover:bg-surface-muted transition-colors"
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
-                {reactionPickerMessageId === message._id && (
-                  <div
-                    className={`absolute z-10 ${message.isSender ? 'right-0' : 'left-0'} top-0 translate-y-[-100%]`}
-                  >
-                    <div className="bg-gray-800 p-2 rounded-lg flex gap-1">
-                      {defaultEmojis.map((emoji) => (
-                        <button
-                          key={emoji}
-                          onClick={() => handleReaction(message._id, emoji)}
-                          className="text-lg hover:bg-gray-700 p-1 rounded"
-                        >
-                          {emoji}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))
+              );
+            })
           )}
+          {/* Scroll anchor */}
           <div ref={messagesEndRef} />
         </div>
-        {!isAtBottom() && newMessagesCount > 0 && (
+
+        {/* ── Scroll-to-bottom button ── */}
+        {showScrollBtn && (
           <button
-            onClick={onScrollToBottom}
-            className="absolute bottom-20 right-4 bg-purple-600 text-white rounded-full p-2 shadow-lg hover:bg-purple-700 transition-all duration-300"
+            onClick={handleScrollToBottom}
+            className="absolute bottom-20 right-4 bg-primary-500 hover:bg-primary-600 text-white rounded-full p-2 shadow-card-hover transition-all"
           >
-            <ArrowDown className="w-5 h-5" />
-            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-              {newMessagesCount}
-            </span>
+            <ArrowDown size={16} />
+            {newMessagesCount > 0 && (
+              <span className="absolute -top-2 -right-2 bg-error text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">
+                {newMessagesCount}
+              </span>
+            )}
           </button>
         )}
-        <form onSubmit={handleFormSubmit} className="mt-4">
-          {/* Selected File Preview */}
+
+        {/* ── Input area ── */}
+        <div className="flex-shrink-0 border-t border-surface-border px-4 py-3">
+          {/* File preview */}
           {selectedFile && (
-            <div className="mb-3 flex items-center gap-3 p-3 bg-white/10 rounded-xl border border-white/20">
+            <div className="mb-2.5 flex items-center gap-3 p-2.5 bg-surface-muted rounded-xl border border-surface-border">
               {selectedFile.type.startsWith('image/') ? (
                 <img
                   src={URL.createObjectURL(selectedFile)}
                   alt="Preview"
-                  className="w-16 h-16 rounded-lg object-cover"
+                  className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
                 />
               ) : (
-                <div className="w-16 h-16 bg-gray-600 rounded-lg flex items-center justify-center">
-                  <Paperclip className="w-8 h-8 text-white" />
+                <div className="w-12 h-12 bg-surface-bg rounded-lg border border-surface-border flex items-center justify-center flex-shrink-0">
+                  <Paperclip size={18} className="text-text-muted" />
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white truncate">
+                <p className="text-xs font-medium text-text-primary truncate">
                   {selectedFile.name}
                 </p>
-                <p className="text-xs text-gray-400">
+                <p className="text-[10px] text-text-muted">
                   {(selectedFile.size / 1024).toFixed(1)} KB
                 </p>
               </div>
               <button
-                type="button"
                 onClick={() => setSelectedFile(null)}
-                className="p-1 text-gray-400 hover:text-white transition-colors"
+                className="p-1 hover:bg-surface-bg rounded-lg transition-colors"
               >
-                <X className="w-5 h-5" />
+                <X size={14} className="text-text-muted" />
               </button>
             </div>
           )}
 
-          {/* Input + Send Button */}
-          <div className="relative flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            {/* Emoji */}
             <button
               type="button"
-              className="p-2 text-gray-400 hover:text-white transition-colors"
               onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+              className="p-2 rounded-xl hover:bg-surface-muted transition-colors flex-shrink-0"
+              title="Emoji"
             >
-              <Smile className="w-6 h-6" />
+              <Smile size={18} className="text-text-muted" />
             </button>
 
+            {/* Text input */}
             <input
               type="text"
               value={newMessage}
               onChange={(e) => onMessageChange(e.target.value)}
-              placeholder="Message..."
-              className="flex-1 px-4 py-3 bg-white/10 border border-white/20 rounded-full text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white/20 transition-all duration-300 text-sm"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleFormSubmit(e);
+                }
+              }}
+              placeholder="Type a message..."
+              className="flex-1 px-4 py-2.5 bg-surface-muted border border-surface-border rounded-full text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary-300 focus:ring-2 focus:ring-primary-100 transition-all"
               ref={inputRef}
             />
 
-            {/* Attachment Button */}
+            {/* Attachment */}
             <button
               type="button"
-              className="p-2 text-gray-400 hover:text-white transition-colors"
               onClick={() => fileInputRef.current?.click()}
+              className="p-2 rounded-xl hover:bg-surface-muted transition-colors flex-shrink-0"
+              title="Attach file"
             >
-              <Paperclip className="w-6 h-6 rotate-45" />
+              <Paperclip size={18} className="text-text-muted rotate-45" />
             </button>
 
-            {/* Send Button - Only show icon when there's content */}
-            {newMessage.trim() || selectedFile ? (
-              <button
-                type="submit"
-                className="absolute right-2 p-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-full hover:from-purple-700 hover:to-blue-700 transition-all duration-300 shadow-lg"
-              >
-                <IoIosSend className="w-6 h-6" />
-              </button>
-            ) : (
-              <div className="w-10" />
-            )}
+            {/* Send */}
+            <button
+              type="button"
+              onClick={handleFormSubmit}
+              disabled={!newMessage.trim() && !selectedFile}
+              className="p-2.5 bg-primary-500 hover:bg-primary-600 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-full transition-colors flex-shrink-0 shadow-btn-primary"
+            >
+              <Send size={16} />
+            </button>
           </div>
 
           {/* Hidden file input */}
@@ -502,20 +562,18 @@ export const ChatBox: React.FC<ChatBoxProps> = React.memo(
             accept="image/*,.pdf,.doc,.docx"
           />
 
-          {/* Emoji Picker */}
+          {/* Emoji picker */}
           {showEmojiPicker && (
-            <div className="absolute bottom-16 left-10 z-50">
-              <div className="bg-gray-800 rounded-lg shadow-2xl border border-gray-700">
-                <EmojiPicker
-                  onEmojiClick={handleEmojiClick}
-                  theme={Theme.DARK}
-                  height={350}
-                  width={320}
-                />
-              </div>
+            <div className="absolute bottom-20 left-4 z-50 shadow-modal rounded-2xl overflow-hidden border border-surface-border">
+              <EmojiPicker
+                onEmojiClick={handleEmojiClick}
+                theme={Theme.LIGHT}
+                height={350}
+                width={300}
+              />
             </div>
           )}
-        </form>
+        </div>
       </div>
     );
   }

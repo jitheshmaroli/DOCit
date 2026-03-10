@@ -1,7 +1,22 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { MessageSquare, Video } from 'lucide-react';
+import {
+  MessageSquare,
+  Video,
+  Star,
+  FileText,
+  Download,
+  ChevronDown,
+  ChevronUp,
+  Loader2,
+  AlertCircle,
+  Calendar,
+  Clock,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+} from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import { cancelAppointmentThunk } from '../../redux/thunks/patientThunk';
 import { DateUtils } from '../../utils/DateUtils';
@@ -74,12 +89,80 @@ interface Appointment {
   hasReview?: boolean;
 }
 
+// Helpers
+const StatusBadge = ({ status }: { status: string }) => {
+  const map: Record<string, { cls: string; icon: React.ReactNode }> = {
+    pending: {
+      cls: 'bg-amber-100 text-amber-700 border border-amber-200',
+      icon: <Clock size={11} />,
+    },
+    completed: {
+      cls: 'bg-emerald-100 text-emerald-700 border border-emerald-200',
+      icon: <CheckCircle size={11} />,
+    },
+    cancelled: {
+      cls: 'bg-red-100 text-error border border-red-200',
+      icon: <XCircle size={11} />,
+    },
+  };
+  const { cls, icon } = map[status] || { cls: 'badge-neutral', icon: null };
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${cls}`}
+    >
+      {icon}
+      {status.charAt(0).toUpperCase() + status.slice(1)}
+    </span>
+  );
+};
+
+const InfoRow = ({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) => (
+  <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-3">
+    <span className="text-xs font-semibold text-text-muted uppercase tracking-wide w-28 flex-shrink-0">
+      {label}
+    </span>
+    <span className="text-sm text-text-primary">{children}</span>
+  </div>
+);
+
+const Section = ({
+  title,
+  icon,
+  children,
+}: {
+  title: string;
+  icon?: React.ReactNode;
+  children: React.ReactNode;
+}) => (
+  <div className="card p-6 mb-5">
+    <div className="flex items-center gap-2.5 mb-5">
+      {icon && (
+        <div className="w-8 h-8 rounded-xl bg-primary-50 flex items-center justify-center text-primary-500">
+          {icon}
+        </div>
+      )}
+      <h2 className="font-display font-bold text-text-primary text-lg">
+        {title}
+      </h2>
+    </div>
+    {children}
+  </div>
+);
+
+// Component
 const AppointmentDetails: React.FC = () => {
   const { appointmentId } = useParams<{ appointmentId: string }>();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const { user } = useAppSelector((state) => state.auth);
   const { socket, registerHandlers } = useSocket();
+
   const [appointment, setAppointment] = useState<Appointment | null>(null);
   const [isLoading, setLoading] = useState(true);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
@@ -89,6 +172,7 @@ const AppointmentDetails: React.FC = () => {
     { callerId: string; callerRole: string } | undefined
   >(undefined);
   const [rating, setRating] = useState<number>(0);
+  const [hoveredRating, setHoveredRating] = useState<number>(0);
   const [comment, setComment] = useState<string>('');
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [showFullNotes, setShowFullNotes] = useState(false);
@@ -106,20 +190,13 @@ const AppointmentDetails: React.FC = () => {
         setLoading(true);
         const response = await api.get(
           `/api/patients/appointments/${appointmentId}`,
-          {
-            withCredentials: true,
-          }
+          { withCredentials: true }
         );
-
         const appt = response.data;
-
-        if (typeof appt.patientId === 'string') {
+        if (typeof appt.patientId === 'string')
           appt.patientId = { _id: appt.patientId, name: 'Unknown Patient' };
-        }
-        if (typeof appt.doctorId === 'string') {
+        if (typeof appt.doctorId === 'string')
           appt.doctorId = { _id: appt.doctorId, name: 'Unknown Doctor' };
-        }
-
         if (appt.prescriptionId && typeof appt.prescriptionId === 'object') {
           appt.prescription = {
             medications: appt.prescriptionId.medications.map((med: any) => ({
@@ -132,7 +209,6 @@ const AppointmentDetails: React.FC = () => {
             pdfUrl: appt.prescriptionId.pdfUrl || undefined,
           };
         }
-
         setAppointment(appt);
       } catch {
         showError('Failed to load appointment details');
@@ -141,16 +217,12 @@ const AppointmentDetails: React.FC = () => {
         setLoading(false);
       }
     };
-
-    if (appointmentId) {
-      fetchAppointmentDetails();
-    }
+    if (appointmentId) fetchAppointmentDetails();
   }, [appointmentId]);
 
   useEffect(() => {
     if (!socket || !appointment) return;
-
-    const handlers = {
+    registerHandlers({
       onIncomingCall: (data: {
         appointmentId: string;
         callerId: string;
@@ -180,36 +252,28 @@ const AppointmentDetails: React.FC = () => {
           showInfo('Call rejected');
         }
       },
-    };
-
-    registerHandlers(handlers);
-
-    return () => {
-      // Handlers are managed by SocketContext
-    };
+    });
   }, [socket, appointment, appointmentId, registerHandlers]);
 
   const isWithinAppointmentTime = useCallback(() => {
     if (!appointment) return false;
     const now = new Date();
-    const startTime = new Date(
-      `${appointment.date.split('T')[0]}T${appointment.startTime}`
-    );
-    const endTime = new Date(
-      `${appointment.date.split('T')[0]}T${appointment.endTime}`
-    );
+    const base = appointment.date.split('T')[0];
     return (
-      now >= startTime && now <= endTime && appointment.status === 'pending'
+      now >= new Date(`${base}T${appointment.startTime}`) &&
+      now <= new Date(`${base}T${appointment.endTime}`) &&
+      appointment.status === 'pending'
     );
   }, [appointment]);
 
   const isFutureAppointment = useCallback(() => {
     if (!appointment) return false;
-    const now = new Date();
-    const startTime = new Date(
-      `${appointment.date.split('T')[0]}T${appointment.startTime}`
+    return (
+      new Date() <
+        new Date(
+          `${appointment.date.split('T')[0]}T${appointment.startTime}`
+        ) && appointment.status === 'pending'
     );
-    return now < startTime && appointment.status === 'pending';
   }, [appointment]);
 
   const handleCancelAppointment = async (cancellationReason: string) => {
@@ -248,8 +312,7 @@ const AppointmentDetails: React.FC = () => {
       });
       setIsVideoCallOpen(true);
       setIsCaller(true);
-    } catch (error) {
-      console.error('Failed to initiate video call:', error);
+    } catch {
       showError('Failed to start video call');
     }
   };
@@ -260,11 +323,9 @@ const AppointmentDetails: React.FC = () => {
       typeof appointment.doctorId !== 'string' &&
       appointment.doctorId._id
     ) {
-      navigate(`/patient/messages?thread=${appointment.doctorId?._id}`, {
+      navigate(`/patient/messages?thread=${appointment.doctorId._id}`, {
         replace: true,
       });
-    } else {
-      console.error('Cannot open chat: Doctor information missing');
     }
   };
 
@@ -304,39 +365,46 @@ const AppointmentDetails: React.FC = () => {
     }
   };
 
-  const toggleNotes = () => {
-    setShowFullNotes(!showFullNotes);
-  };
-
+  // Loading
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 flex items-center justify-center">
-        <div className="text-white text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p>Loading appointment details...</p>
-        </div>
+      <div className="flex flex-col items-center justify-center py-24 gap-4">
+        <Loader2 size={36} className="animate-spin text-primary-500" />
+        <p className="text-text-secondary text-sm">
+          Loading appointment details...
+        </p>
       </div>
     );
   }
 
   if (!appointment) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 flex items-center justify-center">
-        <div className="text-white text-center">
-          <h2 className="text-2xl font-bold mb-4">Appointment not found</h2>
-          <button
-            onClick={() => navigate('/patient/profile?tab=appointments')}
-            className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-2 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-300"
-          >
-            Back to Appointments
-          </button>
+      <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-surface-muted flex items-center justify-center">
+          <AlertCircle size={28} className="text-text-muted" />
         </div>
+        <h3 className="font-display font-bold text-text-primary text-xl">
+          Appointment not found
+        </h3>
+        <button
+          onClick={() => navigate('/patient/profile?tab=appointments')}
+          className="btn-primary"
+        >
+          Back to Appointments
+        </button>
       </div>
     );
   }
 
+  const doctorName =
+    typeof appointment.doctorId === 'string'
+      ? 'Unknown Doctor'
+      : appointment.doctorId.name;
+  const doctorId =
+    typeof appointment.doctorId === 'string' ? '' : appointment.doctorId._id;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 py-8">
+    <div className="animate-fade-in max-w-3xl mx-auto">
       <CancelAppointmentModal
         isOpen={isCancelModalOpen}
         onClose={() => setIsCancelModalOpen(false)}
@@ -351,257 +419,279 @@ const AppointmentDetails: React.FC = () => {
         }}
         appointmentId={appointmentId || ''}
         userId={user?._id || ''}
-        receiverId={
-          typeof appointment.doctorId !== 'string'
-            ? appointment.doctorId._id
-            : ''
-        }
+        receiverId={doctorId}
         isCaller={isCaller}
         callerInfo={callerInfo}
       />
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl sm:text-3xl font-bold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent">
-            Appointment Details
-          </h2>
-        </div>
 
-        <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">
-          <h3 className="text-lg sm:text-xl font-semibold text-white mb-4">
-            Overview
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <p className="text-sm text-gray-200">
-                <span className="font-medium">Date:</span>{' '}
-                {DateUtils.formatToLocal(appointment.date)}
-              </p>
-              <p className="text-sm text-gray-200">
-                <span className="font-medium">Time:</span>{' '}
-                {DateUtils.formatTimeToLocal(appointment.startTime)} -{' '}
-                {DateUtils.formatTimeToLocal(appointment.endTime)}
-              </p>
-              <p className="text-sm text-gray-200">
-                <span className="font-medium">Doctor:</span> Dr.{' '}
-                {typeof appointment.doctorId === 'string'
-                  ? 'Unknown Doctor'
-                  : appointment.doctorId.name}
-              </p>
-            </div>
-            <div className="space-y-2">
-              <p className="text-sm text-gray-200">
-                <span className="font-medium">Status:</span>{' '}
-                <span
-                  className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    appointment.status === 'pending'
-                      ? 'bg-yellow-500/20 text-yellow-300'
-                      : appointment.status === 'completed'
-                        ? 'bg-green-500/20 text-green-300'
-                        : 'bg-red-500/20 text-red-300'
-                  }`}
-                >
-                  {appointment.status.charAt(0).toUpperCase() +
-                    appointment.status.slice(1)}
-                </span>
-              </p>
-              <p className="text-sm text-gray-200">
-                <span className="font-medium">Type:</span>{' '}
-                {appointment.isFreeBooking ? 'Free' : 'Subscribed'}
-              </p>
-              <p className="text-sm text-gray-200">
-                <span className="font-medium">Booked:</span>{' '}
-                {DateUtils.formatToLocal(appointment.bookingTime)}
-              </p>
-              {appointment.status === 'cancelled' &&
-                appointment.cancellationReason && (
-                  <p className="text-sm text-gray-200 break-words max-w-full">
-                    <span className="font-medium">Cancellation Reason:</span>{' '}
-                    {appointment.cancellationReason}
-                  </p>
-                )}
-            </div>
-          </div>
-
-          {appointment.status === 'pending' && isFutureAppointment() && (
-            <button
-              onClick={() => setIsCancelModalOpen(true)}
-              className="mt-4 bg-gradient-to-r from-red-600 to-red-700 text-white px-4 py-2 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300"
+      {/* ── Overview ── */}
+      <Section title="Appointment Overview" icon={<Calendar size={16} />}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
+          <InfoRow label="Date">
+            {DateUtils.formatToLocal(appointment.date)}
+          </InfoRow>
+          <InfoRow label="Time">
+            {DateUtils.formatTimeToLocal(appointment.startTime)} –{' '}
+            {DateUtils.formatTimeToLocal(appointment.endTime)}
+          </InfoRow>
+          <InfoRow label="Doctor">
+            <span className="font-semibold text-text-primary">
+              Dr. {doctorName}
+            </span>
+          </InfoRow>
+          <InfoRow label="Status">
+            <StatusBadge status={appointment.status} />
+          </InfoRow>
+          <InfoRow label="Type">
+            <span
+              className={`badge ${appointment.isFreeBooking ? 'bg-teal-100 text-teal-700' : 'badge-primary'}`}
             >
-              Cancel Appointment
-            </button>
-          )}
-        </div>
-
-        {appointment.status === 'completed' && !appointment.hasReview && (
-          <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">
-            <h3 className="text-lg sm:text-xl font-semibold text-white mb-4">
-              Submit a Review
-            </h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-gray-200 text-sm mb-2">
-                  Rating
-                </label>
-                <div className="flex gap-2">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      onClick={() => setRating(star)}
-                      className={`text-2xl ${
-                        rating >= star ? 'text-yellow-400' : 'text-gray-400'
-                      }`}
-                    >
-                      ★
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="block text-gray-200 text-sm mb-2">
-                  Comment
-                </label>
-                <textarea
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  className="w-full p-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
-                  rows={4}
-                  placeholder="Write your review..."
-                />
-              </div>
-              <button
-                onClick={handleSubmitReview}
-                disabled={isSubmittingReview}
-                className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-2 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 disabled:opacity-50"
-              >
-                {isSubmittingReview ? 'Submitting...' : 'Submit Review'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {appointment.prescription && (
-          <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">
-            <h3 className="text-lg sm:text-xl font-semibold text-white mb-4">
-              Prescription
-            </h3>
-            <div className="space-y-4">
-              <div>
-                <h4 className="text-sm text-gray-300">Medications</h4>
-                {appointment.prescription.medications.map((med, index) => (
-                  <div key={index} className="border-b border-white/20 py-2">
-                    <p className="text-white">
-                      <strong>Name:</strong> {med.name}
+              {appointment.isFreeBooking ? 'Free Booking' : 'Subscribed'}
+            </span>
+          </InfoRow>
+          <InfoRow label="Booked On">
+            {DateUtils.formatToLocal(appointment.bookingTime)}
+          </InfoRow>
+          {appointment.status === 'cancelled' &&
+            appointment.cancellationReason && (
+              <div className="sm:col-span-2 mt-1">
+                <div className="flex items-start gap-2.5 p-3.5 bg-red-50 border border-red-100 rounded-xl">
+                  <AlertTriangle
+                    size={14}
+                    className="text-error flex-shrink-0 mt-0.5"
+                  />
+                  <div>
+                    <p className="text-xs font-semibold text-error mb-0.5">
+                      Cancellation Reason
                     </p>
-                    <p className="text-white">
-                      <strong>Dosage:</strong> {med.dosage}
-                    </p>
-                    <p className="text-white">
-                      <strong>Frequency:</strong> {med.frequency}
-                    </p>
-                    <p className="text-white">
-                      <strong>Duration:</strong> {med.duration}
+                    <p className="text-sm text-red-700">
+                      {appointment.cancellationReason}
                     </p>
                   </div>
-                ))}
+                </div>
               </div>
-              {appointment.prescription.notes && (
-                <div>
-                  <h4 className="text-sm text-gray-300">Additional Notes</h4>
-                  <p className="text-white break-words max-w-full">
-                    {showFullNotes
-                      ? appointment.prescription.notes
-                      : appointment.prescription.notes.length > 100
-                        ? `${appointment.prescription.notes.substring(0, 100)}...`
-                        : appointment.prescription.notes}
-                  </p>
-                  {appointment.prescription.notes.length > 100 && (
-                    <button
-                      onClick={toggleNotes}
-                      className="text-blue-300 hover:text-blue-200 text-sm mt-2"
-                    >
-                      {showFullNotes ? 'Show Less' : 'Show More'}
-                    </button>
-                  )}
-                </div>
-              )}
-              {appointment.prescription.pdfUrl ? (
-                <div>
-                  <h4 className="text-sm text-gray-300">Prescription PDF</h4>
-                  <a
-                    href={appointment.prescription.pdfUrl}
-                    download
-                    className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-2 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 inline-block"
-                  >
-                    Download Prescription PDF
-                  </a>
-                </div>
-              ) : (
-                <p className="text-gray-200">No prescription PDF available.</p>
-              )}
-            </div>
+            )}
+        </div>
+
+        {appointment.status === 'pending' && isFutureAppointment() && (
+          <button
+            onClick={() => setIsCancelModalOpen(true)}
+            className="btn-danger mt-6"
+          >
+            <XCircle size={15} /> Cancel Appointment
+          </button>
+        )}
+      </Section>
+
+      {/* ── Consultation ── */}
+      <Section title="Consultation" icon={<MessageSquare size={16} />}>
+        <p className="text-sm text-text-secondary mb-5">
+          Connect with{' '}
+          <strong className="text-text-primary">Dr. {doctorName}</strong> via
+          chat or video call.
+        </p>
+
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={handleOpenChat}
+            className="btn-secondary flex items-center gap-2"
+          >
+            <MessageSquare size={16} /> Chat with Doctor
+          </button>
+
+          <button
+            onClick={handleStartVideoCall}
+            disabled={
+              !isWithinAppointmentTime() || appointment.status !== 'pending'
+            }
+            title={
+              !isWithinAppointmentTime()
+                ? 'Video call available during appointment time'
+                : appointment.status !== 'pending'
+                  ? 'Available for pending appointments only'
+                  : 'Start Video Call'
+            }
+            className="btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Video size={16} /> Start Video Call
+          </button>
+        </div>
+
+        {!isWithinAppointmentTime() && appointment.status === 'pending' && (
+          <div className="flex items-start gap-2.5 p-3.5 bg-amber-50 border border-amber-100 rounded-xl mt-4">
+            <Clock size={14} className="text-warning flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-700">
+              Video call will be available during your appointment time:{' '}
+              <strong>
+                {DateUtils.formatTimeToLocal(appointment.startTime)} –{' '}
+                {DateUtils.formatTimeToLocal(appointment.endTime)}
+              </strong>
+            </p>
           </div>
         )}
+      </Section>
 
-        <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">
-          <h3 className="text-lg sm:text-xl font-semibold text-white mb-4">
-            Consultation
-          </h3>
-          <div className="flex flex-col items-center gap-4">
-            <p className="text-gray-200 text-center">
-              Connect with Dr.{' '}
-              {typeof appointment.doctorId === 'string'
-                ? 'Unknown Doctor'
-                : appointment.doctorId.name}{' '}
-              for your consultation
-            </p>
-
-            <div className="flex gap-4">
-              <button
-                onClick={handleOpenChat}
-                className="flex items-center gap-2 p-3 rounded-full bg-white/10 hover:bg-white/20 transition-all duration-300 group"
-                title="Chat with Doctor"
+      {/* ── Prescription ── */}
+      {appointment.prescription && (
+        <Section title="Prescription" icon={<FileText size={16} />}>
+          <div className="space-y-3 mb-5">
+            {appointment.prescription.medications.map((med, i) => (
+              <div
+                key={i}
+                className="bg-surface-bg rounded-xl border border-surface-border p-4"
               >
-                <MessageSquare className="w-6 h-6 text-white group-hover:scale-110 transition-transform" />
-                <span className="text-white text-sm">Chat</span>
-              </button>
-
-              <button
-                onClick={handleStartVideoCall}
-                className="flex items-center gap-2 p-3 rounded-full bg-white/10 hover:bg-white/20 transition-all duration-300 group disabled:opacity-50 disabled:cursor-not-allowed"
-                title={
-                  !isWithinAppointmentTime()
-                    ? 'Video call available during appointment time'
-                    : appointment.status !== 'pending'
-                      ? 'Video call only available for pending appointments'
-                      : 'Start Video Call'
-                }
-                disabled={
-                  !isWithinAppointmentTime() || appointment.status !== 'pending'
-                }
-              >
-                <Video className="w-6 h-6 text-white group-hover:scale-110 transition-transform" />
-                <span className="text-white text-sm">Video Call</span>
-              </button>
-            </div>
-
-            {!isWithinAppointmentTime() && appointment.status === 'pending' && (
-              <p className="text-yellow-300 text-sm text-center">
-                Video call will be available during your appointment time:
-                <br />
-                {DateUtils.formatTimeToLocal(appointment.startTime)} -{' '}
-                {DateUtils.formatTimeToLocal(appointment.endTime)}
-              </p>
-            )}
-
-            <button
-              onClick={handleOpenChat}
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-300"
-            >
-              Have questions? Chat with doctor
-            </button>
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <p className="font-semibold text-text-primary text-sm">
+                    {med.name}
+                  </p>
+                  <span className="badge-primary text-xs">{med.dosage}</span>
+                </div>
+                <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-text-secondary">
+                  <span>
+                    <span className="font-medium text-text-muted">
+                      Frequency:
+                    </span>{' '}
+                    {med.frequency}
+                  </span>
+                  <span>
+                    <span className="font-medium text-text-muted">
+                      Duration:
+                    </span>{' '}
+                    {med.duration}
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
+
+          {appointment.prescription.notes && (
+            <div className="p-4 bg-surface-bg rounded-xl border border-surface-border mb-4">
+              <p className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">
+                Additional Notes
+              </p>
+              <p className="text-sm text-text-secondary leading-relaxed">
+                {showFullNotes || appointment.prescription.notes.length <= 150
+                  ? appointment.prescription.notes
+                  : `${appointment.prescription.notes.substring(0, 150)}...`}
+              </p>
+              {appointment.prescription.notes.length > 150 && (
+                <button
+                  onClick={() => setShowFullNotes(!showFullNotes)}
+                  className="text-primary-600 hover:text-primary-700 text-xs font-medium mt-2 flex items-center gap-1"
+                >
+                  {showFullNotes ? (
+                    <>
+                      <ChevronUp size={12} /> Show Less
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown size={12} /> Show More
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          )}
+
+          {appointment.prescription.pdfUrl ? (
+            <a
+              href={appointment.prescription.pdfUrl}
+              download
+              className="btn-secondary inline-flex items-center gap-2"
+            >
+              <Download size={15} /> Download Prescription PDF
+            </a>
+          ) : (
+            <p className="text-xs text-text-muted">
+              No prescription PDF available.
+            </p>
+          )}
+        </Section>
+      )}
+
+      {/* ── Review ── */}
+      {appointment.status === 'completed' && !appointment.hasReview && (
+        <Section title="Leave a Review" icon={<Star size={16} />}>
+          <p className="text-sm text-text-secondary mb-5">
+            How was your experience with{' '}
+            <strong className="text-text-primary">Dr. {doctorName}</strong>?
+          </p>
+
+          {/* Star picker */}
+          <div className="mb-5">
+            <label className="label mb-2">Rating</label>
+            <div className="flex gap-1">
+              {[1, 2, 3, 4, 5].map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setRating(s)}
+                  onMouseEnter={() => setHoveredRating(s)}
+                  onMouseLeave={() => setHoveredRating(0)}
+                  className="p-0.5 transition-transform hover:scale-110"
+                  aria-label={`Rate ${s} star${s > 1 ? 's' : ''}`}
+                >
+                  <Star
+                    size={28}
+                    className={`transition-colors ${
+                      s <= (hoveredRating || rating)
+                        ? 'fill-amber-400 text-amber-400'
+                        : 'fill-surface-muted text-surface-border'
+                    }`}
+                  />
+                </button>
+              ))}
+              {rating > 0 && (
+                <span className="ml-2 text-sm font-semibold text-amber-500 self-center">
+                  {
+                    ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'][
+                      rating
+                    ]
+                  }
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="mb-5">
+            <label className="label mb-2">Your Review</label>
+            <textarea
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              className="input resize-none"
+              rows={4}
+              placeholder="Share your experience with this doctor..."
+            />
+          </div>
+
+          <button
+            onClick={handleSubmitReview}
+            disabled={isSubmittingReview || rating === 0}
+            className="btn-primary disabled:opacity-50"
+          >
+            {isSubmittingReview ? (
+              <>
+                <Loader2 size={15} className="animate-spin" /> Submitting...
+              </>
+            ) : (
+              <>
+                <Star size={15} /> Submit Review
+              </>
+            )}
+          </button>
+        </Section>
+      )}
+
+      {appointment.status === 'completed' && appointment.hasReview && (
+        <div className="flex items-start gap-3 p-4 bg-emerald-50 border border-emerald-100 rounded-2xl mb-5">
+          <CheckCircle
+            size={16}
+            className="text-success flex-shrink-0 mt-0.5"
+          />
+          <p className="text-sm text-emerald-700 font-medium">
+            You've already submitted a review for this appointment.
+          </p>
         </div>
-      </div>
+      )}
     </div>
   );
 };

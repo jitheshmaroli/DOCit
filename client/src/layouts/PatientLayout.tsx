@@ -5,10 +5,10 @@ import Footer from '../components/common/Footer';
 
 const PatientLayout: React.FC = () => {
   return (
-    <div className="flex flex-col min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900">
+    <div className="flex flex-col min-h-screen bg-surface-bg">
       <Header />
-      <main className="flex-grow bg-white/10 backdrop-blur-lg">
-        <div className="container mx-auto px-4 py-8">
+      <main className="flex-grow">
+        <div className="container mx-auto px-4 py-8 max-w-7xl">
           <Outlet />
         </div>
       </main>

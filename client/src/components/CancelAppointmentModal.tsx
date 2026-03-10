@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { toast } from 'react-toastify';
+import { showError } from '../utils/toastConfig';
+import Modal from './common/Modal';
+import { AlertTriangle } from 'lucide-react';
 
 interface CancelAppointmentModalProps {
   isOpen: boolean;
@@ -17,15 +19,9 @@ const CancelAppointmentModal: React.FC<CancelAppointmentModalProps> = ({
   const [cancellationReason, setCancellationReason] = useState('');
   const maxLength = 200;
 
-  if (!isOpen) return null;
-
   const handleConfirm = () => {
     if (!cancellationReason.trim()) {
-      toast.error('Please provide a cancellation reason.', {
-        position: 'top-right',
-        autoClose: 3000,
-        theme: 'dark',
-      });
+      showError('Please provide a cancellation reason.');
       return;
     }
     onConfirm(cancellationReason);
@@ -33,45 +29,60 @@ const CancelAppointmentModal: React.FC<CancelAppointmentModalProps> = ({
     onClose();
   };
 
+  const handleClose = () => {
+    setCancellationReason('');
+    onClose();
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 shadow-xl w-full max-w-md p-6">
-        <h2 className="text-xl font-bold text-white mb-4">
-          Cancel Appointment
-        </h2>
-        <p className="text-gray-200 mb-4">
-          Are you sure you want to cancel appointment #{appointmentId.slice(-6)}
-          ? Please provide a reason for cancellation.
-        </p>
-        <textarea
-          value={cancellationReason}
-          onChange={(e) => setCancellationReason(e.target.value)}
-          placeholder="Enter cancellation reason (max 200 characters)"
-          maxLength={maxLength}
-          className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none h-24"
-        />
-        <p className="text-sm text-gray-300 mt-1">
-          {cancellationReason.length}/{maxLength} characters
-        </p>
-        <div className="flex gap-4 mt-6">
-          <button
-            onClick={handleConfirm}
-            className="flex-1 bg-gradient-to-r from-red-600 to-red-700 text-white py-2 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300"
-          >
+    <Modal
+      isOpen={isOpen}
+      onClose={handleClose}
+      title="Cancel Appointment"
+      description={`Appointment #${appointmentId.slice(-6)}`}
+      footer={
+        <>
+          <button onClick={handleClose} className="btn-secondary">
+            Keep Appointment
+          </button>
+          <button onClick={handleConfirm} className="btn-danger">
             Confirm Cancellation
           </button>
-          <button
-            onClick={() => {
-              setCancellationReason('');
-              onClose();
-            }}
-            className="flex-1 bg-gray-600 text-white py-2 rounded-lg hover:bg-gray-700 transition-all duration-300"
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <div className="flex items-start gap-3 p-3.5 bg-amber-50 border border-amber-100 rounded-xl">
+          <AlertTriangle
+            size={15}
+            className="text-warning flex-shrink-0 mt-0.5"
+          />
+          <p className="text-sm text-amber-700">
+            This action cannot be undone. Please provide a reason so we can
+            improve our service.
+          </p>
+        </div>
+
+        <div>
+          <label className="label mb-1.5">
+            Cancellation Reason <span className="text-error">*</span>
+          </label>
+          <textarea
+            value={cancellationReason}
+            onChange={(e) => setCancellationReason(e.target.value)}
+            placeholder="Tell us why you're cancelling this appointment..."
+            maxLength={maxLength}
+            rows={3}
+            className="input resize-none"
+          />
+          <p
+            className={`text-xs mt-1 text-right ${cancellationReason.length >= maxLength * 0.9 ? 'text-warning' : 'text-text-muted'}`}
           >
-            Close
-          </button>
+            {cancellationReason.length}/{maxLength}
+          </p>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 };
 

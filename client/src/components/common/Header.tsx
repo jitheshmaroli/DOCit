@@ -6,7 +6,7 @@ import Logo from './Logo';
 import useAuth from '../../hooks/useAuth';
 import NotificationDropdown from './NotificationDropdown';
 import { useSocket } from '../../hooks/useSocket';
-import { LogOut } from 'lucide-react';
+import { LogOut, Menu, X, ChevronRight, AlertTriangle } from 'lucide-react';
 import ROUTES from '../../constants/routeConstants';
 
 const Header: React.FC = () => {
@@ -15,13 +15,15 @@ const Header: React.FC = () => {
   const { user, loading } = useSelector((state: RootState) => state.auth);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const { logout } = useAuth();
   const { connect, isConnected } = useSocket();
 
   const isAuthenticated = !!user;
 
+  const isLandingPage = location.pathname === '/';
+
   const patientNavItems = [
-    { name: 'Home', path: '/' },
     { name: 'Find Doctor', path: ROUTES.PATIENT.FIND_DOCTOR },
     { name: 'Medical History', path: ROUTES.PATIENT.MEDICAL_HISTORY },
     { name: 'Subscriptions', path: ROUTES.PATIENT.SUBSCRIPTIONS },
@@ -52,46 +54,49 @@ const Header: React.FC = () => {
     isAuthenticated &&
     user?.role === 'patient' &&
     location.pathname.startsWith('/patient');
-
   const navItems = isPatientRoute ? patientNavItems : landingNavItems;
 
-  const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
-
-  const handleLogoutClick = () => {
-    setIsLogoutModalOpen(true);
-  };
-
-  const handleLogoutConfirm = async () => {
-    try {
-      await logout();
-      navigate('/');
-      setIsLogoutModalOpen(false);
-    } catch (error) {
-      console.error('Logout failed:', error);
-      setIsLogoutModalOpen(false);
-    }
-  };
-
-  const handleLogoutCancel = () => {
-    setIsLogoutModalOpen(false);
-  };
+  // Track scroll for shadow on landing page
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   useEffect(() => {
     setIsMenuOpen(false);
   }, [location.pathname]);
 
   useEffect(() => {
-    if (user?._id && !isConnected) {
-      connect(user._id);
-    }
+    if (user?._id && !isConnected) connect(user._id);
   }, [user?._id, isConnected, connect]);
+
+  const handleLogoutConfirm = async () => {
+    try {
+      await logout();
+      navigate('/');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    } finally {
+      setIsLogoutModalOpen(false);
+    }
+  };
+
+  // On the landing page use a transparent-to-white header; on patient routes use solid white
+  const headerBg = isLandingPage
+    ? scrolled
+      ? 'bg-white shadow-header'
+      : 'bg-white/80 backdrop-blur-md'
+    : 'bg-white shadow-header';
 
   if (loading) {
     return (
-      <header className="bg-[#320A6B]/70 backdrop-blur-lg py-4 px-6 sticky top-0 z-50">
-        <div className="flex justify-between items-center max-w-7xl mx-auto">
+      <header
+        className={`${headerBg} sticky top-0 z-50 transition-all duration-200`}
+      >
+        <div className="flex justify-between items-center max-w-7xl mx-auto px-4 md:px-6 h-16">
           <Logo />
-          <div className="animate-pulse h-6 w-24 bg-[#78B9B5]/20 rounded"></div>
+          <div className="animate-pulse h-8 w-28 bg-surface-muted rounded-xl" />
         </div>
       </header>
     );
@@ -99,248 +104,243 @@ const Header: React.FC = () => {
 
   return (
     <>
-      <header className="bg-gradient-to-r from-[#320A6B] to-[#065084] py-4 px-6 sticky top-0 z-50 border-b border-[#78B9B5]/20">
-        <div className="flex justify-between items-center max-w-7xl mx-auto">
+      <header
+        className={`${headerBg} sticky top-0 z-50 transition-all duration-200`}
+      >
+        <div className="flex items-center justify-between max-w-7xl mx-auto px-4 md:px-6 h-16">
+          {/* Logo */}
           <Logo />
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-6">
-            <nav className="flex space-x-6">
-              {navItems.map((item) => (
+          {/* Desktop nav */}
+          <nav className="hidden md:flex items-center gap-1">
+            {navItems.map((item) => (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`px-3 py-2 rounded-xl text-sm font-medium transition-colors duration-150 ${
+                  location.pathname === item.path
+                    ? 'bg-primary-50 text-primary-600'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                }`}
+              >
+                {item.name}
+              </Link>
+            ))}
+
+            {!isPatientRoute &&
+              (isAuthenticated ? (
                 <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`text-[#B7DEE6] hover:text-[#78B9B5] transition-colors ${
-                    location.pathname === item.path
-                      ? 'text-[#78B9B5] font-medium'
-                      : ''
+                  to={dashboardPath}
+                  className={`px-3 py-2 rounded-xl text-sm font-medium transition-colors duration-150 ${
+                    location.pathname === dashboardPath
+                      ? 'bg-primary-50 text-primary-600'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
                   }`}
                 >
-                  {item.name}
+                  Dashboard
                 </Link>
+              ) : (
+                <div className="flex items-center gap-2 ml-2">
+                  {location.pathname !== '/login' && (
+                    <Link to="/login" className="btn-ghost text-sm px-4 py-2">
+                      Sign in
+                    </Link>
+                  )}
+                  {location.pathname !== '/signup' && (
+                    <Link
+                      to="/signup"
+                      className="btn-primary text-sm px-4 py-2"
+                      state={{ role: 'patient' }}
+                    >
+                      Get started
+                      <ChevronRight size={15} />
+                    </Link>
+                  )}
+                </div>
               ))}
-              {!isPatientRoute &&
-                (isAuthenticated ? (
-                  <Link
-                    to={dashboardPath}
-                    className={`text-[#B7DEE6] hover:text-[#78B9B5] transition-colors ${
-                      location.pathname === dashboardPath
-                        ? 'text-[#78B9B5] font-medium'
-                        : ''
-                    }`}
-                  >
-                    Dashboard
-                  </Link>
-                ) : (
-                  <>
-                    {location.pathname !== '/login' && (
-                      <Link
-                        to="/login"
-                        className="text-[#B7DEE6] hover:text-[#78B9B5] transition-colors"
-                      >
-                        Login
-                      </Link>
-                    )}
-                    {location.pathname !== '/signup' && (
-                      <Link
-                        to="/signup"
-                        className="text-[#B7DEE6] hover:text-[#78B9B5] transition-colors"
-                        state={{ role: 'patient' }}
-                      >
-                        Sign Up
-                      </Link>
-                    )}
-                  </>
-                ))}
-            </nav>
+          </nav>
+
+          {/* Desktop right actions */}
+          <div className="hidden md:flex items-center gap-2">
             {isAuthenticated &&
               (user?.role === 'patient' || user?.role === 'doctor') && (
-                <div className="flex items-center space-x-4">
+                <>
                   <NotificationDropdown userId={user?._id} />
+
                   {isPatientRoute && (
-                    <div className="flex items-center">
+                    <>
                       <Link
                         to={ROUTES.PATIENT.PROFILE}
-                        className="flex items-center"
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-xl hover:bg-surface-muted transition-colors group"
                       >
-                        <div className="w-8 h-8 rounded-full bg-[#78B9B5]/50 flex items-center justify-center text-white font-medium overflow-hidden">
+                        <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 font-semibold text-sm overflow-hidden flex-shrink-0">
                           {user?.profilePicture ? (
                             <img
                               src={user.profilePicture}
                               alt="Profile"
                               className="w-full h-full object-cover"
                             />
-                          ) : user?.name ? (
-                            user.name.charAt(0).toUpperCase()
                           ) : (
-                            'U'
+                            user?.name?.charAt(0).toUpperCase() || 'U'
                           )}
                         </div>
+                        <span className="text-sm font-medium text-text-secondary group-hover:text-text-primary transition-colors max-w-[100px] truncate">
+                          {user?.name?.split(' ')[0]}
+                        </span>
                       </Link>
+
                       <button
-                        onClick={handleLogoutClick}
-                        className="ml-2 text-[#B7DEE6] hover:text-[#78B9B5] transition-colors"
+                        onClick={() => setIsLogoutModalOpen(true)}
+                        className="p-2 rounded-xl text-text-muted hover:text-error hover:bg-red-50 transition-colors"
                         aria-label="Logout"
+                        title="Sign out"
                       >
-                        <LogOut className="w-6 h-6" />
+                        <LogOut size={18} />
                       </button>
-                    </div>
+                    </>
                   )}
-                </div>
+                </>
               )}
           </div>
 
-          {/* Mobile Menu Button */}
+          {/* Mobile menu button */}
           <button
-            onClick={toggleMenu}
-            className="md:hidden text-[#B7DEE6] hover:text-[#78B9B5] focus:outline-none"
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className="md:hidden p-2 rounded-xl text-text-secondary hover:text-text-primary hover:bg-surface-muted transition-colors"
             aria-label="Toggle menu"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-6 w-6"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              {isMenuOpen ? (
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              ) : (
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
-              )}
-            </svg>
+            {isMenuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>
 
-        {/* Mobile Navigation */}
+        {/* Mobile menu */}
         {isMenuOpen && (
-          <div className="md:hidden bg-gradient-to-r from-[#320A6B]/80 to-[#065084]/80 py-2 border-t border-[#78B9B5]/20">
-            <nav className="flex flex-col space-y-2 px-6">
+          <div className="md:hidden border-t border-surface-border bg-white animate-fade-in">
+            <nav className="flex flex-col px-4 py-3 gap-1">
               {navItems.map((item) => (
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`py-2 px-4 text-[#B7DEE6] hover:text-[#78B9B5] rounded transition-colors ${
+                  className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
                     location.pathname === item.path
-                      ? 'text-[#78B9B5] font-medium bg-[#78B9B5]/10'
-                      : ''
+                      ? 'bg-primary-50 text-primary-600'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
                   }`}
                 >
                   {item.name}
                 </Link>
               ))}
+
               {!isPatientRoute &&
                 (isAuthenticated ? (
                   <Link
                     to={dashboardPath}
-                    className={`py-2 px-4 text-[#B7DEE6] hover:text-[#78B9B5] rounded transition-colors ${
+                    className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
                       location.pathname === dashboardPath
-                        ? 'text-[#78B9B5] font-medium bg-[#78B9B5]/10'
-                        : ''
+                        ? 'bg-primary-50 text-primary-600'
+                        : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
                     }`}
                   >
                     Dashboard
                   </Link>
                 ) : (
-                  <>
+                  <div className="flex flex-col gap-2 pt-2 mt-1 border-t border-surface-border">
                     {location.pathname !== ROUTES.PUBLIC.LOGIN && (
                       <Link
                         to={ROUTES.PUBLIC.LOGIN}
-                        className="py-2 px-4 text-[#B7DEE6] hover:text-[#78B9B5] rounded transition-colors"
+                        className="btn-secondary w-full justify-center py-2.5"
                       >
-                        Login
+                        Sign in
                       </Link>
                     )}
                     {location.pathname !== ROUTES.PUBLIC.SIGNUP && (
                       <Link
                         to={ROUTES.PUBLIC.SIGNUP}
-                        className="py-2 px-4 text-[#B7DEE6] hover:text-[#78B9B5] rounded transition-colors"
+                        className="btn-primary w-full justify-center py-2.5"
                         state={{ role: 'patient' }}
                       >
-                        Sign Up
+                        Get started free
                       </Link>
                     )}
-                  </>
+                  </div>
                 ))}
+
               {isAuthenticated &&
                 (user?.role === 'patient' || user?.role === 'doctor') && (
-                  <>
+                  <div className="pt-2 mt-1 border-t border-surface-border space-y-1">
                     {isPatientRoute && (
                       <Link
                         to={ROUTES.PATIENT.PROFILE}
-                        className={`py-2 px-4 text-[#B7DEE6] hover:text-[#78B9B5] rounded transition-colors ${
+                        className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
                           location.pathname === '/patient/profile'
-                            ? 'text-[#78B9B5] font-medium bg-[#78B9B5]/10'
-                            : ''
+                            ? 'bg-primary-50 text-primary-600'
+                            : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
                         }`}
                       >
-                        <div className="flex items-center">
-                          <div className="w-6 h-6 rounded-full bg-[#78B9B5]/50 flex items-center justify-center text-white font-medium mr-2 overflow-hidden">
-                            {user?.profilePicture ? (
-                              <img
-                                src={user.profilePicture}
-                                alt="Profile"
-                                className="w-full h-full object-cover"
-                              />
-                            ) : user?.name ? (
-                              user.name.charAt(0).toUpperCase()
-                            ) : (
-                              'U'
-                            )}
-                          </div>
-                          Profile
+                        <div className="w-7 h-7 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 font-semibold text-xs overflow-hidden">
+                          {user?.profilePicture ? (
+                            <img
+                              src={user.profilePicture}
+                              alt="Profile"
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            user?.name?.charAt(0).toUpperCase() || 'U'
+                          )}
                         </div>
+                        My Profile
                       </Link>
                     )}
-                    <div className="py-2 px-4">
+
+                    <div className="px-4 py-2">
                       <NotificationDropdown userId={user?._id} />
                     </div>
+
                     {isPatientRoute && (
                       <button
-                        onClick={handleLogoutClick}
-                        className="py-2 px-4 text-left text-[#B7DEE6] hover:text-[#78B9B5] rounded transition-colors flex items-center"
-                        aria-label="Logout"
+                        onClick={() => setIsLogoutModalOpen(true)}
+                        className="flex items-center gap-3 w-full px-4 py-2.5 rounded-xl text-sm font-medium text-error hover:bg-red-50 transition-colors"
                       >
-                        <LogOut className="w-6 h-6 mr-2" />
-                        Logout
+                        <LogOut size={16} />
+                        Sign out
                       </button>
                     )}
-                  </>
+                  </div>
                 )}
             </nav>
           </div>
         )}
       </header>
 
-      {/* Logout Confirmation Modal */}
+      {/* Logout confirmation modal */}
       {isLogoutModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-gradient-to-r from-[#320A6B] to-[#065084] p-6 rounded-lg shadow-lg max-w-sm w-full border border-[#78B9B5]/20">
-            <h2 className="text-[#B7DEE6] text-lg font-medium mb-4">
-              Are you sure you want to logout?
-            </h2>
-            <div className="flex justify-end space-x-4">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-modal border border-surface-border p-6 w-full max-w-sm animate-scale-in">
+            <div className="flex items-start gap-4 mb-5">
+              <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0">
+                <AlertTriangle size={20} className="text-error" />
+              </div>
+              <div>
+                <h3 className="font-display font-bold text-text-primary mb-1">
+                  Sign out?
+                </h3>
+                <p className="text-sm text-text-secondary">
+                  You'll need to sign in again to access your account.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3">
               <button
-                onClick={handleLogoutCancel}
-                className="px-4 py-2 text-[#B7DEE6] hover:text-[#78B9B5] transition-colors"
+                onClick={() => setIsLogoutModalOpen(false)}
+                className="btn-secondary flex-1 py-2.5"
               >
                 Cancel
               </button>
               <button
                 onClick={handleLogoutConfirm}
-                className="px-4 py-2 bg-[#78B9B5] text-white rounded hover:bg-[#78B9B5]/80 transition-colors"
+                className="btn-danger flex-1 py-2.5"
               >
-                Logout
+                Sign out
               </button>
             </div>
           </div>

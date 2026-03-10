@@ -13,12 +13,24 @@ import { RootState } from '../../../redux/store';
 import { useNavigate } from 'react-router-dom';
 import { showError, showSuccess } from '../../../utils/toastConfig';
 import Modal from '../../../components/common/Modal';
-import { FaRegEye, FaRegEyeSlash } from 'react-icons/fa';
 import {
   changePatientPassword,
   setPatientPassword,
 } from '../../../services/patientService';
 import api from '../../../services/api';
+import {
+  Camera,
+  Eye,
+  EyeOff,
+  Lock,
+  User,
+  Mail,
+  Phone,
+  Hash,
+  MapPin,
+  CheckCircle,
+  Loader2,
+} from 'lucide-react';
 
 interface FormData {
   name: string;
@@ -29,6 +41,58 @@ interface FormData {
   address: string;
   pincode: string;
 }
+
+const fields: {
+  name: keyof FormData;
+  label: string;
+  type?: string;
+  maxLength?: number;
+  icon: React.ReactNode;
+  readOnly?: boolean;
+}[] = [
+  {
+    name: 'name',
+    label: 'Full Name',
+    type: 'text',
+    maxLength: 50,
+    icon: <User size={14} />,
+  },
+  {
+    name: 'email',
+    label: 'Email Address',
+    type: 'email',
+    icon: <Mail size={14} />,
+    readOnly: true,
+  },
+  {
+    name: 'phone',
+    label: 'Phone Number',
+    type: 'tel',
+    maxLength: 10,
+    icon: <Phone size={14} />,
+  },
+  {
+    name: 'age',
+    label: 'Age',
+    type: 'text',
+    maxLength: 2,
+    icon: <Hash size={14} />,
+  },
+  {
+    name: 'address',
+    label: 'Address',
+    type: 'text',
+    maxLength: 100,
+    icon: <MapPin size={14} />,
+  },
+  {
+    name: 'pincode',
+    label: 'Pincode',
+    type: 'text',
+    maxLength: 6,
+    icon: <Hash size={14} />,
+  },
+];
 
 const PersonalInformation = () => {
   const [formData, setFormData] = useState<FormData>({
@@ -47,17 +111,14 @@ const PersonalInformation = () => {
   const [file, setFile] = useState<File | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isSetPassword, setIsSetPassword] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [passwordErrors, setPasswordErrors] = useState<{
-    current: string;
-    new: string;
-    confirm: string;
-  }>({
+  const [passwordErrors, setPasswordErrors] = useState({
     current: '',
     new: '',
     confirm: '',
@@ -65,27 +126,26 @@ const PersonalInformation = () => {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isSubmittingPassword, setIsSubmittingPassword] = useState(false);
+
   const { user } = useAppSelector((state: RootState) => state.auth);
   const patientId = user?._id;
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!patientId) {
-      navigate(ROUTES.PUBLIC.LOGIN);
-    }
+    if (!patientId) navigate(ROUTES.PUBLIC.LOGIN);
   }, [patientId, navigate]);
 
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const response = await api.get(
+        const { data } = await api.get(
           ROUTES.API.PATIENT.PATIENT_BY_ID.replace(
             ':patientId',
             patientId as string
           ),
           { withCredentials: true }
         );
-        const data = response.data;
         const newFormData: FormData = {
           name: data.name || '',
           email: data.email || '',
@@ -97,9 +157,9 @@ const PersonalInformation = () => {
         };
         setFormData(newFormData);
         setInitialFormData(newFormData);
-        const imageUrl = getImageUrl(data.profilePicture);
-        setProfilePicture(imageUrl);
-        setPreviewImage(imageUrl);
+        const url = getImageUrl(data.profilePicture);
+        setProfilePicture(url);
+        setPreviewImage(url);
       } catch {
         showError('Failed to load profile data');
       }
@@ -109,21 +169,44 @@ const PersonalInformation = () => {
 
   useEffect(() => {
     if (!initialFormData) return;
-    const isFormDataChanged = () => {
-      const fields: (keyof FormData)[] = [
-        'name',
-        'email',
-        'phone',
-        'age',
-        'gender',
-        'address',
-        'pincode',
-      ];
-      return fields.some((field) => formData[field] !== initialFormData[field]);
-    };
-    const hasFileChanged = file !== null;
-    setHasChanges(isFormDataChanged() || hasFileChanged);
+    const changed = (Object.keys(formData) as (keyof FormData)[]).some(
+      (k) => k !== 'email' && formData[k] !== initialFormData[k]
+    );
+    setHasChanges(changed || file !== null);
   }, [formData, file, initialFormData]);
+
+  const validateField = (name: string, value: string) => {
+    const set = (err: string | undefined) =>
+      setErrors((p) => ({ ...p, [name]: err }));
+    switch (name) {
+      case 'name':
+        set(validateName(value));
+        break;
+      case 'phone':
+        set(validatePhone(value));
+        break;
+      case 'age':
+        set(
+          validateNumeric(value, 'Age') ||
+            (value && (parseInt(value) < 0 || parseInt(value) > 120)
+              ? 'Age must be 0–120'
+              : undefined)
+        );
+        break;
+      case 'gender':
+        set(!value ? 'Gender is required' : undefined);
+        break;
+      case 'address':
+        set(!value ? 'Address is required' : undefined);
+        break;
+      case 'pincode':
+        set(
+          validateNumeric(value, 'Pincode') ||
+            (value.length !== 6 ? 'Pincode must be 6 digits' : undefined)
+        );
+        break;
+    }
+  };
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -132,81 +215,30 @@ const PersonalInformation = () => {
     if (name === 'age' && value.length > 2) return;
     if (name === 'phone' && value.length > 10) return;
     if (name === 'pincode' && value.length > 6) return;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((p) => ({ ...p, [name]: value }));
     validateField(name, value);
   };
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const selectedFile = e.target.files[0];
-      setFile(selectedFile);
+    if (e.target.files?.[0]) {
+      const f = e.target.files[0];
+      setFile(f);
       const reader = new FileReader();
       reader.onloadend = () => setPreviewImage(reader.result as string);
-      reader.readAsDataURL(selectedFile);
-    }
-  };
-
-  const validateField = (name: string, value: string) => {
-    switch (name) {
-      case 'name':
-        setErrors((prev) => ({ ...prev, name: validateName(value) }));
-        break;
-      case 'phone':
-        setErrors((prev) => ({ ...prev, phone: validatePhone(value) }));
-        break;
-      case 'age':
-        setErrors((prev) => ({
-          ...prev,
-          age:
-            validateNumeric(value, 'Age') ||
-            (value && (parseInt(value) < 0 || parseInt(value) > 120)
-              ? 'Age must be between 0-120'
-              : undefined),
-        }));
-        break;
-      case 'gender':
-        setErrors((prev) => ({
-          ...prev,
-          gender: !value ? 'Gender is required' : undefined,
-        }));
-        break;
-      case 'address':
-        setErrors((prev) => ({
-          ...prev,
-          address: !value ? 'Address is required' : undefined,
-        }));
-        break;
-      case 'pincode':
-        setErrors((prev) => ({
-          ...prev,
-          pincode:
-            validateNumeric(value, 'Pincode') ||
-            (value.length !== 6 ? 'Pincode must be 6 digits' : undefined),
-        }));
-        break;
-      default:
-        break;
+      reader.readAsDataURL(f);
     }
   };
 
   const validateForm = () => {
-    const newErrors: Record<string, string | undefined> = {};
-    let isValid = true;
-    Object.entries(formData).forEach(([key, value]) => {
-      if (key !== 'email') {
+    let valid = true;
+    (Object.entries(formData) as [keyof FormData, string][]).forEach(
+      ([key, value]) => {
+        if (key === 'email') return;
         validateField(key, value);
-        if (!value) {
-          newErrors[key] =
-            `${key.charAt(0).toUpperCase() + key.slice(1)} is required`;
-          isValid = false;
-        } else if (errors[key]) {
-          newErrors[key] = errors[key];
-          isValid = false;
-        }
+        if (!value || errors[key]) valid = false;
       }
-    });
-    setErrors(newErrors);
-    return isValid;
+    );
+    return valid;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -219,37 +251,33 @@ const PersonalInformation = () => {
   };
 
   const handleConfirmUpdate = async () => {
+    setIsSaving(true);
     try {
-      const formDataToSend = new FormData();
-      formDataToSend.append('name', formData.name);
-      formDataToSend.append('phone', formData.phone);
-      formDataToSend.append('age', formData.age);
-      formDataToSend.append('gender', formData.gender);
-      formDataToSend.append('address', formData.address);
-      formDataToSend.append('pincode', formData.pincode);
-      if (file) formDataToSend.append('profilePicture', file);
-
-      const response = await api.patch(
+      const fd = new FormData();
+      ['name', 'phone', 'age', 'gender', 'address', 'pincode'].forEach((k) =>
+        fd.append(k, formData[k as keyof FormData])
+      );
+      if (file) fd.append('profilePicture', file);
+      const { data } = await api.patch(
         ROUTES.API.PATIENT.PATIENT_BY_ID.replace(
           ':patientId',
           patientId as string
         ),
-        formDataToSend,
+        fd,
         {
           headers: { 'Content-Type': 'multipart/form-data' },
           withCredentials: true,
         }
       );
-
-      const updatedFormData: FormData = {
+      const updated = {
         ...formData,
-        age: response.data.age?.toString() || formData.age,
+        age: data.age?.toString() || formData.age,
       };
-      setFormData(updatedFormData);
-      setInitialFormData(updatedFormData);
-      const imageUrl = getImageUrl(response.data.profilePicture);
-      setProfilePicture(imageUrl);
-      setPreviewImage(imageUrl);
+      setFormData(updated);
+      setInitialFormData(updated);
+      const url = getImageUrl(data.profilePicture);
+      setProfilePicture(url);
+      setPreviewImage(url);
       setFile(null);
       setIsModalOpen(false);
       showSuccess('Profile updated successfully!');
@@ -258,10 +286,11 @@ const PersonalInformation = () => {
       setFile(null);
       setIsModalOpen(false);
       showError('Error updating profile');
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  // Password Management Handlers
   const openPasswordModal = (isSet: boolean) => {
     setIsSetPassword(isSet);
     setIsPasswordModalOpen(true);
@@ -276,57 +305,40 @@ const PersonalInformation = () => {
     if (name === 'currentPassword') setCurrentPassword(value);
     if (name === 'newPassword') setNewPassword(value);
     if (name === 'confirmPassword') setConfirmPassword(value);
-
-    setPasswordErrors((prev) => ({
-      ...prev,
-      [name === 'newPassword'
-        ? 'new'
-        : name === 'confirmPassword'
-          ? 'confirm'
-          : 'current']:
-        name === 'newPassword'
-          ? validatePassword(value) || ''
-          : name === 'confirmPassword'
-            ? validateConfirmPassword(newPassword, value) || ''
-            : prev.current,
+    setPasswordErrors((p) => ({
+      ...p,
+      ...(name === 'newPassword' ? { new: validatePassword(value) || '' } : {}),
+      ...(name === 'confirmPassword'
+        ? { confirm: validateConfirmPassword(newPassword, value) || '' }
+        : {}),
     }));
   };
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    const newError = validatePassword(newPassword) || '';
-    const confirmError =
+    const newErr = validatePassword(newPassword) || '';
+    const confirmErr =
       validateConfirmPassword(newPassword, confirmPassword) || '';
-    let currentError = '';
-
-    if (!isSetPassword) {
-      currentError = !currentPassword ? 'Current password is required' : '';
-    }
-
+    const currentErr =
+      !isSetPassword && !currentPassword ? 'Current password is required' : '';
     setPasswordErrors({
-      current: currentError,
-      new: newError,
-      confirm: confirmError,
+      current: currentErr,
+      new: newErr,
+      confirm: confirmErr,
     });
-
-    if (currentError || newError || confirmError) {
+    if (currentErr || newErr || confirmErr) {
       showError('Please correct the errors');
       return;
     }
-
+    setIsSubmittingPassword(true);
     try {
-      if (isSetPassword) {
-        await setPatientPassword(newPassword);
-      } else {
-        await changePatientPassword(currentPassword, newPassword);
-      }
+      if (isSetPassword) await setPatientPassword(newPassword);
+      else await changePatientPassword(currentPassword, newPassword);
       showSuccess(
         isSetPassword
           ? 'Password set successfully'
           : 'Password changed successfully'
       );
-
       setIsPasswordModalOpen(false);
       setCurrentPassword('');
       setNewPassword('');
@@ -335,28 +347,50 @@ const PersonalInformation = () => {
     } catch (error) {
       const err = error as { message?: string };
       showError(err.message || 'Failed to update password');
+    } finally {
+      setIsSubmittingPassword(false);
     }
   };
 
-  if (!user) return <div>Loading...</div>;
+  if (!user)
+    return (
+      <div className="flex items-center justify-center py-24">
+        <Loader2 size={28} className="animate-spin text-primary-500" />
+      </div>
+    );
+
+  const initials = formData.name
+    ? formData.name
+        .split(' ')
+        .map((n) => n[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2)
+    : 'PT';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="container mx-auto">
-        <div className="bg-white/10 backdrop-blur-lg py-8 rounded-2xl border border-white/20 mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent mb-6 text-center">
-            Personal Information
-          </h1>
+    <div className="animate-fade-in max-w-3xl mx-auto">
+      {/* ── Page header ── */}
+      <div className="page-header mb-6">
+        <div>
+          <h1 className="page-title">Personal Information</h1>
+          <p className="page-subtitle">
+            Manage your profile and account security
+          </p>
         </div>
+      </div>
 
-        <div className="bg-white/10 backdrop-blur-lg border border-white/20 p-6 rounded-2xl shadow-xl">
-          <div className="flex flex-col md:flex-row gap-6">
-            <div className="flex flex-col items-center gap-4">
-              <div className="w-32 h-32 bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center rounded-full shadow-lg overflow-hidden border-4 border-white/20">
+      {/* ── Profile card ── */}
+      <div className="card p-6 mb-5">
+        <div className="flex flex-col sm:flex-row gap-6 items-start">
+          {/* Avatar */}
+          <div className="flex flex-col items-center gap-3 flex-shrink-0">
+            <div className="relative group">
+              <div className="w-24 h-24 rounded-2xl overflow-hidden border-2 border-surface-border bg-primary-50 flex items-center justify-center shadow-card">
                 {previewImage ? (
                   <img
                     src={previewImage}
-                    alt="Profile Preview"
+                    alt="Profile"
                     className="w-full h-full object-cover"
                     onError={(e) =>
                       ((e.target as HTMLImageElement).src =
@@ -364,11 +398,13 @@ const PersonalInformation = () => {
                     }
                   />
                 ) : (
-                  <span className="text-4xl font-bold text-white">PT</span>
+                  <span className="text-2xl font-bold text-primary-500">
+                    {initials}
+                  </span>
                 )}
               </div>
-              <label className="bg-gradient-to-r from-purple-600 to-blue-600 text-white py-2 px-4 rounded-full hover:from-purple-700 hover:to-blue-700 transition-all duration-300 shadow-md hover:shadow-lg cursor-pointer text-sm font-medium">
-                Change Photo
+              <label className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                <Camera size={20} className="text-white" />
                 <input
                   type="file"
                   className="hidden"
@@ -376,331 +412,263 @@ const PersonalInformation = () => {
                   onChange={handlePhotoChange}
                 />
               </label>
+            </div>
+            <label className="btn-secondary text-xs cursor-pointer flex items-center gap-1.5">
+              <Camera size={12} /> Change Photo
+              <input
+                type="file"
+                className="hidden"
+                accept="image/*"
+                onChange={handlePhotoChange}
+              />
+            </label>
+            <button
+              onClick={() => openPasswordModal(user?.hasPassword === false)}
+              className="btn-ghost text-xs flex items-center gap-1.5 text-text-secondary hover:text-primary-600"
+            >
+              <Lock size={12} />{' '}
+              {user?.hasPassword ? 'Change Password' : 'Set Password'}
+            </button>
+          </div>
 
-              <button
-                onClick={() => openPasswordModal(user?.hasPassword === false)}
-                className="mt-2 bg-gradient-to-r from-red-600 to-pink-600 text-white py-2 px-6 rounded-full hover:from-red-700 hover:to-pink-700 transition-all duration-300 shadow-md hover:shadow-lg text-sm font-medium"
-              >
-                {user?.hasPassword ? 'Change Password' : 'Set Password'}
-              </button>
+          {/* Form */}
+          <div className="flex-1 min-w-0">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {fields.map(
+                ({ name, label, type, maxLength, icon, readOnly }) => (
+                  <div
+                    key={name}
+                    className={name === 'address' ? 'sm:col-span-2' : ''}
+                  >
+                    <label className="label mb-1.5 flex items-center gap-1.5">
+                      <span className="text-text-muted">{icon}</span>
+                      {label}{' '}
+                      {!readOnly && <span className="text-error">*</span>}
+                    </label>
+                    {readOnly ? (
+                      <div className="input bg-surface-muted text-text-muted cursor-not-allowed flex items-center gap-2">
+                        {formData[name]}
+                      </div>
+                    ) : (
+                      <input
+                        type={type || 'text'}
+                        name={name}
+                        value={formData[name]}
+                        onChange={handleChange}
+                        maxLength={maxLength}
+                        className={`input ${errors[name] ? 'input-error' : ''}`}
+                      />
+                    )}
+                    {errors[name] && (
+                      <p className="error-text">{errors[name]}</p>
+                    )}
+                  </div>
+                )
+              )}
+
+              {/* Gender */}
+              <div>
+                <label className="label mb-1.5">
+                  Gender <span className="text-error">*</span>
+                </label>
+                <select
+                  name="gender"
+                  value={formData.gender}
+                  onChange={handleChange}
+                  className={`input ${errors.gender ? 'input-error' : ''}`}
+                >
+                  <option value="">Select Gender</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
+                </select>
+                {errors.gender && <p className="error-text">{errors.gender}</p>}
+              </div>
             </div>
 
-            <div className="flex-1">
-              <form onSubmit={handleSubmit}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm text-gray-200 mb-2">
-                      Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleChange}
-                      maxLength={50}
-                      className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                    />
-                    {errors.name && (
-                      <p className="text-red-500 text-xs mt-1">{errors.name}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-sm text-gray-200 mb-2">
-                      Email Address <span className="text-red-500">*</span>
-                    </label>
-                    <div className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white">
-                      {formData.email}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm text-gray-200 mb-2">
-                      Phone Number <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleChange}
-                      maxLength={10}
-                      className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                    />
-                    {errors.phone && (
-                      <p className="text-red-500 text-xs mt-1">
-                        {errors.phone}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-sm text-gray-200 mb-2">
-                      Age <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="age"
-                      value={formData.age}
-                      onChange={handleChange}
-                      maxLength={2}
-                      className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                    />
-                    {errors.age && (
-                      <p className="text-red-500 text-xs mt-1">{errors.age}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-sm text-gray-200 mb-2">
-                      Gender <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      name="gender"
-                      value={formData.gender}
-                      onChange={handleChange}
-                      className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-400 appearance-none"
-                      style={{
-                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23ffffff' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`,
-                        backgroundPosition: 'right 0.75rem center',
-                        backgroundSize: '1.25rem',
-                        backgroundRepeat: 'no-repeat',
-                      }}
-                    >
-                      <option value="" className="bg-gray-800 text-gray-400">
-                        Select Gender
-                      </option>
-                      <option value="Male" className="bg-gray-800 text-white">
-                        Male
-                      </option>
-                      <option value="Female" className="bg-gray-800 text-white">
-                        Female
-                      </option>
-                      <option value="Other" className="bg-gray-800 text-white">
-                        Other
-                      </option>
-                    </select>
-                    {errors.gender && (
-                      <p className="text-red-500 text-xs mt-1">
-                        {errors.gender}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-sm text-gray-200 mb-2">
-                      Address <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="address"
-                      value={formData.address}
-                      onChange={handleChange}
-                      maxLength={100}
-                      className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                    />
-                    {errors.address && (
-                      <p className="text-red-500 text-xs mt-1">
-                        {errors.address}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-sm text-gray-200 mb-2">
-                      Pincode <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="pincode"
-                      value={formData.pincode}
-                      onChange={handleChange}
-                      maxLength={6}
-                      className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                    />
-                    {errors.pincode && (
-                      <p className="text-red-500 text-xs mt-1">
-                        {errors.pincode}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="mt-6 flex justify-end gap-4">
-                  <button
-                    type="submit"
-                    disabled={!hasChanges}
-                    className={`py-3 px-6 text-white font-bold rounded-lg transition-all duration-300 shadow-md hover:shadow-lg ${
-                      hasChanges
-                        ? 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700'
-                        : 'bg-gray-600 cursor-not-allowed'
-                    }`}
-                  >
-                    Update Profile
-                  </button>
-                </div>
-              </form>
+            <div className="flex justify-end mt-6">
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={!hasChanges}
+                className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 size={15} className="animate-spin" /> Saving...
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
+              </button>
             </div>
           </div>
         </div>
-
-        {/* Profile Update Confirmation Modal */}
-        <Modal
-          isOpen={isModalOpen}
-          onClose={() => {
-            setPreviewImage(profilePicture);
-            setFile(null);
-            setIsModalOpen(false);
-          }}
-          title="Confirm Profile Update"
-          footer={
-            <>
-              <button
-                onClick={handleConfirmUpdate}
-                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
-              >
-                Yes
-              </button>
-              <button
-                onClick={() => {
-                  setPreviewImage(profilePicture);
-                  setFile(null);
-                  setIsModalOpen(false);
-                }}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
-              >
-                No
-              </button>
-            </>
-          }
-        >
-          <p className="text-white">
-            Are you sure you want to update your profile?
-          </p>
-        </Modal>
-
-        {/* Password Management Modal (Set / Change) */}
-        <Modal
-          isOpen={isPasswordModalOpen}
-          onClose={() => {
-            setIsPasswordModalOpen(false);
-            setCurrentPassword('');
-            setNewPassword('');
-            setConfirmPassword('');
-            setPasswordErrors({ current: '', new: '', confirm: '' });
-          }}
-          title={isSetPassword ? 'Set Password' : 'Change Password'}
-          footer={
-            <>
-              <button
-                onClick={handlePasswordSubmit}
-                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
-              >
-                {isSetPassword ? 'Set Password' : 'Change Password'}
-              </button>
-              <button
-                onClick={() => {
-                  setIsPasswordModalOpen(false);
-                  setCurrentPassword('');
-                  setNewPassword('');
-                  setConfirmPassword('');
-                  setPasswordErrors({ current: '', new: '', confirm: '' });
-                }}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
-              >
-                Cancel
-              </button>
-            </>
-          }
-        >
-          <form onSubmit={handlePasswordSubmit} className="space-y-4">
-            {!isSetPassword && (
-              <div>
-                <label className="block text-sm text-gray-200 mb-1">
-                  Current Password
-                </label>
-                <div className="relative">
-                  <input
-                    type={showCurrentPassword ? 'text' : 'password'}
-                    name="currentPassword"
-                    value={currentPassword}
-                    onChange={handlePasswordChange}
-                    className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                    placeholder="Enter current password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                  >
-                    {showCurrentPassword ? <FaRegEyeSlash /> : <FaRegEye />}
-                  </button>
-                </div>
-                {passwordErrors.current && (
-                  <p className="text-red-500 text-xs mt-1">
-                    {passwordErrors.current}
-                  </p>
-                )}
-              </div>
-            )}
-
-            <div>
-              <label className="block text-sm text-gray-200 mb-1">
-                New Password
-              </label>
-              <div className="relative">
-                <input
-                  type={showNewPassword ? 'text' : 'password'}
-                  name="newPassword"
-                  value={newPassword}
-                  onChange={handlePasswordChange}
-                  className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                  placeholder="Enter new password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowNewPassword(!showNewPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                >
-                  {showNewPassword ? <FaRegEyeSlash /> : <FaRegEye />}
-                </button>
-              </div>
-              {passwordErrors.new && (
-                <p className="text-red-500 text-xs mt-1">
-                  {passwordErrors.new}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm text-gray-200 mb-1">
-                Confirm New Password
-              </label>
-              <div className="relative">
-                <input
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  name="confirmPassword"
-                  value={confirmPassword}
-                  onChange={handlePasswordChange}
-                  className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                  placeholder="Confirm new password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                >
-                  {showConfirmPassword ? <FaRegEyeSlash /> : <FaRegEye />}
-                </button>
-              </div>
-              {passwordErrors.confirm && (
-                <p className="text-red-500 text-xs mt-1">
-                  {passwordErrors.confirm}
-                </p>
-              )}
-            </div>
-          </form>
-        </Modal>
       </div>
+
+      {/* ── Confirm update modal ── */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => {
+          setPreviewImage(profilePicture);
+          setFile(null);
+          setIsModalOpen(false);
+        }}
+        title="Confirm Profile Update"
+        footer={
+          <>
+            <button
+              onClick={() => {
+                setPreviewImage(profilePicture);
+                setFile(null);
+                setIsModalOpen(false);
+              }}
+              className="btn-secondary"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleConfirmUpdate}
+              className="btn-primary"
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 size={14} className="animate-spin" /> Saving...
+                </>
+              ) : (
+                'Yes, Update'
+              )}
+            </button>
+          </>
+        }
+      >
+        <div className="flex items-start gap-3 p-3.5 bg-primary-50 border border-primary-100 rounded-xl">
+          <CheckCircle
+            size={16}
+            className="text-primary-500 flex-shrink-0 mt-0.5"
+          />
+          <p className="text-sm text-primary-700">
+            Are you sure you want to update your profile? Your information will
+            be saved.
+          </p>
+        </div>
+      </Modal>
+
+      {/* ── Password modal ── */}
+      <Modal
+        isOpen={isPasswordModalOpen}
+        onClose={() => {
+          setIsPasswordModalOpen(false);
+          setCurrentPassword('');
+          setNewPassword('');
+          setConfirmPassword('');
+          setPasswordErrors({ current: '', new: '', confirm: '' });
+        }}
+        title={isSetPassword ? 'Set Password' : 'Change Password'}
+        description="Password must be at least 8 characters."
+        footer={
+          <>
+            <button
+              onClick={() => setIsPasswordModalOpen(false)}
+              className="btn-secondary"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handlePasswordSubmit}
+              className="btn-primary"
+              disabled={isSubmittingPassword}
+            >
+              {isSubmittingPassword ? (
+                <>
+                  <Loader2 size={14} className="animate-spin" /> Saving...
+                </>
+              ) : isSetPassword ? (
+                'Set Password'
+              ) : (
+                'Change Password'
+              )}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {!isSetPassword && (
+            <div>
+              <label className="label mb-1.5">
+                Current Password <span className="text-error">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type={showCurrentPassword ? 'text' : 'password'}
+                  name="currentPassword"
+                  value={currentPassword}
+                  onChange={handlePasswordChange}
+                  className={`input pr-10 ${passwordErrors.current ? 'input-error' : ''}`}
+                  placeholder="Enter current password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-secondary"
+                >
+                  {showCurrentPassword ? (
+                    <EyeOff size={15} />
+                  ) : (
+                    <Eye size={15} />
+                  )}
+                </button>
+              </div>
+              {passwordErrors.current && (
+                <p className="error-text">{passwordErrors.current}</p>
+              )}
+            </div>
+          )}
+          {[
+            {
+              name: 'newPassword',
+              label: 'New Password',
+              value: newPassword,
+              show: showNewPassword,
+              toggle: () => setShowNewPassword(!showNewPassword),
+              error: passwordErrors.new,
+            },
+            {
+              name: 'confirmPassword',
+              label: 'Confirm New Password',
+              value: confirmPassword,
+              show: showConfirmPassword,
+              toggle: () => setShowConfirmPassword(!showConfirmPassword),
+              error: passwordErrors.confirm,
+            },
+          ].map(({ name, label, value, show, toggle, error }) => (
+            <div key={name}>
+              <label className="label mb-1.5">
+                {label} <span className="text-error">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type={show ? 'text' : 'password'}
+                  name={name}
+                  value={value}
+                  onChange={handlePasswordChange}
+                  className={`input pr-10 ${error ? 'input-error' : ''}`}
+                  placeholder={`Enter ${label.toLowerCase()}`}
+                />
+                <button
+                  type="button"
+                  onClick={toggle}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-secondary"
+                >
+                  {show ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+              </div>
+              {error && <p className="error-text">{error}</p>}
+            </div>
+          ))}
+        </div>
+      </Modal>
     </div>
   );
 };

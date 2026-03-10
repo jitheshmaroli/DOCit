@@ -1,5 +1,6 @@
 import React from 'react';
-import { Download } from 'lucide-react';
+import { Download, Pill } from 'lucide-react';
+import Modal from './common/Modal';
 
 interface PrescriptionModalProps {
   isOpen: boolean;
@@ -21,59 +22,79 @@ const PrescriptionModal: React.FC<PrescriptionModalProps> = ({
   onClose,
   prescription,
 }) => {
-  if (!isOpen || !prescription) return null;
-
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 w-full max-w-lg max-h-[80vh] overflow-y-auto">
-        <h3 className="text-lg font-semibold text-white mb-4">
-          Prescription Details
-        </h3>
-        <div className="space-y-4 mb-4">
-          <h4 className="text-md font-medium text-white">Medications</h4>
-          {prescription.medications.map((med, index) => (
-            <div key={index} className="bg-white/5 p-3 rounded-lg">
-              <p className="text-white">
-                <strong>Name:</strong> {med.name}
-              </p>
-              <p className="text-white">
-                <strong>Dosage:</strong> {med.dosage}
-              </p>
-              <p className="text-white">
-                <strong>Frequency:</strong> {med.frequency}
-              </p>
-              <p className="text-white">
-                <strong>Duration:</strong> {med.duration}
-              </p>
-            </div>
-          ))}
-          {prescription.notes && (
-            <div>
-              <h4 className="text-md font-medium text-white">Notes</h4>
-              <p className="text-white">{prescription.notes}</p>
-            </div>
+    <Modal
+      isOpen={isOpen && !!prescription}
+      onClose={onClose}
+      title="Prescription Details"
+      size="md"
+      footer={
+        <div className="flex items-center justify-between w-full">
+          {prescription?.pdfUrl ? (
+            <a
+              href={prescription.pdfUrl}
+              download="prescription.pdf"
+              className="btn-primary text-sm"
+            >
+              <Download size={14} /> Download PDF
+            </a>
+          ) : (
+            <span />
           )}
-        </div>
-        {prescription.pdfUrl && (
-          <a
-            href={prescription.pdfUrl}
-            download="prescription.pdf"
-            className="flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Download className="w-4 h-4" />
-            Download PDF
-          </a>
-        )}
-        <div className="flex justify-end mt-4">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-          >
+          <button onClick={onClose} className="btn-secondary text-sm">
             Close
           </button>
         </div>
-      </div>
-    </div>
+      }
+    >
+      {prescription && (
+        <div className="space-y-4">
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-text-muted mb-2">
+            Medications
+          </h4>
+          <div className="space-y-3">
+            {prescription.medications.map((med, i) => (
+              <div key={i} className="card p-4 space-y-2">
+                <div className="flex items-center gap-2 mb-1">
+                  <Pill size={14} className="text-primary-500" />
+                  <span className="font-semibold text-text-primary">
+                    {med.name}
+                  </span>
+                  <span className="badge badge-primary ml-auto">
+                    {med.dosage}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <span className="text-text-muted text-xs">Frequency</span>
+                    <p className="text-text-secondary font-medium">
+                      {med.frequency}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-text-muted text-xs">Duration</span>
+                    <p className="text-text-secondary font-medium">
+                      {med.duration}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {prescription.notes && (
+            <div className="p-3.5 bg-surface-muted rounded-xl border border-surface-border">
+              <p className="text-xs font-semibold uppercase tracking-wider text-text-muted mb-1">
+                Notes
+              </p>
+              <p className="text-sm text-text-secondary">
+                {prescription.notes}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+    </Modal>
   );
 };
 

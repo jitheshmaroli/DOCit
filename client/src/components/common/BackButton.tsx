@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 
 interface BackButtonProps {
   defaultPath?: string;
@@ -15,14 +16,13 @@ const BackButton: React.FC<BackButtonProps> = ({
 
   const getBackConfig = () => {
     const from = location.state?.from;
-
     switch (from) {
       case 'plans':
         return { path: '/doctor/plans', label: 'Back to Plans' };
       case 'appointments':
         return { path: '/doctor/appointments', label: 'Back to Appointments' };
       case 'patients':
-        return { path: '/doctor/patients', label: 'Back to Patients List' };
+        return { path: '/doctor/patients', label: 'Back to Patients' };
       default:
         return {
           path: defaultPath || '/doctor/dashboard',
@@ -36,21 +36,9 @@ const BackButton: React.FC<BackButtonProps> = ({
   return (
     <button
       onClick={() => navigate(path)}
-      className="mb-4 text-white hover:text-blue-300 flex items-center"
+      className="btn-ghost text-sm text-text-secondary hover:text-primary-600 inline-flex items-center gap-1.5"
     >
-      <svg
-        className="w-5 h-5 mr-2"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M15 19l-7-7 7-7"
-        />
-      </svg>
+      <ArrowLeft size={15} />
       {label}
     </button>
   );

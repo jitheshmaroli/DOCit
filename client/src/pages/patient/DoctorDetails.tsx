@@ -30,9 +30,26 @@ import Pagination from '../../components/common/Pagination';
 import Modal from '../../components/common/Modal';
 import { getDoctorReviews } from '../../services/patientService';
 import { debounce } from 'lodash';
-import RefreshIcon from '@mui/icons-material/Refresh';
 import { ITEMS_PER_PAGE } from '../../utils/constants';
 import { showError, showSuccess } from '../../utils/toastConfig';
+import {
+  Star,
+  Clock,
+  Award,
+  Stethoscope,
+  Calendar,
+  CreditCard,
+  CheckCircle,
+  AlertCircle,
+  ChevronRight,
+  RotateCcw,
+  User,
+  Loader2,
+  XCircle,
+  MessageSquare,
+  BookOpen,
+  CalendarDays,
+} from 'lucide-react';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);
 
@@ -40,7 +57,6 @@ interface Availability {
   date: string;
   timeSlots: TimeSlot[];
 }
-
 interface Review {
   _id?: string;
   patientId: string | { _id?: string; name: string };
@@ -52,11 +68,35 @@ interface Review {
   updatedAt?: string;
   patientName?: string;
 }
-
 interface PaymentDetails {
   paymentIntentId: string;
   amount: number;
 }
+
+// Tab definition
+type TabId = 'subscription' | 'book' | 'appointments' | 'reviews';
+interface Tab {
+  id: TabId;
+  label: string;
+  icon: React.ReactNode;
+  badgeCount?: number;
+}
+
+// Status badge helper
+const StatusBadge = ({ status }: { status: string }) => {
+  const map: Record<string, string> = {
+    active: 'badge bg-emerald-100 text-emerald-700',
+    pending: 'badge bg-amber-100 text-amber-700',
+    expired: 'badge bg-surface-muted text-text-muted',
+    cancelled: 'badge bg-red-100 text-error',
+    completed: 'badge bg-emerald-100 text-emerald-700',
+  };
+  return (
+    <span className={map[status] || 'badge-neutral'}>
+      {status.charAt(0).toUpperCase() + status.slice(1)}
+    </span>
+  );
+};
 
 const DoctorDetails: React.FC = () => {
   const { doctorId } = useParams<{ doctorId: string }>();
@@ -68,7 +108,7 @@ const DoctorDetails: React.FC = () => {
     selectedDoctor,
     doctorPlans,
     loading: doctorLoading,
-  } = useAppSelector((state) => state.doctors);
+  } = useAppSelector((s) => s.doctors);
   const {
     activeSubscriptions,
     appointments,
@@ -76,8 +116,10 @@ const DoctorDetails: React.FC = () => {
     canBookFree,
     loading: patientLoading,
     lastRefundDetails,
-  } = useAppSelector((state) => state.patient);
-  const [selectedDate, setSelectedDate] = useState<string>('');
+  } = useAppSelector((s) => s.patient);
+
+  const [activeTab, setActiveTab] = useState<TabId>('subscription');
+  const [selectedDate, setSelectedDate] = useState('');
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [availableDates, setAvailableDates] = useState<string[]>([]);
   const [availability, setAvailability] = useState<Availability[]>([]);
@@ -87,10 +129,10 @@ const DoctorDetails: React.FC = () => {
   const [isPolling, setIsPolling] = useState(false);
   const [pollAttempts, setPollAttempts] = useState(0);
   const [maxPollAttempts] = useState(30);
-  const [selectedPlan, setSelectedPlan] = useState<null | {
+  const [selectedPlan, setSelectedPlan] = useState<{
     id: string;
     price: number;
-  }>(null);
+  } | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [paymentDetails, setPaymentDetails] = useState<PaymentDetails | null>(
     null
@@ -99,7 +141,7 @@ const DoctorDetails: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [isCancelSubscriptionModalOpen, setIsCancelSubscriptionModalOpen] =
     useState(false);
-  const [cancellationReason, setCancellationReason] = useState<string>('');
+  const [cancellationReason, setCancellationReason] = useState('');
   const [modalMode, setModalMode] = useState<'cancel' | 'refund'>('cancel');
   const [reviews, setReviews] = useState<Review[]>([]);
   const [subscriptionsLoaded, setSubscriptionsLoaded] = useState(false);
@@ -113,24 +155,23 @@ const DoctorDetails: React.FC = () => {
 
   const activeSubscription = useMemo(() => {
     if (!doctorId) return null;
-    const subsForDoctor = activeSubscriptions.filter(
-      (sub) => sub.plan.doctorId === doctorId && sub.createdAt
+    const subs = activeSubscriptions.filter(
+      (s) => s.plan.doctorId === doctorId && s.createdAt
     );
     return (
-      subsForDoctor.sort((a, b) => {
-        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return dateB - dateA;
-      })[0] || null
+      subs.sort(
+        (a, b) =>
+          new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()
+      )[0] || null
     );
   }, [activeSubscriptions, doctorId]);
 
   const pendingSubscription = useMemo(() => {
     if (!doctorId || !paymentDetails) return null;
     return activeSubscriptions.find(
-      (sub) =>
-        sub.stripePaymentId === paymentDetails.paymentIntentId &&
-        sub.status === 'pending'
+      (s) =>
+        s.stripePaymentId === paymentDetails.paymentIntentId &&
+        s.status === 'pending'
     );
   }, [activeSubscriptions, doctorId, paymentDetails]);
 
@@ -138,7 +179,6 @@ const DoctorDetails: React.FC = () => {
     () => (doctorId ? doctorPlans[doctorId] || [] : []),
     [doctorId, doctorPlans]
   );
-
   const canBookFreeAppointment = doctorId ? canBookFree : false;
   const doctorAppointments = useMemo(
     () => (doctorId ? appointments[doctorId] || [] : []),
@@ -149,27 +189,95 @@ const DoctorDetails: React.FC = () => {
     if (
       !activeSubscription ||
       activeSubscription.status !== 'active' ||
-      !activeSubscription.createdAt ||
+      !activeSubscription.createdAt
+    )
+      return false;
+    if (
       activeSubscription.plan.appointmentCount -
         activeSubscription.appointmentsLeft >
-        0
-    ) {
+      0
+    )
       return false;
-    }
-    const timeDiffMinutes =
+    return (
       (new Date().getTime() -
         new Date(activeSubscription.createdAt).getTime()) /
-      (1000 * 60);
-    return timeDiffMinutes <= 30;
+        60000 <=
+      30
+    );
   }, [activeSubscription]);
+
+  // Determine if "Book" tab should be visible
+  const canBook =
+    (activeSubscription && activeSubscription.status === 'active') ||
+    canBookFreeAppointment;
+
+  const upcomingAppointments = doctorAppointments.filter(
+    (a: Appointment) => a.status !== 'cancelled'
+  );
+  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+
+  const tabs: Tab[] = [
+    {
+      id: 'subscription',
+      label: 'Subscription',
+      icon: <CreditCard size={15} />,
+    },
+    ...(canBook
+      ? [
+          {
+            id: 'book' as TabId,
+            label: 'Book',
+            icon: <CalendarDays size={15} />,
+          },
+        ]
+      : []),
+    {
+      id: 'appointments',
+      label: 'Appointments',
+      icon: <BookOpen size={15} />,
+      badgeCount: upcomingAppointments.length || undefined,
+    },
+    {
+      id: 'reviews',
+      label: 'Reviews',
+      icon: <MessageSquare size={15} />,
+      badgeCount: reviews.length || undefined,
+    },
+  ];
+
+  const processAvailability = (
+    payload: { date: string; timeSlots: TimeSlot[] }[]
+  ) => {
+    const valid = payload
+      .filter((e) => e.timeSlots.length > 0)
+      .map((e) => ({
+        date: e.date.split('T')[0],
+        timeSlots: e.timeSlots.filter((s) => !s.isBooked),
+      }));
+    setAvailability(valid);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dates = [
+      ...new Set(
+        valid
+          .map((e) => {
+            const d = DateUtils.formatToISO(DateUtils.parseToUTC(e.date)).split(
+              'T'
+            )[0];
+            return new Date(d) >= today ? d : null;
+          })
+          .filter(Boolean) as string[]
+      ),
+    ];
+    setAvailableDates(dates);
+    return { valid, dates };
+  };
 
   const pollConfirmSubscription = useCallback(
     async (planId: string, paymentIntentId: string) => {
       setIsPolling(true);
       setPollAttempts(0);
-
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
+      await new Promise((r) => setTimeout(r, 2000));
       const poll = async () => {
         try {
           await dispatch(
@@ -178,12 +286,11 @@ const DoctorDetails: React.FC = () => {
           setIsPolling(false);
           setPollAttempts(0);
           if (pollingInterval) clearInterval(pollingInterval);
-          // showSuccess('Subscription confirmed successfully!');
           dispatch(getPatientSubscriptionsThunk());
           setIsSuccessModalOpen(true);
           return true;
         } catch (error: any) {
-          setPollAttempts((prev) => prev + 1);
+          setPollAttempts((p) => p + 1);
           if (
             pollAttempts >= maxPollAttempts ||
             error.message !==
@@ -193,14 +300,13 @@ const DoctorDetails: React.FC = () => {
             setPollAttempts(0);
             if (pollingInterval) clearInterval(pollingInterval);
             showError(
-              'Subscription confirmation timed out. Please refresh the page or contact support.'
+              'Subscription confirmation timed out. Please refresh or contact support.'
             );
             return false;
           }
           return false;
         }
       };
-
       const success = await poll();
       if (!success) {
         const interval = setInterval(poll, 2000);
@@ -211,78 +317,38 @@ const DoctorDetails: React.FC = () => {
   );
 
   useEffect(() => {
-    if (doctorId) {
-      setSubscriptionsLoaded(false);
-      dispatch(getPatientSubscriptionsThunk())
-        .unwrap()
-        .then(() => {
-          setSubscriptionsLoaded(true);
-        })
-        .catch(() => {
-          setSubscriptionsLoaded(true);
-        });
-
-      dispatch(fetchDoctorByIdThunk(doctorId));
-      dispatch(fetchDoctorPlansThunk(doctorId));
-      dispatch(
-        getPatientAppointmentsForDoctorThunk({
-          doctorId,
-          page: currentPage,
-          limit: ITEMS_PER_PAGE,
-        })
-      );
-      dispatch(
-        getDoctorAvailabilityThunk({ doctorId, startDate: new Date() })
-      ).then((result) => {
-        if (getDoctorAvailabilityThunk.fulfilled.match(result)) {
-          const payload = result.payload as {
-            date: string;
-            timeSlots: TimeSlot[];
-          }[];
-          if (Array.isArray(payload)) {
-            const validAvailability = payload
-              .filter((entry) => entry.timeSlots.length > 0)
-              .map((entry) => ({
-                date: entry.date.split('T')[0],
-                timeSlots: entry.timeSlots.filter((slot) => !slot.isBooked),
-              }));
-            setAvailability(validAvailability);
-            const dates = validAvailability
-              .map((entry) => {
-                const dateStr = entry.date;
-                if (dateStr && !isNaN(new Date(dateStr).getTime())) {
-                  const normalizedDate = DateUtils.formatToISO(
-                    DateUtils.parseToUTC(dateStr)
-                  ).split('T')[0];
-                  const dateObj = new Date(normalizedDate);
-                  const today = new Date();
-                  today.setHours(0, 0, 0, 0);
-                  if (dateObj >= today) {
-                    return normalizedDate;
-                  }
-                }
-                return null;
-              })
-              .filter((date): date is string => date !== null);
-            const uniqueDates = [...new Set(dates)];
-            setAvailableDates(uniqueDates);
-          } else {
-            setAvailableDates([]);
-            setAvailability([]);
-          }
-        } else {
+    if (!doctorId) return;
+    setSubscriptionsLoaded(false);
+    dispatch(getPatientSubscriptionsThunk())
+      .unwrap()
+      .finally(() => setSubscriptionsLoaded(true));
+    dispatch(fetchDoctorByIdThunk(doctorId));
+    dispatch(fetchDoctorPlansThunk(doctorId));
+    dispatch(
+      getPatientAppointmentsForDoctorThunk({
+        doctorId,
+        page: currentPage,
+        limit: ITEMS_PER_PAGE,
+      })
+    );
+    dispatch(
+      getDoctorAvailabilityThunk({ doctorId, startDate: new Date() })
+    ).then((result) => {
+      if (getDoctorAvailabilityThunk.fulfilled.match(result)) {
+        const payload = result.payload as {
+          date: string;
+          timeSlots: TimeSlot[];
+        }[];
+        if (Array.isArray(payload)) processAvailability(payload);
+        else {
           setAvailableDates([]);
           setAvailability([]);
         }
-      });
-      getDoctorReviews(doctorId)
-        .then((reviews) => {
-          setReviews(reviews);
-        })
-        .catch(() => {
-          setReviews([]);
-        });
-    }
+      }
+    });
+    getDoctorReviews(doctorId)
+      .then(setReviews)
+      .catch(() => setReviews([]));
     return () => {
       dispatch(clearRefundDetails());
       if (pollingInterval) clearInterval(pollingInterval);
@@ -294,12 +360,8 @@ const DoctorDetails: React.FC = () => {
       navigate('/login');
       return;
     }
-
     const response = await dispatch(
-      subscribeToPlanThunk({
-        planId,
-        price,
-      })
+      subscribeToPlanThunk({ planId, price })
     ).unwrap();
     setSelectedPlan({ id: planId, price });
     setClientSecret(response.clientSecret);
@@ -320,11 +382,7 @@ const DoctorDetails: React.FC = () => {
       setClientSecret(response.clientSecret);
       setIsPaymentModalOpen(true);
     } catch (error: any) {
-      showError(
-        error.message ||
-          error ||
-          'Failed to resume payment. Please try subscribing again.'
-      );
+      showError(error.message || 'Failed to resume payment.');
       dispatch(getPatientSubscriptionsThunk());
     } finally {
       setIsResumingPayment(false);
@@ -334,13 +392,12 @@ const DoctorDetails: React.FC = () => {
   const handlePaymentSuccess = async (details: PaymentDetails) => {
     setPaymentDetails(details);
     setIsPaymentModalOpen(false);
-    // showSuccess('Payment successful! Confirming subscription...');
     await pollConfirmSubscription(selectedPlan!.id, details.paymentIntentId);
   };
 
   const debouncedCancelSubscription = debounce(async () => {
     if (!doctorId || !activeSubscription?._id) {
-      showError('No active subscription to cancel');
+      showError('No active subscription');
       setIsCancelSubscriptionModalOpen(false);
       return;
     }
@@ -369,19 +426,11 @@ const DoctorDetails: React.FC = () => {
     debouncedCancelSubscription();
   }, [debouncedCancelSubscription]);
 
-  const handleCloseCancelSubscriptionModal = () => {
+  const handleCloseCancelModal = () => {
     setIsCancelSubscriptionModalOpen(false);
     setCancellationReason('');
     setModalMode('cancel');
     dispatch(clearRefundDetails());
-  };
-
-  const handleCloseSuccessModal = () => {
-    setIsSuccessModalOpen(false);
-    setPaymentDetails(null);
-    // setIsPolling(false);
-    setPollAttempts(0);
-    if (pollingInterval) clearInterval(pollingInterval);
   };
 
   const handleDateChange = (date: string) => {
@@ -389,47 +438,27 @@ const DoctorDetails: React.FC = () => {
     setSelectedSlot(null);
     setBookingConfirmed(false);
     if (date) {
-      const selectedAvail = availability.find((avail) => avail.date === date);
-      const slots = selectedAvail
-        ? selectedAvail.timeSlots.filter((slot) => {
-            if (!slot.startTime || !slot.endTime || slot.isBooked) return false;
-            const now = new Date();
-            const slotDate = new Date(date);
-            const endTime = new Date(`${date}T${slot.endTime}`);
-            if (slotDate.toDateString() === now.toDateString()) {
-              return endTime > now;
-            }
-            return slotDate >= now;
-          })
-        : [];
-      setCurrentTimeSlots(slots);
-    } else {
-      setCurrentTimeSlots([]);
-    }
+      const avail = availability.find((a) => a.date === date);
+      const now = new Date();
+      setCurrentTimeSlots(
+        avail
+          ? avail.timeSlots.filter((s) => {
+              if (!s.startTime || !s.endTime || s.isBooked) return false;
+              const slotDate = new Date(date);
+              const endTime = new Date(`${date}T${s.endTime}`);
+              return slotDate.toDateString() === now.toDateString()
+                ? endTime > now
+                : slotDate >= now;
+            })
+          : []
+      );
+    } else setCurrentTimeSlots([]);
   };
 
-  const handleResetSelection = () => {
-    setSelectedDate('');
-    setSelectedSlot(null);
-    setCurrentTimeSlots([]);
-    setBookingConfirmed(false);
-  };
-
-  const handleBookAppointment = async (isFreeBooking: boolean = false) => {
+  const handleBookAppointment = async (isFreeBooking = false) => {
     if (!selectedSlot || !selectedDate || !doctorId) {
       showError('Please select a date and time slot');
       return;
-    }
-    if (
-      !isFreeBooking &&
-      (!activeSubscription || activeSubscription.status !== 'active')
-    ) {
-      if (!canBookFreeAppointment) {
-        showError(
-          'Please subscribe to a plan or check free booking eligibility'
-        );
-        return;
-      }
     }
     const bookingDate = DateUtils.parseToUTC(selectedDate);
     await dispatch(
@@ -461,582 +490,783 @@ const DoctorDetails: React.FC = () => {
           timeSlots: TimeSlot[];
         }[];
         if (Array.isArray(payload)) {
-          const validAvailability = payload
-            .filter((entry) => entry.timeSlots.length > 0)
-            .map((entry) => ({
-              date: entry.date.split('T')[0],
-              timeSlots: entry.timeSlots.filter((slot) => !slot.isBooked),
-            }));
-          setAvailability(validAvailability);
-          const dates = validAvailability
-            .map((entry) => {
-              const dateStr = entry.date;
-              if (dateStr && !isNaN(new Date(dateStr).getTime())) {
-                const normalizedDate = DateUtils.formatToISO(
-                  DateUtils.parseToUTC(dateStr)
-                ).split('T')[0];
-                const dateObj = new Date(normalizedDate);
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                if (dateObj >= today) {
-                  return normalizedDate;
-                }
-              }
-              return null;
-            })
-            .filter((date): date is string => date !== null);
-          const uniqueDates = [...new Set(dates)];
-          setAvailableDates(uniqueDates);
+          const { valid } = processAvailability(payload);
           if (selectedDate) {
-            const selectedAvail = validAvailability.find(
-              (avail) => avail.date === selectedDate
+            const avail = valid.find((a) => a.date === selectedDate);
+            const now = new Date();
+            setCurrentTimeSlots(
+              avail
+                ? avail.timeSlots.filter((s) => {
+                    if (!s.startTime || !s.endTime || s.isBooked) return false;
+                    const slotDate = new Date(selectedDate);
+                    const endTime = new Date(`${selectedDate}T${s.endTime}`);
+                    return slotDate.toDateString() === now.toDateString()
+                      ? endTime > now
+                      : slotDate >= now;
+                  })
+                : []
             );
-            const slots = selectedAvail
-              ? selectedAvail.timeSlots.filter((slot) => {
-                  if (!slot.startTime || !slot.endTime || slot.isBooked)
-                    return false;
-                  const now = new Date();
-                  const slotDate = new Date(selectedDate);
-                  const endTime = new Date(`${selectedDate}T${slot.endTime}`);
-                  if (slotDate.toDateString() === now.toDateString()) {
-                    return endTime > now;
-                  }
-                  return slotDate >= now;
-                })
-              : [];
-            setCurrentTimeSlots(slots);
           }
         } else {
           setAvailableDates([]);
           setAvailability([]);
           setCurrentTimeSlots([]);
         }
-      } else {
-        setAvailableDates([]);
-        setAvailability([]);
-        setCurrentTimeSlots([]);
       }
     });
   };
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
-
+  // Loading / error states
   if (doctorLoading || !subscriptionsLoaded) {
     return (
-      <div className="text-white text-center py-8">
-        Loading doctor details...
+      <div className="flex flex-col items-center justify-center py-24 gap-4">
+        <Loader2 size={36} className="animate-spin text-primary-500" />
+        <p className="text-text-secondary text-sm">Loading doctor details...</p>
       </div>
     );
   }
 
   if (!selectedDoctor) {
-    return <div className="text-white text-center py-8">Doctor not found</div>;
+    return (
+      <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-surface-muted flex items-center justify-center">
+          <User size={28} className="text-text-muted" />
+        </div>
+        <h3 className="font-display font-bold text-text-primary text-xl">
+          Doctor not found
+        </h3>
+        <button onClick={() => navigate(-1)} className="btn-primary">
+          Go back
+        </button>
+      </div>
+    );
   }
-
-  const upcomingAppointments = doctorAppointments.filter(
-    (appt: Appointment) => appt.status !== 'cancelled'
-  );
-
-  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
   const displaySpeciality = specialityFromState || selectedDoctor.speciality;
 
   return (
-    <div
-      className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 py-8"
-      key={doctorId}
-    >
+    <div className="animate-fade-in" key={doctorId}>
+      {/* ── Cancel subscription modal ── */}
       <Modal
         isOpen={isCancelSubscriptionModalOpen}
-        onClose={handleCloseCancelSubscriptionModal}
+        onClose={handleCloseCancelModal}
         title={
-          modalMode === 'cancel' ? 'Cancel Subscription' : 'Refund Details'
+          modalMode === 'cancel' ? 'Cancel Subscription' : 'Refund Initiated'
+        }
+        description={
+          modalMode === 'cancel' ? 'This action cannot be undone.' : undefined
         }
         footer={
-          <div className="flex gap-4">
-            {modalMode === 'cancel' ? (
-              <>
-                <button
-                  onClick={handleCancelSubscription}
-                  className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300"
-                >
-                  Confirm Cancellation
-                </button>
-                <button
-                  onClick={handleCloseCancelSubscriptionModal}
-                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
-                >
-                  Close
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={handleCloseCancelSubscriptionModal}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
-              >
-                Close
-              </button>
-            )}
-          </div>
-        }
-      >
-        <div className="text-gray-200 mb-4">
-          {modalMode === 'cancel' ? (
+          modalMode === 'cancel' ? (
             <>
-              <p>
-                Are you sure you want to cancel your subscription to{' '}
-                {activeSubscription?.plan.name}? A full refund will be issued.
-              </p>
-              <div className="mt-4">
-                <label
-                  htmlFor="cancellationReason"
-                  className="block text-sm font-medium text-gray-200"
-                >
-                  Cancellation Reason
-                </label>
-                <textarea
-                  id="cancellationReason"
-                  value={cancellationReason}
-                  onChange={(e) => setCancellationReason(e.target.value)}
-                  className="mt-1 block w-full rounded-md bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 p-2"
-                  rows={4}
-                  placeholder="Please provide a reason for cancellation"
-                />
-              </div>
+              <button
+                onClick={handleCloseCancelModal}
+                className="btn-secondary"
+              >
+                Keep Plan
+              </button>
+              <button onClick={handleCancelSubscription} className="btn-danger">
+                Confirm Cancellation
+              </button>
             </>
           ) : (
-            <>
-              <p>
-                Your subscription has been cancelled, and a refund has been
-                initiated to the card ending in{' '}
-                {lastRefundDetails?.cardLast4 || 'N/A'} for ₹
-                {lastRefundDetails?.amount.toFixed(2) || '0.00'}.
-              </p>
-              <p>Refund Id: {lastRefundDetails?.refundId}</p>
-            </>
-          )}
-        </div>
-      </Modal>
-      <Modal
-        isOpen={isSuccessModalOpen}
-        onClose={handleCloseSuccessModal}
-        title="Subscription Confirmed"
-        footer={
-          <div className="flex gap-4">
-            <button
-              onClick={handleCloseSuccessModal}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
-            >
+            <button onClick={handleCloseCancelModal} className="btn-secondary">
               Close
             </button>
-          </div>
+          )
         }
       >
-        <div className="text-gray-200 mb-4">
-          <p>Thank you for your subscription!</p>
-          <p>Payment Details:</p>
-          <p>Amount: ₹{paymentDetails?.amount.toFixed(2) || 'N/A'}</p>
-          <p>Payment ID: {paymentDetails?.paymentIntentId || 'N/A'}</p>
+        {modalMode === 'cancel' ? (
+          <div className="space-y-4">
+            <div className="flex items-start gap-3 p-3.5 bg-amber-50 border border-amber-100 rounded-xl">
+              <AlertCircle
+                size={16}
+                className="text-warning flex-shrink-0 mt-0.5"
+              />
+              <p className="text-sm text-amber-700">
+                You're about to cancel{' '}
+                <strong>{activeSubscription?.plan.name}</strong>. A full refund
+                will be issued.
+              </p>
+            </div>
+            <div>
+              <label className="label">
+                Cancellation Reason <span className="text-error">*</span>
+              </label>
+              <textarea
+                value={cancellationReason}
+                onChange={(e) => setCancellationReason(e.target.value)}
+                className="input resize-none"
+                rows={3}
+                placeholder="Please tell us why you're cancelling..."
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex items-start gap-3 p-3.5 bg-emerald-50 border border-emerald-100 rounded-xl">
+              <CheckCircle
+                size={16}
+                className="text-success flex-shrink-0 mt-0.5"
+              />
+              <p className="text-sm text-emerald-700">
+                Subscription cancelled. Refund has been initiated.
+              </p>
+            </div>
+            <div className="card p-4 space-y-2">
+              <p className="text-sm text-text-secondary">
+                Card ending in{' '}
+                <strong className="text-text-primary">
+                  {lastRefundDetails?.cardLast4 || 'N/A'}
+                </strong>
+              </p>
+              <p className="text-sm text-text-secondary">
+                Refund amount:{' '}
+                <strong className="text-text-primary">
+                  ₹{lastRefundDetails?.amount.toFixed(2) || '0.00'}
+                </strong>
+              </p>
+              <p className="text-xs text-text-muted">
+                Refund ID: {lastRefundDetails?.refundId}
+              </p>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* ── Subscription success modal ── */}
+      <Modal
+        isOpen={isSuccessModalOpen}
+        onClose={() => {
+          setIsSuccessModalOpen(false);
+          setPaymentDetails(null);
+          setPollAttempts(0);
+          if (pollingInterval) clearInterval(pollingInterval);
+        }}
+        title="Subscription Confirmed!"
+        footer={
+          <button
+            onClick={() => {
+              setIsSuccessModalOpen(false);
+              setPaymentDetails(null);
+            }}
+            className="btn-primary"
+          >
+            Done
+          </button>
+        }
+      >
+        <div className="space-y-3">
+          <div className="flex items-start gap-3 p-3.5 bg-emerald-50 border border-emerald-100 rounded-xl">
+            <CheckCircle
+              size={16}
+              className="text-success flex-shrink-0 mt-0.5"
+            />
+            <p className="text-sm text-emerald-700">
+              Your subscription is now active. You can book appointments right
+              away.
+            </p>
+          </div>
+          <div className="card p-4 space-y-1.5">
+            <p className="text-sm text-text-secondary">
+              Amount paid:{' '}
+              <strong className="text-text-primary">
+                ₹{paymentDetails?.amount.toFixed(2) || 'N/A'}
+              </strong>
+            </p>
+            <p className="text-xs text-text-muted font-mono">
+              ID: {paymentDetails?.paymentIntentId || 'N/A'}
+            </p>
+          </div>
         </div>
       </Modal>
-      {/* Polling indicator modal */}
+
+      {/* ── Polling modal ── */}
       <Modal
         isOpen={isPolling}
         onClose={() => {}}
-        title="Processing Subscription"
-        footer={
-          <div className="flex gap-4">
-            <button
-              onClick={() => {
-                setIsPolling(false);
-                setPollAttempts(0);
-                if (pollingInterval) clearInterval(pollingInterval);
-              }}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
-              disabled={pollAttempts < maxPollAttempts}
-            >
-              Cancel
-            </button>
-          </div>
-        }
+        title="Confirming Subscription"
       >
-        <div className="text-center py-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mx-auto mb-2"></div>
-          <p className="text-gray-200">
-            Confirming your subscription. This usually takes 5-10 seconds.
-          </p>
-          <p className="text-sm text-gray-400 mt-2">
-            Do not close this window.
-          </p>
+        <div className="flex flex-col items-center py-6 gap-4">
+          <Loader2 size={36} className="animate-spin text-primary-500" />
+          <div className="text-center">
+            <p className="text-sm font-semibold text-text-primary mb-1">
+              Processing your payment
+            </p>
+            <p className="text-xs text-text-muted">
+              This usually takes 5–10 seconds. Please don't close this window.
+            </p>
+          </div>
         </div>
       </Modal>
-      <div className="container mx-auto px-4">
-        <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">
-          <h2 className="text-2xl font-bold text-white mb-6">Doctor Details</h2>
-          <div className="flex flex-col md:flex-row gap-6">
+
+      {/* ── Doctor profile ── */}
+      <div className="card p-6 mb-6">
+        <div className="flex flex-col sm:flex-row gap-6">
+          <div className="flex-shrink-0">
             <img
               src={getImageUrl(selectedDoctor.profilePicture)}
               alt={selectedDoctor.name}
-              className="w-[150px] h-[150px] rounded-full object-cover shadow-lg border-4 border-purple-500/50"
+              className="w-28 h-28 rounded-2xl object-cover border border-surface-border shadow-card"
               onError={(e) => {
                 (e.target as HTMLImageElement).src = defaultAvatar;
               }}
             />
-            <div>
-              <h3 className="text-xl font-bold text-white mb-2">
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+              <h1 className="font-display font-bold text-text-primary text-2xl">
                 Dr. {selectedDoctor.name}
-              </h3>
-              <p className="text-sm text-purple-300 mb-2">
-                {displaySpeciality?.length
-                  ? displaySpeciality
-                  : 'Speciality N/A'}
-              </p>
-              <p className="text-sm text-gray-200 mb-2">
-                Qualifications:{' '}
-                {selectedDoctor.qualifications?.join(', ') || 'N/A'}
-              </p>
-              <p className="text-sm text-gray-200 mb-2">
-                Total Experience: {selectedDoctor.totalExperience || 0} years
-              </p>
-              {selectedDoctor.experiences &&
-                selectedDoctor.experiences.length > 0 && (
-                  <div className="text-sm text-gray-200 mb-2">
-                    <p className="font-semibold">Experience Details:</p>
-                    <ul className="list-disc pl-5">
-                      {selectedDoctor.experiences.map((exp, index) => (
-                        <li key={index}>
-                          {exp.hospitalName} - {exp.department} ({exp.years}{' '}
-                          years)
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              <div className="flex items-center mb-2">
-                <p className="text-sm text-gray-200 mr-2">Average Rating:</p>
-                <div className="flex">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <span
-                      key={star}
-                      className={`text-lg ${
-                        selectedDoctor.averageRating &&
-                        selectedDoctor.averageRating >= star - 0.5
-                          ? 'text-yellow-400'
-                          : 'text-gray-400'
-                      }`}
-                    >
-                      ★
-                    </span>
-                  ))}
+              </h1>
+              {selectedDoctor.averageRating !== undefined && (
+                <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-100 rounded-full px-3 py-1">
+                  <Star size={14} className="fill-amber-400 text-amber-400" />
+                  <span className="text-sm font-bold text-amber-700">
+                    {selectedDoctor.averageRating.toFixed(1)}
+                  </span>
                 </div>
-                <p className="text-sm text-gray-200 ml-2">
-                  {selectedDoctor.averageRating !== undefined
-                    ? selectedDoctor.averageRating.toFixed(1)
-                    : 'No ratings yet'}
+              )}
+            </div>
+
+            <div className="flex flex-wrap gap-2 mb-4">
+              {displaySpeciality && (
+                <span className="badge-primary flex items-center gap-1">
+                  <Stethoscope size={12} />{' '}
+                  {Array.isArray(displaySpeciality)
+                    ? displaySpeciality.join(', ')
+                    : displaySpeciality}
+                </span>
+              )}
+              <span className="badge-neutral flex items-center gap-1">
+                <Clock size={12} /> {selectedDoctor.totalExperience || 0} yrs
+                experience
+              </span>
+            </div>
+
+            {(selectedDoctor.qualifications?.length ?? 0) > 0 && (
+              <div className="flex items-start gap-2 mb-3">
+                <Award
+                  size={14}
+                  className="text-text-muted flex-shrink-0 mt-0.5"
+                />
+                <p className="text-sm text-text-secondary">
+                  {selectedDoctor.qualifications!.join(', ')}
                 </p>
               </div>
+            )}
+
+            {(selectedDoctor.experiences?.length ?? 0) > 0 && (
+              <div className="mt-3">
+                <p className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">
+                  Experience
+                </p>
+                <div className="space-y-1.5">
+                  {selectedDoctor.experiences!.map((exp: any, i: number) => (
+                    <div
+                      key={i}
+                      className="flex items-center gap-2 text-sm text-text-secondary"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary-400 flex-shrink-0" />
+                      {exp.hospitalName} — {exp.department} ({exp.years} yrs)
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 mt-4">
+              <div className="flex gap-0.5">
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <Star
+                    key={s}
+                    size={14}
+                    className={
+                      selectedDoctor.averageRating &&
+                      selectedDoctor.averageRating >= s - 0.5
+                        ? 'fill-amber-400 text-amber-400'
+                        : 'fill-surface-border text-surface-border'
+                    }
+                  />
+                ))}
+              </div>
+              <span className="text-sm text-text-muted">
+                {selectedDoctor.averageRating !== undefined
+                  ? `${selectedDoctor.averageRating.toFixed(1)} / 5`
+                  : 'No ratings yet'}
+              </span>
             </div>
           </div>
         </div>
+      </div>
 
-        <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">
-          <h2 className="text-2xl font-bold text-white mb-6">Reviews</h2>
-          {reviews.length > 0 ? (
-            <div className="space-y-4">
-              {reviews.map((review) => (
-                <div key={review._id} className="border-b border-white/20 py-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="flex">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <span
-                          key={star}
-                          className={`text-lg ${star <= review.rating ? 'text-yellow-400' : 'text-gray-400'}`}
+      {/* ── Tabs ── */}
+      <div className="card mb-6 overflow-hidden">
+        {/* Tab bar */}
+        <div className="flex border-b border-surface-border overflow-x-auto">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-5 py-3.5 text-sm font-medium whitespace-nowrap transition-colors border-b-2 -mb-px ${
+                activeTab === tab.id
+                  ? 'border-primary-500 text-primary-600 bg-primary-50/50'
+                  : 'border-transparent text-text-secondary hover:text-text-primary hover:bg-surface-bg'
+              }`}
+            >
+              {tab.icon}
+              {tab.label}
+              {tab.badgeCount !== undefined && tab.badgeCount > 0 && (
+                <span
+                  className={`text-xs rounded-full px-1.5 py-0.5 font-semibold ${
+                    activeTab === tab.id
+                      ? 'bg-primary-100 text-primary-700'
+                      : 'bg-surface-muted text-text-muted'
+                  }`}
+                >
+                  {tab.badgeCount}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab content */}
+        <div className="p-6">
+          {/* ── Subscription tab ── */}
+          {activeTab === 'subscription' && (
+            <div>
+              {patientLoading ? (
+                <div className="flex items-center justify-center py-8 gap-3">
+                  <Loader2
+                    size={20}
+                    className="animate-spin text-primary-500"
+                  />
+                  <span className="text-sm text-text-muted">
+                    Loading subscription...
+                  </span>
+                </div>
+              ) : activeSubscription ? (
+                <div
+                  className={`rounded-2xl p-5 border ${
+                    activeSubscription.status === 'active'
+                      ? 'bg-emerald-50 border-emerald-200'
+                      : activeSubscription.status === 'pending'
+                        ? 'bg-amber-50 border-amber-200'
+                        : 'bg-surface-muted border-surface-border'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div>
+                      <p className="font-display font-bold text-text-primary">
+                        {activeSubscription.plan.name}
+                      </p>
+                      <p className="text-sm text-text-secondary mt-0.5">
+                        {activeSubscription.plan.description ||
+                          'No description'}
+                      </p>
+                    </div>
+                    <StatusBadge status={activeSubscription.status} />
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                    {[
+                      {
+                        label: 'Price',
+                        value: `₹${activeSubscription.plan.price.toFixed(2)}`,
+                      },
+                      {
+                        label: 'Validity',
+                        value: `${activeSubscription.daysUntilExpiration || activeSubscription.plan.validityDays} days`,
+                      },
+                      {
+                        label: 'Appointments',
+                        value: `${activeSubscription.appointmentsLeft} / ${activeSubscription.plan.appointmentCount}`,
+                      },
+                      { label: 'Status', value: activeSubscription.status },
+                    ].map(({ label, value }) => (
+                      <div
+                        key={label}
+                        className="bg-white rounded-xl p-3 border border-surface-border"
+                      >
+                        <p className="text-xs text-text-muted mb-0.5">
+                          {label}
+                        </p>
+                        <p className="text-sm font-semibold text-text-primary capitalize">
+                          {value}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {activeSubscription.status === 'pending' && (
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-2 p-3 bg-amber-100 rounded-xl">
+                        <AlertCircle
+                          size={15}
+                          className="text-warning flex-shrink-0 mt-0.5"
+                        />
+                        <p className="text-xs text-amber-700">
+                          Payment incomplete. Complete it to activate your
+                          subscription.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() =>
+                          handleResumePayment(activeSubscription._id)
+                        }
+                        disabled={isResumingPayment}
+                        className="btn-primary w-full"
+                      >
+                        {isResumingPayment ? (
+                          <>
+                            <Loader2 size={15} className="animate-spin" />{' '}
+                            Resuming...
+                          </>
+                        ) : (
+                          <>
+                            <CreditCard size={15} /> Resume Payment
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+
+                  {activeSubscription.status === 'active' &&
+                    canCancelSubscription && (
+                      <button
+                        onClick={() => setIsCancelSubscriptionModalOpen(true)}
+                        className="btn-danger w-full mt-2"
+                      >
+                        <XCircle size={15} /> Cancel Subscription
+                      </button>
+                    )}
+
+                  {activeSubscription.status === 'expired' && (
+                    <p className="text-xs text-text-muted mt-2">
+                      {activeSubscription.appointmentsLeft <= 0
+                        ? 'All appointments used.'
+                        : 'Validity period ended.'}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-6">
+                  <p className="text-sm text-text-secondary">
+                    No active subscription for this doctor.
+                  </p>
+                </div>
+              )}
+
+              {/* Available plans */}
+              {plans.length > 0 &&
+                (!activeSubscription ||
+                  activeSubscription.status !== 'active') && (
+                  <div className="mt-6">
+                    <h3 className="font-semibold text-text-primary mb-4">
+                      Available Plans
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {plans.map((plan: any) => (
+                        <div
+                          key={plan._id}
+                          className="card p-5 flex flex-col gap-3"
                         >
-                          ★
-                        </span>
+                          <div className="flex items-start justify-between gap-2">
+                            <h4 className="font-display font-bold text-text-primary">
+                              {plan.name || 'Unnamed Plan'}
+                            </h4>
+                            <span
+                              className={
+                                plan.status === 'approved'
+                                  ? 'badge-success'
+                                  : 'badge-neutral'
+                              }
+                            >
+                              {plan.status}
+                            </span>
+                          </div>
+                          <p className="text-sm text-text-secondary flex-1">
+                            {plan.description || 'No description'}
+                          </p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {[
+                              {
+                                label: 'Price',
+                                value: `₹${plan.price.toFixed(2)}`,
+                              },
+                              {
+                                label: 'Validity',
+                                value: `${plan.validityDays}d`,
+                              },
+                              {
+                                label: 'Appointments',
+                                value: plan.appointmentCount,
+                              },
+                            ].map(({ label, value }) => (
+                              <div
+                                key={label}
+                                className="bg-surface-bg rounded-lg p-2 border border-surface-border"
+                              >
+                                <p className="text-xs text-text-muted">
+                                  {label}
+                                </p>
+                                <p className="text-sm font-semibold text-text-primary">
+                                  {value}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                          {plan.status === 'approved' && (
+                            <button
+                              onClick={() =>
+                                handleSubscribe(plan._id, plan.price)
+                              }
+                              className="btn-primary w-full"
+                            >
+                              {activeSubscription?.plan._id === plan._id &&
+                              activeSubscription?.status === 'expired'
+                                ? 'Renew Plan'
+                                : 'Subscribe'}
+                              <ChevronRight size={15} />
+                            </button>
+                          )}
+                        </div>
                       ))}
                     </div>
-                    <p className="text-sm text-gray-300">
-                      {typeof review.patientId === 'object' &&
-                      review.patientId?.name
-                        ? review.patientId.name
-                        : 'Anonymous'}
-                    </p>
-                    {review.createdAt && (
-                      <p className="text-sm text-gray-400">
-                        {DateUtils.formatToLocal(review.createdAt)}
-                      </p>
-                    )}
                   </div>
-                  <p className="text-white">{review.comment}</p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-gray-300">No reviews yet.</p>
-          )}
-        </div>
-
-        <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">
-          <h2 className="text-2xl font-bold text-white mb-6">
-            Subscription Plans
-          </h2>
-          {patientLoading ? (
-            <p className="text-gray-300 text-center">Loading subscription...</p>
-          ) : activeSubscription ? (
-            <div
-              className={`${
-                activeSubscription.status === 'active'
-                  ? 'bg-blue-500/20 border-blue-500'
-                  : activeSubscription.status === 'pending'
-                    ? 'bg-yellow-500/20 border-yellow-500'
-                    : 'bg-red-500/20 border-red-500'
-              } border rounded-lg p-4`}
-            >
-              <h4 className="text-lg font-semibold text-white">
-                {activeSubscription.status} Plan: {activeSubscription.plan.name}
-              </h4>
-              <p className="text-sm text-gray-200 mt-2">
-                Description: {activeSubscription.plan.description || 'N/A'}
-              </p>
-              <p className="text-sm text-gray-200 mt-2">
-                Price: ₹{activeSubscription.plan.price.toFixed(2)}
-              </p>
-              <p className="text-sm text-gray-200 mt-2">
-                Validity:{' '}
-                {activeSubscription.daysUntilExpiration ||
-                  activeSubscription.plan.validityDays}{' '}
-                days
-              </p>
-              <p className="text-sm text-gray-200 mt-2">
-                Appointments: {activeSubscription.appointmentsLeft} /{' '}
-                {activeSubscription.plan.appointmentCount}
-              </p>
-              <p className="text-sm text-gray-200 mt-2">
-                Status: {activeSubscription.status}
-              </p>
-              {activeSubscription.status === 'pending' && (
-                <div className="mt-4">
-                  <p className="text-sm text-yellow-300 mb-2">
-                    Payment is incomplete. Complete it to activate your
-                    subscription.
-                  </p>
-                  <button
-                    onClick={() => handleResumePayment(activeSubscription._id)}
-                    disabled={isResumingPayment}
-                    className="w-full bg-gradient-to-r from-yellow-600 to-orange-600 text-white py-2 rounded-lg hover:from-yellow-700 hover:to-orange-700 transition-all duration-300 disabled:opacity-50"
-                  >
-                    {isResumingPayment ? 'Loading...' : 'Resume Payment'}
-                  </button>
-                </div>
-              )}
-              {activeSubscription.status === 'active' &&
-                canCancelSubscription && (
-                  <button
-                    onClick={() => setIsCancelSubscriptionModalOpen(true)}
-                    className="mt-4 w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-2 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300"
-                  >
-                    Cancel Subscription
-                  </button>
                 )}
-              {activeSubscription.status === 'expired' && (
-                <p className="text-sm text-gray-200 mt-2">
-                  This plan has expired
-                  {activeSubscription.appointmentsLeft <= 0
-                    ? ' because you have used all available appointments.'
-                    : ' because the validity period has ended.'}
-                </p>
-              )}
             </div>
-          ) : (
-            <p className="text-gray-300 text-center">No subscription found.</p>
           )}
-          {plans.length > 0 &&
-            (!activeSubscription || activeSubscription.status !== 'active') && (
-              <div className="mt-6">
-                <h3 className="text-xl font-bold text-white mb-4">
-                  Available Plans
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {plans.map((plan) => (
-                    <div
-                      key={plan._id}
-                      className="bg-white/20 backdrop-blur-lg p-4 rounded-lg border border-white/20 shadow-lg hover:shadow-xl transition-all duration-300"
-                    >
-                      <h3 className="text-lg font-semibold text-white">
-                        {plan.name || 'Unnamed Plan'}
-                      </h3>
-                      <p className="text-sm text-gray-200 mt-2">
-                        {plan.description || 'No description'}
-                      </p>
-                      <p className="text-sm text-gray-200 mt-2">
-                        Price: ₹{plan.price.toFixed(2)}
-                      </p>
-                      <p className="text-sm text-gray-200 mt-2">
-                        Validity: {plan.validityDays} days
-                      </p>
-                      <p className="text-sm text-gray-200 mt-2">
-                        Appointments: {plan.appointmentCount}
-                      </p>
-                      <p
-                        className={`text-xs mt-2 inline-flex px-2 py-1 rounded-full ${
-                          plan.status === 'approved'
-                            ? 'bg-green-500/20 text-green-300'
-                            : 'bg-gray-500/20 text-gray-300'
-                        }`}
-                      >
-                        {plan.status}
-                      </p>
-                      {plan.status === 'approved' && (
-                        <button
-                          onClick={() => handleSubscribe(plan._id, plan.price)}
-                          className="mt-4 w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-2 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
-                        >
-                          {activeSubscription?.plan._id === plan._id &&
-                          activeSubscription?.status === 'expired'
-                            ? 'Renew'
-                            : 'Subscribe'}
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-        </div>
 
-        {(activeSubscription && activeSubscription.status === 'active') ||
-        (pendingSubscription && pendingSubscription.status === 'pending') ||
-        canBookFreeAppointment ? (
-          <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 mb-8">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-white">
-                Book an Appointment
-              </h2>
-              <button
-                onClick={handleResetSelection}
-                className="text-white hover:text-purple-300 transition-colors duration-200"
-                title="Reset date and slot selection"
-              >
-                <RefreshIcon />
-              </button>
-            </div>
-            {bookingConfirmed && (
-              <div className="bg-green-500/20 border border-green-500 rounded-lg p-4 mb-6">
-                <p className="text-green-300 text-sm">
-                  Appointment booked successfully! You can book another
-                  appointment or view details below.
-                </p>
+          {/* ── Book appointment tab ── */}
+          {activeTab === 'book' && canBook && (
+            <div>
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="font-display font-bold text-text-primary text-xl">
+                  Book an Appointment
+                </h2>
+                <button
+                  onClick={() => {
+                    setSelectedDate('');
+                    setSelectedSlot(null);
+                    setCurrentTimeSlots([]);
+                    setBookingConfirmed(false);
+                  }}
+                  className="btn-ghost text-sm flex items-center gap-1.5"
+                >
+                  <RotateCcw size={14} /> Reset
+                </button>
               </div>
-            )}
-            <SlotPicker
-              availableDates={availableDates}
-              selectedDate={selectedDate}
-              currentTimeSlots={currentTimeSlots}
-              selectedSlot={selectedSlot}
-              onDateChange={handleDateChange}
-              onSlotSelect={setSelectedSlot}
-              patientLoading={patientLoading}
-            />
-            {selectedSlot && (
-              <div className="flex gap-4 mt-4">
-                {activeSubscription &&
-                  activeSubscription.status === 'active' && (
+
+              {bookingConfirmed && (
+                <div className="flex items-start gap-3 p-3.5 bg-emerald-50 border border-emerald-100 rounded-xl mb-5">
+                  <CheckCircle
+                    size={16}
+                    className="text-success flex-shrink-0 mt-0.5"
+                  />
+                  <p className="text-sm text-emerald-700">
+                    Appointment booked! You can book another or view it in the
+                    Appointments tab.
+                  </p>
+                </div>
+              )}
+
+              <SlotPicker
+                availableDates={availableDates}
+                selectedDate={selectedDate}
+                currentTimeSlots={currentTimeSlots}
+                selectedSlot={selectedSlot}
+                onDateChange={handleDateChange}
+                onSlotSelect={setSelectedSlot}
+                patientLoading={patientLoading}
+              />
+
+              {selectedSlot && (
+                <div className="flex flex-col sm:flex-row gap-3 mt-5">
+                  {activeSubscription?.status === 'active' && (
                     <button
                       onClick={() => handleBookAppointment(false)}
-                      className="w-full bg-gradient-to-r from-green-600 to-teal-600 text-white py-2 rounded-lg hover:from-green-700 hover:to-teal-700 transition-all duration-300"
+                      className="btn-primary flex-1"
                     >
-                      Confirm Appointment (Subscribed)
+                      <Calendar size={15} /> Confirm Appointment
                     </button>
                   )}
-                {pendingSubscription &&
-                  pendingSubscription.status === 'pending' && (
+                  {pendingSubscription?.status === 'pending' && (
                     <button
                       disabled
-                      className="w-full bg-gray-600 text-white py-2 rounded-lg cursor-not-allowed"
+                      className="btn-secondary flex-1 opacity-60 cursor-not-allowed"
                     >
-                      Waiting for Subscription Confirmation...
+                      <Loader2 size={15} className="animate-spin" /> Awaiting
+                      Subscription...
                     </button>
                   )}
-                {(!activeSubscription ||
-                  activeSubscription.status !== 'active') &&
-                  canBookFreeAppointment && (
-                    <button
-                      onClick={() => handleBookAppointment(true)}
-                      className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-2 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-300"
-                    >
-                      Book Free Appointment
-                    </button>
-                  )}
-              </div>
-            )}
-          </div>
-        ) : null}
-
-        {doctorAppointments.length > 0 && (
-          <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20">
-            <h2 className="text-2xl font-bold text-white mb-6">Appointments</h2>
-            <div className="space-y-4">
-              {upcomingAppointments.map((appt: Appointment) => (
-                <div
-                  key={appt._id}
-                  className="bg-white/20 p-4 rounded-lg border border-white/20 flex justify-between items-center"
-                >
-                  <div>
-                    <p className="text-sm text-gray-200">
-                      Date: {DateUtils.formatToLocal(appt.date)}
-                    </p>
-                    <p className="text-sm text-gray-200">
-                      Time: {DateUtils.formatTimeToLocal(appt.startTime)} -{' '}
-                      {DateUtils.formatTimeToLocal(appt.endTime)}
-                    </p>
-                    <p className="text-sm text-gray-200">
-                      Status: {appt.status}
-                    </p>
-                    <p className="text-sm text-gray-200">
-                      Type: {appt.isFreeBooking ? 'Free' : 'Subscribed'}
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() =>
-                        navigate(`/patient/appointment/${appt._id}`)
-                      }
-                      className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-3 py-1 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
-                    >
-                      View Details
-                    </button>
-                  </div>
+                  {(!activeSubscription ||
+                    activeSubscription.status !== 'active') &&
+                    canBookFreeAppointment && (
+                      <button
+                        onClick={() => handleBookAppointment(true)}
+                        className="btn-secondary flex-1"
+                      >
+                        <Calendar size={15} /> Book Free Appointment
+                      </button>
+                    )}
                 </div>
-              ))}
+              )}
             </div>
-            {totalPages > 1 && (
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={handlePageChange}
-                className="mt-6"
-              />
-            )}
-          </div>
-        )}
+          )}
 
-        {isPaymentModalOpen && selectedPlan && clientSecret && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 shadow-xl w-full max-w-md">
-              <h2 className="text-xl font-bold text-white mb-4">
-                Complete Payment
+          {/* ── Appointments tab ── */}
+          {activeTab === 'appointments' && (
+            <div>
+              <h2 className="font-display font-bold text-text-primary text-xl mb-5">
+                Your Appointments
               </h2>
+              {upcomingAppointments.length === 0 ? (
+                <div className="text-center py-10">
+                  <div className="w-12 h-12 rounded-2xl bg-surface-muted flex items-center justify-center mx-auto mb-3">
+                    <CalendarDays size={20} className="text-text-muted" />
+                  </div>
+                  <p className="text-sm text-text-secondary">
+                    No appointments yet.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-3">
+                    {upcomingAppointments.map((appt: Appointment) => (
+                      <div
+                        key={appt._id}
+                        className="flex items-center justify-between gap-4 p-4 bg-surface-bg rounded-xl border border-surface-border hover:border-primary-200 transition-colors"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-3 mb-1">
+                            <span className="text-sm font-semibold text-text-primary">
+                              {DateUtils.formatToLocal(appt.date)}
+                            </span>
+                            <StatusBadge status={appt.status} />
+                            <span
+                              className={`badge ${appt.isFreeBooking ? 'bg-teal-100 text-teal-700' : 'badge-primary'}`}
+                            >
+                              {appt.isFreeBooking ? 'Free' : 'Subscribed'}
+                            </span>
+                          </div>
+                          <p className="text-xs text-text-muted">
+                            {DateUtils.formatTimeToLocal(appt.startTime)} –{' '}
+                            {DateUtils.formatTimeToLocal(appt.endTime)}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() =>
+                            navigate(`/patient/appointment/${appt._id}`)
+                          }
+                          className="btn-secondary text-sm flex-shrink-0"
+                        >
+                          <ChevronRight size={15} /> Details
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={setCurrentPage}
+                    className="mt-6"
+                  />
+                </>
+              )}
+            </div>
+          )}
+
+          {/* ── Reviews tab ── */}
+          {activeTab === 'reviews' && (
+            <div>
+              <h2 className="font-display font-bold text-text-primary text-xl mb-5">
+                Reviews ({reviews.length})
+              </h2>
+              {reviews.length === 0 ? (
+                <div className="text-center py-10">
+                  <div className="w-12 h-12 rounded-2xl bg-surface-muted flex items-center justify-center mx-auto mb-3">
+                    <Star size={20} className="text-text-muted" />
+                  </div>
+                  <p className="text-sm text-text-secondary">No reviews yet.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {reviews.map((review) => (
+                    <div
+                      key={review._id}
+                      className="p-4 bg-surface-bg rounded-xl border border-surface-border"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 font-semibold text-xs">
+                            {(typeof review.patientId === 'object'
+                              ? review.patientId.name
+                              : 'A'
+                            )
+                              .charAt(0)
+                              .toUpperCase()}
+                          </div>
+                          <span className="text-sm font-semibold text-text-primary">
+                            {typeof review.patientId === 'object' &&
+                            review.patientId?.name
+                              ? review.patientId.name
+                              : 'Anonymous'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {[1, 2, 3, 4, 5].map((s) => (
+                            <Star
+                              key={s}
+                              size={12}
+                              className={
+                                s <= review.rating
+                                  ? 'fill-amber-400 text-amber-400'
+                                  : 'fill-surface-border text-surface-border'
+                              }
+                            />
+                          ))}
+                          {review.createdAt && (
+                            <span className="text-xs text-text-muted ml-2">
+                              {DateUtils.formatToLocal(review.createdAt)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-sm text-text-secondary leading-relaxed">
+                        {review.comment}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Payment modal ── */}
+      {isPaymentModalOpen && selectedPlan && clientSecret && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-modal border border-surface-border w-full max-w-md animate-scale-in">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-surface-border">
+              <div>
+                <h2 className="font-display font-bold text-text-primary">
+                  Complete Payment
+                </h2>
+                <p className="text-sm text-text-secondary mt-0.5">
+                  ₹{selectedPlan.price.toFixed(2)} due today
+                </p>
+              </div>
+              <CreditCard size={20} className="text-primary-500" />
+            </div>
+            <div className="p-6">
               <Elements stripe={stripePromise} options={{ clientSecret }}>
                 <PaymentForm
                   planId={selectedPlan.id}
                   price={selectedPlan.price}
                   onSuccess={handlePaymentSuccess}
-                  onError={(error: any) => {
-                    showError(error);
-                  }}
+                  onError={(error: any) => showError(error)}
                   isResume={isResumingPayment}
                 />
               </Elements>
@@ -1048,14 +1278,14 @@ const DoctorDetails: React.FC = () => {
                   setIsResumingPayment(false);
                   dispatch(getPatientSubscriptionsThunk());
                 }}
-                className="mt-4 w-full bg-gray-600 text-white py-2 rounded-lg hover:bg-gray-700 transition-all duration-300"
+                className="btn-ghost w-full mt-3 justify-center"
               >
                 Cancel
               </button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -9,7 +9,9 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  Legend,
 } from 'recharts';
+
 import { format } from 'date-fns';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -19,6 +21,17 @@ import {
   ReportFilter,
   ReportItem,
 } from '../../types/reportTypes';
+import {
+  CreditCard,
+  Users,
+  Calendar,
+  Activity,
+  TrendingDown,
+  Download,
+  AlertCircle,
+  ChevronRight,
+  Clock,
+} from 'lucide-react';
 
 interface AppointmentStats {
   total: number;
@@ -26,6 +39,41 @@ interface AppointmentStats {
   completed: number;
   cancelled: number;
 }
+
+const StatusBadge = ({ status }: { status: string }) => {
+  const map: Record<string, string> = {
+    pending: 'bg-amber-100 text-amber-700',
+    completed: 'bg-emerald-100 text-emerald-700',
+    cancelled: 'bg-red-100 text-red-700',
+  };
+  return (
+    <span
+      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${map[status] || 'badge-neutral'}`}
+    >
+      {status}
+    </span>
+  );
+};
+
+const StatCard = ({
+  label,
+  value,
+  icon,
+  color,
+}: {
+  label: string;
+  value: string | number;
+  icon: React.ReactNode;
+  color: string;
+}) => (
+  <div className="stat-card">
+    <div className={`stat-icon ${color}`}>{icon}</div>
+    <div>
+      <p className="text-xs text-text-muted mb-0.5">{label}</p>
+      <p className="text-2xl font-bold text-text-primary">{value}</p>
+    </div>
+  </div>
+);
 
 const DoctorDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -38,29 +86,22 @@ const DoctorDashboard: React.FC = () => {
   });
   const [planPage, setPlanPage] = useState(1);
   const [planLimit] = useState(10);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleFilterChange = useCallback(
     async (newFilter: Partial<ReportFilter>) => {
-      setIsLoading(true);
       setError(null);
-
       try {
-        const updatedFilter = { ...filter, ...newFilter };
-        setFilter(updatedFilter);
-
+        const updated = { ...filter, ...newFilter };
+        setFilter(updated);
         const { reportData } = await fetchDashboardData({
-          reportFilter: updatedFilter,
+          reportFilter: updated,
           page: planPage,
           limit: planLimit,
         });
-
-        setData((prev) => ({ ...prev, reportData }));
+        setData((p) => ({ ...p, reportData }));
       } catch {
-        setError('Failed to load report data. Please try again.');
-      } finally {
-        setIsLoading(false);
+        setError('Failed to load report data.');
       }
     },
     [filter, planPage, planLimit]
@@ -68,256 +109,227 @@ const DoctorDashboard: React.FC = () => {
 
   const handlePlanPageChange = useCallback(
     async (newPage: number) => {
-      setIsLoading(true);
       setError(null);
-
       try {
         setPlanPage(newPage);
-        const dashboardData = await fetchDashboardData({
+        const d = await fetchDashboardData({
           reportFilter: filter,
           page: newPage,
           limit: planLimit,
         });
-        setData(dashboardData);
+        setData(d);
       } catch {
-        setError('Failed to load dashboard data. Please try again.');
-      } finally {
-        setIsLoading(false);
+        setError('Failed to load dashboard data.');
       }
     },
     [filter, planLimit]
   );
 
   useEffect(() => {
-    const fetchInitialData = async () => {
-      setIsLoading(true);
+    const init = async () => {
       setError(null);
-
       try {
-        const dashboardData = await fetchDashboardData({
+        const d = await fetchDashboardData({
           reportFilter: { type: 'monthly' },
           page: planPage,
           limit: planLimit,
         });
-        setData(dashboardData);
+        setData(d);
       } catch {
-        setError('Failed to load dashboard data. Please try again.');
-      } finally {
-        setIsLoading(false);
+        setError('Failed to load dashboard data.');
       }
     };
-    fetchInitialData();
+    init();
   }, [planPage, planLimit]);
 
   const generatePDF = () => {
     const doc = new jsPDF();
-    let finalY = 22;
-
-    doc.setFont('DejaVuSans', 'normal');
-
+    let y = 22;
     doc.setFontSize(18);
-    doc.text('Doctor Dashboard Report', 14, finalY);
-    finalY += 8;
-
+    doc.text('Doctor Dashboard Report', 14, y);
+    y += 8;
     doc.setFontSize(12);
-    doc.text(`Report Type: ${filter.type.toUpperCase()}`, 14, finalY);
-    finalY += 8;
-
+    doc.text(`Report Type: ${filter.type.toUpperCase()}`, 14, y);
+    y += 8;
     if (filter.startDate && filter.endDate) {
       doc.text(
         `Period: ${format(filter.startDate, 'MMM d, yyyy')} - ${format(filter.endDate, 'MMM d, yyyy')}`,
         14,
-        finalY
+        y
       );
-      finalY += 12;
-    } else {
-      finalY += 4;
-    }
-
-    doc.text('Dashboard Statistics:', 14, finalY);
-    finalY += 5;
-
+      y += 12;
+    } else y += 4;
+    doc.text('Dashboard Statistics:', 14, y);
+    y += 5;
     autoTable(doc, {
-      startY: finalY,
+      startY: y,
       head: [['Metric', 'Value']],
       body: [
-        ['Active Plans', data.stats?.activePlans.toString() || '0'],
-        ['Total Subscribers', data.stats?.totalSubscribers.toString() || '0'],
+        ['Active Plans', data.stats?.activePlans?.toString() || '0'],
+        ['Total Subscribers', data.stats?.totalSubscribers?.toString() || '0'],
         [
           'Appointments Through Plans',
-          data.stats?.appointmentsThroughPlans.toString() || '0',
+          data.stats?.appointmentsThroughPlans?.toString() || '0',
         ],
-        ['Free Appointments', data.stats?.freeAppointments.toString() || '0'],
+        ['Free Appointments', data.stats?.freeAppointments?.toString() || '0'],
         ['Total Revenue', `₹${data.stats?.totalRevenue || 0}`],
         [
           'Cancelled Subscriptions',
-          data.stats?.cancelledStats.count.toString() || '0',
+          data.stats?.cancelledStats.count?.toString() || '0',
         ],
         ['Total Refunded', `₹${data.stats?.cancelledStats.totalRefunded || 0}`],
       ],
-      styles: { font: 'DejaVuSans' },
     });
-    finalY += 30; // Approximate height for table + spacing
-
-    // Plan-wise Revenue
-    doc.text('Plan-wise Revenue:', 14, finalY);
-    finalY += 5;
-
+    y += 30;
+    doc.text('Plan-wise Revenue:', 14, y);
+    y += 5;
     autoTable(doc, {
-      startY: finalY,
+      startY: y,
       head: [
-        [
-          'Plan Name',
-          'Subscribers',
-          'Revenue',
-          'Appointments Used',
-          'Appointments Left',
-        ],
+        ['Plan Name', 'Subscribers', 'Revenue', 'Appts Used', 'Appts Left'],
       ],
       body:
-        data.stats?.planWiseRevenue.map((plan) => [
-          plan.planName,
-          plan.subscribers.toString(),
-          `$${plan.revenue}`,
-          plan.appointmentsUsed.toString(),
-          plan.appointmentsLeft.toString(),
+        data.stats?.planWiseRevenue.map((p) => [
+          p.planName,
+          p.subscribers.toString(),
+          `₹${p.revenue}`,
+          p.appointmentsUsed.toString(),
+          p.appointmentsLeft.toString(),
         ]) || [],
-      styles: { font: 'DejaVuSans' },
     });
-    finalY += data.stats?.planWiseRevenue.length
+    y += data.stats?.planWiseRevenue.length
       ? data.stats.planWiseRevenue.length * 10 + 20
       : 20;
-
-    // Report Data
-    doc.text(`${filter.type.toUpperCase()} Report:`, 14, finalY);
-    finalY += 5;
-
+    doc.text(`${filter.type.toUpperCase()} Report:`, 14, y);
+    y += 5;
     const reportHeaders =
       filter.type === 'daily'
         ? ['Date', 'Appointments', 'Revenue']
         : filter.type === 'monthly'
           ? ['Month', 'Appointments', 'Revenue']
           : ['Year', 'Appointments', 'Revenue'];
-    const reportBody =
-      data.reportData?.map((item: ReportItem) => [
-        item.date || item.month || item.year || '',
-        item.appointments.toString(),
-        `$${item.revenue}`,
-      ]) || [];
-
     autoTable(doc, {
-      startY: finalY,
+      startY: y,
       head: [reportHeaders],
-      body: reportBody,
-      styles: { font: 'DejaVuSans' },
+      body:
+        data.reportData?.map((item: ReportItem) => [
+          item.date || item.month || item.year || '',
+          item.appointments.toString(),
+          `₹${item.revenue}`,
+        ]) || [],
     });
-
     doc.save(
       `Doctor_Dashboard_Report_${filter.type}_${new Date().toISOString()}.pdf`
     );
   };
 
-  // Calculate appointment stats
   const appointmentStats: AppointmentStats = {
     total: data.appointments.length,
-    upcoming: data.appointments.filter((appt) => appt.status === 'pending')
-      .length,
-    completed: data.appointments.filter((appt) => appt.status === 'completed')
-      .length,
-    cancelled: data.appointments.filter((appt) => appt.status === 'cancelled')
-      .length,
+    upcoming: data.appointments.filter((a) => a.status === 'pending').length,
+    completed: data.appointments.filter((a) => a.status === 'completed').length,
+    cancelled: data.appointments.filter((a) => a.status === 'cancelled').length,
   };
 
+  const xKey =
+    filter.type === 'daily'
+      ? 'date'
+      : filter.type === 'yearly'
+        ? 'year'
+        : 'month';
+
   return (
-    <div className="space-y-6 font-poppins p-6">
-      {/* Error Message */}
+    <div className="space-y-6 animate-fade-in">
+      {/* ── Page header ── */}
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Dashboard</h1>
+          <p className="page-subtitle">
+            Manage your practice and track performance
+          </p>
+        </div>
+      </div>
+
+      {/* ── Error ── */}
       {error && (
-        <div className="bg-red-600/20 border border-red-600 text-red-200 p-4 rounded-lg">
-          {error}
+        <div className="flex items-start gap-2.5 p-3.5 bg-red-50 border border-red-100 rounded-xl">
+          <AlertCircle size={15} className="text-error flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-red-700">{error}</p>
         </div>
       )}
 
-      {/* Header */}
-      <div className="bg-white/10 backdrop-blur-lg p-6 rounded-xl border border-white/20">
-        <h1 className="text-2xl font-bold text-white">Doctor Dashboard</h1>
-        <p className="text-gray-300">
-          Manage your practice and track performance
-        </p>
+      {/* ── Stats grid ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <StatCard
+          label="Active Plans"
+          value={data.stats?.activePlans || 0}
+          icon={<CreditCard size={18} />}
+          color="bg-primary-50"
+        />
+        <StatCard
+          label="Total Subscribers"
+          value={data.stats?.totalSubscribers || 0}
+          icon={<Users size={18} />}
+          color="bg-teal-50"
+        />
+        <StatCard
+          label="Appointments (Plans)"
+          value={data.stats?.appointmentsThroughPlans || 0}
+          icon={<Calendar size={18} />}
+          color="bg-accent-50"
+        />
+        <StatCard
+          label="Free Appointments"
+          value={data.stats?.freeAppointments || 0}
+          icon={<Activity size={18} />}
+          color="bg-amber-50"
+        />
+        <StatCard
+          label="Total Revenue"
+          value={`₹${data.stats?.totalRevenue || 0}`}
+          icon={<TrendingDown size={18} />}
+          color="bg-emerald-50"
+        />
+        <StatCard
+          label="Total Appointments"
+          value={appointmentStats.total}
+          icon={<Calendar size={18} />}
+          color="bg-primary-50"
+        />
+        <StatCard
+          label="Upcoming"
+          value={appointmentStats.upcoming}
+          icon={<Clock size={18} />}
+          color="bg-teal-50"
+        />
+        <StatCard
+          label="Cancelled Appointments"
+          value={appointmentStats.cancelled}
+          icon={<AlertCircle size={18} />}
+          color="bg-red-50"
+        />
+        <StatCard
+          label="Cancelled Subscriptions"
+          value={data.stats?.cancelledStats?.count || 0}
+          icon={<TrendingDown size={18} />}
+          color="bg-red-50"
+        />
+        <StatCard
+          label="Total Refunded"
+          value={`₹${data.stats?.cancelledStats?.totalRefunded || 0}`}
+          icon={<CreditCard size={18} />}
+          color="bg-red-50"
+        />
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white/10 p-4 rounded-lg border border-white/20">
-          <h3 className="text-gray-300">Active Plans</h3>
-          <p className="text-2xl font-bold text-purple-300">
-            {data.stats?.activePlans || 0}
-          </p>
-        </div>
-        <div className="bg-white/10 p-4 rounded-lg border border-white/20">
-          <h3 className="text-gray-300">Total Subscribers</h3>
-          <p className="text-2xl font-bold text-green-300">
-            {data.stats?.totalSubscribers || 0}
-          </p>
-        </div>
-        <div className="bg-white/10 p-4 rounded-lg border border-white/20">
-          <h3 className="text-gray-300">Appointments (Plans)</h3>
-          <p className="text-2xl font-bold text-blue-300">
-            {data.stats?.appointmentsThroughPlans || 0}
-          </p>
-        </div>
-        <div className="bg-white/10 p-4 rounded-lg border border-white/20">
-          <h3 className="text-gray-300">Free Appointments</h3>
-          <p className="text-2xl font-bold text-yellow-300">
-            {data.stats?.freeAppointments || 0}
-          </p>
-        </div>
-        <div className="bg-white/10 p-4 rounded-lg border border-white/20">
-          <h3 className="text-gray-300">Total Revenue</h3>
-          <p className="text-2xl font-bold text-pink-300">
-            ₹{data.stats?.totalRevenue || 0}
-          </p>
-        </div>
-        <div className="bg-white/10 p-4 rounded-lg border border-white/20">
-          <h3 className="text-gray-300">Total Appointments</h3>
-          <p className="text-2xl font-bold text-purple-300">
-            {appointmentStats.total}
-          </p>
-        </div>
-        <div className="bg-white/10 p-4 rounded-lg border border-white/20">
-          <h3 className="text-gray-300">Upcoming Appointments</h3>
-          <p className="text-2xl font-bold text-green-300">
-            {appointmentStats.upcoming}
-          </p>
-        </div>
-        <div className="bg-white/10 p-4 rounded-lg border border-white/20">
-          <h3 className="text-gray-300">Cancelled Appointments</h3>
-          <p className="text-2xl font-bold text-red-300">
-            {appointmentStats.cancelled}
-          </p>
-        </div>
-        <div className="bg-white/10 p-4 rounded-lg border border-white/20 col-span-1 sm:col-span-2 lg:col-span-1">
-          <h3 className="text-gray-300">Cancelled Subscriptions</h3>
-          <p className="text-2xl font-bold text-red-300">
-            {data.stats?.cancelledStats?.count || 0}
-          </p>
-        </div>
-        <div className="bg-white/10 p-4 rounded-lg border border-white/20 col-span-1 sm:col-span-2 lg:col-span-1">
-          <h3 className="text-gray-300">Refunded</h3>
-          <p className="text-2xl font-bold text-red-300">
-            ₹{data.stats?.cancelledStats?.totalRefunded || 0}
-          </p>
-        </div>
-      </div>
-
-      {/* Report Section */}
-      <div className="bg-white/10 backdrop-blur-lg p-6 rounded-xl border border-white/20">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-white">
+      {/* ── Report section ── */}
+      <div className="card p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+          <h2 className="font-display font-bold text-text-primary text-lg">
             Performance Reports
           </h2>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Report type */}
             <select
-              className="bg-white/20 text-white rounded-md p-2"
               value={filter.type}
               onChange={(e) => {
                 const type = e.target.value as ReportFilter['type'];
@@ -327,16 +339,18 @@ const DoctorDashboard: React.FC = () => {
                   endDate: type === 'daily' ? new Date() : undefined,
                 });
               }}
+              className="input py-2 text-sm w-32"
             >
               <option value="daily">Daily</option>
               <option value="monthly">Monthly</option>
               <option value="yearly">Yearly</option>
             </select>
+            {/* Date range */}
             {filter.type === 'daily' && (
-              <div className="flex gap-2">
+              <>
                 <input
                   type="date"
-                  className="bg-white/20 text-white rounded-md p-2"
+                  className="input py-2 text-sm w-36"
                   value={
                     filter.startDate
                       ? format(filter.startDate, 'yyyy-MM-dd')
@@ -348,7 +362,7 @@ const DoctorDashboard: React.FC = () => {
                 />
                 <input
                   type="date"
-                  className="bg-white/20 text-white rounded-md p-2"
+                  className="input py-2 text-sm w-36"
                   value={
                     filter.endDate ? format(filter.endDate, 'yyyy-MM-dd') : ''
                   }
@@ -356,138 +370,162 @@ const DoctorDashboard: React.FC = () => {
                     handleFilterChange({ endDate: new Date(e.target.value) })
                   }
                 />
-              </div>
+              </>
             )}
-            <button
-              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md"
-              onClick={generatePDF}
-            >
-              Download PDF
+            <button onClick={generatePDF} className="btn-primary text-sm">
+              <Download size={14} /> Download PDF
             </button>
           </div>
         </div>
-        <div className="h-80">
+
+        <div className="h-72">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data.reportData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#ffffff33" />
-              <XAxis
-                dataKey={
-                  filter.type === 'daily'
-                    ? 'date'
-                    : filter.type === 'yearly'
-                      ? 'year'
-                      : 'month'
-                }
-                stroke="#ffffff99"
-              />
-              <YAxis stroke="#ffffff99" />
+            <BarChart
+              data={data.reportData}
+              margin={{ top: 4, right: 8, bottom: 4, left: 0 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+              <XAxis dataKey={xKey} stroke="#94A3B8" tick={{ fontSize: 12 }} />
+              <YAxis stroke="#94A3B8" tick={{ fontSize: 12 }} />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: '#ffffff1a',
-                  border: 'none',
-                  borderRadius: '8px',
-                  color: '#fff',
+                  backgroundColor: '#fff',
+                  border: '1px solid #E2E8F0',
+                  borderRadius: '12px',
+                  boxShadow: '0 4px 24px rgba(15,23,42,.08)',
+                  color: '#0F172A',
+                  fontSize: 13,
                 }}
+                cursor={{ fill: '#F1F5F9' }}
               />
-              <Bar dataKey="appointments" fill="#a78bfa" />
-              <Bar dataKey="revenue" fill="#4ade80" />
+              <Legend wrapperStyle={{ fontSize: 12, color: '#475569' }} />
+              <Bar
+                dataKey="appointments"
+                name="Appointments"
+                fill="#0EA5E9"
+                radius={[4, 4, 0, 0]}
+              />
+              <Bar
+                dataKey="revenue"
+                name="Revenue (₹)"
+                fill="#14B8A6"
+                radius={[4, 4, 0, 0]}
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      {/* Plan-wise Revenue Breakdown */}
-      <div className="bg-white/10 backdrop-blur-lg p-6 rounded-xl border border-white/20">
-        <h2 className="text-xl font-semibold mb-4 text-white">
-          Plan-wise Revenue
-        </h2>
+      {/* ── Plan-wise revenue ── */}
+      <div className="card overflow-hidden">
+        <div className="px-6 py-4 border-b border-surface-border">
+          <h2 className="font-display font-bold text-text-primary text-lg">
+            Plan-wise Revenue
+          </h2>
+        </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-white">
+          <table className="min-w-full">
             <thead>
-              <tr className="border-b border-gray-600">
-                <th className="p-2 text-left">Plan Name</th>
-                <th className="p-2 text-right">Subscribers</th>
-                <th className="p-2 text-right">Revenue (₹)</th>
-                <th className="p-2 text-right">Appointments Used</th>
-                <th className="p-2 text-right">Appointments Left</th>
+              <tr className="border-b border-surface-border bg-surface-bg">
+                <th className="th text-left">Plan Name</th>
+                <th className="th text-right">Subscribers</th>
+                <th className="th text-right">Revenue</th>
+                <th className="th text-right">Appts Used</th>
+                <th className="th text-right">Appts Left</th>
               </tr>
             </thead>
-            <tbody>
-              {data.stats?.planWiseRevenue.map((plan) => (
-                <tr key={plan.planId} className="border-b border-white/10">
-                  <td className="p-2">{plan.planName}</td>
-                  <td className="p-2 text-right">{plan.subscribers}</td>
-                  <td className="p-2 text-right">₹{plan.revenue}</td>
-                  <td className="p-2 text-right">{plan.appointmentsUsed}</td>
-                  <td className="p-2 text-right">{plan.appointmentsLeft}</td>
+            <tbody className="divide-y divide-surface-border">
+              {data.stats?.planWiseRevenue.length ? (
+                data.stats.planWiseRevenue.map((plan) => (
+                  <tr key={plan.planId} className="tr">
+                    <td className="td font-medium text-text-primary">
+                      {plan.planName}
+                    </td>
+                    <td className="td text-right">{plan.subscribers}</td>
+                    <td className="td text-right font-semibold text-teal-600">
+                      ₹{plan.revenue}
+                    </td>
+                    <td className="td text-right">{plan.appointmentsUsed}</td>
+                    <td className="td text-right">{plan.appointmentsLeft}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td
+                    colSpan={5}
+                    className="td text-center text-text-muted py-8"
+                  >
+                    No plan data available.
+                  </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
-        <Pagination
-          currentPage={planPage}
-          totalPages={Math.ceil((data.stats?.totalPlans || 0) / planLimit)}
-          onPageChange={handlePlanPageChange}
-        />
+        <div className="px-6 py-4 border-t border-surface-border">
+          <Pagination
+            currentPage={planPage}
+            totalPages={Math.ceil((data.stats?.totalPlans || 0) / planLimit)}
+            onPageChange={handlePlanPageChange}
+          />
+        </div>
       </div>
 
-      {/* Recent Appointments */}
-      <div className="bg-white/10 backdrop-blur-lg p-6 rounded-xl border border-white/20">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-white">
+      {/* ── Recent appointments ── */}
+      <div className="card overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-surface-border">
+          <h2 className="font-display font-bold text-text-primary text-lg">
             Recent Appointments
           </h2>
           <button
-            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md"
             onClick={() => navigate('/doctor/appointments')}
+            className="btn-secondary text-sm flex items-center gap-1.5"
           >
-            View All
+            View All <ChevronRight size={14} />
           </button>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-white">
+          <table className="min-w-full">
             <thead>
-              <tr className="border-b border-gray-600">
-                <th className="p-2 text-left">Patient</th>
-                <th className="p-2 text-right">Date</th>
-                <th className="p-2 text-right">Time</th>
-                <th className="p-2 text-right">Status</th>
+              <tr className="border-b border-surface-border bg-surface-bg">
+                <th className="th text-left">Patient</th>
+                <th className="th text-left">Date</th>
+                <th className="th text-left">Time</th>
+                <th className="th text-left">Status</th>
               </tr>
             </thead>
-            <tbody>
-              {data.appointments.map((appt) => (
-                <tr key={appt._id} className="border-b border-gray-600">
-                  <td className="p-2">{appt.patientId.name}</td>
-                  <td className="p-2 text-right">
-                    {format(new Date(appt.date), 'MMM d, yyyy')}
-                  </td>
-                  <td className="p-2 text-right">
-                    {appt.startTime} - {appt.endTime}
-                  </td>
+            <tbody className="divide-y divide-surface-border">
+              {data.appointments.length ? (
+                data.appointments.map((appt) => (
+                  <tr key={appt._id} className="tr">
+                    <td className="td font-medium text-text-primary">
+                      {appt.patientId.name}
+                    </td>
+                    <td className="td">
+                      {format(new Date(appt.date), 'MMM d, yyyy')}
+                    </td>
+                    <td className="td">
+                      {appt.startTime} – {appt.endTime}
+                    </td>
+                    <td className="td">
+                      <StatusBadge status={appt.status} />
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
                   <td
-                    className={`p-2 text-right ${
-                      appt.status === 'pending'
-                        ? 'text-green-600'
-                        : appt.status === 'completed'
-                          ? 'text-blue-600'
-                          : 'text-red-600'
-                    }`}
+                    colSpan={4}
+                    className="td text-center text-text-muted py-8"
                   >
-                    {appt.status.toUpperCase()}
+                    No recent appointments.
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
       </div>
-
-      {isLoading && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <span className="text-white">Loading...</span>
-        </div>
-      )}
     </div>
   );
 };

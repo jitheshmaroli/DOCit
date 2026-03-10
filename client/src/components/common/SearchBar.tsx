@@ -14,20 +14,15 @@ interface SearchBarProps {
   debounceDelay?: number;
 }
 
-// Generic debounce function
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const debounce = <T extends (...args: any[]) => void>(
   func: T,
   delay: number
-): ((...args: Parameters<T>) => void) => {
+) => {
   let timeoutId: NodeJS.Timeout | null = null;
   return (...args: Parameters<T>) => {
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-    }
-    timeoutId = setTimeout(() => {
-      func(...args);
-    }, delay);
+    if (timeoutId) clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func(...args), delay);
   };
 };
 
@@ -47,8 +42,7 @@ const SearchBar = React.memo(
     }, [value]);
 
     const debouncedOnChange = useMemo(
-      () =>
-        debounce((searchValue: string) => onChange(searchValue), debounceDelay),
+      () => debounce((v: string) => onChange(v), debounceDelay),
       [onChange, debounceDelay]
     );
 
@@ -68,10 +62,11 @@ const SearchBar = React.memo(
         value={localValue}
         onChange={handleChange}
         placeholder={placeholder}
-        className={`w-full md:w-1/3 p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400 ${className || ''}`}
+        className={`input ${className || ''}`}
       />
     );
   }
 );
 
+SearchBar.displayName = 'SearchBar';
 export default SearchBar;

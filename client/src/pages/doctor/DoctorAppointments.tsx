@@ -8,6 +8,22 @@ import DataTable, { Column } from '../../components/common/DataTable';
 import { Appointment } from '../../types/authTypes';
 import { ITEMS_PER_PAGE } from '../../utils/constants';
 import ROUTES from '../../constants/routeConstants';
+import { Search, Calendar } from 'lucide-react';
+
+const StatusBadge = ({ status }: { status: string }) => {
+  const map: Record<string, string> = {
+    pending: 'bg-amber-100 text-amber-700',
+    completed: 'bg-emerald-100 text-emerald-700',
+    cancelled: 'bg-red-100 text-red-700',
+  };
+  return (
+    <span
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${map[status] || 'badge-neutral'}`}
+    >
+      {status || 'Pending'}
+    </span>
+  );
+};
 
 const DoctorAppointments: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -24,10 +40,6 @@ const DoctorAppointments: React.FC = () => {
     );
   }, [dispatch, currentPage]);
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
-
   const columns: Column<Appointment>[] = [
     {
       header: 'Patient',
@@ -36,15 +48,13 @@ const DoctorAppointments: React.FC = () => {
           onClick={() =>
             navigate(
               ROUTES.DOCTOR.PATIENT_DETAILS.replace(
-                'patientId',
+                ':patientId',
                 appt.patientId._id
               ),
-              {
-                state: { from: 'appointments' },
-              }
+              { state: { from: 'appointments' } }
             )
           }
-          className="hover:underline hover:text-blue-300 focus:outline-none"
+          className="font-medium text-primary-600 hover:text-primary-700 hover:underline focus:outline-none"
         >
           {appt.patientId.name || 'N/A'}
         </button>
@@ -52,28 +62,24 @@ const DoctorAppointments: React.FC = () => {
     },
     {
       header: 'Date',
-      accessor: (appt) => DateUtils.formatToLocal(appt.date),
+      accessor: (appt) => (
+        <span className="text-text-secondary">
+          {DateUtils.formatToLocal(appt.date)}
+        </span>
+      ),
     },
     {
       header: 'Time',
-      accessor: (appt) =>
-        `${DateUtils.formatTimeToLocal(appt.startTime)} - ${DateUtils.formatTimeToLocal(appt.endTime)}`,
+      accessor: (appt) => (
+        <span className="text-text-secondary">
+          {DateUtils.formatTimeToLocal(appt.startTime)} –{' '}
+          {DateUtils.formatTimeToLocal(appt.endTime)}
+        </span>
+      ),
     },
     {
       header: 'Status',
-      accessor: (appt) => (
-        <span
-          className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-            appt.status === 'completed'
-              ? 'bg-green-500/20 text-green-300'
-              : appt.status === 'pending'
-                ? 'bg-yellow-500/20 text-yellow-300'
-                : 'bg-red-500/20 text-red-300'
-          }`}
-        >
-          {appt.status || 'Pending'}
-        </span>
-      ),
+      accessor: (appt) => <StatusBadge status={appt.status} />,
     },
   ];
 
@@ -84,7 +90,7 @@ const DoctorAppointments: React.FC = () => {
         navigate(
           ROUTES.DOCTOR.APPOINTMENT_DETAILS.replace(':appointmentId', appt._id)
         ),
-      className: 'bg-purple-600 hover:bg-purple-700',
+      className: 'btn-primary text-xs px-3 py-1.5',
     },
   ];
 
@@ -101,36 +107,63 @@ const DoctorAppointments: React.FC = () => {
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
   return (
-    <>
-      <div className="bg-white/10 backdrop-blur-lg p-4 sm:p-6 rounded-2xl border border-white/20 shadow-xl">
-        <h2 className="text-xl sm:text-2xl font-semibold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent mb-6">
-          Appointments
-        </h2>
-        <div className="mb-6">
-          <input
-            type="text"
-            placeholder="Search appointments..."
-            className="w-full sm:w-1/3 p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+    <div className="space-y-6 animate-fade-in">
+      {/* ── Page header ── */}
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Appointments</h1>
+          <p className="page-subtitle">
+            View and manage all your patient appointments
+          </p>
         </div>
+      </div>
+
+      {/* ── Table card ── */}
+      <div className="card overflow-hidden">
+        {/* Search bar */}
+        <div className="px-6 py-4 border-b border-surface-border flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="relative flex-1 max-w-xs">
+            <Search
+              size={16}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
+            />
+            <input
+              type="text"
+              placeholder="Search by patient or date..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="input pl-9 py-2 text-sm w-full"
+            />
+          </div>
+          <div className="flex items-center gap-2 text-sm text-text-muted">
+            <Calendar size={15} />
+            <span>
+              {filteredAppointments.length} appointment
+              {filteredAppointments.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+        </div>
+
+        {/* Table */}
         <DataTable
           data={filteredAppointments}
           columns={columns}
           actions={actions}
           emptyMessage="No appointments found."
         />
+
+        {/* Pagination */}
         {totalPages > 1 && (
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={handlePageChange}
-            className="mt-6"
-          />
+          <div className="px-6 py-4 border-t border-surface-border">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
+          </div>
         )}
       </div>
-    </>
+    </div>
   );
 };
 

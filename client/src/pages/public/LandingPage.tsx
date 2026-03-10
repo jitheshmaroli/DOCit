@@ -9,149 +9,321 @@ import videoConsultIcon from '../../assets/icons/videoConsultIcon.png';
 import bookingIcon from '../../assets/icons/bookingIcon.png';
 import prescriptionIcon from '../../assets/icons/prescriptionIcon.png';
 import realtimeIcon from '../../assets/icons/realtimeIcon.png';
+import {
+  ArrowRight,
+  CheckCircle,
+  Star,
+  Shield,
+  Clock,
+  Users,
+} from 'lucide-react';
 
 const LandingPage: React.FC = () => {
   const features = [
     {
       title: 'Real-Time Video Consultation',
       icon: videoConsultIcon,
-      description: 'Connect instantly with doctors via video calls',
+      description:
+        'Connect instantly with doctors via secure HD video calls from anywhere.',
+      color: 'bg-primary-50',
+      iconBg: 'bg-primary-100',
     },
     {
       title: 'Smart Appointment Booking',
       icon: bookingIcon,
-      description: 'Schedule & reschedule appointments in seconds',
+      description:
+        'Schedule and reschedule appointments in seconds with real-time availability.',
+      color: 'bg-teal-50',
+      iconBg: 'bg-teal-100',
     },
     {
       title: 'Digital Prescriptions',
       icon: prescriptionIcon,
-      description: 'Get e-prescriptions delivered to your mail',
+      description:
+        'Receive e-prescriptions directly to your email, instantly and securely.',
+      color: 'bg-accent-50',
+      iconBg: 'bg-accent-100',
     },
     {
       title: '24/7 Medical Support',
       icon: realtimeIcon,
-      description: 'Instant access to healthcare professionals',
+      description:
+        'Instant access to healthcare professionals around the clock, every day.',
+      color: 'bg-emerald-50',
+      iconBg: 'bg-emerald-100',
     },
   ];
 
-  // Animation variants
+  const stats = [
+    { label: 'Active Doctors', value: '500+', icon: Users },
+    { label: 'Happy Patients', value: '50K+', icon: Star },
+    { label: 'Consultations Done', value: '200K+', icon: CheckCircle },
+    { label: 'Cities Covered', value: '100+', icon: Shield },
+  ];
+
+  const steps = [
+    {
+      number: '01',
+      title: 'Find a Doctor',
+      description:
+        'Search verified doctors by specialty, rating, and availability.',
+    },
+    {
+      number: '02',
+      title: 'Book a Slot',
+      description:
+        'Pick a time slot that fits your schedule in just a few clicks.',
+    },
+    {
+      number: '03',
+      title: 'Video Consultation',
+      description: 'Join a secure, HD video call with your doctor.',
+    },
+    {
+      number: '04',
+      title: 'Get Prescription',
+      description:
+        'Receive your digital prescription and follow-up plan instantly.',
+    },
+  ];
+
   const containerVariants = {
     hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.2,
-      },
-    },
+    visible: { opacity: 1, transition: { staggerChildren: 0.12 } },
   };
 
   const itemVariants = {
-    hidden: { opacity: 0, y: 30 },
-    visible: { opacity: 1, y: 0 },
+    hidden: { opacity: 0, y: 24 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.5, ease: 'easeOut' as const },
+    },
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#320A6B] via-[#065084] to-[#0F828C] text-white overflow-hidden">
+    <div className="min-h-screen bg-white overflow-hidden">
       <Header />
 
       <main>
-        {/* Hero Section - Enhanced */}
-        <section className="relative py-20 md:py-32 overflow-hidden">
-          <div className="absolute inset-0 bg-black/20"></div>
-          <div className="container mx-auto px-4 md:px-16 relative z-10">
-            <div className="flex flex-col lg:flex-row items-center gap-12">
+        {/* Hero Section */}
+        <section className="relative bg-mesh pt-16 pb-24 md:pt-24 md:pb-32 overflow-hidden">
+          {/* Background decoration */}
+          <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-gradient-to-bl from-primary-100/60 via-teal-50/40 to-transparent rounded-full blur-3xl -translate-y-1/4 translate-x-1/4 pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-gradient-to-tr from-accent-100/40 to-transparent rounded-full blur-3xl translate-y-1/4 -translate-x-1/4 pointer-events-none" />
+
+          <div className="container mx-auto px-4 md:px-8 max-w-7xl relative z-10">
+            <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
+              {/* Left - Content */}
               <motion.div
                 className="w-full lg:w-1/2"
-                initial={{ opacity: 0, x: -50 }}
+                initial={{ opacity: 0, x: -32 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.8 }}
+                transition={{ duration: 0.7, ease: 'easeOut' }}
               >
-                <div className="relative">
-                  <motion.span
-                    className="inline-block px-4 py-2 bg-gradient-to-r from-[#78B9B5] to-[#0F828C] rounded-full text-sm font-semibold mb-6"
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.3 }}
+                {/* Trust badge */}
+                <motion.div
+                  className="inline-flex items-center gap-2 bg-primary-50 border border-primary-100 text-primary-700 px-4 py-2 rounded-full text-sm font-semibold mb-8"
+                  initial={{ opacity: 0, y: -12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  <span className="w-2 h-2 rounded-full bg-primary-500 animate-pulse"></span>
+                  Trusted by 50,000+ patients across India
+                </motion.div>
+
+                <h1 className="font-display font-bold text-text-primary leading-tight mb-6">
+                  <span className="text-4xl md:text-5xl lg:text-6xl block mb-2">
+                    Healthcare,
+                  </span>
+                  <span className="text-4xl md:text-5xl lg:text-6xl text-gradient-primary block">
+                    Reimagined
+                  </span>
+                  <span className="text-4xl md:text-5xl lg:text-6xl block">
+                    for You
+                  </span>
+                </h1>
+
+                <p className="text-lg text-text-secondary mb-8 leading-relaxed max-w-lg">
+                  Connect with verified doctors through real-time video
+                  consultations. Book appointments, get prescriptions, and
+                  manage your health — all in one place.
+                </p>
+
+                <div className="flex flex-col sm:flex-row gap-3 mb-10">
+                  <Link
+                    to="/patient/find-doctor"
+                    className="btn-primary text-base px-6 py-3 shadow-lg hover:shadow-primary-500/25 hover:-translate-y-0.5 transition-all duration-200"
                   >
-                    🚀 Virtual Healthcare
-                  </motion.span>
-                  <h1 className="text-4xl md:text-6xl lg:text-7xl font-black leading-tight mb-6">
-                    <span className="bg-gradient-to-r from-[#78B9B5] to-white bg-clip-text text-transparent">
-                      Consult Doctors
-                    </span>{' '}
-                    <span className="text-white">Online</span>
-                  </h1>
-                  <p className="text-xl md:text-2xl text-[#B7DEE6] mb-8 leading-relaxed font-light">
-                    Real-time video consultations, instant appointments, and
-                    digital prescriptions. Healthcare at your fingertips.
-                  </p>
-                  <div className="flex flex-col sm:flex-row gap-4">
-                    <Link
-                      to="/patient/find-doctor"
-                      className="group inline-flex items-center bg-gradient-to-r from-[#78B9B5] to-[#0F828C] text-white px-8 py-4 rounded-xl text-lg font-semibold hover:from-[#0F828C] hover:to-[#78B9B5] transition-all duration-300 shadow-2xl hover:shadow-[#78B9B5]/25 transform hover:-translate-y-1"
-                    >
-                      <span>Start Consultation</span>
-                      <svg
-                        className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M17 8l4 4m0 0l-4 4m4-4H3"
+                    Find a Doctor
+                    <ArrowRight size={18} />
+                  </Link>
+                  <Link
+                    to="/signup"
+                    className="btn-secondary text-base px-6 py-3"
+                  >
+                    Create Free Account
+                  </Link>
+                </div>
+
+                {/* Trust indicators */}
+                <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-2">
+                    <div className="flex -space-x-2">
+                      {[1, 2, 3, 4].map((i) => (
+                        <div
+                          key={i}
+                          className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-300 to-teal-300 border-2 border-white"
                         />
-                      </svg>
-                    </Link>
+                      ))}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-0.5">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <Star
+                            key={s}
+                            size={12}
+                            className="fill-amber-400 text-amber-400"
+                          />
+                        ))}
+                      </div>
+                      <p className="text-xs text-text-muted">
+                        4.9 from 12K+ reviews
+                      </p>
+                    </div>
+                  </div>
+                  <div className="h-8 w-px bg-surface-border"></div>
+                  <div className="flex items-center gap-2">
+                    <Shield size={20} className="text-success" />
+                    <p className="text-xs text-text-secondary font-medium">
+                      HIPAA Compliant
+                    </p>
                   </div>
                 </div>
               </motion.div>
 
+              {/* Right - Image */}
               <motion.div
                 className="w-full lg:w-1/2"
-                initial={{ opacity: 0, x: 50, scale: 0.9 }}
+                initial={{ opacity: 0, x: 32, scale: 0.95 }}
                 animate={{ opacity: 1, x: 0, scale: 1 }}
-                transition={{ duration: 0.8, delay: 0.2 }}
+                transition={{ duration: 0.7, delay: 0.15, ease: 'easeOut' }}
               >
                 <div className="relative">
-                  <motion.img
+                  {/* Floating card decorations */}
+                  <motion.div
+                    className="absolute -top-4 -left-4 bg-white rounded-2xl shadow-card-lg p-3 flex items-center gap-3 z-10"
+                    animate={{ y: [0, -8, 0] }}
+                    transition={{
+                      duration: 3,
+                      repeat: Infinity,
+                      ease: 'easeInOut',
+                    }}
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center">
+                      <CheckCircle size={20} className="text-success" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-text-primary">
+                        Verified Doctors
+                      </p>
+                      <p className="text-xs text-text-muted">
+                        500+ specialists
+                      </p>
+                    </div>
+                  </motion.div>
+
+                  <motion.div
+                    className="absolute -bottom-4 -right-4 bg-white rounded-2xl shadow-card-lg p-3 flex items-center gap-3 z-10"
+                    animate={{ y: [0, 8, 0] }}
+                    transition={{
+                      duration: 3,
+                      repeat: Infinity,
+                      ease: 'easeInOut',
+                      delay: 1.5,
+                    }}
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center">
+                      <Clock size={20} className="text-primary-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-text-primary">
+                        Avg. Wait Time
+                      </p>
+                      <p className="text-xs text-success font-semibold">
+                        Under 5 mins
+                      </p>
+                    </div>
+                  </motion.div>
+
+                  <img
                     src={bannerImg}
                     alt="Virtual Doctor Consultation"
-                    className="w-full max-w-md mx-auto rounded-2xl shadow-2xl"
-                    whileHover={{ scale: 1.02, rotate: 1 }}
-                    transition={{ duration: 0.3 }}
+                    className="w-full max-w-lg mx-auto rounded-3xl shadow-card-lg object-cover"
                   />
-                  <div className="absolute -top-4 -right-4 w-24 h-24 bg-[#78B9B5]/20 rounded-full animate-pulse"></div>
-                  <div className="absolute -bottom-4 -left-4 w-20 h-20 bg-[#0F828C]/20 rounded-full animate-pulse delay-1000"></div>
                 </div>
               </motion.div>
             </div>
           </div>
         </section>
 
-        {/* Features Section */}
-        <section className="py-20 bg-[#320A6B]/10">
-          <div className="container mx-auto px-4 md:px-16">
+        {/* Stats */}
+        <section className="border-y border-surface-border bg-white py-12">
+          <div className="container mx-auto px-4 max-w-7xl">
             <motion.div
-              initial={{ opacity: 0, y: 30 }}
+              className="grid grid-cols-2 md:grid-cols-4 gap-8"
+              variants={containerVariants}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+            >
+              {stats.map((stat, idx) => (
+                <motion.div
+                  key={idx}
+                  variants={itemVariants}
+                  className="text-center"
+                >
+                  <div className="flex justify-center mb-2">
+                    <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center">
+                      <stat.icon size={20} className="text-primary-600" />
+                    </div>
+                  </div>
+                  <p className="text-3xl font-display font-bold text-text-primary">
+                    {stat.value}
+                  </p>
+                  <p className="text-sm text-text-muted mt-1">{stat.label}</p>
+                </motion.div>
+              ))}
+            </motion.div>
+          </div>
+        </section>
+
+        {/* Features */}
+        <section className="py-20 md:py-28 bg-surface-bg">
+          <div className="container mx-auto px-4 md:px-8 max-w-7xl">
+            <motion.div
+              className="text-center mb-14"
+              initial={{ opacity: 0, y: 24 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.8 }}
-              className="text-center mb-16"
+              transition={{ duration: 0.6 }}
             >
-              <h2 className="text-4xl md:text-5xl font-black bg-gradient-to-r from-[#78B9B5] to-[#0F828C] bg-clip-text text-transparent mb-6">
-                Why Choose Us?
+              <span className="inline-block text-sm font-semibold text-primary-600 bg-primary-50 px-3 py-1 rounded-full mb-4">
+                Why DOCit
+              </span>
+              <h2 className="font-display font-bold text-3xl md:text-4xl text-text-primary mb-4">
+                Everything you need for
+                <br />
+                better healthcare
               </h2>
-              <p className="text-xl text-[#B7DEE6] max-w-2xl mx-auto">
-                Experience healthcare like never before with our cutting-edge
-                virtual consultation platform
+              <p className="text-text-secondary max-w-2xl mx-auto text-lg">
+                A complete platform connecting patients with the right doctors
+                at the right time.
               </p>
             </motion.div>
 
             <motion.div
-              className="grid grid-cols-1 md:grid-cols-2 gap-8"
+              className="grid grid-cols-1 md:grid-cols-2 gap-6"
               variants={containerVariants}
               initial="hidden"
               whileInView="visible"
@@ -161,20 +333,22 @@ const LandingPage: React.FC = () => {
                 <motion.div
                   key={idx}
                   variants={itemVariants}
-                  whileHover={{ y: -10 }}
-                  className="group bg-[#065084]/20 backdrop-blur-sm p-8 rounded-2xl border border-[#78B9B5]/20 hover:border-[#78B9B5]/40 transition-all duration-300"
+                  whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                  className={`${feature.color} rounded-2xl p-7 border border-surface-border/60 cursor-default`}
                 >
-                  <div className="w-16 h-16 bg-gradient-to-r from-[#78B9B5] to-[#0F828C] rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                  <div
+                    className={`w-14 h-14 ${feature.iconBg} rounded-2xl flex items-center justify-center mb-5`}
+                  >
                     <img
                       src={feature.icon || serviceImg}
                       alt={feature.title}
-                      // className="w-8 h-8"
+                      className="w-8 h-8 object-contain"
                     />
                   </div>
-                  <h3 className="text-xl font-bold text-white mb-4">
+                  <h3 className="text-lg font-display font-bold text-text-primary mb-2">
                     {feature.title}
                   </h3>
-                  <p className="text-[#B7DEE6] leading-relaxed">
+                  <p className="text-text-secondary leading-relaxed">
                     {feature.description}
                   </p>
                 </motion.div>
@@ -183,144 +357,98 @@ const LandingPage: React.FC = () => {
           </div>
         </section>
 
-        {/* How It Works Section - UPDATED WITH 4 STEPS */}
-        <section className="py-20 bg-[#0F828C]/10">
-          <div className="container mx-auto px-4 md:px-16">
-            <motion.h2
-              initial={{ opacity: 0, y: 30 }}
+        {/* How it works */}
+        <section className="py-20 md:py-28 bg-white">
+          <div className="container mx-auto px-4 md:px-8 max-w-7xl">
+            <motion.div
+              className="text-center mb-14"
+              initial={{ opacity: 0, y: 24 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              className="text-4xl md:text-5xl font-black text-center bg-gradient-to-r from-[#78B9B5] to-[#0F828C] bg-clip-text text-transparent mb-16"
+              transition={{ duration: 0.6 }}
             >
-              How It Works in 4 Simple Steps
-            </motion.h2>
+              <span className="inline-block text-sm font-semibold text-teal-600 bg-teal-50 px-3 py-1 rounded-full mb-4">
+                How It Works
+              </span>
+              <h2 className="font-display font-bold text-3xl md:text-4xl text-text-primary mb-4">
+                Get care in 4 simple steps
+              </h2>
+              <p className="text-text-secondary max-w-xl mx-auto">
+                From finding a doctor to receiving your prescription — all in
+                minutes.
+              </p>
+            </motion.div>
 
-            {/* Step Timeline */}
-            <div className="relative mb-12">
-              <div className="absolute left-1/2 transform -translate-x-1/2 w-full h-1 bg-gradient-to-r from-[#78B9B5]/30 to-[#0F828C]/30"></div>
-            </div>
+            <div className="grid md:grid-cols-4 gap-8 relative">
+              {/* Connector line */}
+              <div className="hidden md:block absolute top-8 left-[12.5%] right-[12.5%] h-px bg-gradient-to-r from-primary-200 via-teal-200 to-primary-200"></div>
 
-            <div className="grid md:grid-cols-4 gap-8">
-              {[
-                {
-                  number: 1,
-                  title: 'Find Doctor',
-                  description:
-                    'Search and select from verified doctors by specialty',
-                },
-                {
-                  number: 2,
-                  title: 'Book Appointment',
-                  description: 'Choose your preferred time slot instantly',
-                },
-                {
-                  number: 3,
-                  title: 'Video Consultation',
-                  description: 'Join secure video call with your doctor',
-                },
-                {
-                  number: 4,
-                  title: 'Get Digital Prescriptions',
-                  description: 'Receive prescription PDF in your app',
-                },
-              ].map((step, idx) => (
+              {steps.map((step, idx) => (
                 <motion.div
                   key={idx}
-                  initial={{ opacity: 0, y: 30 }}
+                  initial={{ opacity: 0, y: 24 }}
                   whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.15 }}
+                  transition={{ delay: idx * 0.1, duration: 0.5 }}
                   viewport={{ once: true }}
                   className="text-center relative"
                 >
-                  <div className="relative z-10">
-                    <div className="w-16 h-16 bg-gradient-to-r from-[#78B9B5] to-[#0F828C] rounded-full flex items-center justify-center mx-auto mb-6 text-white font-bold text-lg shadow-lg">
+                  <div className="relative z-10 w-16 h-16 bg-white border-2 border-primary-200 rounded-2xl flex flex-col items-center justify-center mx-auto mb-5 shadow-card">
+                    <span className="text-xs font-bold text-primary-400 leading-none">
                       {step.number}
-                    </div>
-                    <h3 className="text-xl font-bold text-white mb-4">
-                      {step.title}
-                    </h3>
-                    <p className="text-[#B7DEE6] px-4">{step.description}</p>
+                    </span>
                   </div>
-
-                  {/* Step connector lines */}
-                  {idx <= 3 && (
-                    <div className="absolute top-16 left-1/2 transform -translate-x-1/2 w-0.5 h-20 bg-gradient-to-b from-[#78B9B5]/30 to-[#0F828C]/30 hidden md:block"></div>
-                  )}
+                  <h3 className="font-display font-bold text-text-primary mb-2">
+                    {step.title}
+                  </h3>
+                  <p className="text-sm text-text-secondary">
+                    {step.description}
+                  </p>
                 </motion.div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* Doctors Section - Enhanced
-        <section className="py-20 bg-[#320A6B]/10">
-          <div className="container mx-auto px-4 md:px-16">
-            <motion.h2
-              initial={{ opacity: 0, y: 30 }}
+        {/* CTA */}
+        <section className="py-20 bg-gradient-to-br from-primary-600 via-primary-500 to-teal-500 relative overflow-hidden">
+          <div
+            className="absolute inset-0 opacity-10"
+            style={{
+              backgroundImage:
+                'radial-gradient(circle at 2px 2px, white 1px, transparent 0)',
+              backgroundSize: '32px 32px',
+            }}
+          ></div>
+          <div className="container mx-auto px-4 max-w-4xl text-center relative z-10">
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              className="text-4xl md:text-5xl font-black text-center bg-gradient-to-r from-[#78B9B5] to-[#0F828C] bg-clip-text text-transparent mb-16"
+              transition={{ duration: 0.6 }}
             >
-              Meet Our Doctors
-            </motion.h2>
-
-            <motion.div
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8"
-              variants={containerVariants}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-            >
-              {[...Array(8)].map((_, idx) => (
-                <motion.div
-                  key={idx}
-                  variants={itemVariants}
-                  whileHover={{ scale: 1.05, y: -10 }}
-                  className="bg-[#065084]/20 backdrop-blur-sm rounded-2xl p-6 border border-[#78B9B5]/20 hover:border-[#78B9B5]/40 transition-all duration-300 text-center"
+              <h2 className="font-display font-bold text-3xl md:text-4xl text-white mb-4">
+                Ready to transform your healthcare?
+              </h2>
+              <p className="text-primary-100 text-lg mb-8 max-w-xl mx-auto">
+                Join thousands of patients getting quality healthcare online.
+                Sign up free today.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Link
+                  to="/signup"
+                  className="inline-flex items-center justify-center gap-2 bg-white text-primary-600 px-8 py-3.5 rounded-xl text-base font-bold hover:bg-primary-50 transition-colors shadow-lg"
                 >
-                  <div className="relative mb-4">
-                    <img
-                      src={doctorImg}
-                      alt={`Doctor ${idx + 1}`}
-                      className="w-24 h-24 rounded-full mx-auto object-cover shadow-lg border-4 border-[#78B9B5]/20"
-                    />
-                  </div>
-                  <h3 className="font-bold text-white mb-2">Dr. John Smith</h3>
-                  <p className="text-[#78B9B5] text-sm mb-3">Cardiologist</p>
-                  <p className="text-[#B7DEE6] text-xs mb-4">⭐ 4.9 (127)</p>
-                  <Link
-                    to="/doctor-profile"
-                    className="text-[#78B9B5] text-sm font-semibold hover:text-white transition-colors"
-                  >
-                    View Profile →
-                  </Link>
-                </motion.div>
-              ))}
+                  Get Started Free
+                  <ArrowRight size={18} />
+                </Link>
+                <Link
+                  to="/login"
+                  className="inline-flex items-center justify-center gap-2 border-2 border-white/30 text-white px-8 py-3.5 rounded-xl text-base font-semibold hover:bg-white/10 transition-colors"
+                >
+                  Sign In
+                </Link>
+              </div>
             </motion.div>
-          </div>
-        </section> */}
-
-        {/* CTA Section */}
-        <section className="py-20 bg-[#320A6B]/10">
-          <div className="container mx-auto px-4 md:px-16 text-center">
-            <motion.h2
-              initial={{ opacity: 0, scale: 0.9 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-            >
-              <span className="text-4xl md:text-5xl font-black text-white mb-6 block">
-                Ready to Start Your Journey?
-              </span>
-            </motion.h2>
-            <p className="text-xl text-[#320A6B] mb-8 font-light">
-              Join thousands of patients getting quality healthcare online
-            </p>
-            <Link
-              to="/signup"
-              className="inline-block bg-white text-[#320A6B] px-12 py-4 rounded-xl text-xl font-bold hover:bg-[#F0F8FF] transform hover:-translate-y-1 transition-all duration-300 shadow-lg"
-            >
-              Get Started Free
-            </Link>
           </div>
         </section>
       </main>

@@ -5,8 +5,11 @@ import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import { fetchVerifiedDoctorsThunk } from '../../redux/thunks/doctorThunk';
 import { getImageUrl } from '../../utils/config';
 import SearchBar from '../../components/common/SearchBar';
+import FilterSelect from '../../components/common/FilterSelect';
+import Pagination from '../../components/common/Pagination';
 import { fetchSpecialities } from '../../services/patientService';
 import { ITEMS_PER_PAGE } from '../../utils/constants';
+import { SlidersHorizontal, Star, Clock, X, Search } from 'lucide-react';
 
 interface Filters {
   searchQuery: string;
@@ -19,6 +22,20 @@ interface Filters {
   availabilityEnd?: string;
   minRating?: number;
 }
+
+const SkeletonCard = () => (
+  <div className="card p-6 animate-pulse">
+    <div className="flex gap-5">
+      <div className="w-20 h-20 rounded-2xl skeleton flex-shrink-0" />
+      <div className="flex-1 space-y-3">
+        <div className="h-5 skeleton rounded-lg w-40" />
+        <div className="h-4 skeleton rounded-lg w-28" />
+        <div className="h-4 skeleton rounded-lg w-32" />
+        <div className="h-9 skeleton rounded-xl w-32" />
+      </div>
+    </div>
+  </div>
+);
 
 const FindDoctor: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -42,11 +59,9 @@ const FindDoctor: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
-    const loadSpecialities = async () => {
-      const data = await fetchSpecialities();
-      setSpecialities(data.map((spec: { name: string }) => spec.name));
-    };
-    loadSpecialities();
+    fetchSpecialities().then((data) =>
+      setSpecialities(data.map((s: { name: string }) => s.name))
+    );
   }, []);
 
   useEffect(() => {
@@ -78,328 +93,342 @@ const FindDoctor: React.FC = () => {
     setCurrentPage(1);
   };
 
-  const handlePageChange = (page: number) => setCurrentPage(page);
+  const hasActiveFilters = !!(
+    filters.speciality ||
+    filters.experience ||
+    filters.gender ||
+    filters.minRating ||
+    filters.availabilityStart
+  );
 
-  const dropdownStyle = {
-    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23ffffff' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`,
-    backgroundPosition: 'right 0.75rem center',
-    backgroundSize: '1.25rem',
-    backgroundRepeat: 'no-repeat',
+  const clearFilters = () => {
+    setFilters((prev) => ({
+      ...prev,
+      speciality: '',
+      experience: '',
+      gender: '',
+      sortBy: 'name',
+      sortOrder: 'asc',
+      availabilityStart: '',
+      availabilityEnd: '',
+      minRating: undefined,
+    }));
+    setCurrentPage(1);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 py-8">
-      <div className="container mx-auto px-4">
-        <div className="bg-white/10 backdrop-blur-lg py-8 rounded-2xl border border-white/20 mb-8">
-          <h2 className="text-2xl font-bold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent mb-6 text-center">
-            Find a Doctor
-          </h2>
-          <div className="flex flex-col md:flex-row gap-4 justify-center items-center">
+    <div className="animate-fade-in">
+      {/* Page header */}
+      <div className="page-header">
+        <h1 className="page-title">Find a Doctor</h1>
+        <p className="page-subtitle">
+          Search from {totalItems}+ verified specialists across specialties
+        </p>
+      </div>
+
+      {/* Search */}
+      <div className="card p-4 mb-6">
+        <div className="flex gap-3">
+          <div className="flex-1 relative">
+            <Search
+              size={18}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none z-10"
+            />
             <SearchBar
               value={filters.searchQuery}
               onChange={(value) => handleFilterChange('searchQuery', value)}
-              placeholder="Find doctors by name"
-              className="w-full md:w-2/3 p-4 bg-white/10 border border-white/20 rounded-full text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+              placeholder="Search by doctor name..."
+              className="pl-10"
             />
-            <button className="bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 px-8 rounded-full hover:from-purple-700 hover:to-blue-700 transition-all duration-300 shadow-lg hover:shadow-xl">
-              Search
-            </button>
           </div>
-        </div>
-
-        <div className="flex flex-col md:flex-row gap-6">
-          <div
-            className={`${showFilters ? 'block' : 'hidden'} md:block w-full md:w-[300px] bg-white/10 backdrop-blur-lg border border-white/20 p-6 rounded-2xl`}
+          {/* Mobile filter toggle */}
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`md:hidden btn-secondary flex items-center gap-2 ${
+              showFilters
+                ? 'bg-primary-50 border-primary-200 text-primary-600'
+                : ''
+            }`}
           >
-            <h3 className="text-lg font-bold text-white mb-6 bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent">
-              Filters
-            </h3>
-            <div className="mb-6">
-              <label className="block text-gray-200 text-sm mb-2">
-                Speciality
-              </label>
-              <select
+            <SlidersHorizontal size={16} />
+            Filters
+            {hasActiveFilters && (
+              <span className="w-2 h-2 rounded-full bg-primary-500 flex-shrink-0" />
+            )}
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-col md:flex-row gap-6">
+        {/* Filter sidebar */}
+        <aside
+          className={`${showFilters ? 'block' : 'hidden'} md:block w-full md:w-72 flex-shrink-0`}
+        >
+          <div className="card p-5 sticky top-24">
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal size={16} className="text-text-secondary" />
+                <h3 className="font-semibold text-text-primary text-sm">
+                  Filters
+                </h3>
+              </div>
+              {hasActiveFilters && (
+                <button
+                  onClick={clearFilters}
+                  className="text-xs text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1"
+                >
+                  <X size={12} /> Clear all
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              <FilterSelect
+                label="Specialty"
                 value={filters.speciality}
-                onChange={(e) =>
-                  handleFilterChange('speciality', e.target.value)
-                }
-                className="w-full p-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-400 appearance-none"
-                style={dropdownStyle}
-              >
-                <option value="" className="bg-gray-800 text-white">
-                  All Specialities
-                </option>
-                {specialities.map((spec) => (
-                  <option
-                    key={spec}
-                    value={spec}
-                    className="bg-gray-800 text-white"
-                  >
-                    {spec}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="mb-6">
-              <label className="block text-gray-200 text-sm mb-2">
-                Total Experience
-              </label>
-              <select
+                onChange={(v) => handleFilterChange('speciality', v)}
+                options={[
+                  { value: '', label: 'All Specialties' },
+                  ...specialities.map((s) => ({ value: s, label: s })),
+                ]}
+              />
+
+              <FilterSelect
+                label="Experience"
                 value={filters.experience}
-                onChange={(e) =>
-                  handleFilterChange('experience', e.target.value)
-                }
-                className="w-full p-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-400 appearance-none"
-                style={dropdownStyle}
-              >
-                <option value="" className="bg-gray-800 text-white">
-                  All Experience Levels
-                </option>
-                <option value="0-5" className="bg-gray-800 text-white">
-                  0-5 Years
-                </option>
-                <option value="6-10" className="bg-gray-800 text-white">
-                  6-10 Years
-                </option>
-                <option value="11+" className="bg-gray-800 text-white">
-                  11+ Years
-                </option>
-              </select>
-            </div>
-            <div className="mb-6">
-              <label className="block text-gray-200 text-sm mb-2">Gender</label>
-              <select
+                onChange={(v) => handleFilterChange('experience', v)}
+                options={[
+                  { value: '', label: 'All Levels' },
+                  { value: '0-5', label: '0–5 Years' },
+                  { value: '6-10', label: '6–10 Years' },
+                  { value: '11+', label: '11+ Years' },
+                ]}
+              />
+
+              <FilterSelect
+                label="Gender"
                 value={filters.gender}
-                onChange={(e) => handleFilterChange('gender', e.target.value)}
-                className="w-full p-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-400 appearance-none"
-                style={dropdownStyle}
-              >
-                <option value="" className="bg-gray-800 text-white">
-                  All Genders
-                </option>
-                <option value="Male" className="bg-gray-800 text-white">
-                  Male
-                </option>
-                <option value="Female" className="bg-gray-800 text-white">
-                  Female
-                </option>
-                <option value="Other" className="bg-gray-800 text-white">
-                  Other
-                </option>
-              </select>
-            </div>
-            <div className="mb-6">
-              <label className="block text-gray-200 text-sm mb-2">
-                Minimum Rating
-              </label>
-              <select
-                value={filters.minRating ?? ''}
-                onChange={(e) =>
-                  handleFilterChange('minRating', e.target.value)
-                }
-                className="w-full p-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-400 appearance-none"
-                style={dropdownStyle}
-              >
-                <option value="" className="bg-gray-800 text-white">
-                  All Ratings
-                </option>
-                <option value="1" className="bg-gray-800 text-white">
-                  1+ Stars
-                </option>
-                <option value="2" className="bg-gray-800 text-white">
-                  2+ Stars
-                </option>
-                <option value="3" className="bg-gray-800 text-white">
-                  3+ Stars
-                </option>
-                <option value="4" className="bg-gray-800 text-white">
-                  4+ Stars
-                </option>
-                <option value="5" className="bg-gray-800 text-white">
-                  5 Stars
-                </option>
-              </select>
-            </div>
-            <div className="mb-6">
-              <label className="block text-gray-200 text-sm mb-2">
-                Availability Start Date
-              </label>
-              <input
-                type="date"
-                value={filters.availabilityStart ?? ''}
-                onChange={(e) =>
-                  handleFilterChange('availabilityStart', e.target.value)
-                }
-                className="w-full p-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
+                onChange={(v) => handleFilterChange('gender', v)}
+                options={[
+                  { value: '', label: 'Any Gender' },
+                  { value: 'Male', label: 'Male' },
+                  { value: 'Female', label: 'Female' },
+                  { value: 'Other', label: 'Other' },
+                ]}
               />
-            </div>
-            <div className="mb-6">
-              <label className="block text-gray-200 text-sm mb-2">
-                Availability End Date
-              </label>
-              <input
-                type="date"
-                value={filters.availabilityEnd ?? ''}
-                onChange={(e) =>
-                  handleFilterChange('availabilityEnd', e.target.value)
-                }
-                className="w-full p-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
+
+              <FilterSelect
+                label="Minimum Rating"
+                value={String(filters.minRating ?? '')}
+                onChange={(v) => handleFilterChange('minRating', v)}
+                options={[
+                  { value: '', label: 'All Ratings' },
+                  { value: '3', label: '3+ Stars' },
+                  { value: '4', label: '4+ Stars' },
+                  { value: '5', label: '5 Stars Only' },
+                ]}
               />
-            </div>
-            <div className="mb-6">
-              <label className="block text-gray-200 text-sm mb-2">
-                Sort By
-              </label>
-              <select
+
+              <div>
+                <label className="label">Availability From</label>
+                <input
+                  type="date"
+                  value={filters.availabilityStart ?? ''}
+                  onChange={(e) =>
+                    handleFilterChange('availabilityStart', e.target.value)
+                  }
+                  className="input"
+                />
+              </div>
+
+              <div>
+                <label className="label">Availability To</label>
+                <input
+                  type="date"
+                  value={filters.availabilityEnd ?? ''}
+                  onChange={(e) =>
+                    handleFilterChange('availabilityEnd', e.target.value)
+                  }
+                  className="input"
+                />
+              </div>
+
+              <FilterSelect
+                label="Sort By"
                 value={`${filters.sortBy}:${filters.sortOrder}`}
-                onChange={(e) => {
-                  const [sortBy, sortOrder] = e.target.value.split(':') as [
+                onChange={(v) => {
+                  const [sortBy, sortOrder] = v.split(':') as [
                     string,
                     'asc' | 'desc',
                   ];
                   setFilters((prev) => ({ ...prev, sortBy, sortOrder }));
                   setCurrentPage(1);
                 }}
-                className="w-full p-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-400 appearance-none"
-                style={dropdownStyle}
-              >
-                <option value="name:asc" className="bg-gray-800 text-white">
-                  Name (A-Z)
-                </option>
-                <option value="name:desc" className="bg-gray-800 text-white">
-                  Name (Z-A)
-                </option>
-                <option
-                  value="totalExperience:asc"
-                  className="bg-gray-800 text-white"
-                >
-                  Total Experience (Low to High)
-                </option>
-                <option
-                  value="totalExperience:desc"
-                  className="bg-gray-800 text-white"
-                >
-                  Total Experience (High to Low)
-                </option>
-                <option
-                  value="averageRating:desc"
-                  className="bg-gray-800 text-white"
-                >
-                  Rating (High to Low)
-                </option>
-                <option
-                  value="averageRating:asc"
-                  className="bg-gray-800 text-white"
-                >
-                  Rating (Low to High)
-                </option>
-              </select>
+                options={[
+                  { value: 'name:asc', label: 'Name (A–Z)' },
+                  { value: 'name:desc', label: 'Name (Z–A)' },
+                  {
+                    value: 'totalExperience:asc',
+                    label: 'Experience (Low→High)',
+                  },
+                  {
+                    value: 'totalExperience:desc',
+                    label: 'Experience (High→Low)',
+                  },
+                  { value: 'averageRating:desc', label: 'Rating (High→Low)' },
+                  { value: 'averageRating:asc', label: 'Rating (Low→High)' },
+                ]}
+              />
             </div>
           </div>
+        </aside>
 
-          <div className="flex-1">
-            <div className="md:hidden mb-4">
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                className="bg-white/20 border border-white/20 w-full py-3 px-4 flex justify-between items-center text-white rounded-lg"
-              >
-                <span className="font-medium">Filters</span>
-                <span>{showFilters ? '▲' : '▼'}</span>
-              </button>
+        {/* Results */}
+        <div className="flex-1 min-w-0">
+          {!loading && doctors.length > 0 && (
+            <p className="text-sm text-text-secondary mb-4">
+              Showing{' '}
+              <span className="font-semibold text-text-primary">
+                {doctors.length}
+              </span>{' '}
+              of{' '}
+              <span className="font-semibold text-text-primary">
+                {totalItems}
+              </span>{' '}
+              doctors
+            </p>
+          )}
+
+          {loading ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map((i) => (
+                <SkeletonCard key={i} />
+              ))}
             </div>
+          ) : doctors.length === 0 ? (
+            <div className="card p-12 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-surface-muted flex items-center justify-center mx-auto mb-4">
+                <Search size={28} className="text-text-muted" />
+              </div>
+              <h3 className="font-display font-bold text-text-primary mb-2">
+                No doctors found
+              </h3>
+              <p className="text-text-secondary text-sm mb-4">
+                Try adjusting your search terms or filters
+              </p>
+              {hasActiveFilters && (
+                <button onClick={clearFilters} className="btn-primary">
+                  Clear all filters
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {doctors.map((doctor) => (
+                <div
+                  key={doctor._id}
+                  className="card-hover p-5 md:p-6"
+                  onClick={() =>
+                    navigate(`/patient/doctors/${doctor._id}`, {
+                      state: { speciality: doctor.speciality },
+                    })
+                  }
+                >
+                  <div className="flex flex-col sm:flex-row gap-5">
+                    <div className="flex-shrink-0">
+                      <img
+                        src={getImageUrl(doctor.profilePicture)}
+                        alt={doctor.name}
+                        className="w-20 h-20 rounded-2xl object-cover border border-surface-border"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = defaultAvatar;
+                        }}
+                      />
+                    </div>
 
-            {loading ? (
-              <div className="text-white text-center">Loading...</div>
-            ) : doctors.length === 0 ? (
-              <div className="text-white text-center">No doctors found</div>
-            ) : (
-              <div className="space-y-6">
-                {doctors.map((doctor) => (
-                  <div
-                    key={doctor._id}
-                    className="bg-gradient-to-r from-white/10 via-white/20 to-white/10 backdrop-blur-lg border border-white/20 p-6 rounded-2xl hover:shadow-2xl hover:from-white/20 hover:to-white/30 transition-all duration-300 transform hover:-translate-y-1"
-                  >
-                    <div className="flex flex-col sm:flex-row gap-6 items-center">
-                      <div className="flex-shrink-0">
-                        <img
-                          src={getImageUrl(doctor.profilePicture)}
-                          alt={doctor.name}
-                          className="w-[100px] h-[100px] rounded-full object-cover shadow-lg border-4 border-purple-500/50"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = defaultAvatar;
-                          }}
-                        />
-                      </div>
-                      <div className="flex-1 text-center sm:text-left">
-                        <h3 className="text-lg font-bold text-white mb-1">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-start justify-between gap-2 mb-1">
+                        <h3 className="font-display font-bold text-text-primary text-lg">
                           Dr. {doctor.name}
                         </h3>
-                        <p className="text-sm text-purple-300 mb-2">
-                          {doctor.speciality || 'Speciality N/A'}
-                        </p>
-                        <p className="text-sm text-gray-300 mb-2">
-                          Total Experience: {doctor.totalExperience || 0} years
-                        </p>
-                        <div className="flex items-center justify-center sm:justify-start mb-2">
-                          <p className="text-sm text-gray-300 mr-2">Rating:</p>
-                          <div className="flex">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                              <span
-                                key={star}
-                                className={`text-lg ${
-                                  doctor.averageRating !== undefined &&
-                                  doctor.averageRating >= star - 0.5
-                                    ? 'text-yellow-400'
-                                    : 'text-gray-400'
-                                }`}
-                              >
-                                ★
-                              </span>
-                            ))}
+                        {doctor.averageRating !== undefined && (
+                          <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-100 rounded-full px-2.5 py-1">
+                            <Star
+                              size={13}
+                              className="fill-amber-400 text-amber-400"
+                            />
+                            <span className="text-sm font-bold text-amber-700">
+                              {doctor.averageRating.toFixed(1)}
+                            </span>
                           </div>
-                          <p className="text-sm text-gray-300 ml-2">
-                            {doctor.averageRating !== undefined
-                              ? doctor.averageRating.toFixed(1)
-                              : 'No ratings'}
-                          </p>
-                        </div>
-                        <button
-                          onClick={() =>
-                            navigate(`/patient/doctors/${doctor._id}`, {
-                              state: { speciality: doctor.speciality },
-                            })
-                          }
-                          className="bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold text-sm py-2 px-6 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300 shadow-md hover:shadow-lg"
-                        >
-                          View Details
-                        </button>
+                        )}
                       </div>
+
+                      <div className="flex flex-wrap items-center gap-3 mb-3">
+                        {doctor.speciality && (
+                          <span className="badge-primary">
+                            {doctor.speciality}
+                          </span>
+                        )}
+                        <div className="flex items-center gap-1.5 text-sm text-text-secondary">
+                          <Clock size={14} />
+                          <span>
+                            {doctor.totalExperience || 0} yrs experience
+                          </span>
+                        </div>
+                        {doctor.gender && (
+                          <span className="text-sm text-text-muted">
+                            {doctor.gender}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1.5 mb-4">
+                        <div className="flex gap-0.5">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Star
+                              key={star}
+                              size={14}
+                              className={
+                                doctor.averageRating !== undefined &&
+                                doctor.averageRating >= star - 0.5
+                                  ? 'fill-amber-400 text-amber-400'
+                                  : 'fill-surface-border text-surface-border'
+                              }
+                            />
+                          ))}
+                        </div>
+                        {doctor.averageRating === undefined && (
+                          <span className="text-xs text-text-muted">
+                            No ratings yet
+                          </span>
+                        )}
+                      </div>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/patient/doctors/${doctor._id}`, {
+                            state: { speciality: doctor.speciality },
+                          });
+                        }}
+                        className="btn-primary text-sm"
+                      >
+                        View Profile & Book
+                      </button>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
+                </div>
+              ))}
+            </div>
+          )}
 
-            {totalPages > 1 && (
-              <div className="mt-6 flex justify-center gap-2">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                  (page) => (
-                    <button
-                      key={page}
-                      onClick={() => handlePageChange(page)}
-                      className={`px-4 py-2 rounded ${
-                        currentPage === page
-                          ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white'
-                          : 'bg-white/20 border border-white/20 text-gray-200 hover:bg-white/30'
-                      } transition-all duration-300`}
-                    >
-                      {page}
-                    </button>
-                  )
-                )}
-              </div>
-            )}
-          </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            className="mt-8"
+          />
         </div>
       </div>
     </div>

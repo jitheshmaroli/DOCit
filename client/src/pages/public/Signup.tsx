@@ -22,6 +22,7 @@ import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
 import { useAppSelector } from '../../redux/hooks';
 import { RootState } from '../../redux/store';
 import bannerImg from '../../assets/feature-illustration.jpeg';
+import { AlertCircle, Mail } from 'lucide-react';
 
 type SignupType = 'patient' | 'doctor';
 
@@ -30,10 +31,11 @@ interface InputFieldProps {
   type: string;
   placeholder: string;
   value: string;
+  label?: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onBlur: (e: React.FocusEvent<HTMLInputElement>) => void;
-  touchedFields: { [key: string]: boolean };
-  fieldErrors: { [key: string]: string };
+  touchedFields: Record<string, boolean>;
+  fieldErrors: Record<string, string>;
 }
 
 const InputField: React.FC<InputFieldProps> = ({
@@ -41,12 +43,14 @@ const InputField: React.FC<InputFieldProps> = ({
   type,
   placeholder,
   value,
+  label,
   onChange,
   onBlur,
   touchedFields,
   fieldErrors,
 }) => (
   <div>
+    {label && <label className="label">{label}</label>}
     <input
       type={type}
       name={name}
@@ -54,11 +58,7 @@ const InputField: React.FC<InputFieldProps> = ({
       value={value}
       onChange={onChange}
       onBlur={onBlur}
-      className={`w-full p-3 bg-[#0F828C]/10 border border-[#78B9B5]/20 rounded-lg text-[#ffffff] placeholder-[#78B9B5] focus:outline-none focus:ring-2 ${
-        touchedFields[name] && fieldErrors[name]
-          ? 'focus:ring-red-400'
-          : 'focus:ring-[#0F828C]'
-      }`}
+      className={`input ${touchedFields[name] && fieldErrors[name] ? 'input-error' : ''}`}
       required
       minLength={name.toLowerCase().includes('password') ? 6 : undefined}
       autoComplete={
@@ -70,7 +70,10 @@ const InputField: React.FC<InputFieldProps> = ({
       }
     />
     {touchedFields[name] && fieldErrors[name] && (
-      <p className="mt-1 text-xs text-[#320A6B]">{fieldErrors[name]}</p>
+      <p className="error-text">
+        <AlertCircle size={12} />
+        {fieldErrors[name]}
+      </p>
     )}
   </div>
 );
@@ -139,7 +142,6 @@ const SignupPage: React.FC = () => {
   useEffect(() => {
     dispatch(resetAuthState());
   }, [dispatch]);
-
   useEffect(() => {
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
@@ -198,7 +200,7 @@ const SignupPage: React.FC = () => {
       form: '',
     };
     setFieldErrors(newErrors);
-    return !Object.values(newErrors).some((error) => error);
+    return !Object.values(newErrors).some((e) => e);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -217,17 +219,14 @@ const SignupPage: React.FC = () => {
     setFieldErrors((prev) => ({ ...prev, [name]: error || '' }));
   };
 
-  const isFormValid = () => {
-    return (
-      formData.name &&
-      formData.email &&
-      formData.phone &&
-      formData.password &&
-      formData.confirmPassword &&
-      (signupType === 'patient' || formData.licenseNumber) &&
-      !Object.values(fieldErrors).some((error) => error)
-    );
-  };
+  const isFormValid = () =>
+    formData.name &&
+    formData.email &&
+    formData.phone &&
+    formData.password &&
+    formData.confirmPassword &&
+    (signupType === 'patient' || formData.licenseNumber) &&
+    !Object.values(fieldErrors).some((e) => e);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -240,7 +239,6 @@ const SignupPage: React.FC = () => {
       licenseNumber: true,
     });
     if (!validateForm()) return;
-
     const data = {
       email: formData.email,
       password: formData.password,
@@ -249,14 +247,10 @@ const SignupPage: React.FC = () => {
       role: signupType,
       ...(signupType === 'doctor' && { licenseNumber: formData.licenseNumber }),
     };
-
     try {
       let response;
-      if (signupType === 'patient') {
-        response = await signUpPatient(data);
-      } else {
-        response = await signUpDoctor(data);
-      }
+      if (signupType === 'patient') response = await signUpPatient(data);
+      else response = await signUpDoctor(data);
       if (response.payload?._id) {
         dispatch(
           setSignupData({
@@ -278,7 +272,6 @@ const SignupPage: React.FC = () => {
       setCountdown(60);
       setFieldErrors((prev) => ({ ...prev, form: '' }));
     } catch (error: any) {
-      console.error('Resend OTP error:', error);
       setFieldErrors((prev) => ({
         ...prev,
         form: error.payload?.message || 'Failed to resend OTP',
@@ -307,7 +300,6 @@ const SignupPage: React.FC = () => {
     try {
       await verifySignUpOtp(verifyData);
     } catch (error: any) {
-      console.error('OTP verification error:', error);
       setFieldErrors((prev) => ({
         ...prev,
         form:
@@ -320,13 +312,9 @@ const SignupPage: React.FC = () => {
     if (response.credential) {
       try {
         const googleToken = response.credential;
-        if (signupType === 'patient') {
-          await googleSignInPatient(googleToken);
-        } else {
-          await googleSignInDoctor(googleToken);
-        }
-      } catch (error: any) {
-        console.error('Google signup error:', error);
+        if (signupType === 'patient') await googleSignInPatient(googleToken);
+        else await googleSignInDoctor(googleToken);
+      } catch {
         dispatch(setError('Google signup failed. Please try again.'));
       }
     }
@@ -348,39 +336,38 @@ const SignupPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#320A6B] via-[#065084] to-[#0F828C] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-surface-bg flex items-center justify-center p-4 py-8">
       <motion.div
-        className="w-full max-w-4xl flex flex-col lg:flex-row rounded-2xl bg-[#78B9B5]/10 backdrop-blur-lg shadow-2xl border border-[#78B9B5]/20 overflow-hidden"
-        initial={{ opacity: 0, y: 30 }}
+        className="w-full max-w-4xl flex rounded-3xl bg-white shadow-modal overflow-hidden border border-surface-border"
+        initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.7, ease: 'easeOut' }}
+        transition={{ duration: 0.5, ease: 'easeOut' }}
       >
-        <motion.div
-          className="w-full lg:w-1/2 p-8 flex flex-col justify-center"
-          initial={{ opacity: 0, x: -40 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.7 }}
-        >
-          <header className="mb-6">
+        {/* Left - Form */}
+        <div className="w-full lg:w-1/2 p-8 md:p-10 flex flex-col justify-center">
+          <div className="mb-6">
             <Logo />
-            <h2 className="text-3xl font-bold mt-4 bg-gradient-to-r from-[#78B9B5] to-[#0F828C] bg-clip-text text-transparent">
-              Create an Account
+            <h2 className="font-display font-bold text-2xl text-text-primary mt-6 mb-1">
+              {otpSent ? 'Verify your email' : 'Create your account'}
             </h2>
-            <p className="text-[#78B9B5] text-sm">
-              Enter your details to start your journey
+            <p className="text-text-secondary text-sm">
+              {otpSent
+                ? `We sent a 6-digit code to ${formData.email}`
+                : 'Join DOCit and start your healthcare journey'}
             </p>
-          </header>
+          </div>
 
+          {/* Role tabs */}
           {!otpSent && (
-            <div className="flex gap-4 mb-6">
-              {['patient', 'doctor'].map((type) => (
+            <div className="flex gap-1 p-1 bg-surface-muted rounded-xl mb-6">
+              {(['patient', 'doctor'] as SignupType[]).map((type) => (
                 <button
                   key={type}
-                  onClick={() => switchSignupType(type as SignupType)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
+                  onClick={() => switchSignupType(type)}
+                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-semibold transition-all duration-200 ${
                     signupType === type
-                      ? 'bg-gradient-to-r from-[#0F828C] to-[#78B9B5] text-white shadow-lg'
-                      : 'bg-white/20 text-[#ffffff] hover:bg-white/30'
+                      ? 'bg-white text-primary-600 shadow-card'
+                      : 'text-text-secondary hover:text-text-primary'
                   }`}
                 >
                   {type.charAt(0).toUpperCase() + type.slice(1)}
@@ -389,183 +376,260 @@ const SignupPage: React.FC = () => {
             </div>
           )}
 
+          {/* Error messages */}
           {apiError && (
-            <div className="mb-4 p-3 bg-slate-500 text-[#6b0a10] rounded-lg text-sm">
-              {apiError}
+            <div className="mb-4 flex items-start gap-3 p-3.5 bg-red-50 border border-red-100 rounded-xl">
+              <AlertCircle
+                size={16}
+                className="text-error flex-shrink-0 mt-0.5"
+              />
+              <p className="text-sm text-red-700">{apiError}</p>
             </div>
           )}
-
           {fieldErrors.form && (
-            <div className="mb-4 p-3 bg-[#320A6B]/20 text-[#320A6B] rounded-lg text-sm">
-              {fieldErrors.form}
+            <div className="mb-4 flex items-start gap-3 p-3.5 bg-red-50 border border-red-100 rounded-xl">
+              <AlertCircle
+                size={16}
+                className="text-error flex-shrink-0 mt-0.5"
+              />
+              <p className="text-sm text-red-700">{fieldErrors.form}</p>
             </div>
           )}
 
           {!otpSent ? (
             <form onSubmit={handleSubmit} className="space-y-4">
-              <InputField
-                name="name"
-                type="text"
-                placeholder="Name"
-                value={formData.name}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                touchedFields={touchedFields}
-                fieldErrors={fieldErrors}
-              />
-              <InputField
-                name="email"
-                type="email"
-                placeholder="Email"
-                value={formData.email}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                touchedFields={touchedFields}
-                fieldErrors={fieldErrors}
-              />
-              <InputField
-                name="phone"
-                type="tel"
-                placeholder="Phone Number"
-                value={formData.phone}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                touchedFields={touchedFields}
-                fieldErrors={fieldErrors}
-              />
-              {signupType === 'doctor' && (
-                <InputField
-                  name="licenseNumber"
-                  type="text"
-                  placeholder="Medical License Number"
-                  value={formData.licenseNumber}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  touchedFields={touchedFields}
-                  fieldErrors={fieldErrors}
-                />
-              )}
-              <InputField
-                name="password"
-                type="password"
-                placeholder="Password"
-                value={formData.password}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                touchedFields={touchedFields}
-                fieldErrors={fieldErrors}
-              />
-              <InputField
-                name="confirmPassword"
-                type="password"
-                placeholder="Confirm Password"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                touchedFields={touchedFields}
-                fieldErrors={fieldErrors}
-              />
-
-              <motion.button
-                type="submit"
-                disabled={!isFormValid() || loading}
-                className={`w-full p-3 rounded-lg text-white font-medium transition-all duration-300 ${
-                  !isFormValid() || loading
-                    ? 'bg-gray-500/50 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-[#0F828C] to-[#78B9B5] hover:from-[#065084] hover:to-[#320A6B] shadow-lg hover:shadow-xl'
-                }`}
-                whileTap={{ scale: 0.95 }}
-              >
-                {loading
-                  ? 'Sending OTP...'
-                  : `Create ${signupType === 'patient' ? 'Patient' : 'Doctor'} Account`}
-              </motion.button>
-
-              <div className="flex items-center justify-center my-4">
-                <div className="border-t border-[#78B9B5]/20 w-full"></div>
-                <span className="px-4 text-[#0F828C] text-sm">or</span>
-                <div className="border-t border-[#78B9B5]/20 w-full"></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <InputField
+                    name="name"
+                    type="text"
+                    placeholder="Full name"
+                    label="Full Name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    touchedFields={touchedFields}
+                    fieldErrors={fieldErrors}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <InputField
+                    name="email"
+                    type="email"
+                    placeholder="you@example.com"
+                    label="Email Address"
+                    value={formData.email}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    touchedFields={touchedFields}
+                    fieldErrors={fieldErrors}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <InputField
+                    name="phone"
+                    type="tel"
+                    placeholder="+91 99999 99999"
+                    label="Phone Number"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    touchedFields={touchedFields}
+                    fieldErrors={fieldErrors}
+                  />
+                </div>
+                {signupType === 'doctor' && (
+                  <div className="col-span-2">
+                    <InputField
+                      name="licenseNumber"
+                      type="text"
+                      placeholder="MCI-XXXXXXXXXX"
+                      label="Medical License Number"
+                      value={formData.licenseNumber}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      touchedFields={touchedFields}
+                      fieldErrors={fieldErrors}
+                    />
+                  </div>
+                )}
+                <div>
+                  <InputField
+                    name="password"
+                    type="password"
+                    placeholder="Password"
+                    label="Password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    touchedFields={touchedFields}
+                    fieldErrors={fieldErrors}
+                  />
+                </div>
+                <div>
+                  <InputField
+                    name="confirmPassword"
+                    type="password"
+                    placeholder="Confirm"
+                    label="Confirm Password"
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    touchedFields={touchedFields}
+                    fieldErrors={fieldErrors}
+                  />
+                </div>
               </div>
 
-              <GoogleLogin
-                onSuccess={handleGoogleSignup}
-                onError={() => dispatch(setError('Google signup failed'))}
-                useOneTap
-                theme="filled_black"
-                shape="pill"
-              />
+              <button
+                type="submit"
+                disabled={!isFormValid() || loading}
+                className="btn-primary w-full py-3 text-base"
+              >
+                {loading ? (
+                  <span className="flex items-center gap-2">
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                    Sending verification...
+                  </span>
+                ) : (
+                  `Create ${signupType === 'patient' ? 'Patient' : 'Doctor'} Account`
+                )}
+              </button>
+
+              <div className="divider">
+                <span className="divider-text">or</span>
+              </div>
+
+              <div className="flex justify-center">
+                <GoogleLogin
+                  onSuccess={handleGoogleSignup}
+                  onError={() => dispatch(setError('Google signup failed'))}
+                  useOneTap
+                  theme="outline"
+                  shape="rectangular"
+                  size="large"
+                  width="100%"
+                />
+              </div>
             </form>
           ) : (
             <form onSubmit={handleVerifyOtp} className="space-y-4">
-              <p className="text-[#78B9B5] text-sm">
-                We've sent a verification code to {formData.email}. Please check
-                your inbox.
-              </p>
-              <input
-                type="text"
-                placeholder="Enter OTP"
-                value={otp}
-                onChange={(e) =>
-                  setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))
-                }
-                className="w-full p-3 bg-[#0F828C]/10 border border-[#78B9B5]/20 rounded-lg text-white placeholder-[#78B9B5] focus:outline-none focus:ring-2 focus:ring-[#0F828C]"
-                maxLength={6}
-                required
-              />
-              <motion.button
+              {/* Email indicator */}
+              <div className="flex items-center gap-3 p-4 bg-primary-50 rounded-xl border border-primary-100">
+                <div className="w-10 h-10 bg-primary-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Mail size={18} className="text-primary-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-text-primary">
+                    Check your inbox
+                  </p>
+                  <p className="text-xs text-text-secondary">
+                    {formData.email}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <label className="label">6-Digit Verification Code</label>
+                <input
+                  type="text"
+                  placeholder="000000"
+                  value={otp}
+                  onChange={(e) =>
+                    setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))
+                  }
+                  className="input text-center text-2xl tracking-[0.5em] font-mono"
+                  maxLength={6}
+                  required
+                />
+              </div>
+
+              <button
                 type="submit"
                 disabled={loading || !otp || otp.length < 6}
-                className={`w-full p-3 rounded-lg text-white font-medium transition-all duration-300 ${
-                  loading || !otp || otp.length < 6
-                    ? 'bg-gray-500/50 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-[#0F828C] to-[#78B9B5] hover:from-[#065084] hover:to-[#320A6B] shadow-lg hover:shadow-xl'
-                }`}
-                whileTap={{ scale: 0.95 }}
+                className="btn-primary w-full py-3 text-base"
               >
-                {loading ? 'Verifying...' : 'Verify OTP'}
-              </motion.button>
+                {loading ? (
+                  <span className="flex items-center gap-2">
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                    Verifying...
+                  </span>
+                ) : (
+                  'Verify & Create Account'
+                )}
+              </button>
+
               <div className="text-center">
                 <button
                   type="button"
                   onClick={handleResendOTP}
-                  className={`text-[#320A6B] hover:text-[#065084] text-sm transition-colors ${
-                    countdown > 0 ? 'text-[#78B9B5] cursor-not-allowed' : ''
-                  }`}
                   disabled={countdown > 0}
+                  className={`text-sm font-medium transition-colors ${
+                    countdown > 0
+                      ? 'text-text-muted cursor-not-allowed'
+                      : 'text-primary-600 hover:text-primary-700'
+                  }`}
                 >
-                  {countdown > 0 ? `Resend OTP in ${countdown}s` : 'Resend OTP'}
+                  {countdown > 0
+                    ? `Resend code in ${countdown}s`
+                    : 'Resend verification code'}
                 </button>
               </div>
             </form>
           )}
 
           {!otpSent && (
-            <p className="text-center mt-6 text-[#78B9B5] text-sm">
+            <p className="text-center mt-6 text-sm text-text-secondary">
               Already have an account?{' '}
               <Link
                 to="/login"
-                className="text-[#320A6B] hover:text-[#065084] transition-colors"
+                className="text-primary-600 font-semibold hover:text-primary-700 transition-colors"
               >
-                Login here
+                Sign in
               </Link>
             </p>
           )}
-        </motion.div>
+        </div>
 
-        <motion.div
-          className="hidden lg:flex lg:w-1/2 items-center justify-center p-8 bg-gradient-to-br from-[#065084]/50 to-[#0F828C]/50"
-          initial={{ opacity: 0, x: 40 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.7 }}
-        >
-          <motion.img
-            src={bannerImg}
-            alt="Signup Illustration"
-            className="max-w-full max-h-[80vh] object-contain rounded-xl shadow-lg"
-            whileHover={{ scale: 1.05 }}
-            transition={{ type: 'spring', stiffness: 300 }}
-          />
-        </motion.div>
+        {/* Right - Illustration */}
+        <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-teal-500 to-primary-600 items-center justify-center p-10 relative overflow-hidden">
+          <div
+            className="absolute inset-0 opacity-10"
+            style={{
+              backgroundImage:
+                'radial-gradient(circle at 2px 2px, white 1px, transparent 0)',
+              backgroundSize: '24px 24px',
+            }}
+          ></div>
+          <div className="relative z-10 text-center">
+            <motion.img
+              src={bannerImg}
+              alt="Signup"
+              className="max-w-full max-h-[320px] object-contain rounded-2xl shadow-modal mx-auto mb-8"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.3, duration: 0.6 }}
+            />
+            <h3 className="font-display font-bold text-white text-xl mb-2">
+              Join thousands of patients
+            </h3>
+            <p className="text-teal-100 text-sm max-w-xs mx-auto mb-6">
+              Get access to top doctors, book appointments instantly, and manage
+              your health records.
+            </p>
+            <div className="space-y-2">
+              {[
+                '✓ Free to get started',
+                '✓ Verified doctor network',
+                '✓ Secure & confidential',
+              ].map((item) => (
+                <p key={item} className="text-white/90 text-sm font-medium">
+                  {item}
+                </p>
+              ))}
+            </div>
+          </div>
+        </div>
       </motion.div>
     </div>
   );

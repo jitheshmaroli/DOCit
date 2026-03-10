@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   Calendar,
   Clock,
@@ -13,6 +13,8 @@ import {
   User,
   ChevronLeft,
   ChevronRight,
+  TrendingUp,
+  Loader2,
 } from 'lucide-react';
 import { AppDispatch, RootState } from '../../../redux/store';
 import {
@@ -37,6 +39,45 @@ import Modal from '../../../components/common/Modal';
 import { debounce } from 'lodash';
 import { showError, showSuccess } from '../../../utils/toastConfig';
 
+// Helpers
+const StatusBadge = ({ status }: { status: string }) => {
+  const map: Record<string, { cls: string; icon: React.ReactNode }> = {
+    active: {
+      cls: 'bg-emerald-100 text-emerald-700 border border-emerald-200',
+      icon: <CheckCircle size={11} />,
+    },
+    expired: {
+      cls: 'bg-red-100 text-red-700 border border-red-200',
+      icon: <XCircle size={11} />,
+    },
+    cancelled: {
+      cls: 'bg-amber-100 text-amber-700 border border-amber-200',
+      icon: <AlertCircle size={11} />,
+    },
+    pending: {
+      cls: 'bg-primary-100 text-primary-700 border border-primary-200',
+      icon: <Clock size={11} />,
+    },
+  };
+  const { cls, icon } = map[status] || { cls: 'badge-neutral', icon: null };
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${cls}`}
+    >
+      {icon}
+      {status.charAt(0).toUpperCase() + status.slice(1)}
+    </span>
+  );
+};
+
+const filterOptions = [
+  { value: 'all', label: 'All Plans' },
+  { value: 'active', label: 'Active' },
+  { value: 'expired', label: 'Expired' },
+  { value: 'cancelled', label: 'Cancelled' },
+];
+
+// Component
 const Subscriptions: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
@@ -49,14 +90,14 @@ const Subscriptions: React.FC = () => {
     totalItemsBySubscription,
   } = useSelector((state: RootState) => state.patient);
   const { user } = useAppSelector((state: RootState) => state.auth);
+
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
-  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const limit = 5;
 
-  const [isCancelSubscriptionModalOpen, setIsCancelSubscriptionModalOpen] =
-    useState(false);
-  const [cancellationReason, setCancellationReason] = useState<string>('');
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [cancellationReason, setCancellationReason] = useState('');
   const [modalMode, setModalMode] = useState<'cancel' | 'refund'>('cancel');
   const [selectedSubscriptionId, setSelectedSubscriptionId] = useState<
     string | null
@@ -65,17 +106,16 @@ const Subscriptions: React.FC = () => {
   useEffect(() => {
     dispatch(getPatientSubscriptionsThunk())
       .unwrap()
-      .then((subscriptions) => {
-        const subscriptionIds = subscriptions.map((sub) => sub._id);
-        subscriptionIds.forEach((subscriptionId) => {
+      .then((subs) => {
+        subs.forEach((sub) =>
           dispatch(
             getAppointmentsBySubscriptionThunk({
-              subscriptionId,
+              subscriptionId: sub._id,
               page: currentPage,
               limit,
             })
-          );
-        });
+          )
+        );
       });
     return () => {
       dispatch(clearError());
@@ -83,51 +123,35 @@ const Subscriptions: React.FC = () => {
     };
   }, [dispatch, currentPage]);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'text-green-400 bg-green-500/20 border-green-400/30';
-      case 'expired':
-        return 'text-red-400 bg-red-500/20 border-red-400/30';
-      case 'cancelled':
-        return 'text-yellow-400 bg-yellow-500/20 border-yellow-400/30';
-      default:
-        return 'text-gray-400 bg-gray-500/20 border-gray-400/30';
-    }
+  const filteredSubscriptions = activeSubscriptions.filter((s) =>
+    filterStatus === 'all' ? true : s.status === filterStatus
+  ) as ExtendedPatientSubscription[];
+
+  const currentSubscription = filteredSubscriptions[currentCardIndex];
+  const totalPages = currentSubscription
+    ? Math.ceil(
+        (totalItemsBySubscription[currentSubscription._id] || 0) / limit
+      )
+    : 1;
+
+  const canCancelSubscription = (sub: ExtendedPatientSubscription) => {
+    if (sub.status !== 'active' || !sub.createdAt) return false;
+    if (sub.plan?.appointmentCount - sub.appointmentsLeft > 0) return false;
+    return dayjs().diff(dayjs(sub.createdAt), 'minute') <= 30;
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'active':
-        return <CheckCircle className="w-5 h-5" />;
-      case 'expired':
-        return <XCircle className="w-5 h-5" />;
-      case 'cancelled':
-        return <AlertCircle className="w-5 h-5" />;
-      default:
-        return <AlertCircle className="w-5 h-5" />;
-    }
+  const canRenewSubscription = (status: string, id: string) => {
+    if (status !== 'expired') return false;
+    return !activeSubscriptions.some(
+      (s) =>
+        s.status === 'active' &&
+        s._id !== id &&
+        s.plan.doctorId ===
+          activeSubscriptions.find((x) => x._id === id)?.plan.doctorId
+    );
   };
 
-  const canCancelSubscription = (subscription: ExtendedPatientSubscription) => {
-    if (subscription.status !== 'active') return false;
-    if (subscription.plan?.appointmentCount - subscription.appointmentsLeft > 0)
-      return false;
-    if (!subscription.createdAt) return false;
-    const createdAt = dayjs(subscription.createdAt);
-    const now = dayjs();
-    const minutesSinceCreation = now.diff(createdAt, 'minute');
-    return minutesSinceCreation <= 30;
-  };
-
-  const handleCancelSubscription = (subscriptionId: string) => {
-    setSelectedSubscriptionId(subscriptionId);
-    setIsCancelSubscriptionModalOpen(true);
-    setModalMode('cancel');
-    setCancellationReason('');
-  };
-
-  const debouncedCancelSubscription = debounce(async () => {
+  const debouncedCancel = debounce(async () => {
     if (!selectedSubscriptionId || !cancellationReason.trim()) {
       showError('Please provide a cancellation reason');
       return;
@@ -143,598 +167,494 @@ const Subscriptions: React.FC = () => {
       showSuccess('Subscription cancelled successfully!');
     } catch {
       showError('Failed to cancel subscription');
-      setIsCancelSubscriptionModalOpen(false);
+      setIsCancelModalOpen(false);
       setCancellationReason('');
     }
   }, 1000);
 
-  const handleConfirmCancel = () => {
-    debouncedCancelSubscription();
-  };
-
-  const handleCloseCancelSubscriptionModal = () => {
-    setIsCancelSubscriptionModalOpen(false);
+  const handleCloseModal = () => {
+    setIsCancelModalOpen(false);
     setCancellationReason('');
     setModalMode('cancel');
     setSelectedSubscriptionId(null);
     dispatch(clearRefundDetails());
   };
 
-  const canRenewSubscription = (status: string, subscriptionId: string) => {
-    if (status !== 'expired') return false;
-    return !activeSubscriptions.some(
-      (sub) =>
-        sub.status === 'active' &&
-        sub._id !== subscriptionId &&
-        sub.plan.doctorId ===
-          activeSubscriptions.find((s) => s._id === subscriptionId)?.plan
-            .doctorId
+  const handlePrev = () => {
+    setCurrentCardIndex((p) =>
+      p === 0 ? filteredSubscriptions.length - 1 : p - 1
     );
+    setCurrentPage(1);
   };
-
-  const handlePrevCard = () => {
-    setCurrentCardIndex((prev) =>
-      prev === 0 ? filteredSubscriptions.length - 1 : prev - 1
+  const handleNext = () => {
+    setCurrentCardIndex((p) =>
+      p === filteredSubscriptions.length - 1 ? 0 : p + 1
     );
     setCurrentPage(1);
   };
 
-  const handleNextCard = () => {
-    setCurrentCardIndex((prev) =>
-      prev === filteredSubscriptions.length - 1 ? 0 : prev + 1
-    );
-    setCurrentPage(1);
-  };
+  const currentSubForModal = activeSubscriptions.find(
+    (s) => s._id === selectedSubscriptionId
+  );
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
-
-  const filteredSubscriptions = activeSubscriptions.filter((sub) =>
-    filterStatus === 'all' ? true : sub.status === filterStatus
-  ) as ExtendedPatientSubscription[];
+  // Summary stats
+  const stats = [
+    {
+      label: 'Total Plans',
+      value: filteredSubscriptions.length,
+      icon: <Stethoscope size={20} className="text-primary-500" />,
+      bg: 'bg-primary-50',
+    },
+    {
+      label: 'Total Cost',
+      value: `₹${filteredSubscriptions.reduce((s, sub) => s + (sub.plan?.price || 0), 0).toFixed(2)}`,
+      icon: <CreditCard size={20} className="text-teal-500" />,
+      bg: 'bg-teal-50',
+    },
+    {
+      label: 'Appointments Left',
+      value: filteredSubscriptions
+        .filter((s) => s.status === 'active')
+        .reduce((s, sub) => s + (sub.appointmentsLeft || 0), 0),
+      icon: <TrendingUp size={20} className="text-accent-500" />,
+      bg: 'bg-accent-50',
+    },
+  ];
 
   const appointmentColumns: Column<Appointment>[] = [
     {
       header: 'Date',
-      accessor: (appt) => new Date(appt.date).toLocaleDateString(),
-      className: 'text-gray-200',
+      accessor: (appt) => (
+        <div className="flex items-center gap-1.5">
+          <Calendar size={13} className="text-primary-400 flex-shrink-0" />
+          <span className="text-sm text-text-primary font-medium">
+            {new Date(appt.date).toLocaleDateString()}
+          </span>
+        </div>
+      ),
     },
     {
       header: 'Time',
-      accessor: (appt) => `${appt.startTime} - ${appt.endTime}`,
-      className: 'text-gray-200',
+      accessor: (appt) => (
+        <span className="text-sm text-text-secondary">
+          {appt.startTime} – {appt.endTime}
+        </span>
+      ),
     },
     {
       header: 'Status',
-      accessor: 'status',
-      className: 'capitalize text-gray-200',
+      accessor: (appt) => <StatusBadge status={appt.status} />,
     },
     {
       header: 'Action',
       accessor: (appt) => (
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
+        <button
           onClick={() => navigate(`/patient/appointment/${appt._id}`)}
-          className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300 text-sm font-medium shadow-md"
+          className="btn-secondary text-xs py-1.5 px-3"
         >
           View Details
-        </motion.button>
+        </button>
       ),
     },
   ];
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 flex items-center justify-center text-gray-200">
-        Loading...
+      <div className="flex items-center justify-center py-24 gap-3">
+        <Loader2 size={24} className="animate-spin text-primary-500" />
+        <span className="text-text-secondary text-sm">Loading...</span>
       </div>
     );
   }
 
-  const currentSubscription = filteredSubscriptions[currentCardIndex];
-  const totalPages = currentSubscription
-    ? Math.ceil(
-        (totalItemsBySubscription[currentSubscription._id] || 0) / limit
-      )
-    : 1;
-
-  const currentSubscriptionForModal = activeSubscriptions.find(
-    (sub) => sub._id === selectedSubscriptionId
-  );
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="container mx-auto">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="bg-white/10 backdrop-blur-lg py-10 rounded-2xl border border-white/20 mb-8 text-center"
-        >
-          <h1 className="text-3xl sm:text-4xl font-bold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent">
-            Your Subscription Plans
-          </h1>
-          <p className="mt-2 text-gray-300 text-lg">
+    <div className="animate-fade-in">
+      {/* ── Page header ── */}
+      <div className="page-header mb-6">
+        <div>
+          <h1 className="page-title">Subscription Plans</h1>
+          <p className="page-subtitle">
             Manage your doctor subscriptions and appointments
           </p>
-        </motion.div>
-
-        {/* Filter Controls */}
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="mb-8 flex justify-end"
-        >
-          <select
-            className="w-full md:w-48 p-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-400 appearance-none shadow-md"
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23ffffff' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`,
-              backgroundPosition: 'right 0.75rem center',
-              backgroundSize: '1.25rem',
-              backgroundRepeat: 'no-repeat',
-            }}
-          >
-            <option value="all" className="bg-gray-800 text-white">
-              All Plans
-            </option>
-            <option value="active" className="bg-gray-800 text-white">
-              Active
-            </option>
-            <option value="expired" className="bg-gray-800 text-white">
-              Expired
-            </option>
-            <option value="cancelled" className="bg-gray-800 text-white">
-              Cancelled
-            </option>
-          </select>
-        </motion.div>
-
-        {/* Error and Success Messages */}
-        <AnimatePresence>
-          {error && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="mb-6 p-4 bg-red-500/20 text-red-400 rounded-lg flex items-center gap-2 border border-red-400/30 shadow-lg"
-            >
-              <AlertCircle className="w-5 h-5" />
-              {error}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Summary Cards */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-12"
-        >
-          {[
-            {
-              title: 'Total Plans',
-              value: filteredSubscriptions.length,
-              icon: <Stethoscope className="w-8 h-8 text-purple-400" />,
-            },
-            {
-              title: 'Total Cost',
-              value: `₹${filteredSubscriptions.reduce((sum, sub) => sum + (sub.plan?.price || 0), 0).toFixed(2)}`,
-              icon: <CreditCard className="w-8 h-8 text-purple-400" />,
-            },
-            {
-              title: 'Appointments Left',
-              value: filteredSubscriptions
-                .filter((sub) => sub.status === 'active')
-                .reduce((sum, sub) => sum + (sub.appointmentsLeft || 0), 0),
-              icon: <Calendar className="w-8 h-8 text-purple-400" />,
-            },
-          ].map((card, index) => (
-            <motion.div
-              key={card.title}
-              whileHover={{
-                scale: 1.03,
-                boxShadow: '0 10px 20px rgba(0,0,0,0.2)',
+        </div>
+        {/* Filter */}
+        <div className="flex items-center gap-2 mt-3 sm:mt-0">
+          {filterOptions.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => {
+                setFilterStatus(opt.value);
+                setCurrentCardIndex(0);
               }}
-              className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6 hover:bg-white/20 transition-all duration-300 shadow-lg"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.4 + index * 0.1 }}
+              className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-all duration-150 ${
+                filterStatus === opt.value
+                  ? 'bg-primary-500 text-white border-primary-500'
+                  : 'bg-white text-text-secondary border-surface-border hover:border-primary-300 hover:text-primary-600'
+              }`}
             >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-300 text-sm mb-1">{card.title}</p>
-                  <p className="text-2xl font-bold text-white">{card.value}</p>
-                </div>
-                {card.icon}
-              </div>
-            </motion.div>
+              {opt.label}
+            </button>
           ))}
-        </motion.div>
-
-        {/* Subscription Carousel */}
-        {filteredSubscriptions.length > 0 ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.6 }}
-            className="relative mb-12 bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-8"
-          >
-            <div className="flex items-center justify-between mb-6">
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={handlePrevCard}
-                className="p-3 bg-white/20 text-white rounded-full hover:bg-white/30 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
-                disabled={filteredSubscriptions.length <= 1}
-                aria-label="Previous subscription"
-              >
-                <ChevronLeft className="w-6 h-6" />
-              </motion.button>
-              <span className="text-gray-200 text-lg font-medium">
-                Plan {currentCardIndex + 1} of {filteredSubscriptions.length}
-              </span>
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={handleNextCard}
-                className="p-3 bg-white/20 text-white rounded-full hover:bg-white/30 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
-                disabled={filteredSubscriptions.length <= 1}
-                aria-label="Next subscription"
-              >
-                <ChevronRight className="w-6 h-6" />
-              </motion.button>
-            </div>
-            <div className="overflow-hidden">
-              <motion.div
-                animate={{ x: `-${currentCardIndex * 100}%` }}
-                transition={{ duration: 0.5, ease: 'easeInOut' }}
-                className="flex"
-              >
-                {filteredSubscriptions.map((subscription, index) => (
-                  <motion.div
-                    key={subscription._id}
-                    className="w-full flex-shrink-0 bg-gradient-to-br from-white/10 via-white/15 to-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-8 hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2"
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.5, delay: index * 0.1 }}
-                  >
-                    {/* Card Header */}
-                    <div className="mb-6">
-                      <div className="flex justify-between items-start mb-4">
-                        <div className="flex items-center gap-4">
-                          <motion.div
-                            whileHover={{ rotate: 10 }}
-                            className="p-2 bg-purple-500/20 rounded-full"
-                          >
-                            <User className="w-8 h-8 text-purple-400" />
-                          </motion.div>
-                          <div>
-                            <h3 className="text-xl font-semibold text-white">
-                              {subscription.plan?.doctorName ||
-                                'Unknown Doctor'}
-                            </h3>
-                            <p className="text-gray-300 text-sm">
-                              {subscription.plan?.name || 'N/A'}
-                            </p>
-                          </div>
-                        </div>
-                        <span
-                          className={`px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2 ${getStatusColor(
-                            subscription.status
-                          )} shadow-md`}
-                        >
-                          {getStatusIcon(subscription.status)}
-                          {subscription.status.charAt(0).toUpperCase() +
-                            subscription.status.slice(1)}
-                        </span>
-                      </div>
-                      <motion.div
-                        whileHover={{ scale: 1.02 }}
-                        className="bg-gradient-to-r from-purple-500/20 to-blue-500/20 p-4 rounded-lg"
-                      >
-                        <h4 className="text-2xl font-bold text-white">
-                          {subscription.plan?.name || 'N/A'}
-                        </h4>
-                        <p className="text-3xl font-extrabold text-purple-300">
-                          ₹{subscription.plan?.price || 0}
-                        </p>
-                      </motion.div>
-                    </div>
-
-                    {/* Card Body */}
-                    <div>
-                      {/* Appointment Usage */}
-                      <div className="mb-8">
-                        <div className="flex justify-between items-center mb-3">
-                          <span className="text-sm font-medium text-gray-200">
-                            Appointments Remaining
-                          </span>
-                          <span className="text-sm text-gray-200">
-                            {subscription.appointmentsLeft || 0}/
-                            {subscription.plan?.appointmentCount || 0}
-                          </span>
-                        </div>
-                        <div className="w-full bg-white/10 rounded-full h-3 shadow-inner">
-                          <motion.div
-                            initial={{ width: 0 }}
-                            animate={{
-                              width: `${
-                                subscription.plan?.appointmentCount
-                                  ? (subscription.appointmentsLeft /
-                                      subscription.plan.appointmentCount) *
-                                    100
-                                  : 0
-                              }%`,
-                            }}
-                            transition={{ duration: 0.7, ease: 'easeOut' }}
-                            className="bg-gradient-to-r from-purple-600 to-blue-600 h-3 rounded-full"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Plan Description */}
-                      <div className="mb-8">
-                        <h5 className="text-sm font-medium text-gray-200 mb-3">
-                          Plan Details
-                        </h5>
-                        <p className="text-sm text-gray-300 leading-relaxed">
-                          {subscription.plan?.description ||
-                            'No description available'}
-                        </p>
-                      </div>
-
-                      {/* Dates */}
-                      <div className="space-y-4 mb-8">
-                        <div className="flex items-center gap-3 text-sm text-gray-300">
-                          <Calendar className="w-5 h-5 text-purple-400" />
-                          <span>
-                            Start:{' '}
-                            {subscription.createdAt
-                              ? dayjs(subscription.createdAt).format(
-                                  'MMM D, YYYY'
-                                )
-                              : 'N/A'}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-3 text-sm text-gray-300">
-                          <Clock className="w-5 h-5 text-purple-400" />
-                          <span>
-                            End:{' '}
-                            {subscription.status
-                              ? dayjs(subscription.endDate).format(
-                                  'MMM D, YYYY'
-                                )
-                              : 'N/A'}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Refund Details for Cancelled Subscriptions */}
-                      {subscription.status === 'cancelled' &&
-                        subscription.refundId && (
-                          <div className="mb-8">
-                            <h5 className="text-sm font-medium text-gray-200 mb-3">
-                              Refund Details
-                            </h5>
-                            <div className="space-y-4 text-sm text-gray-300">
-                              <div className="flex items-center gap-3">
-                                <CreditCard className="w-5 h-5 text-purple-400" />
-                                <span>
-                                  Refund ID: {subscription.refundId || 'N/A'}
-                                </span>
-                              </div>
-                              {subscription.refundAmount && (
-                                <div className="flex items-center gap-3">
-                                  <CreditCard className="w-5 h-5 text-purple-400" />
-                                  <span>
-                                    Refund Amount: ₹{subscription.refundAmount}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-
-                      {/* Action Buttons */}
-                      <div className="flex flex-col sm:flex-row gap-3">
-                        {subscription.status === 'active' ? (
-                          <>
-                            <motion.button
-                              whileHover={{ scale: 1.05 }}
-                              whileTap={{ scale: 0.95 }}
-                              className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-3 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300 text-sm font-medium shadow-md"
-                              onClick={() =>
-                                navigate(
-                                  `${ROUTES.PATIENT.DOCTOR_DETAILS.replace(
-                                    ':doctorId',
-                                    subscription.plan.doctorId
-                                  )}`
-                                )
-                              }
-                            >
-                              Book Appointment
-                            </motion.button>
-                            {canCancelSubscription(subscription) && (
-                              <motion.button
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                className="flex-1 bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-3 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300 text-sm font-medium shadow-md"
-                                onClick={() =>
-                                  handleCancelSubscription(subscription._id)
-                                }
-                                disabled={loading}
-                              >
-                                Cancel Subscription
-                              </motion.button>
-                            )}
-                          </>
-                        ) : canRenewSubscription(
-                            subscription.status,
-                            subscription._id
-                          ) ? (
-                          <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-3 rounded-lg hover:from-green-700 hover:to-green-800 transition-all duration-300 text-sm font-medium shadow-md"
-                            onClick={() =>
-                              navigate(
-                                `${ROUTES.PATIENT.DOCTOR_DETAILS.replace(':doctorId', subscription.plan.doctorId)}`
-                              )
-                            }
-                          >
-                            Renew Subscription
-                          </motion.button>
-                        ) : null}
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </motion.div>
-            </div>
-          </motion.div>
-        ) : (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center text-gray-200 bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-8"
-          >
-            <div className="flex flex-col items-center gap-4">
-              <Stethoscope className="w-12 h-12 text-purple-400" />
-              <p>
-                No {filterStatus === 'all' ? '' : filterStatus} subscriptions
-                found.
-              </p>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-3 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300 text-sm font-medium"
-                onClick={() => navigate('/patient/find-doctor')}
-              >
-                Explore Plans
-              </motion.button>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Appointments Table */}
-        {filteredSubscriptions.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.7 }}
-            className="mt-12"
-          >
-            <h2 className="text-2xl font-bold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent mb-6 text-center">
-              Appointments for{' '}
-              {filteredSubscriptions[currentCardIndex]?.plan?.name ||
-                'Selected Plan'}
-            </h2>
-            <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
-              <DataTable
-                data={
-                  filteredSubscriptions[currentCardIndex]?._id
-                    ? appointments[
-                        filteredSubscriptions[currentCardIndex]._id
-                      ] || []
-                    : []
-                }
-                columns={appointmentColumns}
-                isLoading={loading}
-                error={error}
-                emptyMessage="No appointments booked for this subscription."
-              />
-              {totalPages > 1 && (
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  onPageChange={handlePageChange}
-                />
-              )}
-            </div>
-          </motion.div>
-        )}
-
-        <Modal
-          isOpen={isCancelSubscriptionModalOpen}
-          onClose={handleCloseCancelSubscriptionModal}
-          title={
-            modalMode === 'cancel' ? 'Cancel Subscription' : 'Refund Details'
-          }
-          footer={
-            <div className="flex gap-4">
-              {modalMode === 'cancel' ? (
-                <>
-                  <button
-                    onClick={handleConfirmCancel}
-                    className="bg-gradient-to-r from-red-600 to-red-700 text-white px-4 py-2 rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-300"
-                  >
-                    Confirm Cancellation
-                  </button>
-                  <button
-                    onClick={handleCloseCancelSubscriptionModal}
-                    className="bg-white/10 text-white px-4 py-2 rounded-lg border border-white/20 hover:bg-white/20 transition-all duration-300"
-                  >
-                    Close
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={handleCloseCancelSubscriptionModal}
-                  className="bg-white/10 text-white px-4 py-2 rounded-lg border border-white/20 hover:bg-white/20 transition-all duration-300"
-                >
-                  Close
-                </button>
-              )}
-            </div>
-          }
-        >
-          <div className="text-gray-200 mb-4">
-            {modalMode === 'cancel' ? (
-              <>
-                <p className="text-white">
-                  Are you sure you want to cancel your subscription to{' '}
-                  {currentSubscriptionForModal?.plan.name}?
-                </p>
-                <div className="mt-4">
-                  <label
-                    htmlFor="cancellationReason"
-                    className="block text-sm font-medium text-gray-200"
-                  >
-                    Cancellation Reason
-                  </label>
-                  <textarea
-                    id="cancellationReason"
-                    value={cancellationReason}
-                    onChange={(e) => setCancellationReason(e.target.value)}
-                    className="mt-1 block w-full rounded-md bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 p-2"
-                    rows={4}
-                    placeholder="Please provide a reason for cancellation"
-                  />
-                </div>
-              </>
-            ) : (
-              <>
-                <p className="text-white">
-                  Your subscription has been cancelled, and a refund has been
-                  initiated to the card ending in{' '}
-                  {lastRefundDetails?.cardLast4 || 'N/A'} for ₹
-                  {lastRefundDetails?.amount.toFixed(2) || '0.00'}.
-                </p>
-                <p className="text-white">
-                  Refund Id: {lastRefundDetails?.refundId}
-                </p>
-              </>
-            )}
-          </div>
-        </Modal>
+        </div>
       </div>
+
+      {/* ── Error banner ── */}
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="flex items-start gap-2.5 p-3.5 bg-red-50 border border-red-100 rounded-xl mb-5"
+          >
+            <AlertCircle
+              size={15}
+              className="text-error flex-shrink-0 mt-0.5"
+            />
+            <p className="text-sm text-red-700">{error}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Summary stats ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        {stats.map(({ label, value, icon, bg }) => (
+          <div key={label} className="stat-card">
+            <div className={`stat-icon ${bg}`}>{icon}</div>
+            <div>
+              <p className="text-xs text-text-muted mb-0.5">{label}</p>
+              <p className="text-2xl font-bold text-text-primary">{value}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Subscription carousel ── */}
+      {filteredSubscriptions.length > 0 ? (
+        <div className="card p-6 mb-6">
+          {/* Nav */}
+          <div className="flex items-center justify-between mb-5">
+            <button
+              onClick={handlePrev}
+              disabled={filteredSubscriptions.length <= 1}
+              className="btn-secondary p-2 disabled:opacity-40"
+              aria-label="Previous"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <span className="text-sm font-semibold text-text-secondary">
+              Plan {currentCardIndex + 1} of {filteredSubscriptions.length}
+            </span>
+            <button
+              onClick={handleNext}
+              disabled={filteredSubscriptions.length <= 1}
+              className="btn-secondary p-2 disabled:opacity-40"
+              aria-label="Next"
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
+
+          {/* Slide container */}
+          <div className="overflow-hidden">
+            <motion.div
+              animate={{ x: `-${currentCardIndex * 100}%` }}
+              transition={{ duration: 0.4, ease: 'easeInOut' }}
+              className="flex"
+            >
+              {filteredSubscriptions.map((sub) => (
+                <div key={sub._id} className="w-full flex-shrink-0">
+                  {/* Card header */}
+                  <div className="flex items-start justify-between gap-4 mb-5">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-2xl bg-primary-50 flex items-center justify-center flex-shrink-0">
+                        <User size={22} className="text-primary-500" />
+                      </div>
+                      <div>
+                        <p className="font-display font-bold text-text-primary">
+                          {sub.plan?.doctorName || 'Unknown Doctor'}
+                        </p>
+                        <p className="text-sm text-text-secondary">
+                          {sub.plan?.name || 'N/A'}
+                        </p>
+                      </div>
+                    </div>
+                    <StatusBadge status={sub.status} />
+                  </div>
+
+                  {/* Price highlight */}
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-primary-50 to-teal-50 rounded-2xl border border-primary-100 mb-5">
+                    <span className="text-sm text-text-secondary">
+                      {sub.plan?.name || 'Plan'}
+                    </span>
+                    <span className="text-2xl font-bold text-primary-600">
+                      ₹{sub.plan?.price || 0}
+                    </span>
+                  </div>
+
+                  {/* Appointment usage */}
+                  <div className="mb-5">
+                    <div className="flex items-center justify-between text-xs text-text-muted mb-2">
+                      <span className="font-semibold">
+                        Appointments Remaining
+                      </span>
+                      <span>
+                        {sub.appointmentsLeft || 0} /{' '}
+                        {sub.plan?.appointmentCount || 0}
+                      </span>
+                    </div>
+                    <div className="w-full bg-surface-muted rounded-full h-2 overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{
+                          width: `${sub.plan?.appointmentCount ? (sub.appointmentsLeft / sub.plan.appointmentCount) * 100 : 0}%`,
+                        }}
+                        transition={{ duration: 0.6, ease: 'easeOut' }}
+                        className="h-2 rounded-full bg-gradient-to-r from-primary-500 to-teal-400"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Details grid */}
+                  <div className="grid grid-cols-2 gap-3 mb-5">
+                    {[
+                      {
+                        label: 'Description',
+                        value: sub.plan?.description || 'N/A',
+                        span: true,
+                      },
+                      {
+                        label: 'Start Date',
+                        value: sub.createdAt
+                          ? dayjs(sub.createdAt).format('MMM D, YYYY')
+                          : 'N/A',
+                      },
+                      {
+                        label: 'End Date',
+                        value: sub.endDate
+                          ? dayjs(sub.endDate).format('MMM D, YYYY')
+                          : 'N/A',
+                      },
+                    ].map(({ label, value, span }) => (
+                      <div
+                        key={label}
+                        className={`p-3 bg-surface-bg rounded-xl border border-surface-border ${span ? 'col-span-2' : ''}`}
+                      >
+                        <p className="text-xs text-text-muted mb-0.5">
+                          {label}
+                        </p>
+                        <p className="text-sm font-medium text-text-primary">
+                          {value}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Refund details */}
+                  {sub.status === 'cancelled' && sub.refundId && (
+                    <div className="p-3.5 bg-amber-50 border border-amber-100 rounded-xl mb-5 space-y-1.5">
+                      <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-1">
+                        Refund Details
+                      </p>
+                      <div className="flex items-center gap-2 text-sm text-amber-700">
+                        <CreditCard size={13} /> Refund ID: {sub.refundId}
+                      </div>
+                      {sub.refundAmount && (
+                        <div className="flex items-center gap-2 text-sm text-amber-700">
+                          <CreditCard size={13} /> Amount: ₹{sub.refundAmount}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    {sub.status === 'active' ? (
+                      <>
+                        <button
+                          onClick={() =>
+                            navigate(
+                              ROUTES.PATIENT.DOCTOR_DETAILS.replace(
+                                ':doctorId',
+                                sub.plan.doctorId
+                              )
+                            )
+                          }
+                          className="btn-primary flex-1 justify-center"
+                        >
+                          <Calendar size={15} /> Book Appointment
+                        </button>
+                        {canCancelSubscription(sub) && (
+                          <button
+                            onClick={() => {
+                              setSelectedSubscriptionId(sub._id);
+                              setIsCancelModalOpen(true);
+                              setModalMode('cancel');
+                            }}
+                            disabled={loading}
+                            className="btn-danger flex-1 justify-center disabled:opacity-50"
+                          >
+                            <XCircle size={15} /> Cancel Plan
+                          </button>
+                        )}
+                      </>
+                    ) : canRenewSubscription(sub.status, sub._id) ? (
+                      <button
+                        onClick={() =>
+                          navigate(
+                            ROUTES.PATIENT.DOCTOR_DETAILS.replace(
+                              ':doctorId',
+                              sub.plan.doctorId
+                            )
+                          )
+                        }
+                        className="btn-primary w-full justify-center"
+                      >
+                        <CheckCircle size={15} /> Renew Subscription
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+            </motion.div>
+          </div>
+        </div>
+      ) : (
+        <div className="card p-10 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-primary-50 flex items-center justify-center mx-auto mb-4">
+            <Stethoscope size={28} className="text-primary-400" />
+          </div>
+          <h3 className="font-display font-bold text-text-primary mb-2">
+            No subscriptions found
+          </h3>
+          <p className="text-sm text-text-secondary mb-5">
+            {filterStatus === 'all'
+              ? 'Subscribe to a doctor plan to get started.'
+              : `No ${filterStatus} subscriptions.`}
+          </p>
+          <button
+            onClick={() => navigate('/patient/find-doctor')}
+            className="btn-primary mx-auto"
+          >
+            Explore Plans
+          </button>
+        </div>
+      )}
+
+      {/* ── Appointments table ── */}
+      {filteredSubscriptions.length > 0 && (
+        <div>
+          <h2 className="font-display font-bold text-text-primary text-lg mb-4">
+            Appointments for{' '}
+            <span className="text-primary-600">
+              {currentSubscription?.plan?.name || 'Selected Plan'}
+            </span>
+          </h2>
+          <div className="card overflow-hidden mb-4">
+            <DataTable
+              data={
+                currentSubscription?._id
+                  ? appointments[currentSubscription._id] || []
+                  : []
+              }
+              columns={appointmentColumns}
+              isLoading={loading}
+              error={error}
+              emptyMessage="No appointments booked for this subscription."
+            />
+          </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
+        </div>
+      )}
+
+      {/* ── Cancel modal ── */}
+      <Modal
+        isOpen={isCancelModalOpen}
+        onClose={handleCloseModal}
+        title={
+          modalMode === 'cancel' ? 'Cancel Subscription' : 'Refund Initiated'
+        }
+        description={
+          modalMode === 'cancel' ? 'This action cannot be undone.' : undefined
+        }
+        footer={
+          modalMode === 'cancel' ? (
+            <>
+              <button onClick={handleCloseModal} className="btn-secondary">
+                Keep Plan
+              </button>
+              <button onClick={() => debouncedCancel()} className="btn-danger">
+                Confirm Cancellation
+              </button>
+            </>
+          ) : (
+            <button onClick={handleCloseModal} className="btn-secondary">
+              Close
+            </button>
+          )
+        }
+      >
+        {modalMode === 'cancel' ? (
+          <div className="space-y-4">
+            <div className="flex items-start gap-2.5 p-3.5 bg-amber-50 border border-amber-100 rounded-xl">
+              <AlertCircle
+                size={15}
+                className="text-warning flex-shrink-0 mt-0.5"
+              />
+              <p className="text-sm text-amber-700">
+                You're about to cancel{' '}
+                <strong>{currentSubForModal?.plan.name}</strong>. A full refund
+                will be issued.
+              </p>
+            </div>
+            <div>
+              <label className="label">
+                Cancellation Reason <span className="text-error">*</span>
+              </label>
+              <textarea
+                value={cancellationReason}
+                onChange={(e) => setCancellationReason(e.target.value)}
+                className="input resize-none"
+                rows={3}
+                placeholder="Please tell us why you're cancelling..."
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex items-start gap-2.5 p-3.5 bg-emerald-50 border border-emerald-100 rounded-xl">
+              <CheckCircle
+                size={15}
+                className="text-success flex-shrink-0 mt-0.5"
+              />
+              <p className="text-sm text-emerald-700">
+                Subscription cancelled. Refund has been initiated.
+              </p>
+            </div>
+            <div className="card p-4 space-y-1.5">
+              <p className="text-sm text-text-secondary">
+                Card ending in{' '}
+                <strong className="text-text-primary">
+                  {lastRefundDetails?.cardLast4 || 'N/A'}
+                </strong>
+              </p>
+              <p className="text-sm text-text-secondary">
+                Amount:{' '}
+                <strong className="text-text-primary">
+                  ₹{lastRefundDetails?.amount.toFixed(2) || '0.00'}
+                </strong>
+              </p>
+              <p className="text-xs text-text-muted font-mono">
+                Refund ID: {lastRefundDetails?.refundId}
+              </p>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

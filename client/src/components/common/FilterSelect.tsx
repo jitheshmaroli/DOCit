@@ -1,4 +1,5 @@
 import React, { useCallback } from 'react';
+import { ChevronDown } from 'lucide-react';
 
 interface FilterSelectProps {
   value: string;
@@ -11,33 +12,34 @@ interface FilterSelectProps {
 const FilterSelect = React.memo(
   ({ value, options, onChange, label, className }: FilterSelectProps) => {
     const handleChange = useCallback(
-      (e: React.ChangeEvent<HTMLSelectElement>) => {
-        onChange(e.target.value);
-      },
+      (e: React.ChangeEvent<HTMLSelectElement>) => onChange(e.target.value),
       [onChange]
     );
 
     return (
       <div className={`flex flex-col ${className || ''}`}>
-        {label && <label className="text-sm text-gray-200 mb-1">{label}</label>}
-        <select
-          value={value}
-          onChange={handleChange}
-          className="w-full md:w-48 p-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
-        >
-          {options.map((option) => (
-            <option
-              key={option.value}
-              value={option.value}
-              className="bg-gray-800 text-white"
-            >
-              {option.label}
-            </option>
-          ))}
-        </select>
+        {label && <label className="label">{label}</label>}
+        <div className="relative">
+          <select
+            value={value}
+            onChange={handleChange}
+            className="input appearance-none pr-9 cursor-pointer"
+          >
+            {options.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+          <ChevronDown
+            size={16}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
+          />
+        </div>
       </div>
     );
   }
 );
 
+FilterSelect.displayName = 'FilterSelect';
 export default FilterSelect;
