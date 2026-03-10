@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import Logo from '../../components/common/Logo';
 import { useDispatch, useSelector } from 'react-redux';
 import { resetAuthState, setMessage } from '../../redux/slices/authSlice';
@@ -11,6 +11,7 @@ import {
   validateEmail,
   validatePassword,
 } from '../../utils/validation';
+import { AlertCircle, ArrowLeft, Mail, ShieldCheck } from 'lucide-react';
 
 const ForgotPasswordPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -26,7 +27,6 @@ const ForgotPasswordPage: React.FC = () => {
     newPassword: '',
     confirmPassword: '',
   });
-
   const [touchedFields, setTouchedFields] = useState({
     email: false,
     otp: false,
@@ -44,7 +44,6 @@ const ForgotPasswordPage: React.FC = () => {
   useEffect(() => {
     dispatch(resetAuthState());
   }, [dispatch]);
-
   useEffect(() => {
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
@@ -151,194 +150,222 @@ const ForgotPasswordPage: React.FC = () => {
     loading;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#320A6B] via-[#065084] to-[#0F828C] flex items-center justify-center p-4">
-      <motion.div
-        className="w-full max-w-md rounded-2xl bg-[#0F828C]/10 backdrop-blur-lg shadow-2xl border border-[#78B9B5]/20 p-8"
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: 'easeOut' }}
-      >
-        {step === 'email' && (
-          <motion.div
-            initial={{ opacity: 0, x: -30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <header className="mb-6">
-              <Logo />
-              <h2 className="text-2xl font-bold mt-4 bg-gradient-to-r from-[#78B9B5] to-[#320A6B] bg-clip-text text-transparent">
-                Forgot Password
-              </h2>
-              <p className="text-[#78B9B5] text-sm mt-2">
-                Enter your email address and we'll send you a One-Time Password
-                (OTP) to reset your password.
-              </p>
-            </header>
+    <div className="min-h-screen bg-surface-bg flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        {/* Back link */}
+        <Link
+          to="/login"
+          className="inline-flex items-center gap-2 text-sm text-text-secondary hover:text-primary-600 transition-colors mb-6 font-medium"
+        >
+          <ArrowLeft size={16} /> Back to sign in
+        </Link>
 
-            {apiError && (
+        <motion.div
+          className="bg-white rounded-3xl shadow-modal border border-surface-border p-8 md:p-10"
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <div className="mb-8">
+            <Logo />
+          </div>
+
+          <AnimatePresence mode="wait">
+            {step === 'email' ? (
               <motion.div
-                className="mb-4 p-3 bg-[#320A6B]/20 text-[#320A6B] rounded-lg text-sm"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
+                key="email-step"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.3 }}
               >
-                {apiError}
+                {/* Icon */}
+                <div className="w-14 h-14 bg-primary-50 rounded-2xl flex items-center justify-center mb-6">
+                  <Mail size={28} className="text-primary-600" />
+                </div>
+
+                <h2 className="font-display font-bold text-2xl text-text-primary mb-2">
+                  Reset your password
+                </h2>
+                <p className="text-text-secondary text-sm mb-6">
+                  Enter your email and we'll send you a one-time password to
+                  reset your account.
+                </p>
+
+                {apiError && (
+                  <div className="mb-4 flex items-start gap-3 p-3.5 bg-red-50 border border-red-100 rounded-xl">
+                    <AlertCircle
+                      size={16}
+                      className="text-error flex-shrink-0 mt-0.5"
+                    />
+                    <p className="text-sm text-red-700">{apiError}</p>
+                  </div>
+                )}
+
+                <form onSubmit={handleEmailSubmit} className="space-y-4">
+                  <div>
+                    <label className="label">Email Address</label>
+                    <input
+                      type="email"
+                      name="email"
+                      placeholder="you@example.com"
+                      value={email}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      className={`input ${touchedFields.email && fieldErrors.email ? 'input-error' : ''}`}
+                    />
+                    {touchedFields.email && fieldErrors.email && (
+                      <p className="error-text">
+                        <AlertCircle size={12} />
+                        {fieldErrors.email}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={isEmailSubmitDisabled}
+                    className="btn-primary w-full py-3 text-base"
+                  >
+                    {loading ? (
+                      <span className="flex items-center gap-2">
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                        Sending...
+                      </span>
+                    ) : (
+                      'Send Reset Code'
+                    )}
+                  </button>
+                </form>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="reset-step"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <div className="w-14 h-14 bg-teal-50 rounded-2xl flex items-center justify-center mb-6">
+                  <ShieldCheck size={28} className="text-teal-600" />
+                </div>
+
+                <h2 className="font-display font-bold text-2xl text-text-primary mb-2">
+                  Create new password
+                </h2>
+                <p className="text-text-secondary text-sm mb-6">
+                  Enter the code sent to{' '}
+                  <span className="font-semibold text-text-primary">
+                    {email}
+                  </span>{' '}
+                  and set your new password.
+                </p>
+
+                {apiError && (
+                  <div className="mb-4 flex items-start gap-3 p-3.5 bg-red-50 border border-red-100 rounded-xl">
+                    <AlertCircle
+                      size={16}
+                      className="text-error flex-shrink-0 mt-0.5"
+                    />
+                    <p className="text-sm text-red-700">{apiError}</p>
+                  </div>
+                )}
+
+                <form onSubmit={handlePasswordReset} className="space-y-4">
+                  <div>
+                    <label className="label">Verification Code</label>
+                    <input
+                      type="text"
+                      name="otp"
+                      placeholder="000000"
+                      value={otp}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      className={`input text-center text-2xl tracking-[0.5em] font-mono ${touchedFields.otp && fieldErrors.otp ? 'input-error' : ''}`}
+                    />
+                    {touchedFields.otp && fieldErrors.otp && (
+                      <p className="error-text">
+                        <AlertCircle size={12} />
+                        {fieldErrors.otp}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="label">New Password</label>
+                    <input
+                      type="password"
+                      name="newPassword"
+                      placeholder="Min. 8 characters"
+                      value={newPassword}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      className={`input ${touchedFields.newPassword && fieldErrors.newPassword ? 'input-error' : ''}`}
+                    />
+                    {touchedFields.newPassword && fieldErrors.newPassword && (
+                      <p className="error-text">
+                        <AlertCircle size={12} />
+                        {fieldErrors.newPassword}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="label">Confirm New Password</label>
+                    <input
+                      type="password"
+                      name="confirmPassword"
+                      placeholder="Repeat password"
+                      value={confirmPassword}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      className={`input ${touchedFields.confirmPassword && fieldErrors.confirmPassword ? 'input-error' : ''}`}
+                    />
+                    {touchedFields.confirmPassword &&
+                      fieldErrors.confirmPassword && (
+                        <p className="error-text">
+                          <AlertCircle size={12} />
+                          {fieldErrors.confirmPassword}
+                        </p>
+                      )}
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isResetSubmitDisabled}
+                    className="btn-primary w-full py-3 text-base"
+                  >
+                    {loading ? (
+                      <span className="flex items-center gap-2">
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                        Resetting...
+                      </span>
+                    ) : (
+                      'Reset Password'
+                    )}
+                  </button>
+                </form>
+
+                <div className="mt-4 flex items-center justify-center gap-4 text-sm">
+                  <button
+                    onClick={handleResendOtp}
+                    disabled={countdown > 0}
+                    className={`font-medium transition-colors ${countdown > 0 ? 'text-text-muted cursor-not-allowed' : 'text-primary-600 hover:text-primary-700'}`}
+                  >
+                    {countdown > 0 ? `Resend in ${countdown}s` : 'Resend code'}
+                  </button>
+                  <span className="text-surface-border">•</span>
+                  <button
+                    onClick={() => setStep('email')}
+                    className="text-text-secondary hover:text-text-primary font-medium"
+                  >
+                    Change email
+                  </button>
+                </div>
               </motion.div>
             )}
-
-            <form onSubmit={handleEmailSubmit} className="space-y-4">
-              <input
-                type="email"
-                name="email"
-                placeholder="Email Address"
-                value={email}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                className={`w-full p-3 bg-[#0F828C]/10 border border-[#78B9B5]/20 rounded-lg text-[#ffffff] placeholder-[#78B9B5] focus:outline-none focus:ring-2 ${
-                  touchedFields.email && fieldErrors.email
-                    ? 'focus:ring-red-400'
-                    : 'focus:ring-[#0F828C]'
-                }`}
-              />
-              {touchedFields.email && fieldErrors.email && (
-                <p className="mt-1 text-xs text-[#320A6B]">
-                  {fieldErrors.email}
-                </p>
-              )}
-
-              <motion.button
-                type="submit"
-                disabled={isEmailSubmitDisabled}
-                className={`w-full p-3 rounded-lg text-white font-medium ${
-                  isEmailSubmitDisabled
-                    ? 'bg-gray-500/50 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-[#0F828C] to-[#78B9B5] hover:from-[#065084] hover:to-[#320A6B]'
-                }`}
-                whileTap={{ scale: 0.95 }}
-              >
-                {loading ? 'Sending...' : 'Send OTP'}
-              </motion.button>
-            </form>
-
-            <div className="mt-6 text-center">
-              <Link
-                to="/login"
-                className="text-[#320A6B] hover:text-[#065084] text-sm"
-              >
-                Back to Login
-              </Link>
-            </div>
-          </motion.div>
-        )}
-
-        {step === 'reset' && (
-          <motion.div
-            initial={{ opacity: 0, x: 30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <header className="mb-6">
-              <Logo />
-              <h2 className="text-2xl font-bold mt-4 bg-gradient-to-r from-[#78B9B5] to-[#320A6B] bg-clip-text text-transparent">
-                Reset Password
-              </h2>
-              <p className="text-[#78B9B5] text-sm mt-2">
-                We've sent a 6-digit OTP to{' '}
-                <span className="font-semibold">{email}</span>. Please check
-                your inbox.
-              </p>
-            </header>
-
-            <form onSubmit={handlePasswordReset} className="space-y-4">
-              <input
-                type="text"
-                name="otp"
-                placeholder="Enter OTP"
-                value={otp}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                className={`w-full p-3 bg-[#0F828C]/10 border border-[#78B9B5]/20 rounded-lg text-[#ffffff] placeholder-[#78B9B5] focus:outline-none ${
-                  touchedFields.otp && fieldErrors.otp
-                    ? 'focus:ring-red-400'
-                    : 'focus:ring-[#0F828C]'
-                }`}
-              />
-              {touchedFields.otp && fieldErrors.otp && (
-                <p className="mt-1 text-xs text-[#320A6B]">{fieldErrors.otp}</p>
-              )}
-
-              <input
-                type="password"
-                name="newPassword"
-                placeholder="New Password"
-                value={newPassword}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                className={`w-full p-3 bg-[#0F828C]/10 border border-[#78B9B5]/20 rounded-lg text-[#ffffff] placeholder-[#78B9B5] focus:outline-none ${
-                  touchedFields.newPassword && fieldErrors.newPassword
-                    ? 'focus:ring-red-400'
-                    : 'focus:ring-[#0F828C]'
-                }`}
-              />
-              {touchedFields.newPassword && fieldErrors.newPassword && (
-                <p className="mt-1 text-xs text-[#320A6B]">
-                  {fieldErrors.newPassword}
-                </p>
-              )}
-
-              <input
-                type="password"
-                name="confirmPassword"
-                placeholder="Confirm Password"
-                value={confirmPassword}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                className={`w-full p-3 bg-[#0F828C]/10 border border-[#78B9B5]/20 rounded-lg text-[#ffffff] placeholder-[#78B9B5] focus:outline-none ${
-                  touchedFields.confirmPassword && fieldErrors.confirmPassword
-                    ? 'focus:ring-red-400'
-                    : 'focus:ring-[#0F828C]'
-                }`}
-              />
-              {touchedFields.confirmPassword && fieldErrors.confirmPassword && (
-                <p className="mt-1 text-xs text-[#320A6B]">
-                  {fieldErrors.confirmPassword}
-                </p>
-              )}
-
-              <motion.button
-                type="submit"
-                disabled={isResetSubmitDisabled}
-                whileTap={{ scale: 0.95 }}
-                className={`w-full p-3 rounded-lg text-white font-medium ${
-                  isResetSubmitDisabled
-                    ? 'bg-gray-500/50 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-[#0F828C] to-[#78B9B5] hover:from-[#065084] hover:to-[#320A6B]'
-                }`}
-              >
-                {loading ? 'Resetting...' : 'Reset Password'}
-              </motion.button>
-            </form>
-
-            <div className="mt-4 text-center text-sm">
-              <button
-                onClick={handleResendOtp}
-                disabled={countdown > 0}
-                className={`text-[#320A6B] hover:text-[#065084] ${
-                  countdown > 0 ? 'text-[#78B9B5] cursor-not-allowed' : ''
-                }`}
-              >
-                {countdown > 0 ? `Resend OTP in ${countdown}s` : 'Resend OTP'}
-              </button>
-              <span className="mx-2 text-[#78B9B5]">|</span>
-              <button
-                onClick={() => setStep('email')}
-                className="text-[#320A6B] hover:text-[#065084]"
-              >
-                Change Email
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </motion.div>
+          </AnimatePresence>
+        </motion.div>
+      </div>
     </div>
   );
 };

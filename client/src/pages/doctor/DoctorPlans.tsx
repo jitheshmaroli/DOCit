@@ -10,6 +10,7 @@ import {
 import DataTable, { Column } from '../../components/common/DataTable';
 import { useNavigate } from 'react-router-dom';
 import Pagination from '../../components/common/Pagination';
+import Modal from '../../components/common/Modal';
 import { validateName, validateNumeric } from '../../utils/validation';
 import { ITEMS_PER_PAGE } from '../../utils/constants';
 import {
@@ -19,6 +20,90 @@ import {
 } from '../../types/subscriptionTypes';
 import { showError, showSuccess } from '../../utils/toastConfig';
 import ROUTES from '../../constants/routeConstants';
+import { Plus, AlertTriangle } from 'lucide-react';
+
+const validateDescription = (d: string): string | undefined => {
+  if (!d) return 'Description is required';
+  if (d.length < 10 || d.length > 500)
+    return 'Description must be 10–500 characters';
+};
+
+const EMPTY_PLAN: PlanFormData = {
+  name: '',
+  description: '',
+  price: '',
+  validityDays: '',
+  appointmentCount: '',
+};
+
+const StatusBadge = ({ status }: { status: string }) => {
+  const map: Record<string, string> = {
+    approved: 'badge-success',
+    pending: 'badge-warning',
+    rejected: 'badge-error',
+  };
+  return (
+    <span className={`badge ${map[status] || 'badge-neutral'} capitalize`}>
+      {status}
+    </span>
+  );
+};
+
+const FormField = ({
+  id,
+  label,
+  type = 'text',
+  name,
+  value,
+  error,
+  onChange,
+  placeholder,
+  min,
+  step,
+  rows,
+}: {
+  id: string;
+  label: string;
+  type?: string;
+  name: string;
+  value: string;
+  error?: string;
+  onChange: React.ChangeEventHandler<HTMLInputElement | HTMLTextAreaElement>;
+  placeholder?: string;
+  min?: string;
+  step?: string;
+  rows?: number;
+}) => (
+  <div>
+    <label htmlFor={id} className="label mb-1">
+      {label}
+    </label>
+    {rows ? (
+      <textarea
+        id={id}
+        name={name}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        rows={rows}
+        className={`input resize-none ${error ? 'input-error' : ''}`}
+      />
+    ) : (
+      <input
+        id={id}
+        type={type}
+        name={name}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        min={min}
+        step={step}
+        className={`input ${error ? 'input-error' : ''}`}
+      />
+    )}
+    {error && <p className="error-text mt-1">{error}</p>}
+  </div>
+);
 
 const DoctorPlans: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -29,37 +114,23 @@ const DoctorPlans: React.FC = () => {
     totalItems,
   } = useAppSelector((state) => state.doctors);
   const { user } = useAppSelector((state) => state.auth);
-  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-  const [isEditMode, setIsEditMode] = useState<boolean>(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [planData, setPlanData] = useState<PlanFormData>({
-    name: '',
-    description: '',
-    price: '',
-    validityDays: '',
-    appointmentCount: '',
-  });
+  const [planData, setPlanData] = useState<PlanFormData>(EMPTY_PLAN);
   const [formErrors, setFormErrors] = useState<FormErrors>({});
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<boolean>(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(
     null
   );
 
   useEffect(() => {
-    if (user?.role === 'doctor') {
+    if (user?.role === 'doctor')
       dispatch(
         getSubscriptionPlansThunk({ page: currentPage, limit: ITEMS_PER_PAGE })
       );
-    }
   }, [dispatch, user?.role, currentPage]);
-
-  const validateDescription = (description: string): string | undefined => {
-    if (!description) return 'Description is required';
-    if (description.length < 10 || description.length > 500)
-      return 'Description must be 10-500 characters';
-    return undefined;
-  };
 
   const validateForm = (): boolean => {
     const errors: FormErrors = {
@@ -73,14 +144,14 @@ const DoctorPlans: React.FC = () => {
       ),
     };
     setFormErrors(errors);
-    return Object.values(errors).every((error) => !error);
+    return Object.values(errors).every((e) => !e);
   };
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
-    setPlanData({ ...planData, [name]: value });
+    setPlanData((p) => ({ ...p, [name]: value }));
     setFormErrors((prev) => ({
       ...prev,
       [name]:
@@ -95,12 +166,19 @@ const DoctorPlans: React.FC = () => {
     }));
   };
 
+  const resetModal = () => {
+    setIsModalOpen(false);
+    setIsEditMode(false);
+    setSelectedPlanId(null);
+    setPlanData(EMPTY_PLAN);
+    setFormErrors({});
+  };
+
   const handleSubmitPlan = async () => {
     if (!validateForm()) {
       showError('Please fix all form errors');
       return;
     }
-
     try {
       const payload = {
         name: planData.name,
@@ -109,7 +187,6 @@ const DoctorPlans: React.FC = () => {
         validityDays: parseInt(planData.validityDays),
         appointmentCount: parseInt(planData.appointmentCount),
       };
-
       if (isEditMode && selectedPlanId) {
         await dispatch(
           updateSubscriptionPlanThunk({ id: selectedPlanId, ...payload })
@@ -119,26 +196,13 @@ const DoctorPlans: React.FC = () => {
         await dispatch(createSubscriptionPlanThunk(payload)).unwrap();
         showSuccess('Plan created successfully');
       }
-
-      setIsModalOpen(false);
-      setIsEditMode(false);
-      setSelectedPlanId(null);
-      setPlanData({
-        name: '',
-        description: '',
-        price: '',
-        validityDays: '',
-        appointmentCount: '',
-      });
-      setFormErrors({});
+      resetModal();
       dispatch(
         getSubscriptionPlansThunk({ page: currentPage, limit: ITEMS_PER_PAGE })
       );
     } catch (error: any) {
-      const errorMessage =
-        error?.message || (error as Error)?.message || error || 'Unknown error';
       showError(
-        `Failed to ${isEditMode ? 'update' : 'create'} plan: ${errorMessage}`
+        `Failed to ${isEditMode ? 'update' : 'create'} plan: ${error?.message || error || 'Unknown error'}`
       );
     }
   };
@@ -163,105 +227,83 @@ const DoctorPlans: React.FC = () => {
   };
 
   const confirmDeletePlan = async () => {
-    if (selectedPlan) {
-      try {
-        await dispatch(deleteSubscriptionPlanThunk(selectedPlan._id)).unwrap();
-        showSuccess('Plan deleted successfully');
-        dispatch(
-          getSubscriptionPlansThunk({
-            page: currentPage,
-            limit: ITEMS_PER_PAGE,
-          })
-        );
-      } catch (error: any) {
-        const errorMessage =
-          error?.message ||
-          (error as Error)?.message ||
-          error ||
-          'Unknown error';
-        showError(`Failed to delete plan: ${errorMessage}`);
-      }
-      setIsDeleteModalOpen(false);
-      setSelectedPlan(null);
+    if (!selectedPlan) return;
+    try {
+      await dispatch(deleteSubscriptionPlanThunk(selectedPlan._id)).unwrap();
+      showSuccess('Plan deleted successfully');
+      dispatch(
+        getSubscriptionPlansThunk({ page: currentPage, limit: ITEMS_PER_PAGE })
+      );
+    } catch (error: any) {
+      showError(
+        `Failed to delete plan: ${error?.message || error || 'Unknown error'}`
+      );
     }
-  };
-
-  const handleViewDetails = (plan: SubscriptionPlan) => {
-    navigate(ROUTES.DOCTOR.PLAN_DETAILS.replace(':planId', plan._id));
-  };
-
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
+    setIsDeleteModalOpen(false);
+    setSelectedPlan(null);
   };
 
   const columns: Column<SubscriptionPlan>[] = [
     { header: 'Name', accessor: 'name' },
-    { header: 'Price', accessor: (plan) => `₹${plan.price.toFixed(2)}` },
-    { header: 'Validity', accessor: (plan) => `${plan.validityDays} days` },
-    { header: 'Appointments', accessor: 'appointmentCount' },
     {
-      header: 'Status',
-      accessor: (plan) => (
-        <span
-          className={`inline-flex px-2 py-1 rounded-full text-xs ${
-            plan.status === 'approved'
-              ? 'bg-green-500/20 text-green-300'
-              : plan.status === 'pending'
-                ? 'bg-yellow-500/20 text-yellow-300'
-                : 'bg-red-500/20 text-red-300'
-          }`}
-        >
-          {plan.status}
+      header: 'Price',
+      accessor: (p) => (
+        <span className="font-semibold text-teal-600">
+          ₹{p.price.toFixed(2)}
         </span>
       ),
     },
+    { header: 'Validity', accessor: (p) => `${p.validityDays} days` },
+    { header: 'Appointments', accessor: 'appointmentCount' },
+    { header: 'Status', accessor: (p) => <StatusBadge status={p.status} /> },
   ];
 
   const actions = [
     {
       label: 'Edit',
       onClick: handleEditPlan,
-      className: 'bg-blue-600 hover:bg-blue-700',
+      className: 'btn-secondary text-xs px-3 py-1.5',
     },
     {
       label: 'Delete',
       onClick: handleDeletePlan,
-      className: 'bg-red-600 hover:bg-red-700',
+      className: 'btn-danger text-xs px-3 py-1.5',
     },
     {
       label: 'View Details',
-      onClick: handleViewDetails,
-      className: 'bg-purple-600 hover:bg-purple-700',
+      onClick: (p: SubscriptionPlan) =>
+        navigate(ROUTES.DOCTOR.PLAN_DETAILS.replace(':planId', p._id)),
+      className: 'btn-primary text-xs px-3 py-1.5',
     },
   ];
 
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
   return (
-    <>
-      <div className="bg-white/10 backdrop-blur-lg p-4 md:p-6 rounded-2xl border border-white/20 shadow-xl">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent">
-            Subscription Plans
-          </h2>
-          <button
-            onClick={() => {
-              setIsEditMode(false);
-              setPlanData({
-                name: '',
-                description: '',
-                price: '',
-                validityDays: '',
-                appointmentCount: '',
-              });
-              setFormErrors({});
-              setIsModalOpen(true);
-            }}
-            className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300 shadow-lg hover:shadow-xl"
-          >
-            + Add Plan
-          </button>
+    <div className="space-y-6 animate-fade-in">
+      {/* ── Page header ── */}
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Subscription Plans</h1>
+          <p className="page-subtitle">
+            Create and manage your patient subscription plans
+          </p>
         </div>
+        <button
+          onClick={() => {
+            setIsEditMode(false);
+            setPlanData(EMPTY_PLAN);
+            setFormErrors({});
+            setIsModalOpen(true);
+          }}
+          className="btn-primary"
+        >
+          <Plus size={16} /> Add Plan
+        </button>
+      </div>
+
+      {/* ── Table ── */}
+      <div className="card overflow-hidden">
         <DataTable
           data={plans}
           columns={columns}
@@ -270,212 +312,132 @@ const DoctorPlans: React.FC = () => {
           emptyMessage="No plans found. Add a new plan to get started."
         />
         {totalPages > 1 && (
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={handlePageChange}
-            className="mt-6"
-          />
+          <div className="px-6 py-4 border-t border-surface-border">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
+          </div>
         )}
       </div>
 
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 shadow-xl w-full max-w-md">
-            <h2 className="text-xl font-bold text-white mb-4">
-              {isEditMode ? 'Edit Subscription Plan' : 'Add Subscription Plan'}
-            </h2>
-            <div className="space-y-4">
-              <div>
-                <label
-                  htmlFor="name"
-                  className="block text-sm font-medium text-white mb-1"
-                >
-                  Plan Name
-                </label>
-                <input
-                  id="name"
-                  type="text"
-                  name="name"
-                  placeholder="Enter plan name"
-                  value={planData.name}
-                  onChange={handleInputChange}
-                  className={`w-full p-3 bg-white/10 border ${
-                    formErrors.name ? 'border-red-500' : 'border-white/20'
-                  } rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400`}
-                />
-                {formErrors.name && (
-                  <p className="text-red-500 text-xs mt-1">{formErrors.name}</p>
-                )}
-              </div>
-              <div>
-                <label
-                  htmlFor="description"
-                  className="block text-sm font-medium text-white mb-1"
-                >
-                  Description
-                </label>
-                <textarea
-                  id="description"
-                  name="description"
-                  placeholder="Enter plan description"
-                  value={planData.description}
-                  onChange={handleInputChange}
-                  className={`w-full p-3 bg-white/10 border ${
-                    formErrors.description
-                      ? 'border-red-500'
-                      : 'border-white/20'
-                  } rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400`}
-                />
-                {formErrors.description && (
-                  <p className="text-red-500 text-xs mt-1">
-                    {formErrors.description}
-                  </p>
-                )}
-              </div>
-              <div>
-                <label
-                  htmlFor="price"
-                  className="block text-sm font-medium text-white mb-1"
-                >
-                  Price (in Rupees)
-                </label>
-                <input
-                  id="price"
-                  type="number"
-                  name="price"
-                  placeholder="Enter price in rupees"
-                  value={planData.price}
-                  onChange={handleInputChange}
-                  className={`w-full p-3 bg-white/10 border ${
-                    formErrors.price ? 'border-red-500' : 'border-white/20'
-                  } rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400`}
-                  min="0"
-                  step="1"
-                />
-                {formErrors.price && (
-                  <p className="text-red-500 text-xs mt-1">
-                    {formErrors.price}
-                  </p>
-                )}
-              </div>
-              <div>
-                <label
-                  htmlFor="validityDays"
-                  className="block text-sm font-medium text-white mb-1"
-                >
-                  Validity (days)
-                </label>
-                <input
-                  id="validityDays"
-                  type="number"
-                  name="validityDays"
-                  placeholder="Enter validity in days"
-                  value={planData.validityDays}
-                  onChange={handleInputChange}
-                  className={`w-full p-3 bg-white/10 border ${
-                    formErrors.validityDays
-                      ? 'border-red-500'
-                      : 'border-white/20'
-                  } rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400`}
-                  min="1"
-                  step="1"
-                />
-                {formErrors.validityDays && (
-                  <p className="text-red-500 text-xs mt-1">
-                    {formErrors.validityDays}
-                  </p>
-                )}
-              </div>
-              <div>
-                <label
-                  htmlFor="appointmentCount"
-                  className="block text-sm font-medium text-white mb-1"
-                >
-                  Number of Appointments
-                </label>
-                <input
-                  id="appointmentCount"
-                  type="number"
-                  name="appointmentCount"
-                  placeholder="Enter number of appointments"
-                  value={planData.appointmentCount}
-                  onChange={handleInputChange}
-                  className={`w-full p-3 bg-white/10 border ${
-                    formErrors.appointmentCount
-                      ? 'border-red-500'
-                      : 'border-white/20'
-                  } rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400`}
-                  min="1"
-                  step="1"
-                />
-                {formErrors.appointmentCount && (
-                  <p className="text-red-500 text-xs mt-1">
-                    {formErrors.appointmentCount}
-                  </p>
-                )}
-              </div>
-            </div>
-            <div className="flex justify-end space-x-2 mt-6">
-              <button
-                onClick={() => {
-                  setIsModalOpen(false);
-                  setIsEditMode(false);
-                  setSelectedPlanId(null);
-                  setPlanData({
-                    name: '',
-                    description: '',
-                    price: '',
-                    validityDays: '',
-                    appointmentCount: '',
-                  });
-                  setFormErrors({});
-                }}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSubmitPlan}
-                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
-              >
-                {isEditMode ? 'Update' : 'Submit'}
-              </button>
-            </div>
+      {/* ── Add / Edit Modal ── */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={resetModal}
+        title={isEditMode ? 'Edit Subscription Plan' : 'Add Subscription Plan'}
+        size="md"
+        footer={
+          <>
+            <button onClick={resetModal} className="btn-secondary">
+              Cancel
+            </button>
+            <button onClick={handleSubmitPlan} className="btn-primary">
+              {isEditMode ? 'Update Plan' : 'Create Plan'}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <FormField
+            id="name"
+            label="Plan Name"
+            name="name"
+            value={planData.name}
+            error={formErrors.name}
+            onChange={handleInputChange}
+            placeholder="e.g. Basic Monthly"
+          />
+          <FormField
+            id="description"
+            label="Description"
+            name="description"
+            value={planData.description}
+            error={formErrors.description}
+            onChange={handleInputChange}
+            placeholder="Describe what's included..."
+            rows={3}
+          />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <FormField
+              id="price"
+              label="Price (₹)"
+              type="number"
+              name="price"
+              value={planData.price}
+              error={formErrors.price}
+              onChange={handleInputChange}
+              placeholder="0"
+              min="0"
+              step="1"
+            />
+            <FormField
+              id="validityDays"
+              label="Validity (days)"
+              type="number"
+              name="validityDays"
+              value={planData.validityDays}
+              error={formErrors.validityDays}
+              onChange={handleInputChange}
+              placeholder="30"
+              min="1"
+              step="1"
+            />
+            <FormField
+              id="appointmentCount"
+              label="Appointments"
+              type="number"
+              name="appointmentCount"
+              value={planData.appointmentCount}
+              error={formErrors.appointmentCount}
+              onChange={handleInputChange}
+              placeholder="5"
+              min="1"
+              step="1"
+            />
           </div>
         </div>
-      )}
+      </Modal>
 
-      {isDeleteModalOpen && selectedPlan && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 shadow-xl w-full max-w-md">
-            <h2 className="text-xl font-bold text-white mb-4">
-              Confirm Delete
-            </h2>
-            <p className="text-white mb-6">
-              Are you sure you want to delete {selectedPlan.name || 'Unknown'}?
-            </p>
-            <div className="flex justify-end space-x-2">
-              <button
-                onClick={() => {
-                  setIsDeleteModalOpen(false);
-                  setSelectedPlan(null);
-                }}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmDeletePlan}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all duration-300"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
+      {/* ── Delete Confirm Modal ── */}
+      <Modal
+        isOpen={isDeleteModalOpen && !!selectedPlan}
+        onClose={() => {
+          setIsDeleteModalOpen(false);
+          setSelectedPlan(null);
+        }}
+        title="Delete Plan"
+        size="sm"
+        footer={
+          <>
+            <button
+              onClick={() => {
+                setIsDeleteModalOpen(false);
+                setSelectedPlan(null);
+              }}
+              className="btn-secondary"
+            >
+              Cancel
+            </button>
+            <button onClick={confirmDeletePlan} className="btn-danger">
+              Delete Plan
+            </button>
+          </>
+        }
+      >
+        <div className="flex items-start gap-3 p-3.5 bg-red-50 border border-red-100 rounded-xl">
+          <AlertTriangle
+            size={15}
+            className="text-error flex-shrink-0 mt-0.5"
+          />
+          <p className="text-sm text-red-700">
+            Are you sure you want to delete{' '}
+            <strong>{selectedPlan?.name}</strong>? This action cannot be undone.
+          </p>
         </div>
-      )}
-    </>
+      </Modal>
+    </div>
   );
 };
 

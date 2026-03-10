@@ -9,6 +9,7 @@ import api from '../../services/api';
 import Modal from '../../components/common/Modal';
 import BackButton from '../../components/common/BackButton';
 import { ITEMS_PER_PAGE } from '../../utils/constants';
+import { Download, Pill, User, Phone, MapPin } from 'lucide-react';
 
 interface Appointment {
   _id: string;
@@ -20,6 +21,37 @@ interface Appointment {
   isFreeBooking?: boolean;
   prescription?: Prescription;
 }
+
+const StatusBadge = ({ status }: { status: string }) => {
+  const map: Record<string, string> = {
+    pending: 'badge-warning',
+    completed: 'badge-success',
+    cancelled: 'badge-error',
+  };
+  return (
+    <span className={`badge ${map[status] || 'badge-neutral'} capitalize`}>
+      {status || 'Pending'}
+    </span>
+  );
+};
+
+const InfoRow = ({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}) => (
+  <div className="flex items-start gap-3 p-3 rounded-xl bg-surface-bg border border-surface-border">
+    <span className="text-primary-400 mt-0.5">{icon}</span>
+    <div>
+      <p className="text-xs text-text-muted mb-0.5">{label}</p>
+      <p className="text-sm font-medium text-text-primary">{value}</p>
+    </div>
+  </div>
+);
 
 const PatientDetails: React.FC = () => {
   const { patientId } = useParams<{ patientId: string }>();
@@ -49,7 +81,6 @@ const PatientDetails: React.FC = () => {
         setLoading(false);
       }
     };
-
     fetchPatient();
   }, [patientId]);
 
@@ -72,97 +103,89 @@ const PatientDetails: React.FC = () => {
         setLoading(false);
       }
     };
-
-    if (activeTab === 'medicalHistory') {
-      fetchAppointments();
-    }
+    if (activeTab === 'medicalHistory') fetchAppointments();
   }, [patientId, user?._id, currentPage, activeTab]);
-
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
-
-  const handleViewPrescription = (prescription: Prescription | undefined) => {
-    if (prescription) {
-      setSelectedPrescription(prescription);
-      setShowFullNotes(false);
-    }
-  };
-
-  const toggleNotes = () => {
-    setShowFullNotes(!showFullNotes);
-  };
 
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
   return (
     <>
+      {/* Prescription Modal */}
       <Modal
         isOpen={!!selectedPrescription}
         onClose={() => setSelectedPrescription(null)}
         title="Prescription Details"
+        size="md"
         footer={
-          selectedPrescription?.pdfUrl ? (
-            <>
+          <div className="flex items-center justify-between w-full">
+            {selectedPrescription?.pdfUrl ? (
               <a
                 href={selectedPrescription.pdfUrl}
                 download
-                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-300"
+                className="btn-primary text-sm"
               >
-                Download PDF
+                <Download size={14} /> Download PDF
               </a>
-              <button
-                onClick={() => setSelectedPrescription(null)}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
-              >
-                Close
-              </button>
-            </>
-          ) : (
+            ) : (
+              <span />
+            )}
             <button
               onClick={() => setSelectedPrescription(null)}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
+              className="btn-secondary text-sm"
             >
               Close
             </button>
-          )
+          </div>
         }
       >
         {selectedPrescription && (
-          <div className="space-y-4 text-white">
-            <div>
-              <h4 className="text-sm text-gray-300">Medications</h4>
-              {selectedPrescription.medications?.map((med, index) => (
-                <div key={index} className="border-b border-white/20 py-2">
-                  <p>
-                    <strong>Name:</strong> {med.name}
-                  </p>
-                  <p>
-                    <strong>Dosage:</strong> {med.dosage}
-                  </p>
-                  <p>
-                    <strong>Frequency:</strong> {med.frequency}
-                  </p>
-                  <p>
-                    <strong>Duration:</strong> {med.duration}
-                  </p>
+          <div className="space-y-4">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
+              Medications
+            </h4>
+            <div className="space-y-3">
+              {selectedPrescription.medications?.map((med, i) => (
+                <div key={i} className="card p-4 space-y-2">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Pill size={14} className="text-primary-500" />
+                    <span className="font-semibold text-text-primary text-sm">
+                      {med.name}
+                    </span>
+                    <span className="badge badge-primary ml-auto">
+                      {med.dosage}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <p className="text-xs text-text-muted">Frequency</p>
+                      <p className="font-medium text-text-secondary">
+                        {med.frequency}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-text-muted">Duration</p>
+                      <p className="font-medium text-text-secondary">
+                        {med.duration}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
             {selectedPrescription.notes && (
-              <div>
-                <h4 className="text-sm text-gray-300">Notes</h4>
-                <p className="text-white break-words max-w-full">
-                  {showFullNotes
+              <div className="p-3.5 bg-surface-muted rounded-xl border border-surface-border">
+                <p className="text-xs font-semibold uppercase tracking-wider text-text-muted mb-1">
+                  Notes
+                </p>
+                <p className="text-sm text-text-secondary">
+                  {showFullNotes || selectedPrescription.notes.length <= 100
                     ? selectedPrescription.notes
-                    : selectedPrescription.notes.length > 100
-                      ? `${selectedPrescription.notes.substring(0, 100)}...`
-                      : selectedPrescription.notes}
+                    : `${selectedPrescription.notes.substring(0, 100)}...`}
                 </p>
                 {selectedPrescription.notes.length > 100 && (
                   <button
-                    onClick={toggleNotes}
-                    className="text-blue-300 hover:text-blue-200 text-sm mt-2"
+                    onClick={() => setShowFullNotes((p) => !p)}
+                    className="text-xs text-primary-600 hover:underline mt-1"
                   >
                     {showFullNotes ? 'Show Less' : 'Show More'}
                   </button>
@@ -172,188 +195,192 @@ const PatientDetails: React.FC = () => {
           </div>
         )}
       </Modal>
-      <div className="bg-white/10 backdrop-blur-lg p-4 sm:p-6 rounded-2xl border border-white/20 shadow-xl">
-        <BackButton />
-        <h2 className="text-xl sm:text-2xl font-semibold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent mb-6">
-          Patient Details
-        </h2>
-        <div className="mb-6">
-          <div className="flex border-b border-white/20">
-            <button
-              className={`px-4 py-2 text-sm font-medium ${activeTab === 'profile' ? 'text-white border-b-2 border-purple-400' : 'text-gray-400 hover:text-white'}`}
-              onClick={() => setActiveTab('profile')}
-            >
-              Profile
-            </button>
-            <button
-              className={`px-4 py-2 text-sm font-medium ${activeTab === 'medicalHistory' ? 'text-white border-b-2 border-purple-400' : 'text-gray-400 hover:text-white'}`}
-              onClick={() => setActiveTab('medicalHistory')}
-            >
-              Medical History
-            </button>
+
+      <div className="space-y-6 animate-fade-in">
+        {/* Header */}
+        <div className="page-header">
+          <div>
+            <BackButton />
+            <h1 className="page-title mt-2">Patient Details</h1>
           </div>
         </div>
-        {loading ? (
-          <div className="text-center text-gray-200">Loading...</div>
-        ) : (
-          <>
-            {activeTab === 'profile' && patient && (
-              <div className="bg-white/20 backdrop-blur-lg rounded-xl border border-white/30 p-6">
-                <div className="flex flex-col items-center mb-6">
-                  {patient.profilePicture ? (
-                    <img
-                      src={patient.profilePicture}
-                      alt={patient.name}
-                      className="w-24 h-24 rounded-full object-cover border-2 border-white/50"
+
+        {/* Tabs */}
+        <div className="card overflow-hidden">
+          <div className="flex border-b border-surface-border">
+            {(['profile', 'medicalHistory'] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-6 py-3.5 text-sm font-semibold transition-colors border-b-2 ${
+                  activeTab === tab
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-text-muted hover:text-text-secondary'
+                }`}
+              >
+                {tab === 'profile' ? 'Profile' : 'Medical History'}
+              </button>
+            ))}
+          </div>
+
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <div className="w-6 h-6 border-2 border-primary-400 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : (
+            <>
+              {/* ── Profile tab ── */}
+              {activeTab === 'profile' && patient && (
+                <div className="p-6">
+                  {/* Avatar + name */}
+                  <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 mb-6 pb-6 border-b border-surface-border">
+                    {patient.profilePicture ? (
+                      <img
+                        src={patient.profilePicture}
+                        alt={patient.name}
+                        className="w-20 h-20 rounded-2xl object-cover border border-surface-border shadow-card"
+                      />
+                    ) : (
+                      <div className="w-20 h-20 rounded-2xl bg-primary-100 flex items-center justify-center text-2xl font-bold text-primary-600">
+                        {patient.name?.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div>
+                      <h3 className="text-xl font-bold text-text-primary">
+                        {patient.name}
+                      </h3>
+                      <p className="text-sm text-text-secondary">
+                        {patient.email}
+                      </p>
+                      <div className="flex gap-2 mt-2">
+                        <span
+                          className={`badge ${patient.isBlocked ? 'badge-error' : 'badge-success'}`}
+                        >
+                          {patient.isBlocked ? 'Blocked' : 'Active'}
+                        </span>
+                        <span
+                          className={`badge ${patient.isSubscribed ? 'badge-primary' : 'badge-neutral'}`}
+                        >
+                          {patient.isSubscribed
+                            ? 'Subscribed'
+                            : 'Not Subscribed'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Info grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <InfoRow
+                      icon={<Phone size={14} />}
+                      label="Phone"
+                      value={patient.phone || 'N/A'}
                     />
-                  ) : (
-                    <div className="w-24 h-24 rounded-full bg-white/20 flex items-center justify-center text-4xl text-white">
-                      {patient.name?.charAt(0).toUpperCase()}
+                    <InfoRow
+                      icon={<User size={14} />}
+                      label="Age"
+                      value={patient.age ? `${patient.age} years` : 'N/A'}
+                    />
+                    <InfoRow
+                      icon={<User size={14} />}
+                      label="Gender"
+                      value={patient.gender || 'N/A'}
+                    />
+                    <InfoRow
+                      icon={<MapPin size={14} />}
+                      label="Address"
+                      value={
+                        patient.address
+                          ? `${patient.address}${patient.pincode ? `, ${patient.pincode}` : ''}`
+                          : 'N/A'
+                      }
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* ── Medical history tab ── */}
+              {activeTab === 'medicalHistory' && (
+                <div>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full">
+                      <thead>
+                        <tr className="border-b border-surface-border bg-surface-bg">
+                          <th className="th text-left">Date</th>
+                          <th className="th text-left">Time</th>
+                          <th className="th text-left">Type</th>
+                          <th className="th text-left">Status</th>
+                          <th className="th text-left">Prescription</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-surface-border">
+                        {appointments.length > 0 ? (
+                          appointments.map((appt) => (
+                            <tr key={appt._id} className="tr">
+                              <td className="td">
+                                {DateUtils.formatToLocal(appt.date)}
+                              </td>
+                              <td className="td">
+                                {DateUtils.formatTimeToLocal(appt.startTime)} –{' '}
+                                {DateUtils.formatTimeToLocal(appt.endTime)}
+                              </td>
+                              <td className="td">
+                                <span
+                                  className={`badge ${appt.isFreeBooking ? 'badge-neutral' : 'badge-primary'}`}
+                                >
+                                  {appt.isFreeBooking ? 'Free' : 'Subscribed'}
+                                </span>
+                              </td>
+                              <td className="td">
+                                <StatusBadge status={appt.status} />
+                              </td>
+                              <td className="td">
+                                {appt.status === 'completed' &&
+                                appt.prescription ? (
+                                  <button
+                                    onClick={() => {
+                                      setSelectedPrescription(
+                                        appt.prescription!
+                                      );
+                                      setShowFullNotes(false);
+                                    }}
+                                    className="btn-primary text-xs px-3 py-1.5"
+                                  >
+                                    View
+                                  </button>
+                                ) : (
+                                  'N/A'
+                                )}
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td
+                              colSpan={5}
+                              className="td text-center text-text-muted py-10"
+                            >
+                              No medical history found.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  {totalPages > 1 && (
+                    <div className="px-6 py-4 border-t border-surface-border">
+                      <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        onPageChange={setCurrentPage}
+                      />
                     </div>
                   )}
-                  <h3 className="mt-4 text-xl font-bold text-white">
-                    {patient.name}
-                  </h3>
-                  <p className="text-gray-300">{patient.email}</p>
                 </div>
-                <div className="grid grid-cols-2 gap-4 text-white">
-                  <div>
-                    <p className="text-sm text-gray-300">Phone</p>
-                    <p className="font-medium">{patient.phone || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-300">Age</p>
-                    <p className="font-medium">{patient.age || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-300">Gender</p>
-                    <p className="font-medium">{patient.gender || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-300">Status</p>
-                    <p className="font-medium">
-                      {patient.isBlocked ? (
-                        <span className="text-red-400">Blocked</span>
-                      ) : (
-                        <span className="text-green-400">Active</span>
-                      )}
-                    </p>
-                  </div>
-                  <div className="col-span-2">
-                    <p className="text-sm text-gray-300">Address</p>
-                    <p className="font-medium">{patient.address || 'N/A'}</p>
-                    {patient.pincode && (
-                      <p className="text-sm text-gray-300">
-                        Pincode: {patient.pincode}
-                      </p>
-                    )}
-                  </div>
-                  <div className="col-span-2">
-                    <p className="text-sm text-gray-300">Subscription</p>
-                    <p className="font-medium">
-                      {patient.isSubscribed ? (
-                        <span className="text-green-400">Subscribed</span>
-                      ) : (
-                        <span className="text-yellow-400">Not Subscribed</span>
-                      )}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-            {activeTab === 'medicalHistory' && (
-              <div className="overflow-x-auto">
-                <table className="min-w-full bg-white/20 backdrop-blur-lg border border-white/20 rounded-lg">
-                  <thead>
-                    <tr className="bg-white/10 border-bottom border-white/20">
-                      <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-200 uppercase tracking-wider">
-                        Date
-                      </th>
-                      <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-200 uppercase tracking-wider">
-                        Time
-                      </th>
-                      <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-200 uppercase tracking-wider">
-                        Type
-                      </th>
-                      <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-200 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-200 uppercase tracking-wider">
-                        Prescription
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/20">
-                    {appointments.length > 0 ? (
-                      appointments.map((appt) => (
-                        <tr
-                          key={appt._id}
-                          className="hover:bg-white/30 transition-all duration-300"
-                        >
-                          <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-200">
-                            {DateUtils.formatToLocal(appt.date)}
-                          </td>
-                          <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-200">
-                            {DateUtils.formatTimeToLocal(appt.startTime)} -{' '}
-                            {DateUtils.formatTimeToLocal(appt.endTime)}
-                          </td>
-                          <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-200">
-                            {appt.isFreeBooking ? 'Free Booking' : 'Subscribed'}
-                          </td>
-                          <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
-                            <span
-                              className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                appt.status === 'completed'
-                                  ? 'bg-green-500/20 text-green-300'
-                                  : appt.status === 'pending'
-                                    ? 'bg-yellow-500/20 text-yellow-300'
-                                    : 'bg-red-500/20 text-red-300'
-                              }`}
-                            >
-                              {appt.status || 'Pending'}
-                            </span>
-                          </td>
-                          <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-200">
-                            {appt.status === 'completed' &&
-                            appt.prescription ? (
-                              <button
-                                onClick={() =>
-                                  handleViewPrescription(appt.prescription)
-                                }
-                                className="px-4 py-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-300"
-                              >
-                                View
-                              </button>
-                            ) : (
-                              'N/A'
-                            )}
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td
-                          colSpan={5}
-                          className="px-4 sm:px-6 py-4 text-center text-gray-200"
-                        >
-                          No medical history found.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-                {totalPages > 1 && (
-                  <Pagination
-                    currentPage={currentPage}
-                    totalPages={totalPages}
-                    onPageChange={handlePageChange}
-                    className="mt-6"
-                  />
-                )}
-              </div>
-            )}
-          </>
-        )}
+              )}
+            </>
+          )}
+        </div>
       </div>
     </>
   );

@@ -1,10 +1,4 @@
-import React, {
-  useState,
-  useCallback,
-  useMemo,
-  useEffect,
-  useRef,
-} from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import {
   listPatientsThunk,
@@ -29,6 +23,13 @@ import {
 } from '../../utils/validation';
 import { ITEMS_PER_PAGE } from '../../utils/constants';
 import { showSuccess, showError } from '../../utils/toastConfig';
+import {
+  Users,
+  Plus,
+  AlertTriangle,
+  ShieldCheck,
+  ShieldOff,
+} from 'lucide-react';
 
 interface PaginationParams {
   page: number;
@@ -78,7 +79,6 @@ const AdminManagePatients: React.FC = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (user?.role === 'admin') {
@@ -93,14 +93,12 @@ const AdminManagePatients: React.FC = () => {
         sortBy,
         sortOrder,
       };
-
       if (statusFilter !== 'all') {
         if (statusFilter === 'active') params.isBlocked = false;
         if (statusFilter === 'blocked') params.isBlocked = true;
         if (statusFilter === 'subscribed') params.isSubscribed = true;
         if (statusFilter === 'notSubscribed') params.isSubscribed = false;
       }
-
       dispatch(listPatientsThunk(params));
     }
   }, [dispatch, user?.role, currentPage, searchTerm, statusFilter, sortFilter]);
@@ -108,6 +106,9 @@ const AdminManagePatients: React.FC = () => {
   useEffect(() => {
     setTotalPages(totalPagesFromState.patients);
   }, [totalPagesFromState.patients]);
+
+  const resetFormErrors = () =>
+    setFormErrors({ name: '', email: '', password: '', phone: '' });
 
   const validateForm = useCallback((patient: typeof newPatient | Patient) => {
     const errors = {
@@ -120,7 +121,7 @@ const AdminManagePatients: React.FC = () => {
       phone: validatePhone(patient.phone ?? '') || '',
     };
     setFormErrors(errors);
-    return Object.values(errors).every((error) => !error);
+    return Object.values(errors).every((e) => !e);
   }, []);
 
   const handleCreatePatient = useCallback(async () => {
@@ -133,7 +134,7 @@ const AdminManagePatients: React.FC = () => {
       showSuccess('Patient created successfully');
       setIsModalOpen(false);
       setNewPatient({ email: '', password: '', name: '', phone: '' });
-      setFormErrors({ name: '', email: '', password: '', phone: '' });
+      resetFormErrors();
     } catch (err) {
       showError(`Failed to create patient: ${err}`);
     }
@@ -150,7 +151,7 @@ const AdminManagePatients: React.FC = () => {
       ).unwrap();
       showSuccess('Patient updated successfully');
       setEditPatient(null);
-      setFormErrors({ name: '', email: '', password: '', phone: '' });
+      resetFormErrors();
     } catch (err) {
       showError(`Failed to update patient: ${err}`);
     }
@@ -201,13 +202,13 @@ const AdminManagePatients: React.FC = () => {
               ? `${patient.name.substring(0, maxLength)}...`
               : patient.name || 'Unknown';
           return (
-            <div className="flex items-center">
+            <div className="flex items-center gap-3">
               <Avatar
                 name={patient.name || 'Unknown'}
                 id={patient._id}
                 profilePicture={patient.profilePicture ?? ''}
               />
-              <span className="ml-4 text-sm font-medium text-white truncate max-w-[150px]">
+              <span className="text-sm font-medium text-text-primary truncate max-w-[150px]">
                 {displayName}
               </span>
             </div>
@@ -215,30 +216,24 @@ const AdminManagePatients: React.FC = () => {
         },
         className: 'align-middle',
       },
+      { header: 'Email', accessor: 'email' as keyof Patient },
+      { header: 'Phone', accessor: 'phone' as keyof Patient },
       {
-        header: 'Email',
-        accessor: 'email' as keyof Patient,
-      },
-      {
-        header: 'Phone',
-        accessor: 'phone' as keyof Patient,
-      },
-      {
-        header: 'Joined Date',
+        header: 'Joined',
         accessor: (patient: Patient): React.ReactNode =>
           patient.createdAt ? formatDate(patient.createdAt) : 'N/A',
       },
       {
         header: 'Status',
         accessor: (patient: Patient): React.ReactNode => (
-          <div className="flex flex-col space-y-1">
+          <div className="flex flex-col gap-1">
             <span
-              className={`px-2 py-1 text-xs font-semibold rounded-full ${patient.isSubscribed ? 'bg-green-500/20 text-green-300' : 'bg-gray-500/20 text-gray-300'}`}
+              className={`badge ${patient.isSubscribed ? 'badge-success' : 'badge-neutral'}`}
             >
               {patient.isSubscribed ? 'Subscribed' : 'Not Subscribed'}
             </span>
             <span
-              className={`px-2 py-1 text-xs font-semibold rounded-full ${patient.isBlocked ? 'bg-red-500/20 text-red-300' : 'bg-gray-500/20 text-gray-300'}`}
+              className={`badge ${patient.isBlocked ? 'badge-error' : 'badge-neutral'}`}
             >
               {patient.isBlocked ? 'Blocked' : 'Active'}
             </span>
@@ -254,7 +249,7 @@ const AdminManagePatients: React.FC = () => {
       {
         label: 'Edit',
         onClick: (patient: Patient) => setEditPatient(patient),
-        className: 'bg-purple-600 hover:bg-purple-700 px-3 py-1 rounded-lg',
+        className: 'btn-secondary text-xs px-3 py-1.5',
       },
       {
         label: 'Delete',
@@ -262,7 +257,7 @@ const AdminManagePatients: React.FC = () => {
           setSelectedPatient(patient);
           setIsDeleteModalOpen(true);
         },
-        className: 'bg-red-600 hover:bg-red-700 px-3 py-1 rounded-lg',
+        className: 'btn-danger text-xs px-3 py-1.5',
       },
       {
         label: 'Block',
@@ -270,7 +265,8 @@ const AdminManagePatients: React.FC = () => {
           setSelectedPatient(patient);
           setIsBlockModalOpen(true);
         },
-        className: 'bg-yellow-600 hover:bg-yellow-700 px-3 py-1 rounded-lg',
+        className:
+          'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors',
         condition: (patient: Patient) => patient.isBlocked === false,
       },
       {
@@ -279,7 +275,8 @@ const AdminManagePatients: React.FC = () => {
           setSelectedPatient(patient);
           setIsBlockModalOpen(true);
         },
-        className: 'bg-green-600 hover:bg-green-700 px-3 py-1 rounded-lg',
+        className:
+          'bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors',
         condition: (patient: Patient) => patient.isBlocked === true,
       },
     ],
@@ -307,85 +304,135 @@ const AdminManagePatients: React.FC = () => {
     []
   );
 
-  const handlePageChange = useCallback((page: number) => {
-    setCurrentPage(page);
-  }, []);
-
+  const handlePageChange = useCallback(
+    (page: number) => setCurrentPage(page),
+    []
+  );
   const handleSearch = useCallback((term: string) => {
     setSearchTerm(term.trim());
     setCurrentPage(1);
   }, []);
 
+  const FormField = ({
+    label,
+    type = 'text',
+    placeholder,
+    value,
+    error,
+    onChange,
+  }: {
+    label: string;
+    type?: string;
+    placeholder: string;
+    value: string;
+    error: string;
+    onChange: (v: string) => void;
+  }) => (
+    <div>
+      <label className="label">{label}</label>
+      <input
+        type={type}
+        placeholder={placeholder}
+        className={`input ${error ? 'input-error' : ''}`}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      {error && <p className="error-text">{error}</p>}
+    </div>
+  );
+
   return (
-    <div className="bg-white/10 backdrop-blur-lg p-4 sm:p-6 lg:p-8 rounded-2xl border border-white/20 shadow-xl">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-        <SearchBar
-          value={searchTerm}
-          onChange={handleSearch}
-          placeholder="Search patients..."
-        />
-        <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-          <FilterSelect
-            value={statusFilter}
-            options={statusOptions}
-            onChange={setStatusFilter}
-            label="Status"
-            className="w-full sm:w-48"
+    <div className="space-y-5">
+      {/* Page Header */}
+      <div className="page-header">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-teal-50 flex items-center justify-center">
+            <Users size={18} className="text-teal-600" />
+          </div>
+          <div>
+            <h1 className="page-title">Manage Patients</h1>
+            <p className="page-subtitle">
+              View and manage all registered patients
+            </p>
+          </div>
+        </div>
+        <button onClick={() => setIsModalOpen(true)} className="btn-primary">
+          <Plus size={16} />
+          Add Patient
+        </button>
+      </div>
+
+      {/* Filters */}
+      <div className="card">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 flex-wrap">
+          <SearchBar
+            value={searchTerm}
+            onChange={handleSearch}
+            placeholder="Search patients..."
           />
-          <FilterSelect
-            value={sortFilter}
-            options={sortOptions}
-            onChange={setSortFilter}
-            label="Sort By"
-            className="w-full sm:w-48"
-          />
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-3 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300 shadow-lg hover:shadow-xl"
-          >
-            + Add Patient
-          </button>
+          <div className="flex flex-wrap gap-3">
+            <FilterSelect
+              value={statusFilter}
+              options={statusOptions}
+              onChange={setStatusFilter}
+              label="Status"
+              className="w-44"
+            />
+            <FilterSelect
+              value={sortFilter}
+              options={sortOptions}
+              onChange={setSortFilter}
+              label="Sort By"
+              className="w-44"
+            />
+          </div>
         </div>
       </div>
-      <DataTable
-        data={patients}
-        columns={columns}
-        actions={actions}
-        isLoading={loading}
-        error={error}
-        onRetry={() => {
-          const [sortBy, sortOrder] = sortFilter.split(':') as [
-            string,
-            'asc' | 'desc',
-          ];
-          const params: PaginationParams = {
-            page: currentPage,
-            limit: ITEMS_PER_PAGE,
-            search: searchTerm.trim() || undefined,
-            sortBy,
-            sortOrder,
-          };
 
-          if (statusFilter !== 'all') {
-            if (statusFilter === 'active') params.isBlocked = false;
-            if (statusFilter === 'blocked') params.isBlocked = true;
-            if (statusFilter === 'subscribed') params.isSubscribed = true;
-            if (statusFilter === 'notSubscribed') params.isSubscribed = false;
-          }
+      {/* Table */}
+      <div className="card p-0 overflow-hidden">
+        <DataTable
+          data={patients}
+          columns={columns}
+          actions={actions}
+          isLoading={loading}
+          error={error}
+          onRetry={() => {
+            const [sortBy, sortOrder] = sortFilter.split(':') as [
+              string,
+              'asc' | 'desc',
+            ];
+            const params: PaginationParams = {
+              page: currentPage,
+              limit: ITEMS_PER_PAGE,
+              search: searchTerm.trim() || undefined,
+              sortBy,
+              sortOrder,
+            };
+            if (statusFilter !== 'all') {
+              if (statusFilter === 'active') params.isBlocked = false;
+              if (statusFilter === 'blocked') params.isBlocked = true;
+              if (statusFilter === 'subscribed') params.isSubscribed = true;
+              if (statusFilter === 'notSubscribed') params.isSubscribed = false;
+            }
+            dispatch(listPatientsThunk(params));
+          }}
+        />
+        <div className="border-t border-surface-border px-4 py-3">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+          />
+        </div>
+      </div>
 
-          dispatch(listPatientsThunk(params));
-        }}
-      />
-      <Pagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={handlePageChange}
-      />
+      {/* Add Patient Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => {
           setIsModalOpen(false);
-          setFormErrors({ name: '', email: '', password: '', phone: '' });
+          resetFormErrors();
         }}
         title="Add Patient"
         footer={
@@ -393,103 +440,74 @@ const AdminManagePatients: React.FC = () => {
             <button
               onClick={() => {
                 setIsModalOpen(false);
-                setFormErrors({ name: '', email: '', password: '', phone: '' });
+                resetFormErrors();
               }}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
+              className="btn-secondary"
             >
               Cancel
             </button>
-            <button
-              onClick={handleCreatePatient}
-              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
-            >
-              Submit
+            <button onClick={handleCreatePatient} className="btn-primary">
+              Create Patient
             </button>
           </div>
         }
       >
         <div className="space-y-4">
-          <div>
-            <input
-              ref={inputRef}
-              type="text"
-              placeholder="Name"
-              className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-              value={newPatient.name}
-              onChange={(e) => {
-                setNewPatient({ ...newPatient, name: e.target.value });
-                setFormErrors({
-                  ...formErrors,
-                  name: validateName(e.target.value) || '',
-                });
-              }}
-            />
-            {formErrors.name && (
-              <p className="text-red-400 text-xs mt-1">{formErrors.name}</p>
-            )}
-          </div>
-          <div>
-            <input
-              type="email"
-              placeholder="Email"
-              className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-              value={newPatient.email}
-              onChange={(e) => {
-                setNewPatient({ ...newPatient, email: e.target.value });
-                setFormErrors({
-                  ...formErrors,
-                  email: validateEmail(e.target.value) || '',
-                });
-              }}
-            />
-            {formErrors.email && (
-              <p className="text-red-400 text-xs mt-1">{formErrors.email}</p>
-            )}
-          </div>
-          <div>
-            <input
-              type="password"
-              placeholder="Password"
-              className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-              value={newPatient.password}
-              onChange={(e) => {
-                setNewPatient({ ...newPatient, password: e.target.value });
-                setFormErrors({
-                  ...formErrors,
-                  password: validatePassword(e.target.value) || '',
-                });
-              }}
-            />
-            {formErrors.password && (
-              <p className="text-red-400 text-xs mt-1">{formErrors.password}</p>
-            )}
-          </div>
-          <div>
-            <input
-              type="text"
-              placeholder="Phone"
-              className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-              value={newPatient.phone}
-              onChange={(e) => {
-                setNewPatient({ ...newPatient, phone: e.target.value });
-                setFormErrors({
-                  ...formErrors,
-                  phone: validatePhone(e.target.value) || '',
-                });
-              }}
-            />
-            {formErrors.phone && (
-              <p className="text-red-400 text-xs mt-1">{formErrors.phone}</p>
-            )}
-          </div>
+          <FormField
+            label="Full Name"
+            placeholder="Jane Doe"
+            value={newPatient.name}
+            error={formErrors.name}
+            onChange={(v) => {
+              setNewPatient({ ...newPatient, name: v });
+              setFormErrors({ ...formErrors, name: validateName(v) || '' });
+            }}
+          />
+          <FormField
+            label="Email"
+            type="email"
+            placeholder="patient@example.com"
+            value={newPatient.email}
+            error={formErrors.email}
+            onChange={(v) => {
+              setNewPatient({ ...newPatient, email: v });
+              setFormErrors({ ...formErrors, email: validateEmail(v) || '' });
+            }}
+          />
+          <FormField
+            label="Password"
+            type="password"
+            placeholder="••••••••"
+            value={newPatient.password}
+            error={formErrors.password}
+            onChange={(v) => {
+              setNewPatient({ ...newPatient, password: v });
+              setFormErrors({
+                ...formErrors,
+                password: validatePassword(v) || '',
+              });
+            }}
+          />
+          <FormField
+            label="Phone"
+            placeholder="+91 98765 43210"
+            value={newPatient.phone}
+            error={formErrors.phone}
+            onChange={(v) => {
+              setNewPatient({ ...newPatient, phone: v });
+              setFormErrors({ ...formErrors, phone: validatePhone(v) || '' });
+            }}
+          />
         </div>
       </Modal>
+
+      {/* Edit Patient Modal */}
       {editPatient && (
         <Modal
           isOpen={!!editPatient}
           onClose={() => {
             setEditPatient(null);
-            setFormErrors({ name: '', email: '', password: '', phone: '' });
+            resetFormErrors();
           }}
           title="Edit Patient"
           footer={
@@ -497,84 +515,55 @@ const AdminManagePatients: React.FC = () => {
               <button
                 onClick={() => {
                   setEditPatient(null);
-                  setFormErrors({
-                    name: '',
-                    email: '',
-                    password: '',
-                    phone: '',
-                  });
+                  resetFormErrors();
                 }}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
+                className="btn-secondary"
               >
                 Cancel
               </button>
-              <button
-                onClick={handleUpdatePatient}
-                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
-              >
-                Submit
+              <button onClick={handleUpdatePatient} className="btn-primary">
+                Save Changes
               </button>
             </div>
           }
         >
           <div className="space-y-4">
-            <div>
-              <input
-                type="text"
-                placeholder="Name"
-                className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                value={editPatient.name}
-                onChange={(e) => {
-                  setEditPatient({ ...editPatient, name: e.target.value });
-                  setFormErrors({
-                    ...formErrors,
-                    name: validateName(e.target.value) || '',
-                  });
-                }}
-              />
-              {formErrors.name && (
-                <p className="text-red-400 text-xs mt-1">{formErrors.name}</p>
-              )}
-            </div>
-            <div>
-              <input
-                type="email"
-                placeholder="Email"
-                className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                value={editPatient.email}
-                onChange={(e) => {
-                  setEditPatient({ ...editPatient, email: e.target.value });
-                  setFormErrors({
-                    ...formErrors,
-                    email: validateEmail(e.target.value) || '',
-                  });
-                }}
-              />
-              {formErrors.email && (
-                <p className="text-red-400 text-xs mt-1">{formErrors.email}</p>
-              )}
-            </div>
-            <div>
-              <input
-                type="text"
-                placeholder="Phone"
-                className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                value={editPatient.phone}
-                onChange={(e) => {
-                  setEditPatient({ ...editPatient, phone: e.target.value });
-                  setFormErrors({
-                    ...formErrors,
-                    phone: validatePhone(e.target.value) || '',
-                  });
-                }}
-              />
-              {formErrors.phone && (
-                <p className="text-red-400 text-xs mt-1">{formErrors.phone}</p>
-              )}
-            </div>
+            <FormField
+              label="Full Name"
+              placeholder="Jane Doe"
+              value={editPatient.name ?? ''}
+              error={formErrors.name}
+              onChange={(v) => {
+                setEditPatient({ ...editPatient, name: v });
+                setFormErrors({ ...formErrors, name: validateName(v) || '' });
+              }}
+            />
+            <FormField
+              label="Email"
+              type="email"
+              placeholder="patient@example.com"
+              value={editPatient.email ?? ''}
+              error={formErrors.email}
+              onChange={(v) => {
+                setEditPatient({ ...editPatient, email: v });
+                setFormErrors({ ...formErrors, email: validateEmail(v) || '' });
+              }}
+            />
+            <FormField
+              label="Phone"
+              placeholder="+91 98765 43210"
+              value={editPatient.phone ?? ''}
+              error={formErrors.phone}
+              onChange={(v) => {
+                setEditPatient({ ...editPatient, phone: v });
+                setFormErrors({ ...formErrors, phone: validatePhone(v) || '' });
+              }}
+            />
           </div>
         </Modal>
       )}
+
+      {/* Delete Modal */}
       {isDeleteModalOpen && selectedPatient && (
         <Modal
           isOpen={isDeleteModalOpen}
@@ -582,7 +571,7 @@ const AdminManagePatients: React.FC = () => {
             setIsDeleteModalOpen(false);
             setSelectedPatient(null);
           }}
-          title="Confirm Delete"
+          title="Delete Patient"
           footer={
             <div className="flex justify-end gap-3">
               <button
@@ -590,24 +579,32 @@ const AdminManagePatients: React.FC = () => {
                   setIsDeleteModalOpen(false);
                   setSelectedPatient(null);
                 }}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
+                className="btn-secondary"
               >
                 Cancel
               </button>
-              <button
-                onClick={handleDeletePatient}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all duration-300"
-              >
+              <button onClick={handleDeletePatient} className="btn-danger">
                 Delete
               </button>
             </div>
           }
         >
-          <p className="text-white">
-            Are you sure you want to delete {selectedPatient.name || 'Unknown'}?
-          </p>
+          <div className="flex gap-3 items-start">
+            <div className="w-9 h-9 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0">
+              <AlertTriangle size={16} className="text-red-500" />
+            </div>
+            <p className="pt-1 text-sm text-text-secondary">
+              Permanently delete{' '}
+              <span className="font-semibold text-text-primary">
+                {selectedPatient.name || 'Unknown'}
+              </span>
+              ? This action cannot be undone.
+            </p>
+          </div>
         </Modal>
       )}
+
+      {/* Block/Unblock Modal */}
       {isBlockModalOpen && selectedPatient && (
         <Modal
           isOpen={isBlockModalOpen}
@@ -616,7 +613,7 @@ const AdminManagePatients: React.FC = () => {
             setSelectedPatient(null);
           }}
           title={
-            selectedPatient.isBlocked ? 'Confirm Unblock' : 'Confirm Block'
+            selectedPatient.isBlocked ? 'Unblock Patient' : 'Block Patient'
           }
           footer={
             <div className="flex justify-end gap-3">
@@ -625,28 +622,44 @@ const AdminManagePatients: React.FC = () => {
                   setIsBlockModalOpen(false);
                   setSelectedPatient(null);
                 }}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
+                className="btn-secondary"
               >
                 Cancel
               </button>
               <button
                 onClick={handleBlockPatient}
-                className={`px-4 py-2 text-white rounded-lg transition-all duration-300 ${
+                className={
                   selectedPatient.isBlocked
-                    ? 'bg-green-600 hover:bg-green-700'
-                    : 'bg-yellow-600 hover:bg-yellow-700'
-                }`}
+                    ? 'bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors'
+                    : 'bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors'
+                }
               >
                 {selectedPatient.isBlocked ? 'Unblock' : 'Block'}
               </button>
             </div>
           }
         >
-          <p className="text-white">
-            Are you sure you want to{' '}
-            {selectedPatient.isBlocked ? 'unblock' : 'block'}{' '}
-            {selectedPatient.name || 'Unknown'}?
-          </p>
+          <div className="flex gap-3 items-start">
+            <div
+              className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${selectedPatient.isBlocked ? 'bg-green-50' : 'bg-amber-50'}`}
+            >
+              {selectedPatient.isBlocked ? (
+                <ShieldCheck size={16} className="text-green-600" />
+              ) : (
+                <ShieldOff size={16} className="text-amber-600" />
+              )}
+            </div>
+            <p className="pt-1 text-sm text-text-secondary">
+              Are you sure you want to{' '}
+              {selectedPatient.isBlocked ? 'unblock' : 'block'}{' '}
+              <span className="font-semibold text-text-primary">
+                {selectedPatient.name || 'Unknown'}
+              </span>
+              ?
+              {!selectedPatient.isBlocked &&
+                ' They will no longer be able to access the platform.'}
+            </p>
+          </div>
         </Modal>
       )}
     </div>

@@ -7,30 +7,21 @@ import { clearError as clearPatientError } from '../redux/slices/patientSlice';
 const ToastManager: React.FC = () => {
   const dispatch = useAppDispatch();
 
-  // Doctor slice errors
   const { error: doctorError } = useAppSelector((state) => state.doctors);
   useEffect(() => {
     if (doctorError) {
-      toast.error(doctorError, {
-        toastId: 'doctor-error',
-        autoClose: 3000,
-      });
+      toast.error(doctorError, { toastId: 'doctor-error', autoClose: 3000 });
       dispatch(clearDoctorError());
     }
   }, [doctorError, dispatch]);
 
-  // Patient slice errors
   const { error: patientError } = useAppSelector((state) => state.patient);
   useEffect(() => {
     if (patientError) {
-      toast.error(patientError, {
-        toastId: 'patient-error',
-        autoClose: 3000,
-      });
+      toast.error(patientError, { toastId: 'patient-error', autoClose: 3000 });
       dispatch(clearPatientError());
     }
   }, [patientError, dispatch]);
-
 
   return null;
 };

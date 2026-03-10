@@ -8,9 +8,55 @@ import {
 import { Patient, PatientSubscription } from '../../types/authTypes';
 import DataTable, { Column } from '../../components/common/DataTable';
 import Pagination from '../../components/common/Pagination';
-import BackButton from '../../components/common/BackButton';
 import { ITEMS_PER_PAGE } from '../../utils/constants';
 import ROUTES from '../../constants/routeConstants';
+import { ArrowLeft, CreditCard, Clock, Activity } from 'lucide-react';
+
+const StatusBadge = ({ status }: { status: string }) => {
+  const map: Record<string, string> = {
+    active: 'badge-success',
+    expired: 'badge-error',
+    cancelled: 'badge-warning',
+  };
+  return (
+    <span className={`badge ${map[status] || 'badge-neutral'} capitalize`}>
+      {status}
+    </span>
+  );
+};
+
+const PlanStatusBadge = ({ status }: { status: string }) => {
+  const map: Record<string, string> = {
+    approved: 'badge-success',
+    pending: 'badge-warning',
+    rejected: 'badge-error',
+  };
+  return (
+    <span className={`badge ${map[status] || 'badge-neutral'} capitalize`}>
+      {status}
+    </span>
+  );
+};
+
+const StatCard = ({
+  label,
+  value,
+  icon,
+  color,
+}: {
+  label: string;
+  value: number;
+  icon: React.ReactNode;
+  color: string;
+}) => (
+  <div className="stat-card">
+    <div className={`stat-icon ${color}`}>{icon}</div>
+    <div>
+      <p className="text-xs text-text-muted mb-0.5">{label}</p>
+      <p className="text-2xl font-bold text-text-primary">{value}</p>
+    </div>
+  </div>
+);
 
 const PlanDetails: React.FC = () => {
   const { planId } = useParams<{ planId: string }>();
@@ -22,7 +68,7 @@ const PlanDetails: React.FC = () => {
     loading,
     subscribedPatients,
     totalItems,
-  } = useAppSelector((state) => state.doctors);
+  } = useAppSelector((s) => s.doctors);
   const [activeTab, setActiveTab] = useState<'details' | 'patients'>('details');
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -35,60 +81,39 @@ const PlanDetails: React.FC = () => {
     }
   }, [dispatch, planId]);
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
-
   const getSubscriptionForPlan = (
     patient: Patient,
-    planId?: string
-  ): PatientSubscription | undefined => {
-    const res = patient.subscribedPlans?.find(
-      (sub) => sub.planDetails?._id === planId
-    );
-    return res;
-  };
+    pid?: string
+  ): PatientSubscription | undefined =>
+    patient.subscribedPlans?.find((sub) => sub.planDetails?._id === pid);
 
   const patientColumns: Column<Patient>[] = [
     {
       header: 'Name',
-      accessor: (patient) => patient.name || 'N/A',
+      accessor: (p) => (
+        <span className="font-medium text-text-primary">{p.name || 'N/A'}</span>
+      ),
     },
     { header: 'Email', accessor: 'email' },
     {
-      header: 'No. of Days Left',
-      accessor: (patient) => {
-        const subscription = getSubscriptionForPlan(patient, planId);
-        return subscription?.remainingDays ?? 'N/A';
+      header: 'Days Left',
+      accessor: (p) => {
+        const sub = getSubscriptionForPlan(p, planId);
+        return sub?.remainingDays ?? 'N/A';
       },
     },
     {
-      header: 'No. of Appointments Left',
-      accessor: (patient) => {
-        const subscription = getSubscriptionForPlan(patient, planId);
-        return subscription?.appointmentsLeft ?? 'N/A';
+      header: 'Appointments Left',
+      accessor: (p) => {
+        const sub = getSubscriptionForPlan(p, planId);
+        return sub?.appointmentsLeft ?? 'N/A';
       },
     },
     {
       header: 'Status',
-      accessor: (patient) => {
-        const subscription = getSubscriptionForPlan(patient, planId);
-        return subscription ? (
-          <span
-            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-              subscription.status === 'active'
-                ? 'bg-green-500/20 text-green-300'
-                : subscription.status === 'expired'
-                  ? 'bg-red-500/20 text-red-300'
-                  : 'bg-yellow-500/20 text-yellow-300'
-            }`}
-          >
-            {subscription.status.charAt(0).toUpperCase() +
-              subscription.status.slice(1)}
-          </span>
-        ) : (
-          'N/A'
-        );
+      accessor: (p) => {
+        const sub = getSubscriptionForPlan(p, planId);
+        return sub ? <StatusBadge status={sub.status} /> : 'N/A';
       },
     },
   ];
@@ -96,163 +121,136 @@ const PlanDetails: React.FC = () => {
   const actions = [
     {
       label: 'View Details',
-      onClick: (patient: Patient) =>
-        navigate(
-          ROUTES.DOCTOR.PATIENT_DETAILS.replace(':patientId', patient._id),
-          {
-            state: { from: 'plans' },
-          }
-        ),
+      onClick: (p: Patient) =>
+        navigate(ROUTES.DOCTOR.PATIENT_DETAILS.replace(':patientId', p._id), {
+          state: { from: 'plans' },
+        }),
+      className: 'btn-primary text-xs px-3 py-1.5',
     },
   ];
 
-  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
-
   if (!plan) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 flex items-center justify-center">
-        <div className="text-white text-center">
-          <h2 className="text-2xl font-bold mb-4">Plan not found</h2>
-          <BackButton />
-        </div>
+      <div className="flex flex-col items-center justify-center h-64 gap-4">
+        <p className="text-text-secondary font-medium">Plan not found.</p>
+        <button
+          onClick={() => navigate(ROUTES.DOCTOR.PLANS)}
+          className="btn-secondary"
+        >
+          Back to Plans
+        </button>
       </div>
     );
   }
 
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedPatients = subscribedPatients.slice(
+  const paginatedPats = subscribedPatients.slice(
     startIndex,
     startIndex + ITEMS_PER_PAGE
   );
+  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+  const counts = planId ? planSubscriptionCounts[planId] : undefined;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 py-8">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl border border-white/20 shadow-xl">
-          <button
-            onClick={() => navigate(ROUTES.DOCTOR.PLANS)}
-            className="mb-4 text-white hover:text-blue-300 flex items-center"
-          >
-            <svg
-              className="w-5 h-5 mr-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+    <div className="space-y-6 animate-fade-in">
+      {/* Header */}
+      <div className="page-header">
+        <button
+          onClick={() => navigate(ROUTES.DOCTOR.PLANS)}
+          className="btn-ghost text-sm flex items-center gap-1.5"
+        >
+          <ArrowLeft size={16} /> Back to Plans
+        </button>
+      </div>
+
+      {/* Tabs */}
+      <div className="card overflow-hidden">
+        <div className="flex border-b border-surface-border">
+          {(['details', 'patients'] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-6 py-3.5 text-sm font-semibold transition-colors border-b-2 ${
+                activeTab === tab
+                  ? 'border-primary-500 text-primary-600'
+                  : 'border-transparent text-text-muted hover:text-text-secondary'
+              }`}
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
+              {tab === 'details' ? 'Plan Details' : 'Subscribed Patients'}
+            </button>
+          ))}
+        </div>
+
+        {/* ── Details tab ── */}
+        {activeTab === 'details' && (
+          <div className="p-6 space-y-6">
+            {/* Subscription counts */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <StatCard
+                label="Active Subscriptions"
+                value={counts?.active || 0}
+                icon={<Activity size={18} />}
+                color="bg-emerald-50"
               />
-            </svg>
-            Back to Plans
-          </button>
-          <h2 className="text-xl sm:text-2xl font-semibold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent mb-6">
-            Plan Details
-          </h2>
-
-          <div className="mb-6">
-            <div className="flex border-b border-white/20">
-              <button
-                className={`px-4 py-2 font-medium text-sm ${
-                  activeTab === 'details'
-                    ? 'border-b-2 border-purple-400 text-purple-300'
-                    : 'text-gray-300 hover:text-purple-300'
-                }`}
-                onClick={() => setActiveTab('details')}
-              >
-                Plan Details
-              </button>
-              <button
-                className={`px-4 py-2 font-medium text-sm ${
-                  activeTab === 'patients'
-                    ? 'border-b-2 border-purple-400 text-purple-300'
-                    : 'text-gray-300 hover:text-purple-300'
-                }`}
-                onClick={() => setActiveTab('patients')}
-              >
-                Subscribed Patients
-              </button>
+              <StatCard
+                label="Expired Subscriptions"
+                value={counts?.expired || 0}
+                icon={<Clock size={18} />}
+                color="bg-red-50"
+              />
+              <StatCard
+                label="Cancelled Subscriptions"
+                value={counts?.cancelled || 0}
+                icon={<CreditCard size={18} />}
+                color="bg-amber-50"
+              />
             </div>
-          </div>
 
-          {activeTab === 'details' && (
-            <div className="space-y-6">
-              <div className="bg-white/20 backdrop-blur-lg rounded-xl border border-white/30 p-6">
-                <h3 className="text-lg font-semibold text-white mb-4">
-                  Plan Information
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-white">
-                  <div>
-                    <p className="text-sm text-gray-300">Name</p>
-                    <p className="font-medium">{plan.name}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-300">Price</p>
-                    <p className="font-medium">₹{plan.price.toFixed(2)}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-300">Validity</p>
-                    <p className="font-medium">{plan.validityDays} days</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-300">Appointments</p>
-                    <p className="font-medium">{plan.appointmentCount}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-300">Status</p>
-                    <span
-                      className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        plan.status === 'approved'
-                          ? 'bg-green-500/20 text-green-300'
-                          : plan.status === 'pending'
-                            ? 'bg-yellow-500/20 text-yellow-300'
-                            : 'bg-red-500/20 text-red-300'
-                      }`}
-                    >
-                      {plan.status}
-                    </span>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-300">Subscriptions</p>
-                    <p className="font-medium">
-                      Active:{' '}
-                      {(planId && planSubscriptionCounts[planId]?.active) || 0}
-                      <br />
-                      Expired:{' '}
-                      {(planId && planSubscriptionCounts[planId]?.expired) || 0}
-                      <br />
-                      Cancelled:{' '}
-                      {(planId && planSubscriptionCounts[planId]?.cancelled) ||
-                        0}
-                    </p>
-                  </div>
+            {/* Plan info grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {[
+                { label: 'Plan Name', value: plan.name },
+                { label: 'Price', value: `₹${plan.price.toFixed(2)}` },
+                { label: 'Validity', value: `${plan.validityDays} days` },
+                { label: 'Appointments', value: String(plan.appointmentCount) },
+              ].map(({ label, value }) => (
+                <div
+                  key={label}
+                  className="p-4 rounded-xl border border-surface-border bg-surface-bg"
+                >
+                  <p className="text-xs text-text-muted mb-0.5">{label}</p>
+                  <p className="font-semibold text-text-primary">{value}</p>
                 </div>
+              ))}
+              <div className="p-4 rounded-xl border border-surface-border bg-surface-bg">
+                <p className="text-xs text-text-muted mb-1">Status</p>
+                <PlanStatusBadge status={plan.status} />
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {activeTab === 'patients' && (
-            <div className="space-y-6">
-              <DataTable
-                data={paginatedPatients}
-                columns={patientColumns}
-                actions={actions}
-                isLoading={loading}
-                emptyMessage="No subscribed patients found."
-              />
-              {totalPages > 1 && (
+        {/* ── Patients tab ── */}
+        {activeTab === 'patients' && (
+          <div>
+            <DataTable
+              data={paginatedPats}
+              columns={patientColumns}
+              actions={actions}
+              isLoading={loading}
+              emptyMessage="No subscribed patients found."
+            />
+            {totalPages > 1 && (
+              <div className="px-6 py-4 border-t border-surface-border">
                 <Pagination
                   currentPage={currentPage}
                   totalPages={totalPages}
-                  onPageChange={handlePageChange}
-                  className="mt-6"
+                  onPageChange={setCurrentPage}
                 />
-              )}
-            </div>
-          )}
-        </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

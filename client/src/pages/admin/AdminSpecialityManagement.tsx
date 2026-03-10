@@ -19,6 +19,7 @@ import Modal from '../../components/common/Modal';
 import { Speciality } from '../../types/authTypes';
 import { validateName } from '../../utils/validation';
 import { showSuccess, showError } from '../../utils/toastConfig';
+import { Tag, Plus, AlertTriangle } from 'lucide-react';
 
 const AdminSpecialityManagement: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -71,10 +72,7 @@ const AdminSpecialityManagement: React.FC = () => {
     try {
       if (selectedSpeciality) {
         await dispatch(
-          updateSpecialityThunk({
-            id: selectedSpeciality._id,
-            specialityName,
-          })
+          updateSpecialityThunk({ id: selectedSpeciality._id, specialityName })
         ).unwrap();
         await showSuccess('Speciality updated successfully');
       } else {
@@ -131,19 +129,21 @@ const AdminSpecialityManagement: React.FC = () => {
               : speciality.name || 'N/A';
           return (
             <span
-              className="text-sm text-white truncate max-w-[150px]"
+              className="text-sm font-medium text-text-primary truncate max-w-[150px]"
               title={speciality.name || 'N/A'}
             >
               {displayName}
             </span>
           );
         },
-        className: 'align-middle',
       },
       {
-        header: 'Created At',
-        accessor: (speciality: Speciality): React.ReactNode =>
-          new Date(speciality.createdAt).toLocaleDateString(),
+        header: 'Created',
+        accessor: (speciality: Speciality): React.ReactNode => (
+          <span className="text-sm text-text-secondary">
+            {new Date(speciality.createdAt).toLocaleDateString()}
+          </span>
+        ),
       },
     ],
     []
@@ -154,7 +154,7 @@ const AdminSpecialityManagement: React.FC = () => {
       {
         label: 'Edit',
         onClick: handleEditSpeciality,
-        className: 'bg-blue-600 hover:bg-blue-700',
+        className: 'btn-secondary text-xs px-3 py-1.5',
       },
       {
         label: 'Delete',
@@ -162,62 +162,76 @@ const AdminSpecialityManagement: React.FC = () => {
           setSelectedSpeciality(speciality);
           setIsDeleteModalOpen(true);
         },
-        className: 'bg-red-600 hover:bg-red-700',
+        className: 'btn-danger text-xs px-3 py-1.5',
       },
     ],
     [handleEditSpeciality]
   );
 
-  const handlePageChange = useCallback((page: number) => {
-    setCurrentPage(page);
-  }, []);
-
+  const handlePageChange = useCallback(
+    (page: number) => setCurrentPage(page),
+    []
+  );
   const handleSearch = useCallback((term: string) => {
     setSearchTerm(term.trim());
     setCurrentPage(1);
   }, []);
 
   return (
-    <div className="bg-white/10 backdrop-blur-lg p-4 md:p-6 rounded-2xl border border-white/20 shadow-xl">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-semibold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent">
-          Speciality Management
-        </h2>
-        <button
-          onClick={handleAddSpeciality}
-          className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
-        >
+    <div className="space-y-5">
+      <div className="page-header">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-accent-50 flex items-center justify-center">
+            <Tag size={18} className="text-accent-600" />
+          </div>
+          <div>
+            <h1 className="page-title">Speciality Management</h1>
+            <p className="page-subtitle">
+              Manage medical specialities available on the platform
+            </p>
+          </div>
+        </div>
+        <button onClick={handleAddSpeciality} className="btn-primary">
+          <Plus size={16} />
           Add Speciality
         </button>
       </div>
-      <div className="flex flex-col md:flex-row gap-4 mb-6">
+
+      <div className="card">
         <SearchBar
           value={searchTerm}
           onChange={handleSearch}
           placeholder="Search specialities..."
         />
       </div>
-      <DataTable
-        data={specialities}
-        columns={columns}
-        actions={actions}
-        isLoading={loading}
-        error={error}
-        onRetry={() =>
-          dispatch(
-            getAllSpecialitiesThunk({
-              page: currentPage,
-              limit: itemsPerPage,
-              search: searchTerm.trim(),
-            })
-          )
-        }
-      />
-      <Pagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={handlePageChange}
-      />
+
+      <div className="card p-0 overflow-hidden">
+        <DataTable
+          data={specialities}
+          columns={columns}
+          actions={actions}
+          isLoading={loading}
+          error={error}
+          onRetry={() =>
+            dispatch(
+              getAllSpecialitiesThunk({
+                page: currentPage,
+                limit: itemsPerPage,
+                search: searchTerm.trim(),
+              })
+            )
+          }
+        />
+        <div className="border-t border-surface-border px-4 py-3">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+          />
+        </div>
+      </div>
+
+      {/* Add / Edit Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => {
@@ -232,38 +246,37 @@ const AdminSpecialityManagement: React.FC = () => {
                 setIsModalOpen(false);
                 setFormError('');
               }}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
+              className="btn-secondary"
             >
               Cancel
             </button>
             <button
               onClick={handleCreateOrUpdateSpeciality}
-              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
+              className="btn-primary"
             >
-              {selectedSpeciality ? 'Update' : 'Create'}
+              {selectedSpeciality ? 'Save Changes' : 'Create'}
             </button>
           </div>
         }
       >
-        <div className="space-y-4">
-          <div>
-            <input
-              ref={inputRef}
-              type="text"
-              placeholder="Speciality name"
-              className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-              value={specialityName}
-              onChange={(e) => {
-                setSpecialityName(e.target.value);
-                setFormError(validateName(e.target.value) || '');
-              }}
-            />
-            {formError && (
-              <p className="text-red-400 text-xs mt-1">{formError}</p>
-            )}
-          </div>
+        <div>
+          <label className="label">Speciality Name</label>
+          <input
+            ref={inputRef}
+            type="text"
+            placeholder="e.g. Cardiology"
+            className={`input ${formError ? 'input-error' : ''}`}
+            value={specialityName}
+            onChange={(e) => {
+              setSpecialityName(e.target.value);
+              setFormError(validateName(e.target.value) || '');
+            }}
+          />
+          {formError && <p className="error-text">{formError}</p>}
         </div>
       </Modal>
+
+      {/* Delete Modal */}
       {isDeleteModalOpen && selectedSpeciality && (
         <Modal
           isOpen={isDeleteModalOpen}
@@ -271,7 +284,7 @@ const AdminSpecialityManagement: React.FC = () => {
             setIsDeleteModalOpen(false);
             setSelectedSpeciality(null);
           }}
-          title="Confirm Delete"
+          title="Delete Speciality"
           footer={
             <div className="flex justify-end gap-3">
               <button
@@ -279,23 +292,28 @@ const AdminSpecialityManagement: React.FC = () => {
                   setIsDeleteModalOpen(false);
                   setSelectedSpeciality(null);
                 }}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
+                className="btn-secondary"
               >
                 Cancel
               </button>
-              <button
-                onClick={handleDeleteSpeciality}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all duration-300"
-              >
+              <button onClick={handleDeleteSpeciality} className="btn-danger">
                 Delete
               </button>
             </div>
           }
         >
-          <p className="text-white">
-            Are you sure you want to delete the speciality "
-            {selectedSpeciality.name || 'Unknown'}"?
-          </p>
+          <div className="flex gap-3 items-start">
+            <div className="w-9 h-9 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0">
+              <AlertTriangle size={16} className="text-red-500" />
+            </div>
+            <p className="pt-1 text-sm text-text-secondary">
+              Permanently delete the speciality{' '}
+              <span className="font-semibold text-text-primary">
+                "{selectedSpeciality.name || 'Unknown'}"
+              </span>
+              ? This may affect doctors listed under this speciality.
+            </p>
+          </div>
         </Modal>
       )}
     </div>

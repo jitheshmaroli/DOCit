@@ -11,12 +11,14 @@ export const toastConfig: Partial<ToastOptions> = {
   className: 'custom-toast',
   progressClassName: 'custom-toast-progress',
   style: {
-    background: 'rgba(255, 255, 255, 0.1)',
-    backdropFilter: 'blur(10px)',
-    border: '1px solid rgba(255, 255, 255, 0.2)',
-    borderRadius: '12px',
-    color: 'white',
-    fontFamily: 'system-ui, -apple-system, sans-serif',
+    background: '#ffffff',
+    border: '1px solid #E2E8F0',
+    borderRadius: '14px',
+    color: '#1E293B',
+    fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif',
+    fontSize: '14px',
+    boxShadow:
+      '0 8px 24px -4px rgba(15, 165, 233, 0.12), 0 2px 8px -2px rgba(0,0,0,0.06)',
   },
 };
 
@@ -50,14 +52,22 @@ export const showToast = async (
   }
 };
 
-export const showSuccess = (message: ToastContent, options?: Partial<ToastOptions>): Promise<void> =>
-  showToast(message, 'success', options);
+export const showSuccess = (
+  message: ToastContent,
+  options?: Partial<ToastOptions>
+): Promise<void> => showToast(message, 'success', options);
 
-export const showError = (message: ToastContent, options?: Partial<ToastOptions>): Promise<void> =>
-  showToast(message, 'error', options);
+export const showError = (
+  message: ToastContent,
+  options?: Partial<ToastOptions>
+): Promise<void> => showToast(message, 'error', options);
 
-export const showWarning = (message: ToastContent, options?: Partial<ToastOptions>): Promise<void> =>
-  showToast(message, 'warning', options);
+export const showWarning = (
+  message: ToastContent,
+  options?: Partial<ToastOptions>
+): Promise<void> => showToast(message, 'warning', options);
 
-export const showInfo = (message: ToastContent, options?: Partial<ToastOptions>): Promise<void> =>
-  showToast(message, 'info', options);
+export const showInfo = (
+  message: ToastContent,
+  options?: Partial<ToastOptions>
+): Promise<void> => showToast(message, 'info', options);

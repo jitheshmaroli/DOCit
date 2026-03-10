@@ -8,6 +8,15 @@ import { ITEMS_PER_PAGE } from '../../utils/constants';
 import { Patient } from '../../types/authTypes';
 import { showError } from '../../utils/toastConfig';
 import ROUTES from '../../constants/routeConstants';
+import { Search, Users } from 'lucide-react';
+
+const StatusBadge = ({ patient }: { patient: Patient }) => {
+  if (patient.isBlocked)
+    return <span className="badge badge-error">Blocked</span>;
+  if (patient.isSubscribed)
+    return <span className="badge badge-success">Subscribed</span>;
+  return <span className="badge badge-warning">Not Subscribed</span>;
+};
 
 const DoctorPatients: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -36,13 +45,8 @@ const DoctorPatients: React.FC = () => {
         setLoading(false);
       }
     };
-
     fetchPatients();
   }, [dispatch, currentPage, user?._id]);
-
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
 
   const columns: Column<Patient>[] = [
     {
@@ -54,40 +58,15 @@ const DoctorPatients: React.FC = () => {
               ROUTES.DOCTOR.PATIENT_DETAILS.replace(':patientId', patient._id)
             )
           }
-          className="hover:underline hover:text-blue-300 focus:outline-none"
+          className="font-medium text-primary-600 hover:text-primary-700 hover:underline focus:outline-none"
         >
           {patient.name || 'N/A'}
         </button>
       ),
     },
-    {
-      header: 'Email',
-      accessor: 'email',
-    },
-    {
-      header: 'Phone',
-      accessor: (patient) => patient.phone || 'N/A',
-    },
-    {
-      header: 'Status',
-      accessor: (patient) => (
-        <span
-          className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-            patient.isBlocked
-              ? 'bg-red-500/20 text-red-300'
-              : patient.isSubscribed
-                ? 'bg-green-500/20 text-green-300'
-                : 'bg-yellow-500/20 text-yellow-300'
-          }`}
-        >
-          {patient.isBlocked
-            ? 'Blocked'
-            : patient.isSubscribed
-              ? 'Subscribed'
-              : 'Not Subscribed'}
-        </span>
-      ),
-    },
+    { header: 'Email', accessor: 'email' },
+    { header: 'Phone', accessor: (p) => p.phone || 'N/A' },
+    { header: 'Status', accessor: (p) => <StatusBadge patient={p} /> },
   ];
 
   const actions = [
@@ -96,37 +75,55 @@ const DoctorPatients: React.FC = () => {
       onClick: (patient: Patient) =>
         navigate(
           ROUTES.DOCTOR.PATIENT_DETAILS.replace(':patientId', patient._id),
-          {
-            state: { from: 'patients' },
-          }
+          { state: { from: 'patients' } }
         ),
-      className: 'bg-purple-600 hover:bg-purple-700',
+      className: 'btn-primary text-xs px-3 py-1.5',
     },
   ];
 
   const filteredPatients = patients.filter(
-    (patient) =>
-      patient.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      patient.email?.toLowerCase().includes(searchTerm.toLowerCase())
+    (p) =>
+      p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
   return (
-    <>
-      <div className="bg-white/10 backdrop-blur-lg p-4 sm:p-6 rounded-2xl border border-white/20 shadow-xl">
-        <h2 className="text-xl sm:text-2xl font-semibold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent mb-6">
-          Patients
-        </h2>
-        <div className="mb-6">
-          <input
-            type="text"
-            placeholder="Search patients..."
-            className="w-full sm:w-1/3 p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+    <div className="space-y-6 animate-fade-in">
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Patients</h1>
+          <p className="page-subtitle">
+            View and manage your appointed patients
+          </p>
         </div>
+      </div>
+
+      <div className="card overflow-hidden">
+        <div className="px-6 py-4 border-b border-surface-border flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="relative flex-1 max-w-xs">
+            <Search
+              size={16}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
+            />
+            <input
+              type="text"
+              placeholder="Search by name or email..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="input pl-9 py-2 text-sm w-full"
+            />
+          </div>
+          <div className="flex items-center gap-2 text-sm text-text-muted">
+            <Users size={15} />
+            <span>
+              {filteredPatients.length} patient
+              {filteredPatients.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+        </div>
+
         <DataTable
           data={filteredPatients}
           columns={columns}
@@ -134,16 +131,18 @@ const DoctorPatients: React.FC = () => {
           isLoading={loading}
           emptyMessage="No patients found."
         />
+
         {totalPages > 1 && (
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={handlePageChange}
-            className="mt-6"
-          />
+          <div className="px-6 py-4 border-t border-surface-border">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
+          </div>
         )}
       </div>
-    </>
+    </div>
   );
 };
 

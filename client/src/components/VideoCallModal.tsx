@@ -2,7 +2,17 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Peer from 'simple-peer';
 import { toast } from 'react-toastify';
-import { Video, Mic, MicOff, VideoOff, Hand } from 'lucide-react';
+import {
+  Video,
+  Mic,
+  MicOff,
+  VideoOff,
+  Hand,
+  PhoneOff,
+  Phone,
+  PhoneIncoming,
+  Loader2,
+} from 'lucide-react';
 import { useSocket } from '../hooks/useSocket';
 
 interface VideoCallModalProps {
@@ -32,56 +42,48 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
   const [isHandRaised, setIsHandRaised] = useState(false);
   const [isRemoteHandRaised, setIsRemoteHandRaised] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(true);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
-  const microphoneRef = useRef<MediaStreamAudioSourceNode | null>(null);
 
   const handleClose = () => {
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-    }
-    if (peer) {
-      peer.destroy();
-    }
-    if (audioContextRef.current) {
-      audioContextRef.current.close();
-    }
+    stream?.getTracks().forEach((t) => t.stop());
+    peer?.destroy();
+    audioContextRef.current?.close();
     emit('endCall', { appointmentId, receiverId });
     setStream(null);
     setPeer(null);
     setIsSpeaking(false);
     setIsHandRaised(false);
     setIsRemoteHandRaised(false);
+    setIsConnecting(true);
     onClose();
   };
 
   const setupAudioAnalyser = (mediaStream: MediaStream) => {
     const audioContext = new AudioContext();
     const analyser = audioContext.createAnalyser();
-    const microphone = audioContext.createMediaStreamSource(mediaStream);
+    const mic = audioContext.createMediaStreamSource(mediaStream);
     analyser.fftSize = 256;
-    microphone.connect(analyser);
+    mic.connect(analyser);
     audioContextRef.current = audioContext;
     analyserRef.current = analyser;
-    microphoneRef.current = microphone;
-
     const dataArray = new Uint8Array(analyser.frequencyBinCount);
-    const detectSpeech = () => {
+    const detect = () => {
       if (!analyserRef.current) return;
       analyserRef.current.getByteFrequencyData(dataArray);
-      const average =
-        dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length;
-      setIsSpeaking(average > 10);
-      requestAnimationFrame(detectSpeech);
+      setIsSpeaking(
+        dataArray.reduce((s, v) => s + v, 0) / dataArray.length > 10
+      );
+      requestAnimationFrame(detect);
     };
-    detectSpeech();
+    detect();
   };
 
   useEffect(() => {
     if (!isOpen) return;
-
     const setupMedia = async () => {
       try {
         const mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -89,39 +91,32 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
           audio: true,
         });
         setStream(mediaStream);
-        if (localVideoRef.current) {
+        if (localVideoRef.current)
           localVideoRef.current.srcObject = mediaStream;
-        }
-
         setupAudioAnalyser(mediaStream);
-
         const peerInstance = new Peer({
           initiator: isCaller,
           trickle: false,
           stream: mediaStream,
         });
-
-        peerInstance.on('signal', (signal) => {
+        peerInstance.on('signal', (signal) =>
           emit('signal', {
             appointmentId,
             receiverId,
             signal,
             senderId: userId,
-          });
-        });
-
+          })
+        );
         peerInstance.on('stream', (remoteStream) => {
-          if (remoteVideoRef.current) {
+          if (remoteVideoRef.current)
             remoteVideoRef.current.srcObject = remoteStream;
-          }
+          setIsConnecting(false);
         });
-
         peerInstance.on('error', (err) => {
           console.error('Peer error:', err);
           toast.error('Video call error');
           handleClose();
         });
-
         setPeer(peerInstance);
       } catch (error) {
         console.error('Media setup error:', error);
@@ -129,35 +124,25 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
         handleClose();
       }
     };
-
     setupMedia();
-
     return () => {
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
-      }
-      if (peer) {
-        peer.destroy();
-      }
-      if (audioContextRef.current) {
-        audioContextRef.current.close();
-      }
+      stream?.getTracks().forEach((t) => t.stop());
+      peer?.destroy();
+      audioContextRef.current?.close();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, isCaller, appointmentId, receiverId, userId, emit]);
 
   useEffect(() => {
     if (!socket || !isOpen) return;
-
     registerHandlers({
       onSignal: (data: {
         appointmentId: string;
         senderId: string;
         signal: any;
       }) => {
-        if (data.appointmentId === appointmentId && peer) {
+        if (data.appointmentId === appointmentId && peer)
           peer.signal(data.signal);
-        }
       },
       onCallEnded: (data: { appointmentId: string; enderId: string }) => {
         if (data.appointmentId === appointmentId) {
@@ -171,33 +156,27 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
         isRaised: boolean;
       }) => {
         if (data.appointmentId === appointmentId) {
-          if (data.userId === userId) {
-            setIsHandRaised(data.isRaised);
-          } else {
-            setIsRemoteHandRaised(data.isRaised);
-          }
+          if (data.userId === userId) setIsHandRaised(data.isRaised);
+          else setIsRemoteHandRaised(data.isRaised);
         }
       },
     });
-
     return () => {
       socket.off('signal');
       socket.off('callEnded');
       socket.off('handRaise');
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [socket, peer, appointmentId, handleClose, isOpen, userId]);
+  }, [socket, peer, appointmentId, isOpen, userId]);
 
   const handleAcceptCall = () => {
-    if (callerInfo) {
+    if (callerInfo)
       emit('acceptCall', {
         appointmentId,
         callerId: callerInfo.callerId,
         userId,
       });
-    }
   };
-
   const handleRejectCall = () => {
     if (callerInfo) {
       emit('rejectCall', {
@@ -208,58 +187,59 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
       handleClose();
     }
   };
-
   const toggleMute = () => {
-    if (stream) {
-      stream.getAudioTracks().forEach((track) => {
-        track.enabled = !track.enabled;
-      });
-      setIsMuted(!isMuted);
-    }
-  };
-
-  const toggleVideo = () => {
-    if (stream) {
-      stream.getVideoTracks().forEach((track) => {
-        track.enabled = !track.enabled;
-      });
-      setIsVideoOff(!isVideoOff);
-    }
-  };
-
-  const toggleHandRaise = () => {
-    const newHandRaisedState = !isHandRaised;
-    setIsHandRaised(newHandRaisedState);
-    emit('handRaise', {
-      appointmentId,
-      receiverId,
-      isRaised: newHandRaisedState,
+    stream?.getAudioTracks().forEach((t) => {
+      t.enabled = !t.enabled;
     });
+    setIsMuted((p) => !p);
+  };
+  const toggleVideo = () => {
+    stream?.getVideoTracks().forEach((t) => {
+      t.enabled = !t.enabled;
+    });
+    setIsVideoOff((p) => !p);
+  };
+  const toggleHand = () => {
+    const next = !isHandRaised;
+    setIsHandRaised(next);
+    emit('handRaise', { appointmentId, receiverId, isRaised: next });
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-      <div className="relative w-full max-w-4xl h-[80vh] bg-gray-900 rounded-lg p-4">
-        {/* Remote Video (Main Screen) */}
-        <div className="relative w-full h-full">
+    <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4 animate-fade-in">
+      <div
+        className="relative w-full max-w-4xl rounded-2xl overflow-hidden shadow-2xl"
+        style={{ aspectRatio: '16/10', maxHeight: '85vh' }}
+      >
+        {/* ── Remote video (main) ── */}
+        <div className="absolute inset-0 bg-gray-900">
           <video
             ref={remoteVideoRef}
             autoPlay
             playsInline
-            className="absolute inset-0 w-full h-full object-cover rounded-lg"
+            className="w-full h-full object-cover"
           />
+
+          {/* Connecting overlay */}
+          {isConnecting && !(!isCaller && callerInfo && !peer) && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900/80 gap-4">
+              <Loader2 size={32} className="animate-spin text-primary-400" />
+              <p className="text-white text-sm font-medium">Connecting...</p>
+            </div>
+          )}
+
+          {/* Remote hand raised */}
           {isRemoteHandRaised && (
-            <div className="absolute top-4 left-4 bg-yellow-600 text-white px-3 py-1 rounded-full flex items-center gap-2">
-              <Hand className="w-5 h-5" />
-              <span>Hand Raised</span>
+            <div className="absolute top-4 left-4 flex items-center gap-2 bg-amber-500/90 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-sm font-semibold shadow-lg animate-fade-in">
+              <Hand size={14} /> Hand Raised
             </div>
           )}
         </div>
 
-        {/* Local Video (Small Square) */}
-        <div className="absolute bottom-4 right-4 w-32 h-24 bg-black/50 rounded-lg overflow-hidden">
+        {/* ── Local video (PiP) ── */}
+        <div className="absolute bottom-20 right-4 w-36 h-24 rounded-xl overflow-hidden border-2 border-white/20 shadow-lg bg-gray-800">
           <video
             ref={localVideoRef}
             autoPlay
@@ -268,75 +248,99 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
             className="w-full h-full object-cover"
           />
           {isHandRaised && (
-            <div className="absolute top-2 left-2 bg-yellow-600 text-white px-2 py-1 rounded-full flex items-center gap-1 text-sm">
-              <Hand className="w-4 h-4" />
-              <span>Hand Raised</span>
+            <div className="absolute top-1.5 left-1.5 flex items-center gap-1 bg-amber-500/90 text-white px-2 py-0.5 rounded-full text-[10px] font-semibold">
+              <Hand size={10} /> Raised
             </div>
+          )}
+          {/* Speaking indicator */}
+          {isSpeaking && !isMuted && (
+            <div className="absolute inset-0 border-2 border-emerald-400 rounded-xl pointer-events-none animate-pulse" />
           )}
         </div>
 
-        {/* Incoming Call Prompt */}
+        {/* ── Incoming call prompt ── */}
         {!isCaller && callerInfo && !peer && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-            <div className="bg-white/10 backdrop-blur-lg p-6 rounded-lg text-center">
-              <h2 className="text-xl text-white mb-4">
-                Incoming call from {callerInfo.callerRole}
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-900/80 backdrop-blur-sm animate-fade-in">
+            <div className="bg-white rounded-2xl shadow-2xl p-8 text-center max-w-sm w-full mx-4 animate-scale-in">
+              <div className="w-16 h-16 rounded-full bg-primary-100 flex items-center justify-center mx-auto mb-4">
+                <PhoneIncoming size={28} className="text-primary-500" />
+              </div>
+              <h2 className="font-display font-bold text-text-primary text-xl mb-1">
+                Incoming Call
               </h2>
-              <div className="flex gap-4 justify-center">
-                <button
-                  onClick={handleAcceptCall}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                >
-                  Accept
-                </button>
+              <p className="text-sm text-text-secondary mb-6">
+                {callerInfo.callerRole.charAt(0).toUpperCase() +
+                  callerInfo.callerRole.slice(1)}{' '}
+                is calling...
+              </p>
+              <div className="flex gap-3 justify-center">
                 <button
                   onClick={handleRejectCall}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                  className="flex-1 btn-danger justify-center py-3 rounded-xl"
                 >
-                  Reject
+                  <PhoneOff size={18} /> Decline
+                </button>
+                <button
+                  onClick={handleAcceptCall}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-semibold transition-colors"
+                >
+                  <Phone size={18} /> Accept
                 </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* Control Buttons */}
-        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-4">
+        {/* ── Control bar ── */}
+        <div className="absolute bottom-0 inset-x-0 flex items-center justify-center gap-3 py-4 px-6 bg-gradient-to-t from-black/70 to-transparent">
+          {/* Mute */}
           <button
             onClick={toggleMute}
-            className={`p-3 rounded-full ${isMuted ? 'bg-red-600' : isSpeaking ? 'bg-green-600 animate-pulse' : 'bg-gray-600'} text-white hover:bg-opacity-80`}
             title={isMuted ? 'Unmute' : 'Mute'}
+            className={`p-3.5 rounded-full transition-all duration-200 ${
+              isMuted
+                ? 'bg-error text-white hover:bg-red-700'
+                : isSpeaking
+                  ? 'bg-emerald-500 text-white animate-pulse'
+                  : 'bg-white/20 text-white hover:bg-white/30'
+            }`}
           >
-            {isMuted ? (
-              <MicOff className="w-6 h-6" />
-            ) : (
-              <Mic className="w-6 h-6" />
-            )}
+            {isMuted ? <MicOff size={20} /> : <Mic size={20} />}
           </button>
+
+          {/* Video */}
           <button
             onClick={toggleVideo}
-            className={`p-3 rounded-full ${isVideoOff ? 'bg-red-600' : 'bg-gray-600'} text-white hover:bg-opacity-80`}
             title={isVideoOff ? 'Turn on video' : 'Turn off video'}
+            className={`p-3.5 rounded-full transition-all duration-200 ${
+              isVideoOff
+                ? 'bg-error text-white hover:bg-red-700'
+                : 'bg-white/20 text-white hover:bg-white/30'
+            }`}
           >
-            {isVideoOff ? (
-              <VideoOff className="w-6 h-6" />
-            ) : (
-              <Video className="w-6 h-6" />
-            )}
+            {isVideoOff ? <VideoOff size={20} /> : <Video size={20} />}
           </button>
+
+          {/* Raise hand */}
           <button
-            onClick={toggleHandRaise}
-            className={`p-3 rounded-full ${isHandRaised ? 'bg-yellow-600' : 'bg-gray-600'} text-white hover:bg-opacity-80`}
+            onClick={toggleHand}
             title={isHandRaised ? 'Lower hand' : 'Raise hand'}
+            className={`p-3.5 rounded-full transition-all duration-200 ${
+              isHandRaised
+                ? 'bg-amber-500 text-white hover:bg-amber-600'
+                : 'bg-white/20 text-white hover:bg-white/30'
+            }`}
           >
-            <Hand className="w-6 h-6" />
+            <Hand size={20} />
           </button>
+
+          {/* End call */}
           <button
             onClick={handleClose}
-            className="p-3 rounded-full bg-red-600 text-white hover:bg-red-700"
             title="End call"
+            className="p-3.5 rounded-full bg-error text-white hover:bg-red-700 transition-colors shadow-lg ml-2"
           >
-            End Call
+            <PhoneOff size={20} />
           </button>
         </div>
       </div>

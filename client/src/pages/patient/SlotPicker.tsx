@@ -1,74 +1,85 @@
 import React, { useState, useEffect } from 'react';
 import dayjs, { Dayjs } from 'dayjs';
-import { DemoContainer } from '@mui/x-date-pickers/internals/demo';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { styled } from '@mui/material/styles';
 import { PickersDay, PickersDayProps } from '@mui/x-date-pickers/PickersDay';
+import { styled } from '@mui/material/styles';
 import { SlotPickerProps, TimeSlot } from '../../types/authTypes';
+import { Clock, Loader2 } from 'lucide-react';
 
-const HighlightedDay = styled(PickersDay)(() => ({
-  background:
-    'linear-gradient(135deg, rgba(147, 51, 234, 0.8), rgba(59, 130, 246, 0.8))',
+// Highlighted day — available date style
+const AvailableDay = styled(PickersDay)(() => ({
+  background: 'linear-gradient(135deg, #0EA5E9, #14B8A6)',
   borderRadius: '50%',
-  width: '36px',
-  height: '36px',
   color: '#ffffff',
-  backdropFilter: 'blur(5px)',
-  border: '1px solid rgba(255, 255, 255, 0.2)',
-  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+  fontWeight: 700,
   '&:hover': {
-    background: 'linear-gradient(135deg, #9333ea, #3b82f6)',
-    boxShadow: '0 6px 12px rgba(0, 0, 0, 0.3)',
+    background: 'linear-gradient(135deg, #0284C7, #0F9693)',
+    transform: 'scale(1.08)',
   },
   '&:focus': {
-    background: 'linear-gradient(135deg, #9333ea, #3b82f6)',
-    boxShadow: '0 6px 12px rgba(0, 0, 0, 0.3)',
+    background: 'linear-gradient(135deg, #0284C7, #0F9693)',
+  },
+  '&.Mui-selected': {
+    background: 'linear-gradient(135deg, #0369A1, #0D7E79)',
+    boxShadow: '0 0 0 3px rgba(14,165,233,0.25)',
   },
 }));
 
-const CalendarContainer = styled('div')({
-  '& .MuiPaper-root': {
-    background:
-      'linear-gradient(135deg, rgba(147, 51, 234, 0.1), rgba(59, 130, 246, 0.1))',
-    backdropFilter: 'blur(12px)',
-    border: '1px solid rgba(255, 255, 255, 0.2)',
+// Light-mode calendar wrapper
+const CalendarWrapper = styled('div')({
+  '& .MuiTextField-root': { width: '100%' },
+  '& .MuiInputBase-root': {
+    background: '#FFFFFF',
     borderRadius: '12px',
-    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-    color: '#ffffff',
+    fontSize: '0.9rem',
+    color: '#0F172A',
+    border: '1.5px solid #E2E8F0',
+    transition: 'border-color 0.2s',
+    '&:hover': { borderColor: '#0EA5E9' },
+    '&.Mui-focused': {
+      borderColor: '#0EA5E9',
+      boxShadow: '0 0 0 3px rgba(14,165,233,0.15)',
+    },
+  },
+  '& .MuiOutlinedInput-notchedOutline': { border: 'none' },
+  '& .MuiInputLabel-root': { color: '#64748B', fontWeight: 500 },
+  '& .MuiInputLabel-root.Mui-focused': { color: '#0EA5E9' },
+  '& .MuiSvgIcon-root': { color: '#64748B' },
+  // Popper / paper
+  '& .MuiPaper-root': {
+    borderRadius: '16px',
+    border: '1px solid #E2E8F0',
+    boxShadow: '0 8px 32px rgba(15,23,42,0.12)',
+    color: '#0F172A',
   },
   '& .MuiPickersDay-root': {
-    color: '#ffffff',
-    backgroundColor: 'transparent',
-    transition: 'all 0.2s ease',
+    color: '#0F172A',
+    borderRadius: '50%',
+    fontSize: '0.85rem',
+    '&.Mui-disabled': { color: '#CBD5E1', opacity: 0.7 },
+    '&:hover': { background: '#F1F5F9' },
   },
-  '& .MuiPickersDay-root.Mui-disabled': {
-    color: 'rgba(255, 255, 255, 0.3)',
-    opacity: 0.5,
+  '& .MuiPickersDay-today': {
+    border: '2px solid #0EA5E9',
+    color: '#0EA5E9',
+    fontWeight: 700,
   },
-  '& .MuiTypography-root': {
-    color: '#ffffff',
-    fontWeight: 500,
-  },
-  '& .MuiPickersCalendarHeader-label': {
-    color: '#ffffff',
-    fontSize: '1.1rem',
-  },
+  '& .MuiTypography-root': { color: '#0F172A' },
+  '& .MuiPickersCalendarHeader-label': { color: '#0F172A', fontWeight: 600 },
   '& .MuiIconButton-root': {
-    color: '#ffffff',
-    '&:hover': {
-      backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    },
-  },
-  '& .MuiPickersArrowSwitcher-root': {
-    '& .MuiIconButton-root:hover': {
-      backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    },
+    color: '#475569',
+    '&:hover': { background: '#F1F5F9' },
   },
   '& .MuiDayCalendar-weekDayLabel': {
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: '#94A3B8',
     fontWeight: 600,
+    fontSize: '0.75rem',
+  },
+  '& .MuiPickersYear-yearButton': {
+    color: '#0F172A',
+    '&.Mui-selected': { background: '#0EA5E9', color: '#fff' },
   },
 });
 
@@ -85,118 +96,103 @@ const SlotPicker: React.FC<SlotPickerProps> = ({
     selectedDate ? dayjs(selectedDate) : null
   );
 
-  // Synchronize the DatePicker's value with the selectedDate prop
   useEffect(() => {
     setValue(selectedDate ? dayjs(selectedDate) : null);
   }, [selectedDate]);
 
   const handleDateChange = (newValue: Dayjs | null) => {
     setValue(newValue);
-    const formattedDate = newValue ? dayjs(newValue).format('YYYY-MM-DD') : '';
-    onDateChange(formattedDate);
-    if (!formattedDate) {
-      onSlotSelect(null);
-    }
+    const formatted = newValue ? dayjs(newValue).format('YYYY-MM-DD') : '';
+    onDateChange(formatted);
+    if (!formatted) onSlotSelect(null);
   };
 
-  const CustomPickersDay = (props: PickersDayProps) => {
-    const { day, ...other } = props;
-
+  const CustomDay = (props: PickersDayProps) => {
+    const { day, ...rest } = props;
     const today = dayjs().startOf('day');
-    const isPastDate = day.isBefore(today, 'day');
-    const isAvailable = availableDates.some((date) =>
-      day.isSame(dayjs(date), 'day')
-    );
-
-    if (isPastDate) {
-      return <PickersDay {...other} day={day} disabled />;
-    }
-
+    if (day.isBefore(today, 'day'))
+      return <PickersDay {...rest} day={day} disabled />;
+    const isAvailable = availableDates.some((d) => day.isSame(dayjs(d), 'day'));
     return isAvailable ? (
-      <HighlightedDay {...other} day={day} />
+      <AvailableDay {...rest} day={day} />
     ) : (
-      <PickersDay {...other} day={day} disabled />
+      <PickersDay {...rest} day={day} disabled />
     );
   };
 
-  const handleSlotSelect = (slot: TimeSlot) => {
-    onSlotSelect(slot);
-  };
+  const isSelected = (slot: TimeSlot) =>
+    selectedSlot?.startTime === slot.startTime &&
+    selectedSlot?.endTime === slot.endTime;
 
   return (
-    <div className="space-y-4">
-      <LocalizationProvider dateAdapter={AdapterDayjs}>
-        <CalendarContainer>
-          <DemoContainer components={['DatePicker']}>
+    <div className="space-y-5">
+      {/* ── Date picker ── */}
+      <div>
+        <label className="label mb-2">Select Appointment Date</label>
+        <LocalizationProvider dateAdapter={AdapterDayjs}>
+          <CalendarWrapper>
             <DatePicker
-              label="Select Appointment Date"
               value={value}
               onChange={handleDateChange}
-              slots={{ day: CustomPickersDay }}
-              sx={{
-                '& .MuiInputBase-root': {
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  color: '#ffffff',
-                  borderRadius: '8px',
-                  backdropFilter: 'blur(8px)',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                },
-                '& .MuiInputLabel-root': {
-                  color: 'rgba(255, 255, 255, 0.7)',
-                  fontWeight: 500,
-                },
-                '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#ffffff',
-                },
-                '& .MuiOutlinedInput-notchedOutline': {
-                  borderColor: 'rgba(255, 255, 255, 0.2)',
-                },
-                '& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline':
-                  {
-                    borderColor: 'rgba(255, 255, 255, 0.4)',
-                  },
-                '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline':
-                  {
-                    borderColor: '#9333ea',
-                  },
-                '& .MuiSvgIcon-root': {
-                  color: 'rgba(255, 255, 255, 0.7)',
-                },
+              slots={{ day: CustomDay }}
+              slotProps={{
+                textField: { placeholder: 'Pick a date', size: 'small' },
               }}
             />
-          </DemoContainer>
-        </CalendarContainer>
-      </LocalizationProvider>
+          </CalendarWrapper>
+        </LocalizationProvider>
+        {availableDates.length > 0 && (
+          <p className="text-xs text-text-muted mt-2 flex items-center gap-1">
+            <span className="inline-block w-2.5 h-2.5 rounded-full bg-gradient-to-br from-primary-400 to-teal-400" />
+            Highlighted dates have available slots
+          </p>
+        )}
+      </div>
 
+      {/* ── Time slots ── */}
       {selectedDate && (
-        <div className="bg-white/10 backdrop-blur-lg p-4 rounded-2xl border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
-          <h3 className="text-lg font-semibold text-white mb-4">
-            Available Time Slots
-          </h3>
+        <div className="card p-5 animate-fade-in">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-7 h-7 rounded-lg bg-primary-50 flex items-center justify-center">
+              <Clock size={14} className="text-primary-500" />
+            </div>
+            <h3 className="font-semibold text-text-primary text-sm">
+              Available Time Slots
+            </h3>
+          </div>
+
           {patientLoading ? (
-            <p className="text-gray-300 text-center">Loading time slots...</p>
+            <div className="flex items-center justify-center gap-2 py-6">
+              <Loader2 size={18} className="animate-spin text-primary-400" />
+              <span className="text-sm text-text-muted">Loading slots...</span>
+            </div>
           ) : currentTimeSlots.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-              {currentTimeSlots.map((slot, index) => (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+              {currentTimeSlots.map((slot, idx) => (
                 <button
-                  key={index}
-                  onClick={() => handleSlotSelect(slot)}
+                  key={idx}
+                  onClick={() => onSlotSelect(slot)}
                   disabled={patientLoading}
-                  className={`py-2 px-4 rounded-lg border transition-all duration-200 text-sm shadow-[0_4px_8px_rgba(0,0,0,0.2)] ${
-                    selectedSlot?.startTime === slot.startTime &&
-                    selectedSlot?.endTime === slot.endTime
-                      ? 'bg-purple-600 text-white border-purple-500'
-                      : 'bg-gradient-to-r from-purple-600/20 to-blue-600/20 text-white border-white/20 hover:bg-gradient-to-r hover:from-purple-600/30 hover:to-blue-600/30'
+                  className={`relative py-2.5 px-3 rounded-xl border text-xs font-semibold transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:ring-offset-1 ${
+                    isSelected(slot)
+                      ? 'bg-primary-500 text-white border-primary-500 shadow-btn-primary'
+                      : 'bg-white text-text-primary border-surface-border hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700'
                   }`}
                 >
-                  {slot.startTime} - {slot.endTime}
+                  {slot.startTime} – {slot.endTime}
+                  {isSelected(slot) && (
+                    <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-teal-400 rounded-full border-2 border-white" />
+                  )}
                 </button>
               ))}
             </div>
           ) : (
-            <p className="text-gray-300 text-center">
-              No available time slots for the selected date
-            </p>
+            <div className="text-center py-6">
+              <Clock size={24} className="text-text-muted mx-auto mb-2" />
+              <p className="text-sm text-text-muted">
+                No available slots for this date.
+              </p>
+            </div>
           )}
         </div>
       )}

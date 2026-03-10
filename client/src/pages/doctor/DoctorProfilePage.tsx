@@ -13,7 +13,16 @@ import { getImageUrl } from '../../utils/config';
 import { Experience, Speciality } from '../../types/doctorTypes';
 import { showError, showSuccess } from '../../utils/toastConfig';
 import Modal from '../../components/common/Modal';
-import { FaRegEye, FaRegEyeSlash } from 'react-icons/fa';
+import {
+  Eye,
+  EyeOff,
+  Camera,
+  FileText,
+  Plus,
+  X,
+  Lock,
+  AlertTriangle,
+} from 'lucide-react';
 import {
   changeDoctorPassword,
   fetchSpecialities,
@@ -34,6 +43,9 @@ interface FormData {
   experiences: Experience[];
   licenseProof?: string;
 }
+
+const FieldError = ({ msg }: { msg?: string }) =>
+  msg ? <p className="error-text mt-1">{msg}</p> : null;
 
 const DoctorProfilePage: React.FC = () => {
   const { user } = useAppSelector((state: RootState) => state.auth);
@@ -62,24 +74,19 @@ const DoctorProfilePage: React.FC = () => {
   const [specialities, setSpecialities] = useState<Speciality[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isSetPassword, setIsSetPassword] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [passwordErrors, setPasswordErrors] = useState<{
-    current: string;
-    new: string;
-    confirm: string;
-  }>({
+  const [passwordErrors, setPasswordErrors] = useState({
     current: '',
     new: '',
     confirm: '',
   });
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showCurrentPwd, setShowCurrentPwd] = useState(false);
+  const [showNewPwd, setShowNewPwd] = useState(false);
+  const [showConfirmPwd, setShowConfirmPwd] = useState(false);
 
   const doctorId = user?._id;
 
@@ -88,22 +95,17 @@ const DoctorProfilePage: React.FC = () => {
       try {
         const specialitiesData = await fetchSpecialities();
         setSpecialities(specialitiesData);
-
         const response = await api.get(`/api/doctors/profile`);
         const data = response.data;
-
         let specialityName = '';
         if (data.speciality) {
-          const specialityId = Array.isArray(data.speciality)
+          const sid = Array.isArray(data.speciality)
             ? data.speciality[0]
             : data.speciality;
-          const speciality = specialitiesData.find(
-            (s: Speciality) => s._id === specialityId
-          );
-          specialityName = speciality ? speciality.name : '';
+          const sp = specialitiesData.find((s: Speciality) => s._id === sid);
+          specialityName = sp ? sp.name : '';
         }
-
-        const newFormData: FormData = {
+        const newFD: FormData = {
           name: data.name || '',
           email: data.email || '',
           phone: data.phone || '',
@@ -114,67 +116,111 @@ const DoctorProfilePage: React.FC = () => {
           gender: data.gender || '',
           allowFreeBooking: data.allowFreeBooking ?? true,
           experiences:
-            data.experiences?.map((exp: any) => ({
-              hospitalName: exp.hospitalName || '',
-              department: exp.department || '',
-              years: exp.years?.toString() || '',
+            data.experiences?.map((e: any) => ({
+              hospitalName: e.hospitalName || '',
+              department: e.department || '',
+              years: e.years?.toString() || '',
             })) || [],
           licenseProof: data.licenseProof || '',
         };
-
-        setFormData(newFormData);
-        setInitialFormData(newFormData);
-        const imageUrl = getImageUrl(data.profilePicture);
-        setProfilePicture(imageUrl);
-        setPreviewImage(imageUrl);
+        setFormData(newFD);
+        setInitialFormData(newFD);
+        const img = getImageUrl(data.profilePicture);
+        setProfilePicture(img);
+        setPreviewImage(img);
         setExperienceErrors(data.experiences?.map(() => ({})) || []);
       } catch {
         showError('Failed to load profile');
       }
     };
-
     if (doctorId) fetchProfile();
   }, [doctorId]);
 
   useEffect(() => {
     if (!initialFormData) return;
-
-    const isFormDataChanged = () => {
-      const simpleFields: (keyof FormData)[] = [
-        'name',
-        'email',
-        'phone',
-        'licenseNumber',
-        'qualifications',
-        'location',
-        'speciality',
-        'gender',
-        'allowFreeBooking',
-        'licenseProof',
-      ];
-      for (const field of simpleFields) {
-        if (formData[field] !== initialFormData[field]) return true;
-      }
-
-      if (formData.experiences.length !== initialFormData.experiences.length)
-        return true;
-
-      for (let i = 0; i < formData.experiences.length; i++) {
-        const current = formData.experiences[i];
-        const initial = initialFormData.experiences[i];
-        if (
-          current.hospitalName !== initial.hospitalName ||
-          current.department !== initial.department ||
-          current.years !== initial.years
-        )
-          return true;
-      }
-      return false;
-    };
-
-    const hasFileChanged = file !== null || licenseProofFile !== null;
-    setHasChanges(isFormDataChanged() || hasFileChanged);
+    const simpleFields: (keyof FormData)[] = [
+      'name',
+      'email',
+      'phone',
+      'licenseNumber',
+      'qualifications',
+      'location',
+      'speciality',
+      'gender',
+      'allowFreeBooking',
+      'licenseProof',
+    ];
+    let changed =
+      simpleFields.some((f) => formData[f] !== initialFormData[f]) ||
+      file !== null ||
+      licenseProofFile !== null;
+    if (
+      !changed &&
+      formData.experiences.length !== initialFormData.experiences.length
+    )
+      changed = true;
+    if (!changed) {
+      changed = formData.experiences.some((exp, i) => {
+        const init = initialFormData.experiences[i];
+        return (
+          init &&
+          (exp.hospitalName !== init.hospitalName ||
+            exp.department !== init.department ||
+            exp.years !== init.years)
+        );
+      });
+    }
+    setHasChanges(changed);
   }, [formData, file, licenseProofFile, initialFormData]);
+
+  const validateField = (name: string, value: string) => {
+    const map: Record<string, () => string | undefined> = {
+      name: () => validateName(value),
+      phone: () => validatePhone(value),
+      licenseNumber: () => (!value ? 'License Number is required' : undefined),
+      qualifications: () =>
+        !value ? 'Qualifications are required' : undefined,
+      location: () => (!value ? 'Location is required' : undefined),
+      speciality: () => (!value ? 'Speciality is required' : undefined),
+      gender: () => (!value ? 'Gender is required' : undefined),
+    };
+    if (map[name]) setErrors((p) => ({ ...p, [name]: map[name]() }));
+  };
+
+  const validateExperienceField = (
+    index: number,
+    field: keyof Experience,
+    value: string
+  ) => {
+    setExperienceErrors((prev) => {
+      const ne = [...prev];
+      ne[index] = { ...ne[index] };
+      switch (field) {
+        case 'hospitalName':
+          ne[index].hospitalName = !value
+            ? 'Hospital Name is required'
+            : value.length > 100
+              ? 'Max 100 characters'
+              : undefined;
+          break;
+        case 'department':
+          ne[index].department = !value
+            ? 'Department is required'
+            : value.length > 50
+              ? 'Max 50 characters'
+              : undefined;
+          break;
+        case 'years':
+          ne[index].years =
+            validateNumeric(value, 'Years') ||
+            (value && (parseInt(value) < 0 || parseInt(value) > 99)
+              ? 'Years must be 0–99'
+              : undefined);
+          break;
+      }
+      return ne;
+    });
+  };
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -184,15 +230,13 @@ const DoctorProfilePage: React.FC = () => {
     const { name, value, type } = e.target;
     const newValue =
       type === 'checkbox' ? (e.target as HTMLInputElement).checked : value;
-
     if (
       name === 'phone' &&
       typeof newValue === 'string' &&
       newValue.length > 10
     )
       return;
-
-    setFormData((prev) => ({ ...prev, [name]: newValue }));
+    setFormData((p) => ({ ...p, [name]: newValue }));
     if (typeof newValue === 'string') validateField(name, newValue);
   };
 
@@ -202,164 +246,70 @@ const DoctorProfilePage: React.FC = () => {
     value: string
   ) => {
     if (field === 'years' && value.length > 2) return;
-    setFormData((prev) => ({
-      ...prev,
-      experiences: prev.experiences.map((exp, i) =>
-        i === index ? { ...exp, [field]: value } : exp
+    setFormData((p) => ({
+      ...p,
+      experiences: p.experiences.map((e, i) =>
+        i === index ? { ...e, [field]: value } : e
       ),
     }));
     validateExperienceField(index, field, value);
   };
 
   const addExperience = () => {
-    setFormData((prev) => ({
-      ...prev,
+    setFormData((p) => ({
+      ...p,
       experiences: [
-        ...prev.experiences,
+        ...p.experiences,
         { hospitalName: '', department: '', years: '' },
       ],
     }));
-    setExperienceErrors((prev) => [...prev, {}]);
+    setExperienceErrors((p) => [...p, {}]);
   };
 
   const removeExperience = (index: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      experiences: prev.experiences.filter((_, i) => i !== index),
+    setFormData((p) => ({
+      ...p,
+      experiences: p.experiences.filter((_, i) => i !== index),
     }));
-    setExperienceErrors((prev) => prev.filter((_, i) => i !== index));
+    setExperienceErrors((p) => p.filter((_, i) => i !== index));
   };
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const selectedFile = e.target.files[0];
-      setFile(selectedFile);
+    if (e.target.files?.[0]) {
+      const f = e.target.files[0];
+      setFile(f);
       const reader = new FileReader();
       reader.onloadend = () => setPreviewImage(reader.result as string);
-      reader.readAsDataURL(selectedFile);
+      reader.readAsDataURL(f);
     }
   };
 
   const handleLicenseProofChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const selectedFile = e.target.files[0];
-      if (selectedFile.type !== 'application/pdf') {
+    if (e.target.files?.[0]) {
+      const f = e.target.files[0];
+      if (f.type !== 'application/pdf') {
         showError('License proof must be a PDF file');
         return;
       }
-      setLicenseProofFile(selectedFile);
+      setLicenseProofFile(f);
     }
-  };
-
-  const validateField = (name: string, value: string) => {
-    switch (name) {
-      case 'name':
-        setErrors((prev) => ({ ...prev, name: validateName(value) }));
-        break;
-      case 'phone':
-        setErrors((prev) => ({ ...prev, phone: validatePhone(value) }));
-        break;
-      case 'licenseNumber':
-        setErrors((prev) => ({
-          ...prev,
-          licenseNumber: !value ? 'License Number is required' : undefined,
-        }));
-        break;
-      case 'qualifications':
-        setErrors((prev) => ({
-          ...prev,
-          qualifications: !value ? 'Qualifications are required' : undefined,
-        }));
-        break;
-      case 'location':
-        setErrors((prev) => ({
-          ...prev,
-          location: !value ? 'Location is required' : undefined,
-        }));
-        break;
-      case 'speciality':
-        setErrors((prev) => ({
-          ...prev,
-          speciality: !value ? 'Speciality is required' : undefined,
-        }));
-        break;
-      case 'gender':
-        setErrors((prev) => ({
-          ...prev,
-          gender: !value ? 'Gender is required' : undefined,
-        }));
-        break;
-      default:
-        break;
-    }
-  };
-
-  const validateExperienceField = (
-    index: number,
-    field: keyof Experience,
-    value: string
-  ) => {
-    setExperienceErrors((prev) => {
-      const newErrors = [...prev];
-      newErrors[index] = { ...newErrors[index] };
-      switch (field) {
-        case 'hospitalName':
-          newErrors[index].hospitalName = !value
-            ? 'Hospital Name is required'
-            : value.length > 100
-              ? 'Hospital Name must be 100 characters or less'
-              : undefined;
-          break;
-        case 'department':
-          newErrors[index].department = !value
-            ? 'Department is required'
-            : value.length > 50
-              ? 'Department must be 50 characters or less'
-              : undefined;
-          break;
-        case 'years':
-          newErrors[index].years =
-            validateNumeric(value, 'Years') ||
-            (value && (parseInt(value) < 0 || parseInt(value) > 99)
-              ? 'Years must be between 0-99'
-              : undefined);
-          break;
-        default:
-          break;
-      }
-      return newErrors;
-    });
   };
 
   const validateForm = () => {
-    const newErrors: Record<string, string | undefined> = {};
     let isValid = true;
-
+    const skip = ['email', 'experiences', 'allowFreeBooking', 'licenseProof'];
     Object.entries(formData).forEach(([key, value]) => {
-      if (
-        key !== 'email' &&
-        key !== 'experiences' &&
-        key !== 'allowFreeBooking' &&
-        key !== 'licenseProof'
-      ) {
+      if (!skip.includes(key)) {
         validateField(key, value as string);
-        if (!value) {
-          newErrors[key] =
-            `${key.charAt(0).toUpperCase() + key.slice(1)} is required`;
-          isValid = false;
-        } else if (errors[key]) {
-          newErrors[key] = errors[key];
-          isValid = false;
-        }
+        if (!value) isValid = false;
+        else if (errors[key]) isValid = false;
       }
     });
-
-    const newExperienceErrors = formData.experiences.map((exp, index) => {
-      validateExperienceField(index, 'hospitalName', exp.hospitalName);
-      validateExperienceField(index, 'department', exp.department);
-      validateExperienceField(index, 'years', exp.years);
-
-      const expErrors: Record<string, string | undefined> = {
+    const expErrs = formData.experiences.map((exp, i) => {
+      validateExperienceField(i, 'hospitalName', exp.hospitalName);
+      validateExperienceField(i, 'department', exp.department);
+      validateExperienceField(i, 'years', exp.years);
+      const e: Record<string, string | undefined> = {
         hospitalName: !exp.hospitalName
           ? 'Hospital Name is required'
           : undefined,
@@ -367,23 +317,14 @@ const DoctorProfilePage: React.FC = () => {
         years:
           validateNumeric(exp.years, 'Years') ||
           (exp.years && (parseInt(exp.years) < 0 || parseInt(exp.years) > 99)
-            ? 'Years must be between 0-99'
+            ? 'Years must be 0–99'
             : undefined),
       };
-
-      if (
-        !exp.hospitalName ||
-        !exp.department ||
-        !exp.years ||
-        expErrors.years
-      ) {
+      if (!exp.hospitalName || !exp.department || !exp.years || e.years)
         isValid = false;
-      }
-      return expErrors;
+      return e;
     });
-
-    setErrors(newErrors);
-    setExperienceErrors(newExperienceErrors);
+    setExperienceErrors(expErrs);
     return isValid;
   };
 
@@ -398,50 +339,37 @@ const DoctorProfilePage: React.FC = () => {
 
   const handleConfirmUpdate = async () => {
     try {
-      const formDataToSend = new FormData();
-      formDataToSend.append('name', formData.name);
-      formDataToSend.append('phone', formData.phone);
-      formDataToSend.append('licenseNumber', formData.licenseNumber);
-      formDataToSend.append('qualifications', formData.qualifications);
-      formDataToSend.append('location', formData.location);
-      formDataToSend.append('speciality', formData.speciality);
-      formDataToSend.append('gender', formData.gender);
-      formDataToSend.append(
-        'allowFreeBooking',
-        String(formData.allowFreeBooking)
-      );
-      formDataToSend.append(
+      const fd = new FormData();
+      fd.append('name', formData.name);
+      fd.append('phone', formData.phone);
+      fd.append('licenseNumber', formData.licenseNumber);
+      fd.append('qualifications', formData.qualifications);
+      fd.append('location', formData.location);
+      fd.append('speciality', formData.speciality);
+      fd.append('gender', formData.gender);
+      fd.append('allowFreeBooking', String(formData.allowFreeBooking));
+      fd.append(
         'experiences',
         JSON.stringify(
-          formData.experiences.map((exp) => ({
-            ...exp,
-            years: parseInt(exp.years),
-          }))
+          formData.experiences.map((e) => ({ ...e, years: parseInt(e.years) }))
         )
       );
-
-      if (file) formDataToSend.append('profilePicture', file);
-      if (licenseProofFile)
-        formDataToSend.append('licenseProof', licenseProofFile);
-
-      const response = await api.patch(`/api/doctors/profile`, formDataToSend, {
+      if (file) fd.append('profilePicture', file);
+      if (licenseProofFile) fd.append('licenseProof', licenseProofFile);
+      const response = await api.patch(`/api/doctors/profile`, fd, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-
-      const speciality = specialities.find(
-        (s) => s._id === response.data.speciality
-      );
-      const updatedFormData: FormData = {
+      const sp = specialities.find((s) => s._id === response.data.speciality);
+      const updated: FormData = {
         ...formData,
-        speciality: speciality ? speciality.name : formData.speciality,
+        speciality: sp ? sp.name : formData.speciality,
         licenseProof: response.data.licenseProof || formData.licenseProof,
       };
-
-      setFormData(updatedFormData);
-      setInitialFormData(updatedFormData);
-      const imageUrl = getImageUrl(response.data.profilePicture);
-      setProfilePicture(imageUrl);
-      setPreviewImage(imageUrl);
+      setFormData(updated);
+      setInitialFormData(updated);
+      const img = getImageUrl(response.data.profilePicture);
+      setProfilePicture(img);
+      setPreviewImage(img);
       setFile(null);
       setLicenseProofFile(null);
       setIsModalOpen(false);
@@ -455,7 +383,6 @@ const DoctorProfilePage: React.FC = () => {
     }
   };
 
-  // Password Management Handlers
   const openPasswordModal = (isSet: boolean) => {
     setIsSetPassword(isSet);
     setIsPasswordModalOpen(true);
@@ -470,7 +397,6 @@ const DoctorProfilePage: React.FC = () => {
     if (name === 'currentPassword') setCurrentPassword(value);
     if (name === 'newPassword') setNewPassword(value);
     if (name === 'confirmPassword') setConfirmPassword(value);
-
     setPasswordErrors((prev) => ({
       ...prev,
       [name === 'newPassword'
@@ -488,27 +414,20 @@ const DoctorProfilePage: React.FC = () => {
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    const newError = validatePassword(newPassword) || '';
-    const confirmError =
+    const newErr = validatePassword(newPassword) || '';
+    const confirmErr =
       validateConfirmPassword(newPassword, confirmPassword) || '';
-    let currentError = '';
-
-    if (!isSetPassword) {
-      currentError = !currentPassword ? 'Current password is required' : '';
-    }
-
+    const currentErr =
+      !isSetPassword && !currentPassword ? 'Current password is required' : '';
     setPasswordErrors({
-      current: currentError,
-      new: newError,
-      confirm: confirmError,
+      current: currentErr,
+      new: newErr,
+      confirm: confirmErr,
     });
-
-    if (currentError || newError || confirmError) {
+    if (currentErr || newErr || confirmErr) {
       showError('Please correct the errors');
       return;
     }
-
     try {
       if (isSetPassword) {
         await setDoctorPassword(newPassword);
@@ -520,35 +439,36 @@ const DoctorProfilePage: React.FC = () => {
           ? 'Password set successfully'
           : 'Password changed successfully'
       );
-
       setIsPasswordModalOpen(false);
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-      setPasswordErrors({ current: '', new: '', confirm: '' });
     } catch (error) {
-      const err = error as { message?: string };
-      showError(err.message || 'Failed to update password');
+      showError(
+        (error as { message?: string }).message || 'Failed to update password'
+      );
     }
   };
 
-  return (
-    <div className="p-6">
-      <div className="max-w-4xl mx-auto">
-        <div className="w-full h-[72px] bg-white/10 backdrop-blur-lg flex items-center px-6 mb-8 border border-white/20 rounded-lg shadow-sm">
-          <h1 className="text-[24px] font-bold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent">
-            Profile
-          </h1>
-        </div>
+  const inputCls = (err?: string) => `input ${err ? 'input-error' : ''}`;
 
-        <div className="bg-white/10 backdrop-blur-lg border border-white/20 p-6 rounded-lg shadow-xl">
-          <div className="flex flex-col md:flex-row gap-6">
-            <div className="flex flex-col items-center gap-4">
-              <div className="w-[126.67px] h-[121.87px] bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center rounded-lg shadow-md overflow-hidden">
+  return (
+    <div className="space-y-6 animate-fade-in max-w-4xl mx-auto">
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">My Profile</h1>
+          <p className="page-subtitle">Manage your professional information</p>
+        </div>
+      </div>
+
+      <div className="card p-6">
+        <div className="flex flex-col md:flex-row gap-8">
+          {/* ── Left column ── */}
+          <div className="flex flex-col items-center gap-4 md:w-48 flex-shrink-0">
+            {/* Avatar */}
+            <label className="relative group cursor-pointer">
+              <div className="w-28 h-28 rounded-2xl overflow-hidden border-2 border-surface-border shadow-card bg-primary-100 flex items-center justify-center">
                 {previewImage ? (
                   <img
                     src={previewImage}
-                    alt="Profile Preview"
+                    alt="Profile"
                     className="w-full h-full object-cover"
                     onError={(e) =>
                       ((e.target as HTMLImageElement).src =
@@ -556,524 +476,459 @@ const DoctorProfilePage: React.FC = () => {
                     }
                   />
                 ) : (
-                  <span className="text-[24px] font-bold text-white">DR</span>
+                  <span className="text-2xl font-bold text-primary-600">
+                    {formData.name?.slice(0, 2).toUpperCase() || 'DR'}
+                  </span>
                 )}
               </div>
+              <div className="absolute inset-0 rounded-2xl bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <Camera size={20} className="text-white" />
+              </div>
+              <input
+                type="file"
+                className="hidden"
+                accept="image/*"
+                onChange={handlePhotoChange}
+              />
+            </label>
+            <p className="text-xs text-text-muted text-center">
+              Click to change photo
+            </p>
 
-              <label className="w-[190px] h-[45.7px] bg-purple-500/20 text-purple-300 text-[12px] rounded-lg hover:bg-purple-500/30 transition-colors flex items-center justify-center cursor-pointer">
-                Change Photo
+            {/* License PDF */}
+            <div className="w-full">
+              <p className="text-xs text-text-muted mb-1.5">
+                License Proof (PDF)
+              </p>
+              <label className="btn-secondary text-xs w-full justify-center cursor-pointer">
+                <FileText size={14} /> Upload PDF
                 <input
                   type="file"
                   className="hidden"
-                  accept="image/*"
-                  onChange={handlePhotoChange}
+                  accept="application/pdf"
+                  onChange={handleLicenseProofChange}
                 />
               </label>
+              {formData.licenseProof && (
+                <a
+                  href={formData.licenseProof}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-primary-600 hover:underline mt-1.5 block text-center"
+                >
+                  View Current Document
+                </a>
+              )}
+            </div>
 
-              <div className="mt-4">
-                <label className="text-[12px] text-gray-200">
-                  License Proof (PDF)
-                </label>
-                <label className="w-[190px] h-[45.7px] bg-purple-500/20 text-purple-300 text-[12px] rounded-lg hover:bg-purple-500/30 transition-colors flex items-center justify-center cursor-pointer mt-1">
-                  Upload PDF
+            {/* Password */}
+            <button
+              type="button"
+              onClick={() => openPasswordModal(user?.hasPassword === false)}
+              className="btn-secondary text-xs w-full"
+            >
+              <Lock size={14} />{' '}
+              {user?.hasPassword ? 'Change Password' : 'Set Password'}
+            </button>
+          </div>
+
+          {/* ── Right column ── */}
+          <div className="flex-1 min-w-0">
+            <h2 className="font-display font-bold text-text-primary text-lg mb-1">
+              Dr. {formData.name}
+            </h2>
+            <p className="text-sm text-text-muted mb-5">Personal Information</p>
+
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {/* Basic info grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="label mb-1">
+                    Name <span className="text-error">*</span>
+                  </label>
                   <input
-                    type="file"
-                    className="hidden"
-                    accept="application/pdf"
-                    onChange={handleLicenseProofChange}
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    maxLength={50}
+                    className={inputCls(errors.name)}
                   />
-                </label>
-                {formData.licenseProof && (
-                  <div className="mt-2 flex flex-col">
-                    <a
-                      href={formData.licenseProof}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-purple-300 text-[12px] hover:underline"
-                    >
-                      View Document
-                    </a>
+                  <FieldError msg={errors.name} />
+                </div>
+
+                <div>
+                  <label className="label mb-1">Email Address</label>
+                  <div className="input bg-surface-bg text-text-muted cursor-not-allowed">
+                    {formData.email}
                   </div>
-                )}
+                </div>
+
+                <div>
+                  <label className="label mb-1">
+                    Phone Number <span className="text-error">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    maxLength={10}
+                    className={inputCls(errors.phone)}
+                  />
+                  <FieldError msg={errors.phone} />
+                </div>
+
+                <div>
+                  <label className="label mb-1">
+                    License Number <span className="text-error">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="licenseNumber"
+                    value={formData.licenseNumber}
+                    onChange={handleChange}
+                    maxLength={20}
+                    className={inputCls(errors.licenseNumber)}
+                  />
+                  <FieldError msg={errors.licenseNumber} />
+                </div>
+
+                <div>
+                  <label className="label mb-1">
+                    Qualifications (comma-separated){' '}
+                    <span className="text-error">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="qualifications"
+                    value={formData.qualifications}
+                    onChange={handleChange}
+                    maxLength={100}
+                    className={inputCls(errors.qualifications)}
+                  />
+                  <FieldError msg={errors.qualifications} />
+                </div>
+
+                <div>
+                  <label className="label mb-1">
+                    Location <span className="text-error">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="location"
+                    value={formData.location}
+                    onChange={handleChange}
+                    maxLength={50}
+                    className={inputCls(errors.location)}
+                  />
+                  <FieldError msg={errors.location} />
+                </div>
+
+                <div>
+                  <label className="label mb-1">
+                    Speciality <span className="text-error">*</span>
+                  </label>
+                  <select
+                    name="speciality"
+                    value={formData.speciality}
+                    onChange={handleChange}
+                    className={inputCls(errors.speciality)}
+                  >
+                    <option value="">Select Speciality</option>
+                    {specialities.map((s) => (
+                      <option key={s._id} value={s.name}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                  <FieldError msg={errors.speciality} />
+                </div>
+
+                <div>
+                  <label className="label mb-1">
+                    Gender <span className="text-error">*</span>
+                  </label>
+                  <select
+                    name="gender"
+                    value={formData.gender}
+                    onChange={handleChange}
+                    className={inputCls(errors.gender)}
+                  >
+                    <option value="">Select Gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                  <FieldError msg={errors.gender} />
+                </div>
               </div>
 
-              {/* Change Password Button */}
-              <button
-                onClick={() => openPasswordModal(user?.hasPassword === false)}
-                className="mt-4 w-[190px] h-[45.7px] bg-gradient-to-r from-red-600 to-pink-600 text-white text-[12px] rounded-lg hover:from-red-700 hover:to-pink-700 transition-all duration-300"
-              >
-                {user?.hasPassword ? 'Change Password' : 'Set Password'}
-              </button>
-            </div>
-
-            <div className="flex-1">
-              <h2 className="text-[18px] font-bold text-white mb-2">
-                Dr. {formData.name}
-              </h2>
-              <h3 className="text-[16px] font-bold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent mb-4">
-                Personal Information
-              </h3>
-
-              <form onSubmit={handleSubmit}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-[12px] text-gray-200">
-                      Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleChange}
-                      maxLength={50}
-                      className="w-full h-[60.93px] bg-white/10 border border-white/20 rounded-lg px-4 mt-1 text-[14px] text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
-                    />
-                    {errors.name && (
-                      <p className="text-red-500 text-[12px]">{errors.name}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="text-[12px] text-gray-200">
-                      Email Address
-                    </label>
-                    <div className="w-full h-[60.93px] bg-white/10 border border-white/20 rounded-lg flex items-center px-4 mt-1">
-                      <span className="text-[14px] text-white">
-                        {formData.email}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-[12px] text-gray-200">
-                      Phone Number <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleChange}
-                      maxLength={10}
-                      className="w-full h-[60.93px] bg-white/10 border border-white/20 rounded-lg px-4 mt-1 text-[14px] text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
-                    />
-                    {errors.phone && (
-                      <p className="text-red-500 text-[12px]">{errors.phone}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="text-[12px] text-gray-200">
-                      License Number <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="licenseNumber"
-                      value={formData.licenseNumber}
-                      onChange={handleChange}
-                      maxLength={20}
-                      className="w-full h-[60.93px] bg-white/10 border border-white/20 rounded-lg px-4 mt-1 text-[14px] text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
-                    />
-                    {errors.licenseNumber && (
-                      <p className="text-red-500 text-[12px]">
-                        {errors.licenseNumber}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="text-[12px] text-gray-200">
-                      Qualifications (comma-separated){' '}
-                      <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="qualifications"
-                      value={formData.qualifications}
-                      onChange={handleChange}
-                      maxLength={100}
-                      className="w-full h-[60.93px] bg-white/10 border border-white/20 rounded-lg px-4 mt-1 text-[14px] text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
-                    />
-                    {errors.qualifications && (
-                      <p className="text-red-500 text-[12px]">
-                        {errors.qualifications}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="text-[12px] text-gray-200">
-                      Location <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="location"
-                      value={formData.location}
-                      onChange={handleChange}
-                      maxLength={50}
-                      className="w-full h-[60.93px] bg-white/10 border border-white/20 rounded-lg px-4 mt-1 text-[14px] text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
-                    />
-                    {errors.location && (
-                      <p className="text-red-500 text-[12px]">
-                        {errors.location}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="text-[12px] text-gray-200">
-                      Speciality <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      name="speciality"
-                      value={formData.speciality}
-                      onChange={handleChange}
-                      className="w-full h-[60.93px] bg-white/10 border border-white/20 rounded-lg px-4 mt-1 text-[14px] text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
-                    >
-                      <option value="" className="bg-gray-800 text-white">
-                        Select Speciality
-                      </option>
-                      {specialities.map((speciality) => (
-                        <option
-                          key={speciality._id}
-                          value={speciality.name}
-                          className="bg-gray-800 text-white"
-                        >
-                          {speciality.name}
-                        </option>
-                      ))}
-                    </select>
-                    {errors.speciality && (
-                      <p className="text-red-500 text-[12px]">
-                        {errors.speciality}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="text-[12px] text-gray-200">
-                      Gender <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      name="gender"
-                      value={formData.gender}
-                      onChange={handleChange}
-                      className="w-full h-[60.93px] bg-white/10 border border-white/20 rounded-lg px-4 mt-1 text-[14px] text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
-                    >
-                      <option value="" className="bg-gray-800 text-white">
-                        Select Gender
-                      </option>
-                      <option value="Male" className="bg-gray-800 text-white">
-                        Male
-                      </option>
-                      <option value="Female" className="bg-gray-800 text-white">
-                        Female
-                      </option>
-                      <option value="Other" className="bg-gray-800 text-white">
-                        Other
-                      </option>
-                    </select>
-                    {errors.gender && (
-                      <p className="text-red-500 text-[12px]">
-                        {errors.gender}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="col-span-2">
-                    <label className="text-[12px] text-gray-200 flex items-center gap-2">
-                      Allow Free Booking
-                      <input
-                        type="checkbox"
-                        name="allowFreeBooking"
-                        checked={formData.allowFreeBooking}
-                        onChange={handleChange}
-                        className="w-5 h-5 rounded accent-purple-500"
-                      />
-                      <span className="text-[12px] text-gray-200">
-                        {formData.allowFreeBooking ? 'Enabled' : 'Disabled'}
-                      </span>
-                    </label>
-                  </div>
-
-                  <div className="col-span-2">
-                    <label className="text-[12px] text-gray-200">
-                      Work Experience
-                    </label>
-                    {formData.experiences.map((exp, index) => (
-                      <div
-                        key={index}
-                        className="border border-white/20 rounded-lg p-4 mb-4 bg-white/10"
-                      >
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div>
-                            <label className="text-[12px] text-gray-200">
-                              Hospital Name
-                            </label>
-                            <input
-                              type="text"
-                              value={exp.hospitalName}
-                              onChange={(e) =>
-                                handleExperienceChange(
-                                  index,
-                                  'hospitalName',
-                                  e.target.value
-                                )
-                              }
-                              maxLength={100}
-                              className="w-full h-[60.93px] bg-white/10 border border-white/20 rounded-lg px-4 mt-1 text-[14px] text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
-                            />
-                            {experienceErrors[index]?.hospitalName && (
-                              <p className="text-red-500 text-[12px]">
-                                {experienceErrors[index].hospitalName}
-                              </p>
-                            )}
-                          </div>
-
-                          <div>
-                            <label className="text-[12px] text-gray-200">
-                              Department/Position
-                            </label>
-                            <input
-                              type="text"
-                              value={exp.department}
-                              onChange={(e) =>
-                                handleExperienceChange(
-                                  index,
-                                  'department',
-                                  e.target.value
-                                )
-                              }
-                              maxLength={50}
-                              className="w-full h-[60.93px] bg-white/10 border border-white/20 rounded-lg px-4 mt-1 text-[14px] text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
-                            />
-                            {experienceErrors[index]?.department && (
-                              <p className="text-red-500 text-[12px]">
-                                {experienceErrors[index].department}
-                              </p>
-                            )}
-                          </div>
-
-                          <div>
-                            <label className="text-[12px] text-gray-200">
-                              Years
-                            </label>
-                            <input
-                              type="text"
-                              value={exp.years}
-                              onChange={(e) =>
-                                handleExperienceChange(
-                                  index,
-                                  'years',
-                                  e.target.value
-                                )
-                              }
-                              maxLength={2}
-                              className="w-full h-[60.93px] bg-white/10 border border-white/20 rounded-lg px-4 mt-1 text-[14px] text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
-                            />
-                            {experienceErrors[index]?.years && (
-                              <p className="text-red-500 text-[12px]">
-                                {experienceErrors[index].years}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => removeExperience(index)}
-                          className="mt-2 bg-red-500 text-white px-2 py-1 rounded text-[12px]"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={addExperience}
-                      className="bg-purple-500 text-white px-2 py-1 rounded text-[12px]"
-                    >
-                      Add Experience
-                    </button>
-                  </div>
-                </div>
-
-                <div className="mt-6 flex justify-end gap-4">
-                  <button
-                    type="submit"
-                    disabled={!hasChanges}
-                    className={`w-[190px] h-[60.93px] text-white text-[14px] font-bold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl ${
-                      hasChanges
-                        ? 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700'
-                        : 'bg-gray-500 cursor-not-allowed'
-                    }`}
-                  >
-                    Save Changes
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-
-        {/* Profile Update Confirmation Modal */}
-        <Modal
-          isOpen={isModalOpen}
-          onClose={() => {
-            setPreviewImage(profilePicture);
-            setFile(null);
-            setLicenseProofFile(null);
-            setIsModalOpen(false);
-          }}
-          title="Confirm Profile Update"
-          footer={
-            <>
-              <button
-                onClick={handleConfirmUpdate}
-                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
-              >
-                Yes
-              </button>
-              <button
-                onClick={() => {
-                  setPreviewImage(profilePicture);
-                  setFile(null);
-                  setLicenseProofFile(null);
-                  setIsModalOpen(false);
-                }}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
-              >
-                No
-              </button>
-            </>
-          }
-        >
-          <p className="text-white">
-            Are you sure you want to update your profile?
-          </p>
-        </Modal>
-
-        {/* Password Management Modal (Set / Change) */}
-        <Modal
-          isOpen={isPasswordModalOpen}
-          onClose={() => {
-            setIsPasswordModalOpen(false);
-            setCurrentPassword('');
-            setNewPassword('');
-            setConfirmPassword('');
-            setPasswordErrors({ current: '', new: '', confirm: '' });
-          }}
-          title={isSetPassword ? 'Set Password' : 'Change Password'}
-          footer={
-            <>
-              <button
-                onClick={handlePasswordSubmit}
-                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
-              >
-                {isSetPassword ? 'Set Password' : 'Change Password'}
-              </button>
-              <button
-                onClick={() => {
-                  setIsPasswordModalOpen(false);
-                  setCurrentPassword('');
-                  setNewPassword('');
-                  setConfirmPassword('');
-                  setPasswordErrors({ current: '', new: '', confirm: '' });
-                }}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
-              >
-                Cancel
-              </button>
-            </>
-          }
-        >
-          <form onSubmit={handlePasswordSubmit} className="space-y-4">
-            {!isSetPassword && (
-              <div>
-                <label className="block text-sm text-gray-200 mb-1">
-                  Current Password
-                </label>
+              {/* Free booking toggle */}
+              <label className="flex items-center gap-3 cursor-pointer select-none">
                 <div className="relative">
                   <input
-                    type={showCurrentPassword ? 'text' : 'password'}
-                    name="currentPassword"
-                    value={currentPassword}
-                    onChange={handlePasswordChange}
-                    className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                    placeholder="Enter current password"
+                    type="checkbox"
+                    name="allowFreeBooking"
+                    checked={formData.allowFreeBooking}
+                    onChange={handleChange}
+                    className="sr-only peer"
                   />
+                  <div className="w-10 h-6 bg-surface-border rounded-full peer-checked:bg-primary-500 transition-colors" />
+                  <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full shadow transition-transform peer-checked:translate-x-4" />
+                </div>
+                <span className="text-sm font-medium text-text-primary">
+                  Allow Free Booking
+                </span>
+                <span
+                  className={`badge text-xs ${formData.allowFreeBooking ? 'badge-success' : 'badge-neutral'}`}
+                >
+                  {formData.allowFreeBooking ? 'Enabled' : 'Disabled'}
+                </span>
+              </label>
+
+              {/* Experiences */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <label className="label">Work Experience</label>
                   <button
                     type="button"
-                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                    onClick={addExperience}
+                    className="btn-ghost text-sm text-primary-600"
                   >
-                    {showCurrentPassword ? <FaRegEyeSlash /> : <FaRegEye />}
+                    <Plus size={14} /> Add Experience
                   </button>
                 </div>
-                {passwordErrors.current && (
-                  <p className="text-red-500 text-xs mt-1">
-                    {passwordErrors.current}
-                  </p>
-                )}
+                <div className="space-y-3">
+                  {formData.experiences.map((exp, i) => (
+                    <div
+                      key={i}
+                      className="p-4 rounded-xl border border-surface-border bg-surface-bg space-y-3"
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">
+                          Experience {i + 1}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeExperience(i)}
+                          className="p-1 text-text-muted hover:text-error rounded-lg hover:bg-red-50 transition-colors"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                          <label className="label mb-1">Hospital Name</label>
+                          <input
+                            type="text"
+                            value={exp.hospitalName}
+                            onChange={(e) =>
+                              handleExperienceChange(
+                                i,
+                                'hospitalName',
+                                e.target.value
+                              )
+                            }
+                            maxLength={100}
+                            className={inputCls(
+                              experienceErrors[i]?.hospitalName
+                            )}
+                          />
+                          <FieldError msg={experienceErrors[i]?.hospitalName} />
+                        </div>
+                        <div>
+                          <label className="label mb-1">
+                            Department / Position
+                          </label>
+                          <input
+                            type="text"
+                            value={exp.department}
+                            onChange={(e) =>
+                              handleExperienceChange(
+                                i,
+                                'department',
+                                e.target.value
+                              )
+                            }
+                            maxLength={50}
+                            className={inputCls(
+                              experienceErrors[i]?.department
+                            )}
+                          />
+                          <FieldError msg={experienceErrors[i]?.department} />
+                        </div>
+                        <div>
+                          <label className="label mb-1">Years</label>
+                          <input
+                            type="text"
+                            value={exp.years}
+                            onChange={(e) =>
+                              handleExperienceChange(i, 'years', e.target.value)
+                            }
+                            maxLength={2}
+                            className={inputCls(experienceErrors[i]?.years)}
+                          />
+                          <FieldError msg={experienceErrors[i]?.years} />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            )}
 
-            <div>
-              <label className="block text-sm text-gray-200 mb-1">
-                New Password
-              </label>
-              <div className="relative">
-                <input
-                  type={showNewPassword ? 'text' : 'password'}
-                  name="newPassword"
-                  value={newPassword}
-                  onChange={handlePasswordChange}
-                  className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                  placeholder="Enter new password"
-                />
+              {/* Submit */}
+              <div className="flex justify-end pt-2 border-t border-surface-border">
                 <button
-                  type="button"
-                  onClick={() => setShowNewPassword(!showNewPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                  type="submit"
+                  disabled={!hasChanges}
+                  className={`btn-primary ${!hasChanges ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  {showNewPassword ? <FaRegEyeSlash /> : <FaRegEye />}
+                  Save Changes
                 </button>
               </div>
-              {passwordErrors.new && (
-                <p className="text-red-500 text-xs mt-1">
-                  {passwordErrors.new}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm text-gray-200 mb-1">
-                Confirm New Password
-              </label>
-              <div className="relative">
-                <input
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  name="confirmPassword"
-                  value={confirmPassword}
-                  onChange={handlePasswordChange}
-                  className="w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                  placeholder="Confirm new password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                >
-                  {showConfirmPassword ? <FaRegEyeSlash /> : <FaRegEye />}
-                </button>
-              </div>
-              {passwordErrors.confirm && (
-                <p className="text-red-500 text-xs mt-1">
-                  {passwordErrors.confirm}
-                </p>
-              )}
-            </div>
-          </form>
-        </Modal>
+            </form>
+          </div>
+        </div>
       </div>
+
+      {/* Confirm update modal */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => {
+          setPreviewImage(profilePicture);
+          setFile(null);
+          setLicenseProofFile(null);
+          setIsModalOpen(false);
+        }}
+        title="Confirm Profile Update"
+        size="sm"
+        footer={
+          <>
+            <button
+              onClick={() => {
+                setPreviewImage(profilePicture);
+                setFile(null);
+                setLicenseProofFile(null);
+                setIsModalOpen(false);
+              }}
+              className="btn-secondary"
+            >
+              Cancel
+            </button>
+            <button onClick={handleConfirmUpdate} className="btn-primary">
+              Save Changes
+            </button>
+          </>
+        }
+      >
+        <div className="flex items-start gap-3 p-3.5 bg-primary-50 border border-primary-100 rounded-xl">
+          <AlertTriangle
+            size={15}
+            className="text-primary-500 flex-shrink-0 mt-0.5"
+          />
+          <p className="text-sm text-primary-700">
+            Are you sure you want to update your profile?
+          </p>
+        </div>
+      </Modal>
+
+      {/* Password modal */}
+      <Modal
+        isOpen={isPasswordModalOpen}
+        onClose={() => {
+          setIsPasswordModalOpen(false);
+          setCurrentPassword('');
+          setNewPassword('');
+          setConfirmPassword('');
+          setPasswordErrors({ current: '', new: '', confirm: '' });
+        }}
+        title={isSetPassword ? 'Set Password' : 'Change Password'}
+        size="sm"
+        footer={
+          <>
+            <button
+              onClick={() => {
+                setIsPasswordModalOpen(false);
+              }}
+              className="btn-secondary"
+            >
+              Cancel
+            </button>
+            <button onClick={handlePasswordSubmit} className="btn-primary">
+              {isSetPassword ? 'Set Password' : 'Change Password'}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {!isSetPassword && (
+            <div>
+              <label className="label mb-1">Current Password</label>
+              <div className="relative">
+                <input
+                  type={showCurrentPwd ? 'text' : 'password'}
+                  name="currentPassword"
+                  value={currentPassword}
+                  onChange={handlePasswordChange}
+                  placeholder="Enter current password"
+                  className={`input pr-10 ${passwordErrors.current ? 'input-error' : ''}`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrentPwd((p) => !p)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-secondary"
+                >
+                  {showCurrentPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+              <FieldError msg={passwordErrors.current} />
+            </div>
+          )}
+          <div>
+            <label className="label mb-1">New Password</label>
+            <div className="relative">
+              <input
+                type={showNewPwd ? 'text' : 'password'}
+                name="newPassword"
+                value={newPassword}
+                onChange={handlePasswordChange}
+                placeholder="Enter new password"
+                className={`input pr-10 ${passwordErrors.new ? 'input-error' : ''}`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowNewPwd((p) => !p)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-secondary"
+              >
+                {showNewPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+            <FieldError msg={passwordErrors.new} />
+          </div>
+          <div>
+            <label className="label mb-1">Confirm New Password</label>
+            <div className="relative">
+              <input
+                type={showConfirmPwd ? 'text' : 'password'}
+                name="confirmPassword"
+                value={confirmPassword}
+                onChange={handlePasswordChange}
+                placeholder="Confirm new password"
+                className={`input pr-10 ${passwordErrors.confirm ? 'input-error' : ''}`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPwd((p) => !p)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-secondary"
+              >
+                {showConfirmPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+            <FieldError msg={passwordErrors.confirm} />
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

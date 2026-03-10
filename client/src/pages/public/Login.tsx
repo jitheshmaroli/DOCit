@@ -9,8 +9,9 @@ import useAuth from '../../hooks/useAuth';
 import { validateEmail, validateLoginPassword } from '../../utils/validation';
 import { CredentialResponse, GoogleLogin } from '@react-oauth/google';
 import bannerImg from '../../assets/feature-illustration.jpeg';
+import { AlertCircle, CheckCircle } from 'lucide-react';
 
-type LoginType = 'patient' | 'doctor' | 'admin';
+type LoginType = 'patient' | 'doctor';
 
 const LoginPage: React.FC = () => {
   const [role, setRole] = useState<LoginType>('patient');
@@ -92,11 +93,8 @@ const LoginPage: React.FC = () => {
     if (response.credential) {
       try {
         const googleToken = response.credential;
-        if (role === 'patient') {
-          await googleSignInPatient(googleToken);
-        } else if (role === 'doctor') {
-          await googleSignInDoctor(googleToken);
-        }
+        if (role === 'patient') await googleSignInPatient(googleToken);
+        else if (role === 'doctor') await googleSignInDoctor(googleToken);
       } catch {
         dispatch(setError('Google signup failed. Please try again.'));
       }
@@ -111,40 +109,35 @@ const LoginPage: React.FC = () => {
     loading;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#320A6B] via-[#065084] to-[#0F828C] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-surface-bg flex items-center justify-center p-4">
       <motion.div
-        className="w-full max-w-4xl flex flex-col lg:flex-row rounded-2xl bg-[#0F828C]/10 backdrop-blur-lg shadow-2xl border border-[#78B9B5]/20 overflow-hidden"
-        initial={{ opacity: 0, y: 30 }}
+        className="w-full max-w-4xl flex rounded-3xl bg-white shadow-modal overflow-hidden border border-surface-border"
+        initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.7, ease: 'easeOut' }}
+        transition={{ duration: 0.5, ease: 'easeOut' }}
       >
-        {/* Left Side - Login Form */}
-        <motion.div
-          className="w-full lg:w-1/2 p-8 flex flex-col justify-center"
-          initial={{ opacity: 0, x: -40 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.7 }}
-        >
-          <header className="mb-6">
+        {/* Left - Form */}
+        <div className="w-full lg:w-1/2 p-8 md:p-10 flex flex-col justify-center">
+          <div className="mb-8">
             <Logo />
-            <h2 className="text-3xl font-bold mt-4 bg-gradient-to-r from-[#78B9B5] to-[#0F828C] bg-clip-text text-transparent">
-              Welcome Back
+            <h2 className="font-display font-bold text-2xl text-text-primary mt-6 mb-1">
+              Welcome back
             </h2>
-            <p className="text-[#78B9B5] text-sm">
-              Login to continue your journey
+            <p className="text-text-secondary text-sm">
+              Sign in to continue to your DOCit account
             </p>
-          </header>
+          </div>
 
-          {/* Role Selection */}
-          <div className="flex gap-4 mb-6">
-            {['patient', 'doctor'].map((r) => (
+          {/* Role tabs */}
+          <div className="flex gap-1 p-1 bg-surface-muted rounded-xl mb-6">
+            {(['patient', 'doctor'] as LoginType[]).map((r) => (
               <button
                 key={r}
-                onClick={() => setRole(r as LoginType)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
+                onClick={() => setRole(r)}
+                className={`flex-1 py-2 px-3 rounded-lg text-sm font-semibold transition-all duration-200 ${
                   role === r
-                    ? 'bg-gradient-to-r from-[#0F828C] to-[#78B9B5] text-white shadow-lg'
-                    : 'bg-white/20 text-[#78B9B5] hover:bg-white/30'
+                    ? 'bg-white text-primary-600 shadow-card'
+                    : 'text-text-secondary hover:text-text-primary'
                 }`}
               >
                 {r.charAt(0).toUpperCase() + r.slice(1)}
@@ -152,133 +145,168 @@ const LoginPage: React.FC = () => {
             ))}
           </div>
 
-          {/* Messages */}
+          {/* Alert messages */}
           {apiError && apiError !== 'Invalid email or password' && (
-            <div className="mb-4 p-3 bg-[#320A6B]/20 text-[#ff0000] rounded-lg text-sm">
-              {apiError}
+            <div className="mb-4 flex items-start gap-3 p-3.5 bg-red-50 border border-red-100 rounded-xl">
+              <AlertCircle
+                size={16}
+                className="text-error flex-shrink-0 mt-0.5"
+              />
+              <p className="text-sm text-red-700">{apiError}</p>
             </div>
           )}
           {message && (
-            <div className="mb-4 p-3 bg-[#78B9B5]/20 text-[#ffffff] rounded-lg text-sm">
-              {message}
+            <div className="mb-4 flex items-start gap-3 p-3.5 bg-emerald-50 border border-emerald-100 rounded-xl">
+              <CheckCircle
+                size={16}
+                className="text-success flex-shrink-0 mt-0.5"
+              />
+              <p className="text-sm text-emerald-700">{message}</p>
             </div>
           )}
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
+              <label className="label">Email address</label>
               <input
                 type="email"
                 name="email"
-                placeholder="Email"
+                placeholder="you@example.com"
                 value={formData.email}
                 onChange={handleChange}
                 onBlur={handleBlur}
-                className={`w-full p-3 bg-[#0F828C]/10 border border-[#78B9B5]/20 rounded-lg text-[#ffffff] placeholder-[#78B9B5] focus:outline-none focus:ring-2 ${
-                  touchedFields.email && fieldErrors.email
-                    ? 'focus:ring-red-400'
-                    : 'focus:ring-[#0F828C]'
-                }`}
+                className={`input ${touchedFields.email && fieldErrors.email ? 'input-error' : ''}`}
                 required
               />
               {touchedFields.email && fieldErrors.email && (
-                <p className="mt-1 text-xs text-[#320A6B]">
+                <p className="error-text">
+                  <AlertCircle size={12} />
                   {fieldErrors.email}
                 </p>
               )}
             </div>
 
             <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="label mb-0">Password</label>
+                <Link
+                  to="/forgot-password"
+                  className="text-xs text-primary-600 hover:text-primary-700 font-medium"
+                >
+                  Forgot password?
+                </Link>
+              </div>
               <input
                 type="password"
                 name="password"
-                placeholder="Password"
+                placeholder="••••••••"
                 value={formData.password}
                 onChange={handleChange}
                 onBlur={handleBlur}
-                className={`w-full p-3 bg-[#0F828C]/10 border border-[#78B9B5]/20 rounded-lg text-[#ffffff] placeholder-[#78B9B5] focus:outline-none focus:ring-2 ${
-                  touchedFields.password && fieldErrors.password
-                    ? 'focus:ring-red-400'
-                    : 'focus:ring-[#0F828C]'
-                }`}
+                className={`input ${touchedFields.password && fieldErrors.password ? 'input-error' : ''}`}
                 required
                 minLength={6}
                 autoComplete="current-password"
               />
               {touchedFields.password && fieldErrors.password && (
-                <p className="mt-1 text-xs text-[#320A6B]">
+                <p className="error-text">
+                  <AlertCircle size={12} />
                   {fieldErrors.password}
                 </p>
               )}
             </div>
-            <div className="text-right">
-              <Link
-                to="/forgot-password"
-                className="text-sm text-[#320A6B] hover:text-[#0F828C] transition-colors"
-              >
-                Forgot Password?
-              </Link>
-            </div>
 
-            <motion.button
+            <button
               type="submit"
               disabled={isSubmitDisabled}
-              className={`w-full p-3 rounded-lg text-white font-medium transition-all duration-300 ${
-                isSubmitDisabled
-                  ? 'bg-gray-500/50 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-[#0F828C] to-[#78B9B5] hover:from-[#065084] hover:to-[#320A6B] shadow-lg hover:shadow-xl'
-              }`}
-              whileTap={{ scale: 0.95 }}
+              className="btn-primary w-full py-3 text-base"
             >
-              {loading
-                ? 'Logging in...'
-                : `Login as ${role.charAt(0).toUpperCase()}${role.slice(1)}`}
-            </motion.button>
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                  Signing in...
+                </span>
+              ) : (
+                `Sign in as ${role.charAt(0).toUpperCase()}${role.slice(1)}`
+              )}
+            </button>
 
-            <div className="flex items-center justify-center my-4">
-              <div className="border-t border-[#78B9B5]/20 w-full"></div>
-              <span className="px-4 text-[#0F828C] text-sm">or</span>
-              <div className="border-t border-[#78B9B5]/20 w-full"></div>
+            <div className="divider">
+              <span className="divider-text">or continue with</span>
             </div>
 
-            {role !== 'admin' && (
+            <div className="flex justify-center">
               <GoogleLogin
                 onSuccess={handleGoogleLogin}
                 onError={() => dispatch(setError('Google login error'))}
                 useOneTap
-                theme="filled_black"
-                shape="pill"
+                theme="outline"
+                shape="rectangular"
+                size="large"
+                width="100%"
               />
-            )}
+            </div>
           </form>
 
-          <p className="text-center mt-6 text-[#78B9B5] text-sm">
+          <p className="text-center mt-6 text-sm text-text-secondary">
             Don't have an account?{' '}
             <Link
               to="/signup"
-              className="text-[#320A6B] hover:text-[#065084] transition-colors"
+              className="text-primary-600 font-semibold hover:text-primary-700 transition-colors"
               state={{ role }}
             >
-              Sign up here
+              Create account
             </Link>
           </p>
-        </motion.div>
+        </div>
 
-        {/* Right Side - Image */}
-        <motion.div
-          className="hidden lg:flex lg:w-1/2 items-center justify-center p-8 bg-gradient-to-br from-[#065084]/50 to-[#0F828C]/50"
-          initial={{ opacity: 0, x: 40 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.7 }}
-        >
-          <motion.img
-            src={bannerImg}
-            alt="Login Illustration"
-            className="max-w-full max-h-[80vh] object-contain rounded-xl shadow-lg"
-            whileHover={{ scale: 1.05 }}
-            transition={{ type: 'spring', stiffness: 300 }}
-          />
-        </motion.div>
+        {/* Right - Illustration */}
+        <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary-500 to-teal-500 items-center justify-center p-10 relative overflow-hidden">
+          {/* Dot grid */}
+          <div
+            className="absolute inset-0 opacity-10"
+            style={{
+              backgroundImage:
+                'radial-gradient(circle at 2px 2px, white 1px, transparent 0)',
+              backgroundSize: '24px 24px',
+            }}
+          ></div>
+
+          <div className="relative z-10 text-center">
+            <motion.img
+              src={bannerImg}
+              alt="Login"
+              className="max-w-full max-h-[360px] object-contain rounded-2xl shadow-modal mx-auto mb-8"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.3, duration: 0.6 }}
+            />
+            <h3 className="font-display font-bold text-white text-xl mb-2">
+              Your health, our priority
+            </h3>
+            <p className="text-primary-100 text-sm max-w-xs mx-auto">
+              Access top doctors, book appointments, and manage prescriptions
+              all in one secure platform.
+            </p>
+
+            {/* Feature pills */}
+            <div className="flex flex-wrap justify-center gap-2 mt-6">
+              {[
+                '🔒 Secure & Private',
+                '⚡ Instant Access',
+                '🩺 Verified Doctors',
+              ].map((label) => (
+                <span
+                  key={label}
+                  className="bg-white/20 text-white text-xs font-medium px-3 py-1.5 rounded-full backdrop-blur-sm"
+                >
+                  {label}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
       </motion.div>
     </div>
   );

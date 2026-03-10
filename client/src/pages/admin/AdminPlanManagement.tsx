@@ -12,6 +12,7 @@ import Pagination from '../../components/common/Pagination';
 import Modal from '../../components/common/Modal';
 import { SubscriptionPlan } from '../../types/subscriptionTypes';
 import { showSuccess, showError } from '../../utils/toastConfig';
+import { BriefcaseMedical, AlertTriangle } from 'lucide-react';
 
 const AdminPlanManagement: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -97,14 +98,13 @@ const AdminPlanManagement: React.FC = () => {
               : plan.name || 'N/A';
           return (
             <span
-              className="text-sm text-white truncate max-w-[150px]"
+              className="text-sm font-medium text-text-primary truncate max-w-[150px]"
               title={plan.name || 'N/A'}
             >
               {displayName}
             </span>
           );
         },
-        className: 'align-middle',
       },
       {
         header: 'Doctor',
@@ -117,19 +117,21 @@ const AdminPlanManagement: React.FC = () => {
               : doctorName;
           return (
             <span
-              className="text-sm text-white truncate max-w-[150px]"
+              className="text-sm text-text-secondary truncate max-w-[150px]"
               title={doctorName}
             >
               {displayName}
             </span>
           );
         },
-        className: 'align-middle',
       },
       {
         header: 'Price',
-        accessor: (plan: SubscriptionPlan): React.ReactNode =>
-          `₹${plan.price.toFixed(2)}`,
+        accessor: (plan: SubscriptionPlan): React.ReactNode => (
+          <span className="font-medium text-text-primary">
+            ₹{plan.price.toFixed(2)}
+          </span>
+        ),
       },
       {
         header: 'Validity',
@@ -140,12 +142,12 @@ const AdminPlanManagement: React.FC = () => {
         header: 'Status',
         accessor: (plan: SubscriptionPlan): React.ReactNode => (
           <span
-            className={`px-2 py-1 text-xs font-semibold rounded-full ${
+            className={`badge ${
               plan.status === 'approved'
-                ? 'bg-green-500/20 text-green-300'
+                ? 'badge-success'
                 : plan.status === 'pending'
-                  ? 'bg-yellow-500/20 text-yellow-300'
-                  : 'bg-red-500/20 text-red-300'
+                  ? 'badge-warning'
+                  : 'badge-error'
             }`}
           >
             {plan.status || 'Pending'}
@@ -162,13 +164,13 @@ const AdminPlanManagement: React.FC = () => {
         label: 'Approve',
         onClick: handleApprovePlan,
         className:
-          'bg-green-600 hover:bg-green-700 px-3 py-1 rounded-lg text-sm',
+          'bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors',
         condition: (plan: SubscriptionPlan) => plan.status === 'pending',
       },
       {
         label: 'Reject',
         onClick: handleRejectPlan,
-        className: 'bg-red-600 hover:bg-red-700 px-3 py-1 rounded-lg text-sm',
+        className: 'btn-danger text-xs px-3 py-1.5',
         condition: (plan: SubscriptionPlan) => plan.status === 'pending',
       },
       {
@@ -177,54 +179,71 @@ const AdminPlanManagement: React.FC = () => {
           setSelectedPlan(plan);
           setIsDeleteModalOpen(true);
         },
-        className: 'bg-red-600 hover:bg-red-700 px-3 py-1 rounded-lg text-sm',
+        className: 'btn-danger text-xs px-3 py-1.5',
       },
     ],
     [handleApprovePlan, handleRejectPlan]
   );
 
-  const handlePageChange = useCallback((page: number) => {
-    setCurrentPage(page);
-  }, []);
-
+  const handlePageChange = useCallback(
+    (page: number) => setCurrentPage(page),
+    []
+  );
   const handleSearch = useCallback((term: string) => {
     setSearchTerm(term);
     setCurrentPage(1);
   }, []);
 
   return (
-    <div className="bg-white/10 backdrop-blur-lg p-4 sm:p-6 lg:p-8 rounded-2xl border border-white/20 shadow-xl">
-      <h2 className="text-xl font-semibold text-white bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent mb-6">
-        Plan Management
-      </h2>
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+    <div className="space-y-5">
+      <div className="page-header">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center">
+            <BriefcaseMedical size={18} className="text-amber-600" />
+          </div>
+          <div>
+            <h1 className="page-title">Plan Management</h1>
+            <p className="page-subtitle">
+              Review and approve doctor subscription plans
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="card">
         <SearchBar
           value={searchTerm}
           onChange={handleSearch}
           placeholder="Search plans..."
         />
       </div>
-      <DataTable
-        data={plans}
-        columns={columns}
-        actions={actions}
-        isLoading={loading}
-        error={error}
-        onRetry={() => {
-          dispatch(
-            getAllPlansThunk({
-              page: currentPage,
-              limit: itemsPerPage,
-              search: searchTerm || undefined,
-            })
-          );
-        }}
-      />
-      <Pagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={handlePageChange}
-      />
+
+      <div className="card p-0 overflow-hidden">
+        <DataTable
+          data={plans}
+          columns={columns}
+          actions={actions}
+          isLoading={loading}
+          error={error}
+          onRetry={() =>
+            dispatch(
+              getAllPlansThunk({
+                page: currentPage,
+                limit: itemsPerPage,
+                search: searchTerm || undefined,
+              })
+            )
+          }
+        />
+        <div className="border-t border-surface-border px-4 py-3">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+          />
+        </div>
+      </div>
+
       {isDeleteModalOpen && selectedPlan && (
         <Modal
           isOpen={isDeleteModalOpen}
@@ -232,7 +251,7 @@ const AdminPlanManagement: React.FC = () => {
             setIsDeleteModalOpen(false);
             setSelectedPlan(null);
           }}
-          title="Confirm Delete"
+          title="Delete Plan"
           footer={
             <div className="flex justify-end gap-3">
               <button
@@ -240,23 +259,28 @@ const AdminPlanManagement: React.FC = () => {
                   setIsDeleteModalOpen(false);
                   setSelectedPlan(null);
                 }}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300"
+                className="btn-secondary"
               >
                 Cancel
               </button>
-              <button
-                onClick={handleDeletePlan}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all duration-300"
-              >
+              <button onClick={handleDeletePlan} className="btn-danger">
                 Delete
               </button>
             </div>
           }
         >
-          <p className="text-white">
-            Are you sure you want to delete the plan "
-            {selectedPlan.name || 'Unknown'}"?
-          </p>
+          <div className="flex gap-3 items-start">
+            <div className="w-9 h-9 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0">
+              <AlertTriangle size={16} className="text-red-500" />
+            </div>
+            <p className="pt-1 text-sm text-text-secondary">
+              Permanently delete the plan{' '}
+              <span className="font-semibold text-text-primary">
+                "{selectedPlan.name || 'Unknown'}"
+              </span>
+              ? This action cannot be undone.
+            </p>
+          </div>
         </Modal>
       )}
     </div>

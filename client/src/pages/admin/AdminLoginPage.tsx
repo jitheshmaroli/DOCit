@@ -7,85 +7,61 @@ import { RootState } from '../../redux/store';
 import useAuth from '../../hooks/useAuth';
 import { validateEmail, validateLoginPassword } from '../../utils/validation';
 import ROUTES from '../../constants/routeConstants';
+import { Shield, Mail, Lock, AlertCircle, CheckCircle } from 'lucide-react';
 
 const AdminLoginPage: React.FC = () => {
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-  });
-  const [fieldErrors, setFieldErrors] = useState({
-    email: '',
-    password: '',
-  });
-  const [touchedFields, setTouchedFields] = useState({
-    email: false,
-    password: false,
-  });
+  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [fieldErrors, setFieldErrors] = useState({ email: '', password: '' });
+  const [touched, setTouched] = useState({ email: false, password: false });
 
-  const { message } = useSelector((state: RootState) => state.auth);
-  const navigate = useNavigate();
-  const dispatch = useDispatch();
-  const { login } = useAuth();
+  const { message } = useSelector((s: RootState) => s.auth);
   const {
     user,
     loading,
     error: apiError,
-  } = useSelector((state: RootState) => state.auth);
+  } = useSelector((s: RootState) => s.auth);
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const { login } = useAuth();
 
   useEffect(() => {
     dispatch(resetAuthState());
   }, [dispatch]);
-
   useEffect(() => {
-    if (user && user.role === 'admin') {
-      navigate(ROUTES.ADMIN.DASHBOARD);
-    }
+    if (user?.role === 'admin') navigate(ROUTES.ADMIN.DASHBOARD);
   }, [user, navigate]);
 
   const validateForm = () => {
-    const emailError = validateEmail(formData.email);
-    const passwordError = validateLoginPassword(formData.password);
-
-    setFieldErrors({
-      email: emailError || '',
-      password: passwordError || '',
-    });
-
-    return !emailError && !passwordError;
+    const errors = {
+      email: validateEmail(formData.email) || '',
+      password: validateLoginPassword(formData.password) || '',
+    };
+    setFieldErrors(errors);
+    return !errors.email && !errors.password;
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-
-    if (fieldErrors[name as keyof typeof fieldErrors]) {
-      setFieldErrors((prev) => ({ ...prev, [name]: '' }));
-    }
+    setFormData((p) => ({ ...p, [name]: value }));
+    if (fieldErrors[name as keyof typeof fieldErrors])
+      setFieldErrors((p) => ({ ...p, [name]: '' }));
   };
 
   const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     const { name } = e.target;
-    setTouchedFields((prev) => ({ ...prev, [name]: true }));
-
+    setTouched((p) => ({ ...p, [name]: true }));
     const error =
       name === 'email'
         ? validateEmail(formData.email)
         : validateLoginPassword(formData.password);
-    setFieldErrors((prev) => ({ ...prev, [name]: error || '' }));
+    setFieldErrors((p) => ({ ...p, [name]: error || '' }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    setTouchedFields({
-      email: true,
-      password: true,
-    });
-
+    setTouched({ email: true, password: true });
     if (!validateForm()) return;
-
     dispatch(resetAuthState());
-
     try {
       await login({
         email: formData.email,
@@ -97,7 +73,7 @@ const AdminLoginPage: React.FC = () => {
     }
   };
 
-  const isSubmitDisabled =
+  const isDisabled =
     !formData.email ||
     !formData.password ||
     !!fieldErrors.email ||
@@ -105,106 +81,148 @@ const AdminLoginPage: React.FC = () => {
     loading;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-800 to-indigo-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-md rounded-2xl bg-white/10 backdrop-blur-lg shadow-2xl border border-white/20 p-6 sm:p-8">
-        <header className="mb-6">
-          <Logo />
-          <h2 className="text-2xl sm:text-3xl font-bold text-white mt-4 bg-gradient-to-r from-purple-300 to-blue-300 bg-clip-text text-transparent">
-            Admin Login
-          </h2>
-          <p className="text-gray-200 text-sm mt-2">
-            Login to manage the system
-          </p>
-        </header>
+    <div className="min-h-screen bg-surface-bg flex items-center justify-center p-4">
+      {/* Decorative background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-96 h-96 rounded-full bg-primary-100 opacity-60 blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full bg-teal-100 opacity-60 blur-3xl" />
+      </div>
 
-        {apiError && apiError !== 'Invalid email or password' && (
-          <div className="mb-4 p-3 bg-red-500/20 text-red-200 rounded-lg text-sm">
-            {apiError}
-          </div>
-        )}
-
-        {message && (
-          <div className="mb-4 p-3 bg-green-500/20 text-green-200 rounded-lg text-sm">
-            {message}
-          </div>
-        )}
-
-        <div className="space-y-4">
-          <div>
-            <input
-              type="email"
-              name="email"
-              placeholder="Email"
-              value={formData.email}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              className={`w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 ${
-                touchedFields.email && fieldErrors.email
-                  ? 'focus:ring-red-400'
-                  : 'focus:ring-purple-400'
-              }`}
-              required
-            />
-            {touchedFields.email && fieldErrors.email && (
-              <p className="mt-1 text-xs text-red-300">{fieldErrors.email}</p>
-            )}
+      <div className="relative w-full max-w-md">
+        {/* Card */}
+        <div className="card p-8 animate-fade-in-up">
+          {/* Header */}
+          <div className="flex flex-col items-center mb-8">
+            <div className="w-14 h-14 rounded-2xl bg-primary-500 flex items-center justify-center shadow-btn-primary mb-4">
+              <Shield size={26} className="text-white" />
+            </div>
+            <Logo />
+            <h2 className="text-2xl font-display font-bold text-text-primary mt-3">
+              Admin Portal
+            </h2>
+            <p className="text-sm text-text-muted mt-1">
+              Sign in to manage the platform
+            </p>
           </div>
 
-          <div>
-            <input
-              type="password"
-              name="password"
-              placeholder="Password"
-              value={formData.password}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              className={`w-full p-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 ${
-                touchedFields.password && fieldErrors.password
-                  ? 'focus:ring-red-400'
-                  : 'focus:ring-purple-400'
-              }`}
-              required
-              minLength={6}
-            />
-            {touchedFields.password && fieldErrors.password && (
-              <p className="mt-1 text-xs text-red-300">
-                {fieldErrors.password}
-              </p>
-            )}
-          </div>
+          {/* Alerts */}
+          {apiError && apiError !== 'Invalid email or password' && (
+            <div className="flex items-start gap-2.5 mb-5 p-3.5 bg-red-50 border border-red-100 rounded-xl">
+              <AlertCircle
+                size={15}
+                className="text-error flex-shrink-0 mt-0.5"
+              />
+              <p className="text-sm text-red-700">{apiError}</p>
+            </div>
+          )}
+          {message && (
+            <div className="flex items-start gap-2.5 mb-5 p-3.5 bg-emerald-50 border border-emerald-100 rounded-xl">
+              <CheckCircle
+                size={15}
+                className="text-emerald-600 flex-shrink-0 mt-0.5"
+              />
+              <p className="text-sm text-emerald-700">{message}</p>
+            </div>
+          )}
 
-          <div className="flex justify-between items-center text-sm">
-            <Link
-              to="/forgot-password"
-              className="text-purple-300 hover:text-purple-200 transition-colors"
+          {/* Form */}
+          <div className="space-y-4">
+            {/* Email */}
+            <div>
+              <label className="label mb-1.5">Email Address</label>
+              <div className="relative">
+                <Mail
+                  size={15}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
+                />
+                <input
+                  type="email"
+                  name="email"
+                  placeholder="admin@docit.com"
+                  value={formData.email}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  className={`input pl-10 ${touched.email && fieldErrors.email ? 'input-error' : ''}`}
+                  required
+                />
+              </div>
+              {touched.email && fieldErrors.email && (
+                <p className="error-text mt-1">{fieldErrors.email}</p>
+              )}
+            </div>
+
+            {/* Password */}
+            <div>
+              <label className="label mb-1.5">Password</label>
+              <div className="relative">
+                <Lock
+                  size={15}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
+                />
+                <input
+                  type="password"
+                  name="password"
+                  placeholder="••••••••"
+                  value={formData.password}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  className={`input pl-10 ${touched.password && fieldErrors.password ? 'input-error' : ''}`}
+                  required
+                  minLength={6}
+                />
+              </div>
+              {touched.password && fieldErrors.password && (
+                <p className="error-text mt-1">{fieldErrors.password}</p>
+              )}
+            </div>
+
+            {/* Submit */}
+            <button
+              type="button"
+              disabled={isDisabled}
+              onClick={handleSubmit}
+              className={`btn-primary w-full justify-center py-2.5 ${isDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
             >
-              Forgot Password?
-            </Link>
+              {loading ? (
+                <span className="flex items-center gap-2 justify-center">
+                  <svg
+                    className="animate-spin h-4 w-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v8z"
+                    />
+                  </svg>
+                  Signing in…
+                </span>
+              ) : (
+                'Sign in as Admin'
+              )}
+            </button>
           </div>
 
-          <button
-            type="button"
-            disabled={isSubmitDisabled}
-            onClick={handleSubmit}
-            className={`w-full p-3 rounded-lg text-white font-medium transition-all duration-300 ${
-              isSubmitDisabled
-                ? 'bg-gray-500/50 cursor-not-allowed'
-                : 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 shadow-lg hover:shadow-xl'
-            }`}
-          >
-            {loading ? 'Logging in...' : 'Login as Admin'}
-          </button>
+          {/* Footer */}
+          <p className="text-center mt-6 text-sm text-text-muted">
+            Not an admin?{' '}
+            <Link
+              to="/login"
+              className="text-primary-600 hover:text-primary-700 font-medium transition-colors"
+            >
+              Login here
+            </Link>
+          </p>
         </div>
-
-        <p className="text-center mt-6 text-gray-200 text-sm">
-          Not an admin?{' '}
-          <Link
-            to="/login"
-            className="text-purple-300 hover:text-purple-200 transition-colors"
-          >
-            Login here
-          </Link>
-        </p>
       </div>
     </div>
   );
