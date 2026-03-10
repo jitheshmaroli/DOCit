@@ -16,7 +16,7 @@ import Logo from '../components/common/Logo';
 import NotificationDropdown from '../components/common/NotificationDropdown';
 import DashboardSidebar, {
   SidebarNavItem,
-} from '../components/common/DashboardSideBar';
+} from '../components/common/DashboardSidebar';
 import { useAppSelector } from '../redux/hooks';
 import { getImageUrl } from '../utils/config';
 import defaultAvatar from '/images/avatar.png';
