@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import mongoose, { FilterQuery } from 'mongoose';
 import { IAppointmentRepository } from '../../core/interfaces/repositories/IAppointmentRepository';
 import { Appointment, ExtendedAppointment } from '../../core/entities/Appointment';
@@ -15,6 +14,7 @@ import { PipelineStage } from 'mongoose';
 import { Patient } from '../../core/entities/Patient';
 import { Doctor } from '../../core/entities/Doctor';
 import logger from '../../utils/logger';
+import { DateMatch } from '../../types/appointment';
 
 export class AppointmentRepository extends BaseRepository<Appointment> implements IAppointmentRepository {
   constructor() {
@@ -393,7 +393,7 @@ export class AppointmentRepository extends BaseRepository<Appointment> implement
 
     // Date range filter
     if (dateFrom || dateTo) {
-      const dateMatch: any = {};
+      const dateMatch: DateMatch = {};
       if (dateFrom) {
         dateMatch.$gte = DateUtils.startOfDayUTC(new Date(dateFrom));
       }
