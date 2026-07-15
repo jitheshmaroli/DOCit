@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useSelector, useDispatch } from 'react-redux';
 import { AppDispatch, RootState } from '../redux/store';
 import {
@@ -27,28 +26,37 @@ import {
   User,
   VerifyOtpPayload,
 } from '../types/authTypes';
+import { SerializedError } from '@reduxjs/toolkit';
 
+type ThunkResult<T = unknown> =
+  | ReturnType<typeof loginThunk.fulfilled>
+  | ReturnType<typeof loginThunk.rejected>
+  | {
+      type: string;
+      payload?: T;
+      error?: SerializedError | null;
+    };
 interface AuthHook {
   user: User | null;
   loading: boolean;
   error: string | null;
   otpSent: boolean;
-  signUpPatient: (payload: SignUpPayload) => Promise<any>;
-  signUpDoctor: (payload: SignUpPayload) => Promise<any>;
-  verifySignUpOtp: (payload: VerifyOtpPayload) => Promise<any>;
-  resendSignupOTP: (email: string, role: string) => Promise<any>;
+  signUpPatient: (payload: SignUpPayload) => Promise<ThunkResult>;
+  signUpDoctor: (payload: SignUpPayload) => Promise<ThunkResult>;
+  verifySignUpOtp: (payload: VerifyOtpPayload) => Promise<ThunkResult>;
+  resendSignupOTP: (email: string, role: string) => Promise<ThunkResult>;
   login: (
     payload: LoginPayload,
     options?: { onSuccess?: () => void; onError?: (error: string) => void }
-  ) => Promise<any>;
-  forgotPassword: (payload: ForgotPasswordPayload) => Promise<any>;
-  resetPassword: (payload: ResetPasswordPayload) => Promise<any>;
-  logout: () => Promise<any>;
-  googleSignInPatient: (token: string) => Promise<any>;
-  googleSignInDoctor: (token: string) => Promise<any>;
+  ) => Promise<ThunkResult>;
+  forgotPassword: (payload: ForgotPasswordPayload) => Promise<ThunkResult>;
+  resetPassword: (payload: ResetPasswordPayload) => Promise<ThunkResult>;
+  logout: () => Promise<ThunkResult>;
+  googleSignInPatient: (token: string) => Promise<ThunkResult>;
+  googleSignInDoctor: (token: string) => Promise<ThunkResult>;
   checkAuth: (
     expectedRole: 'patient' | 'doctor' | 'admin' | undefined
-  ) => Promise<any>;
+  ) => Promise<ThunkResult>;
   resetAuthState: () => void;
   resetOtpState: () => void;
   clearError: () => void;
@@ -92,8 +100,12 @@ const useAuth = (): AuthHook => {
       const result = await dispatch(loginThunk(payload));
       if (loginThunk.fulfilled.match(result)) {
         options?.onSuccess?.();
-      } else {
-        options?.onError?.(result.payload as string);
+      } else if (loginThunk.rejected.match(result)) {
+        const errorMessage =
+          typeof result.payload === 'string'
+            ? result.payload
+            : result.error?.message || 'Login failed';
+        options?.onError?.(errorMessage);
       }
       return result;
     },

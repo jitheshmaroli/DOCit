@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
@@ -113,12 +112,14 @@ const DoctorAppointmentDetails: React.FC = () => {
         const data = await getAppointmentById(appointmentId);
         if (data.prescriptionId) {
           data.prescription = {
-            medications: data.prescriptionId.medications.map((m: any) => ({
-              name: m.name,
-              dosage: m.dosage,
-              frequency: m.frequency,
-              duration: m.duration,
-            })),
+            medications: data.prescriptionId.medications.map(
+              (m: Medication) => ({
+                name: m.name,
+                dosage: m.dosage,
+                frequency: m.frequency,
+                duration: m.duration,
+              })
+            ),
             notes: data.prescriptionId.notes,
             pdfUrl: data.prescriptionId.pdfUrl,
           };
@@ -296,7 +297,7 @@ const DoctorAppointmentDetails: React.FC = () => {
     const data = await getAppointmentById(appointmentId!);
     if (data.prescriptionId) {
       data.prescription = {
-        medications: data.prescriptionId.medications.map((m: any) => ({
+        medications: data.prescriptionId.medications.map((m: Medication) => ({
           name: m.name,
           dosage: m.dosage,
           frequency: m.frequency,
@@ -544,7 +545,7 @@ const DoctorAppointmentDetails: React.FC = () => {
                   <textarea
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Enter any additional notes..."
+                    placeholder="Enter additional notes..."
                     rows={3}
                     className="input resize-none"
                   />

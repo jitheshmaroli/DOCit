@@ -210,7 +210,7 @@ const FindDoctor: React.FC = () => {
                 value={filters.gender}
                 onChange={(v) => handleFilterChange('gender', v)}
                 options={[
-                  { value: '', label: 'Any Gender' },
+                  { value: '', label: 'All Gender' },
                   { value: 'Male', label: 'Male' },
                   { value: 'Female', label: 'Female' },
                   { value: 'Other', label: 'Other' },
