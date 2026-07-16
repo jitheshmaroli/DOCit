@@ -76,11 +76,13 @@ export const removeSlot = async ({
   slotId: string;
   reason?: string;
 }) => {
+  console.log('response:');
   const response = await api.post(ROUTES.API.DOCTOR.REMOVE_SLOT, {
     availabilityId,
     slotId,
     reason,
   });
+  console.log('response:', response);
   return response.data;
 };
 

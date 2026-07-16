@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { AxiosError } from 'axios';
 import {
   ChatMessageResponse,
@@ -108,7 +107,7 @@ export const sendAttachment = async (
       },
     });
     return response.data;
-  } catch (error: any) {
+  } catch (error) {
     console.error('Send attachment error:', error);
     throw new Error('Failed to send attachment');
   }

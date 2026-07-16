@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import { getPaginatedPatientAppointmentsThunk } from '../../redux/thunks/patientThunk';
@@ -23,6 +22,7 @@ import { DateUtils } from '../../utils/DateUtils';
 import ROUTES from '../../constants/routeConstants';
 import { showError } from '../../utils/toastConfig';
 import PrescriptionModal from '../../components/PrescriptionModal';
+import { Prescription } from '../../types/appointmentTypes';
 
 const statusOptions = [
   { value: '', label: 'All Statuses' },
@@ -71,7 +71,7 @@ const MedicalHistory: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [selectedPrescription, setSelectedPrescription] = useState<any>(null);
+  const [selectedPrescription, setSelectedPrescription] = useState<Prescription | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const allAppointments = useMemo(() => {
@@ -190,7 +190,7 @@ const MedicalHistory: React.FC = () => {
           {item.prescription && (
             <button
               onClick={() => {
-                setSelectedPrescription(item.prescription);
+                setSelectedPrescription(item.prescription as Prescription);
                 setIsModalOpen(true);
               }}
               className="p-2 rounded-xl border border-surface-border text-primary-500 hover:bg-primary-50 hover:border-primary-200 transition-all duration-150"
@@ -351,7 +351,7 @@ const MedicalHistory: React.FC = () => {
       <PrescriptionModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        prescription={selectedPrescription}
+        prescription={selectedPrescription || undefined}
       />
     </div>
   );

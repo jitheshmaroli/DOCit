@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
@@ -25,7 +24,7 @@ import PaymentForm from './PaymentForm';
 import { DateUtils } from '../../utils/DateUtils';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
-import { TimeSlot, Appointment } from '../../types/authTypes';
+import { TimeSlot, Appointment, Experience } from '../../types/authTypes';
 import Pagination from '../../components/common/Pagination';
 import Modal from '../../components/common/Modal';
 import { getDoctorReviews } from '../../services/patientService';
@@ -50,6 +49,7 @@ import {
   BookOpen,
   CalendarDays,
 } from 'lucide-react';
+import { SubscriptionPlan } from '../../types/subscriptionTypes';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);
 
@@ -289,7 +289,8 @@ const DoctorDetails: React.FC = () => {
           dispatch(getPatientSubscriptionsThunk());
           setIsSuccessModalOpen(true);
           return true;
-        } catch (error: any) {
+        } catch (err: unknown) {
+          const error = err as Error;
           setPollAttempts((p) => p + 1);
           if (
             pollAttempts >= maxPollAttempts ||
@@ -381,7 +382,8 @@ const DoctorDetails: React.FC = () => {
       setSelectedPlan({ id: response.planId, price: response.price });
       setClientSecret(response.clientSecret);
       setIsPaymentModalOpen(true);
-    } catch (error: any) {
+    } catch (err: unknown) {
+      const error = err as Error;
       showError(error.message || 'Failed to resume payment.');
       dispatch(getPatientSubscriptionsThunk());
     } finally {
@@ -761,7 +763,7 @@ const DoctorDetails: React.FC = () => {
                   Experience
                 </p>
                 <div className="space-y-1.5">
-                  {selectedDoctor.experiences!.map((exp: any, i: number) => (
+                  {selectedDoctor.experiences!.map((exp: Experience, i: number) => (
                     <div
                       key={i}
                       className="flex items-center gap-2 text-sm text-text-secondary"
@@ -966,7 +968,7 @@ const DoctorDetails: React.FC = () => {
                       Available Plans
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {plans.map((plan: any) => (
+                      {plans.map((plan: SubscriptionPlan) => (
                         <div
                           key={plan._id}
                           className="card p-5 flex flex-col gap-3"
@@ -1266,7 +1268,7 @@ const DoctorDetails: React.FC = () => {
                   planId={selectedPlan.id}
                   price={selectedPlan.price}
                   onSuccess={handlePaymentSuccess}
-                  onError={(error: any) => showError(error)}
+                  onError={(error) => showError(error)}
                   isResume={isResumingPayment}
                 />
               </Elements>

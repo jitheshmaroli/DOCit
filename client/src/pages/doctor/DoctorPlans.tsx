@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import {
@@ -200,7 +199,8 @@ const DoctorPlans: React.FC = () => {
       dispatch(
         getSubscriptionPlansThunk({ page: currentPage, limit: ITEMS_PER_PAGE })
       );
-    } catch (error: any) {
+    } catch (err) {
+      const error = err as Error;
       showError(
         `Failed to ${isEditMode ? 'update' : 'create'} plan: ${error?.message || error || 'Unknown error'}`
       );
@@ -234,7 +234,8 @@ const DoctorPlans: React.FC = () => {
       dispatch(
         getSubscriptionPlansThunk({ page: currentPage, limit: ITEMS_PER_PAGE })
       );
-    } catch (error: any) {
+    } catch (err) {
+      const error = err as Error;
       showError(
         `Failed to delete plan: ${error?.message || error || 'Unknown error'}`
       );

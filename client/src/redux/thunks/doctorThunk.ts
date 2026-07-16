@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import {
   fetchVerifiedDoctors,
@@ -18,10 +17,7 @@ import {
   getPatientAppointments,
   cancelAppointment,
 } from '../../services/doctorService';
-import {
-  getDoctorPlans,
-  subscribeToPlan,
-} from '../../services/patientService';
+import { getDoctorPlans, subscribeToPlan } from '../../services/patientService';
 import {
   AvailabilityPayload,
   SetAvailabilityPayload,
@@ -39,8 +35,10 @@ export const fetchVerifiedDoctorsThunk = createAsyncThunk(
   async (params: QueryParams = {}, { rejectWithValue }) => {
     try {
       return await fetchVerifiedDoctors(params);
-    } catch (error: any) {
-      return rejectWithValue(error.message || 'Failed to fetch doctors');
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to list doctors';
+      return rejectWithValue(message);
     }
   }
 );
@@ -50,8 +48,10 @@ export const fetchDoctorByIdThunk = createAsyncThunk(
   async (doctorId: string, { rejectWithValue }) => {
     try {
       return await getDoctorById(doctorId);
-    } catch (error: any) {
-      return rejectWithValue(error.message || 'Failed to fetch doctor');
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to fetch doctor';
+      return rejectWithValue(message);
     }
   }
 );
@@ -66,8 +66,10 @@ export const getAvailabilityThunk = createAsyncThunk(
           ? DateUtils.parseToUTC(payload.endDate)
           : undefined,
       });
-    } catch (error: any) {
-      return rejectWithValue(error.message || 'Failed to fetch availability');
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to fetch availability';
+      return rejectWithValue(message);
     }
   }
 );
@@ -92,8 +94,10 @@ export const setAvailabilityThunk = createAsyncThunk(
           : undefined,
         recurringDays: payload.recurringDays,
       });
-    } catch (error: any) {
-      return rejectWithValue(error.message || 'Failed to set availability');
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to set Availability';
+      return rejectWithValue(message);
     }
   }
 );
@@ -106,8 +110,10 @@ export const removeSlotThunk = createAsyncThunk(
   ) => {
     try {
       return await removeSlot(payload);
-    } catch (error: any) {
-      return rejectWithValue(error.message || 'Failed to remove slot');
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to remove a slot';
+      return rejectWithValue(message);
     }
   }
 );
@@ -117,8 +123,10 @@ export const updateSlotThunk = createAsyncThunk(
   async (payload: UpdateSlotPayload, { rejectWithValue }) => {
     try {
       return await updateSlot(payload);
-    } catch (error: any) {
-      return rejectWithValue(error.message || 'Failed to update slot');
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to update slot';
+      return rejectWithValue(message);
     }
   }
 );
@@ -133,8 +141,10 @@ export const getAppointmentsThunk = createAsyncThunk<
     try {
       const response = await getAppointments(page, limit);
       return response;
-    } catch (error: any) {
-      return rejectWithValue(error.message || 'Failed to fetch appointments');
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to fetch appointments';
+      return rejectWithValue(message);
     }
   }
 );
@@ -160,8 +170,12 @@ export const completeAppointmentThunk = createAsyncThunk<
     try {
       const response = await completeAppointment(appointmentId, prescription);
       return response;
-    } catch (error: any) {
-      return rejectWithValue(error.message || 'Failed to complete appointment');
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Failed to complete appointment';
+      return rejectWithValue(message);
     }
   }
 );
@@ -175,8 +189,10 @@ export const cancelAppointmentThunk = createAsyncThunk<
   async ({ appointmentId, cancellationReason }, { rejectWithValue }) => {
     try {
       await cancelAppointment(appointmentId, cancellationReason);
-    } catch (error: any) {
-      return rejectWithValue(error.message || 'Failed to cancel appointment');
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to cance appointment';
+      return rejectWithValue(message);
     }
   }
 );
@@ -189,13 +205,10 @@ export const subscribeToPlanThunk = createAsyncThunk(
   ) => {
     try {
       return await subscribeToPlan(planId, price);
-    } catch (error: any) {
-      if (error.response && error.response.status === 400) {
-        return rejectWithValue(
-          'You already have an active subscription for this doctor'
-        );
-      }
-      return rejectWithValue(error.message || 'Failed to subscribe to plan');
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to subscribe to plan';
+      return rejectWithValue(message);
     }
   }
 );
@@ -208,10 +221,12 @@ export const getSubscriptionPlansThunk = createAsyncThunk<
   try {
     const response = await getSubscriptionPlans(params);
     return response;
-  } catch (error: any) {
-    return rejectWithValue(
-      error.message || 'Failed to fetch subscription plans'
-    );
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Failed to fetch all subscription plans';
+    return rejectWithValue(message);
   }
 });
 
@@ -221,8 +236,12 @@ export const fetchDoctorPlansThunk = createAsyncThunk(
     try {
       const plans = await getDoctorPlans(doctorId);
       return { doctorId, plans };
-    } catch (error: any) {
-      return rejectWithValue(error.message || 'Failed to get doctor plan');
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Failed to fetch doctor subscription plans';
+      return rejectWithValue(message);
     }
   }
 );
@@ -232,8 +251,12 @@ export const createSubscriptionPlanThunk = createAsyncThunk(
   async (plan: SubscriptionPlanPayload, { rejectWithValue }) => {
     try {
       return await createSubscriptionPlan(plan);
-    } catch (error: any) {
-      return rejectWithValue(error || 'Failed to create subscription plan');
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Failed to create subscription plan';
+      return rejectWithValue(message);
     }
   }
 );
@@ -243,10 +266,12 @@ export const updateSubscriptionPlanThunk = createAsyncThunk(
   async (payload: UpdateSubscriptionPlanPayload, { rejectWithValue }) => {
     try {
       return await updateSubscriptionPlan(payload);
-    } catch (error: any) {
-      return rejectWithValue(
-        error.message || 'Failed to update subscription plan'
-      );
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Failed to update subscription plan';
+      return rejectWithValue(message);
     }
   }
 );
@@ -256,10 +281,12 @@ export const deleteSubscriptionPlanThunk = createAsyncThunk(
   async (id: string, { rejectWithValue }) => {
     try {
       return await deleteSubscriptionPlan(id);
-    } catch (error: any) {
-      return rejectWithValue(
-        error.message || 'Failed to delete subscription plan'
-      );
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Failed to delete subscription plan';
+      return rejectWithValue(message);
     }
   }
 );
@@ -269,10 +296,12 @@ export const getSubscribedPatientsThunk = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       return await getSubscribedPatients();
-    } catch (error: any) {
-      return rejectWithValue(
-        error.message || 'Failed to fetch subscribed patients'
-      );
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Failed to fetch subscribed patients';
+      return rejectWithValue(message);
     }
   }
 );
@@ -282,10 +311,12 @@ export const getPlanSubscriptionCountsThunk = createAsyncThunk(
   async (planId: string, { rejectWithValue }) => {
     try {
       return await getPlanSubscriptionCounts(planId);
-    } catch (error: any) {
-      return rejectWithValue(
-        error.message || 'Failed to fetch subscription counts'
-      );
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Failed to fetch subscritpion counts';
+      return rejectWithValue(message);
     }
   }
 );
@@ -305,10 +336,12 @@ export const getPatientAppointmentsThunk = createAsyncThunk<
         limit
       );
       return response;
-    } catch (error: any) {
-      return rejectWithValue(
-        error.message || 'Failed to fetch patient appointments'
-      );
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Failed to fetch patient appointments';
+      return rejectWithValue(message);
     }
   }
 );

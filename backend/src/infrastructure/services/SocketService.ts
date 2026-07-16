@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Server as HttpServer } from 'http';
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import { ITokenService } from '../../core/interfaces/services/ITokenService';
@@ -14,10 +13,60 @@ import { UserRole } from '../../types';
 import { IChatRepository } from '../../core/interfaces/repositories/IChatRepository';
 import { INotificationRepository } from '../../core/interfaces/repositories/INotificationRepository';
 
+interface AuthenticatedSocketData {
+  userId: string;
+  role: UserRole;
+}
+
+interface SendMessagePayload extends Omit<ChatMessage, 'isSender'> {
+  isSender: boolean;
+}
+
+interface ReactionPayload {
+  messageId: string;
+  emoji: string;
+  userId: string;
+}
+
+interface IncomingCallPayload {
+  appointmentId: string;
+  callerId: string;
+  callerRole: UserRole;
+}
+
+interface CallResponsePayload {
+  appointmentId: string;
+  acceptorId?: string;
+  rejectorId?: string;
+}
+
+interface SignalPayload {
+  appointmentId: string;
+  senderId: string;
+  signal: unknown;
+}
+
+interface HandRaisePayload {
+  appointmentId: string;
+  userId: string;
+  isRaised: boolean;
+}
+
+interface MuteStatusPayload {
+  appointmentId: string;
+  userId: string;
+  isMuted: boolean;
+}
+
+interface CallEndPayload {
+  appointmentId: string;
+  enderId: string;
+}
+
 export class SocketService {
   private _io: SocketIOServer | null = null;
-  private _connectedUsers: Map<string, Set<string>> = new Map();
-  private _messageQueue: Map<string, ChatMessage[]> = new Map();
+  private _connectedUsers: Map<string, Set<string>> = new Map(); // userId → socketIds
+  private _messageQueue: Map<string, SendMessagePayload[]> = new Map();
 
   constructor(
     private _chatRepository: IChatRepository,
@@ -37,10 +86,11 @@ export class SocketService {
       pingTimeout: 20000,
       pingInterval: 25000,
     });
+
     this._setupSocketEvents();
   }
 
-  private async _updateUserLastSeen(userId: string, role: string): Promise<void> {
+  private async _updateUserLastSeen(userId: string, role: UserRole): Promise<void> {
     const lastSeen = new Date();
     if (role === UserRole.Patient) {
       await this._patientRepository.update(userId, { lastSeen });
@@ -54,337 +104,173 @@ export class SocketService {
     this._io.emit('userStatusUpdate', {
       userId,
       isOnline,
-      lastSeen: lastSeen ? lastSeen.toISOString() : null,
+      lastSeen: lastSeen?.toISOString() ?? null,
     });
     logger.info(`Broadcasted user status: userId=${userId}, isOnline=${isOnline}`);
   }
 
   private _setupSocketEvents(): void {
-    if (!this._io) {
-      throw new Error('Socket.IO server not initialized');
-    }
+    if (!this._io) throw new Error('Socket.IO server not initialized');
 
+    // Authentication middleware
     this._io.use(async (socket: Socket, next) => {
       try {
         const cookieHeader = socket.handshake.headers.cookie;
-
         if (!cookieHeader || typeof cookieHeader !== 'string') {
-          logger.error('No cookie header provided or invalid format', {
-            headers: socket.handshake.headers,
-          });
-          return next(new AuthenticationError('No cookies provided'));
+          throw new AuthenticationError('No cookies provided');
         }
 
-        let cookies: Record<string, string | undefined>;
-        try {
-          cookies = cookie.parse(cookieHeader);
-        } catch (parseError: any) {
-          logger.error('Failed to parse cookies', { error: parseError.message, cookieHeader });
-          return next(new AuthenticationError('Invalid cookie format'));
-        }
-
+        const cookies = cookie.parse(cookieHeader);
         const accessToken = cookies['accessToken'];
-        if (!accessToken) {
-          logger.error('No accessToken found in cookies', { cookies });
-          return next(new AuthenticationError('No access token provided'));
-        }
 
+        if (!accessToken) throw new AuthenticationError('No access token provided');
+
+        let decoded;
         try {
-          const decoded = this._tokenService.verifyAccessToken(accessToken);
-          socket.data.userId = decoded.userId;
-          socket.data.role = decoded.role;
-          logger.info(`Socket authenticated: userId=${decoded.userId}, role=${decoded.role}`);
-          next();
+          decoded = this._tokenService.verifyAccessToken(accessToken);
         } catch {
           const refreshToken = cookies['refreshToken'];
-          if (!refreshToken) {
-            logger.error('No refreshToken found in cookies', { cookies });
-            throw new AuthenticationError('No refresh token provided');
-          }
-
-          try {
-            const { userId, role } = await this._tokenService.verifyRefreshToken(refreshToken);
-            socket.data.userId = userId;
-            socket.data.role = role;
-            logger.info(`Socket authenticated with refreshed token: userId=${userId}, role=${role}`);
-            next();
-          } catch (refreshError: any) {
-            logger.error(`Refresh token verification failed: ${refreshError.message}`, { cookies });
-            throw new AuthenticationError('Invalid refresh token');
-          }
+          if (!refreshToken) throw new AuthenticationError('No refresh token provided');
+          decoded = await this._tokenService.verifyRefreshToken(refreshToken);
         }
-      } catch (error: any) {
-        logger.error(`Authentication failed: ${error.message}`, {
-          headers: socket.handshake.headers,
-        });
-        next(new AuthenticationError(error.message || 'Authentication failed'));
+
+        socket.data.userId = decoded.userId;
+        socket.data.role = decoded.role;
+
+        logger.info(`Socket authenticated: userId=${decoded.userId}, role=${decoded.role}`);
+        next();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Authentication failed';
+        logger.error(`Authentication failed: ${message}`);
+        next(new AuthenticationError(message));
       }
     });
 
     this._io.on('connection', async (socket: Socket) => {
-      const userId = socket.data.userId;
-      const role = socket.data.role;
+      const userId = (socket.data as AuthenticatedSocketData).userId;
+      const role = (socket.data as AuthenticatedSocketData).role;
+
       if (!userId || !role) {
-        logger.warn('No userId or role in socket data, disconnecting');
         socket.disconnect(true);
         return;
       }
 
-      if (!this._connectedUsers.has(userId)) {
-        this._connectedUsers.set(userId, new Set());
-      }
+      // Track user sockets
+      if (!this._connectedUsers.has(userId)) this._connectedUsers.set(userId, new Set());
       this._connectedUsers.get(userId)!.add(socket.id);
-      logger.info(
-        `User connected: ${userId}, socketId=${socket.id}, totalSockets=${this._connectedUsers.get(userId)!.size}`
-      );
+
+      logger.info(`User connected: ${userId}, socketId=${socket.id}`);
 
       await this._updateUserLastSeen(userId, role);
       this._broadcastUserStatus(userId, true);
 
       this.deliverQueuedMessages(userId, socket);
 
+      // EVENT HANDLERS
+
       socket.on('sendMessage', async (message: ChatMessage) => {
         try {
-          const messagePayload = {
+          const basePayload: Omit<SendMessagePayload, 'isSender'> = {
             _id: message._id,
             message: message.message,
             senderId: message.senderId,
             senderName: message.senderName || 'Unknown',
             createdAt: message.createdAt || new Date(),
-            isSender: false,
             receiverId: message.receiverId,
             attachment: message.attachment,
             reactions: message.reactions || [],
             unreadBy: message.unreadBy,
           };
 
-          const receiverSocketIds = this._connectedUsers.get(message.receiverId!);
-          if (receiverSocketIds && receiverSocketIds.size > 0) {
-            receiverSocketIds.forEach((socketId) => {
-              logger.info(`Emitting receiveMessage to: ${message.receiverId}, socketId: ${socketId}`, {
-                messagePayload,
-              });
-              this._io!.to(socketId).emit('receiveMessage', messagePayload);
-            });
-            logger.info(`Message sent to receiver: ${message.receiverId}`);
-          } else {
-            logger.warn(`Receiver not connected: ${message.receiverId}, queuing message`);
-            this.queueMessage(message.receiverId!, messagePayload);
-          }
+          const receiverPayload: SendMessagePayload = { ...basePayload, isSender: false };
+          const senderPayload: SendMessagePayload = { ...basePayload, isSender: true };
 
-          const senderSocketIds = this._connectedUsers.get(message.senderId!);
-          if (senderSocketIds && senderSocketIds.size > 0) {
-            const senderPayload = { ...messagePayload, isSender: true };
-            senderSocketIds.forEach((socketId) => {
-              logger.info(`Emitting receiveMessage to: ${message.senderId}, socketId: ${socketId}`, {
-                senderPayload,
-              });
-              this._io!.to(socketId).emit('receiveMessage', senderPayload);
-            });
-            logger.info(`Message sent to sender: ${message.senderId}`);
-          }
-        } catch (error: any) {
-          logger.error(`Send message error: ${error}`);
-          socket.emit('error', { message: (error as Error).message });
+          this._sendToUser(message.receiverId!, 'receiveMessage', receiverPayload);
+          this._sendToUser(message.senderId!, 'receiveMessage', senderPayload);
+        } catch (error) {
+          this._handleError(socket, error);
         }
       });
 
-      socket.on('sendReaction', async (data: { messageId: string; emoji: string; userId: string }) => {
+      socket.on('sendReaction', async (data: ReactionPayload) => {
         try {
-          const reactionPayload = {
-            messageId: data.messageId,
-            emoji: data.emoji,
-            userId: data.userId,
-          };
-
           const message = await this._chatRepository.findById(data.messageId);
-          if (!message) {
-            throw new Error('Message not found');
-          }
+          if (!message) throw new Error('Message not found');
 
           const receiverId =
-            message.senderId?.toString() === data.userId ? message.receiverId?.toString() : message.senderId;
-          const receiverSocketIds = this._connectedUsers.get(receiverId!);
-          if (receiverSocketIds && receiverSocketIds.size > 0) {
-            receiverSocketIds.forEach((socketId) => {
-              logger.info(`Emitting receiveReaction to: ${receiverId}, socketId: ${socketId}`, {
-                reactionPayload,
-              });
-              this._io!.to(socketId).emit('receiveReaction', reactionPayload);
-            });
-            logger.info(`Reaction sent to receiver: ${receiverId}`);
-          }
+            message.senderId?.toString() === data.userId
+              ? message.receiverId?.toString()
+              : message.senderId?.toString();
 
-          const senderSocketIds = this._connectedUsers.get(data.userId);
-          if (senderSocketIds && senderSocketIds.size > 0) {
-            senderSocketIds.forEach((socketId) => {
-              logger.info(`Emitting receiveReaction to: ${data.userId}, socketId: ${socketId}`, {
-                reactionPayload,
-              });
-              this._io!.to(socketId).emit('receiveReaction', reactionPayload);
-            });
-            logger.info(`Reaction sent to sender: ${data.userId}`);
-          }
-        } catch (error: any) {
-          logger.error(`Send reaction error: ${error}`);
-          socket.emit('error', { message: (error as Error).message });
+          this._sendToUser(receiverId!, 'receiveReaction', data);
+          this._sendToUser(data.userId, 'receiveReaction', data);
+        } catch (error) {
+          this._handleError(socket, error);
         }
       });
 
       socket.on('sendNotification', async (notification: Notification) => {
         try {
           await this._notificationRepository.create(notification);
-          const receiverSocketIds = this._connectedUsers.get(notification.userId!);
-          if (receiverSocketIds && receiverSocketIds.size > 0) {
-            receiverSocketIds.forEach((socketId) => {
-              this._io!.to(socketId).emit('receiveNotification', notification);
-            });
-            logger.info(`Notification sent to: ${notification.userId}`);
-          }
-        } catch (error: any) {
-          logger.error(`Send notification error: ${error.message}`);
-          socket.emit('error', { message: (error as Error).message });
+          this._sendToUser(notification.userId!, 'receiveNotification', notification);
+        } catch (error) {
+          this._handleError(socket, error);
         }
       });
 
-      socket.on('initiateVideoCall', async (data: { appointmentId: string; receiverId: string }) => {
-        try {
-          logger.info('Received initiateVideoCall:', { data });
-          const receiverSocketIds = this._connectedUsers.get(data.receiverId);
-          if (receiverSocketIds && receiverSocketIds.size > 0) {
-            receiverSocketIds.forEach((socketId) => {
-              this._io!.to(socketId).emit('incomingCall', {
-                appointmentId: data.appointmentId,
-                callerId: userId,
-                callerRole: role,
-              });
-            });
-            logger.info(`Incoming call sent to: ${data.receiverId}`);
-          } else {
-            logger.warn(`Receiver not connected for video call: ${data.receiverId}`);
-            socket.emit('error', { message: 'Receiver not available' });
-          }
-        } catch (error: any) {
-          logger.error(`Initiate video call error: ${error}`);
-          socket.emit('error', { message: (error as Error).message });
-        }
+      // VIDEO CALL EVENTS
+
+      socket.on('initiateVideoCall', (data: { appointmentId: string; receiverId: string }) => {
+        this._sendToUser(data.receiverId, 'incomingCall', {
+          appointmentId: data.appointmentId,
+          callerId: userId,
+          callerRole: role,
+        } as IncomingCallPayload);
       });
 
-      socket.on('acceptCall', async (data: { appointmentId: string; callerId: string }) => {
-        try {
-          logger.info('Received acceptCall:', { data });
-          const callerSocketIds = this._connectedUsers.get(data.callerId);
-          if (callerSocketIds && callerSocketIds.size > 0) {
-            callerSocketIds.forEach((socketId) => {
-              this._io!.to(socketId).emit('callAccepted', {
-                appointmentId: data.appointmentId,
-                acceptorId: userId,
-              });
-            });
-            logger.info(`Call accepted sent to: ${data.callerId}`);
-          }
-        } catch (error: any) {
-          logger.error(`Accept call error: ${error}`);
-          socket.emit('error', { message: (error as Error).message });
-        }
+      socket.on('acceptCall', (data: { appointmentId: string; callerId: string }) => {
+        this._sendToUser(data.callerId, 'callAccepted', {
+          appointmentId: data.appointmentId,
+          acceptorId: userId,
+        } as CallResponsePayload);
       });
 
-      socket.on('rejectCall', async (data: { appointmentId: string; callerId: string }) => {
-        try {
-          logger.info('Received rejectCall:', { data });
-          const callerSocketIds = this._connectedUsers.get(data.callerId);
-          if (callerSocketIds && callerSocketIds.size > 0) {
-            callerSocketIds.forEach((socketId) => {
-              this._io!.to(socketId).emit('callRejected', {
-                appointmentId: data.appointmentId,
-                rejectorId: userId,
-              });
-            });
-            logger.info(`Call rejected sent to: ${data.callerId}`);
-          }
-        } catch (error: any) {
-          logger.error(`Reject call error: ${error}`);
-          socket.emit('error', { message: (error as Error).message });
-        }
+      socket.on('rejectCall', (data: { appointmentId: string; callerId: string }) => {
+        this._sendToUser(data.callerId, 'callRejected', {
+          appointmentId: data.appointmentId,
+          rejectorId: userId,
+        } as CallResponsePayload);
       });
 
-      socket.on('signal', async (data: { appointmentId: string; receiverId: string; signal: any }) => {
-        try {
-          logger.info('Received signal:', { appointmentId: data.appointmentId });
-          const receiverSocketIds = this._connectedUsers.get(data.receiverId);
-          if (receiverSocketIds && receiverSocketIds.size > 0) {
-            receiverSocketIds.forEach((socketId) => {
-              this._io!.to(socketId).emit('signal', {
-                appointmentId: data.appointmentId,
-                senderId: userId,
-                signal: data.signal,
-              });
-            });
-            logger.info(`Signal sent to: ${data.receiverId}`);
-          }
-        } catch (error: any) {
-          logger.error(`Signal error: ${error}`);
-          socket.emit('error', { message: (error as Error).message });
-        }
+      socket.on('signal', (data: { appointmentId: string; receiverId: string; signal: unknown }) => {
+        this._sendToUser(data.receiverId, 'signal', {
+          appointmentId: data.appointmentId,
+          senderId: userId,
+          signal: data.signal,
+        } as SignalPayload);
       });
 
-      socket.on('endCall', async (data: { appointmentId: string; receiverId: string }) => {
-        try {
-          logger.info('Received endCall:', { data });
-          const receiverSocketIds = this._connectedUsers.get(data.receiverId);
-          if (receiverSocketIds && receiverSocketIds.size > 0) {
-            receiverSocketIds.forEach((socketId) => {
-              this._io!.to(socketId).emit('callEnded', {
-                appointmentId: data.appointmentId,
-                enderId: userId,
-              });
-            });
-            logger.info(`Call ended sent to: ${data.receiverId}`);
-          }
-        } catch (error: any) {
-          logger.error(`End call error: ${error}`);
-          socket.emit('error', { message: (error as Error).message });
-        }
+      socket.on('endCall', (data: { appointmentId: string; receiverId: string }) => {
+        this._sendToUser(data.receiverId, 'callEnded', {
+          appointmentId: data.appointmentId,
+          enderId: userId,
+        } as CallEndPayload);
       });
 
-      socket.on('handRaise', async (data: { appointmentId: string; receiverId: string; isRaised: boolean }) => {
-        try {
-          logger.info('Received handRaise:', { data });
-          const receiverSocketIds = this._connectedUsers.get(data.receiverId);
-          if (receiverSocketIds && receiverSocketIds.size > 0) {
-            receiverSocketIds.forEach((socketId) => {
-              this._io!.to(socketId).emit('handRaise', {
-                appointmentId: data.appointmentId,
-                userId,
-                isRaised: data.isRaised,
-              });
-            });
-            logger.info(`Hand raise sent to: ${data.receiverId}`);
-          }
-        } catch (error: any) {
-          logger.error(`Hand raise error: ${error}`);
-          socket.emit('error', { message: (error as Error).message });
-        }
+      socket.on('handRaise', (data: { appointmentId: string; receiverId: string; isRaised: boolean }) => {
+        this._sendToUser(data.receiverId, 'handRaise', {
+          appointmentId: data.appointmentId,
+          userId,
+          isRaised: data.isRaised,
+        } as HandRaisePayload);
       });
 
-      socket.on('muteStatus', async (data: { appointmentId: string; receiverId: string; isMuted: boolean }) => {
-        try {
-          logger.info('Received muteStatus:', { data });
-          const receiverSocketIds = this._connectedUsers.get(data.receiverId);
-          if (receiverSocketIds && receiverSocketIds.size > 0) {
-            receiverSocketIds.forEach((socketId) => {
-              this._io!.to(socketId).emit('muteStatus', {
-                appointmentId: data.appointmentId,
-                userId,
-                isMuted: data.isMuted,
-              });
-            });
-            logger.info(`Mute status sent to: ${data.receiverId}`);
-          }
-        } catch (error: any) {
-          logger.error(`Mute status error: ${error}`);
-          socket.emit('error', { message: (error as Error).message });
-        }
+      socket.on('muteStatus', (data: { appointmentId: string; receiverId: string; isMuted: boolean }) => {
+        this._sendToUser(data.receiverId, 'muteStatus', {
+          appointmentId: data.appointmentId,
+          userId,
+          isMuted: data.isMuted,
+        } as MuteStatusPayload);
       });
 
       socket.on('disconnect', async () => {
@@ -396,134 +282,80 @@ export class SocketService {
             await this._updateUserLastSeen(userId, role);
             this._broadcastUserStatus(userId, false, new Date());
           }
-          logger.info(
-            `User socket disconnected: ${userId}, socketId=${socket.id}, remainingSockets=${userSockets?.size || 0}`
-          );
         }
       });
     });
   }
 
-  private queueMessage(userId: string, message: ChatMessage): void {
-    if (!this._messageQueue.has(userId)) {
-      this._messageQueue.set(userId, []);
+  private _sendToUser(userId: string, eventName: string, payload: unknown): void {
+    if (!this._io) return;
+
+    const socketIds = this._connectedUsers.get(userId);
+
+    if (socketIds && socketIds.size > 0) {
+      socketIds.forEach((socketId) => {
+        this._io!.to(socketId).emit(eventName, payload);
+      });
+      logger.info(`Emitted ${eventName} to ${userId}`);
+    } else if (eventName === 'receiveMessage') {
+      this.queueMessage(userId, payload as SendMessagePayload);
     }
+  }
+
+  private queueMessage(userId: string, message: SendMessagePayload): void {
+    if (!this._messageQueue.has(userId)) this._messageQueue.set(userId, []);
     this._messageQueue.get(userId)!.push(message);
-    logger.info(`Message queued for user: ${userId}, queueSize=${this._messageQueue.get(userId)!.length}`);
   }
 
   private deliverQueuedMessages(userId: string, socket: Socket): void {
     const queuedMessages = this._messageQueue.get(userId);
-    if (queuedMessages && queuedMessages.length > 0) {
-      queuedMessages.forEach((message) => {
-        socket.emit('receiveMessage', message);
-        logger.info(`Delivered queued message to: ${userId}`, { message });
-      });
+    if (queuedMessages?.length) {
+      queuedMessages.forEach((msg) => socket.emit('receiveMessage', msg));
       this._messageQueue.delete(userId);
-      logger.info(`Cleared message queue for user: ${userId}`);
+      logger.info(`Delivered ${queuedMessages.length} queued messages to ${userId}`);
     }
   }
 
+  private _handleError(socket: Socket, error: unknown): void {
+    const message = error instanceof Error ? error.message : 'An unknown error occurred';
+    logger.error(`Socket error: ${message}`, { error });
+    socket.emit('error', { message });
+  }
+
+  // Public API
   async sendNotificationToUser(userId: string, notification: Notification): Promise<void> {
-    const socketIds = this._connectedUsers.get(userId);
-    if (socketIds && socketIds.size > 0 && this._io) {
-      socketIds.forEach((socketId) => {
-        this._io!.to(socketId).emit('receiveNotification', notification);
-      });
-      logger.info(`Notification sent to user: ${userId}, socketCount=${socketIds.size}`);
-    }
+    this._sendToUser(userId, 'receiveNotification', notification);
   }
 
   async sendMessageToUsers(message: ChatMessage): Promise<void> {
-    if (!this._io) {
-      throw new Error('Socket.IO server not initialized');
-    }
-
-    const messagePayload = {
+    const basePayload: Omit<SendMessagePayload, 'isSender'> = {
       _id: message._id,
       message: message.message,
       senderId: message.senderId,
       senderName: message.senderName || 'Unknown',
       createdAt: message.createdAt || new Date(),
-      isSender: false,
       receiverId: message.receiverId,
       attachment: message.attachment,
       reactions: message.reactions || [],
       unreadBy: message.unreadBy,
     };
 
-    const receiverSocketIds = this._connectedUsers.get(message.receiverId!);
-    if (receiverSocketIds && receiverSocketIds.size > 0) {
-      receiverSocketIds.forEach((socketId) => {
-        logger.info(`Emitting receiveMessage to: ${message.receiverId}, socketId: ${socketId}`, {
-          messagePayload,
-        });
-        this._io!.to(socketId).emit('receiveMessage', messagePayload);
-      });
-      logger.info(`Message sent to receiver: ${message.receiverId}`);
-    } else {
-      logger.warn(`Receiver not connected: ${message.receiverId}, queuing message`);
-      this.queueMessage(message.receiverId!, messagePayload);
-    }
-
-    const senderSocketIds = this._connectedUsers.get(message.senderId!);
-    if (senderSocketIds && senderSocketIds.size > 0) {
-      const senderPayload = { ...messagePayload, isSender: true };
-      senderSocketIds.forEach((socketId) => {
-        logger.info(`Emitting receiveMessage to: ${message.senderId}, socketId: ${socketId}`, {
-          senderPayload,
-        });
-        this._io!.to(socketId).emit('receiveMessage', senderPayload);
-      });
-      logger.info(`Message sent to sender: ${message.senderId}`);
-    }
-  }
-
-  async sendReactionToUsers(messageId: string, emoji: string, userId: string, receiverId: string): Promise<void> {
-    if (!this._io) {
-      throw new Error('Socket.IO server not initialized');
-    }
-
-    const reactionPayload = {
-      messageId,
-      emoji,
-      userId,
-    };
-
-    const receiverSocketIds = this._connectedUsers.get(receiverId);
-    if (receiverSocketIds && receiverSocketIds.size > 0) {
-      receiverSocketIds.forEach((socketId) => {
-        logger.info(`Emitting receiveReaction to: ${receiverId}, socketId: ${socketId}`, {
-          reactionPayload,
-        });
-        this._io!.to(socketId).emit('receiveReaction', reactionPayload);
-      });
-      logger.info(`Reaction sent to receiver: ${receiverId}`);
-    }
-
-    const senderSocketIds = this._connectedUsers.get(userId);
-    if (senderSocketIds && senderSocketIds.size > 0) {
-      senderSocketIds.forEach((socketId) => {
-        logger.info(`Emitting receiveReaction to: ${userId}, socketId: ${socketId}`, {
-          reactionPayload,
-        });
-        this._io!.to(socketId).emit('receiveReaction', reactionPayload);
-      });
-      logger.info(`Reaction sent to sender: ${userId}`);
-    }
+    this._sendToUser(message.receiverId!, 'receiveMessage', { ...basePayload, isSender: false });
+    this._sendToUser(message.senderId!, 'receiveMessage', { ...basePayload, isSender: true });
   }
 
   isUserOnline(userId: string): boolean {
     return this._connectedUsers.has(userId) && this._connectedUsers.get(userId)!.size > 0;
   }
 
-  async getUserLastSeen(userId: string, role: string): Promise<Date | null> {
+  async getUserLastSeen(userId: string, role: UserRole): Promise<Date | null> {
     if (role === UserRole.Patient) {
       const patient = await this._patientRepository.findById(userId);
-      return patient?.lastSeen || null;
-    } else if (role === UserRole.Doctor) {
+      return patient?.lastSeen ?? null;
+    }
+    if (role === UserRole.Doctor) {
       const doctor = await this._doctorRepository.findById(userId);
-      return doctor?.lastSeen || null;
+      return doctor?.lastSeen ?? null;
     }
     return null;
   }

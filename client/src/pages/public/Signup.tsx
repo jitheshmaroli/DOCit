@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -251,15 +250,25 @@ const SignupPage: React.FC = () => {
       let response;
       if (signupType === 'patient') response = await signUpPatient(data);
       else response = await signUpDoctor(data);
-      if (response.payload?._id) {
-        dispatch(
-          setSignupData({
-            ...signupData,
-            _id: response.payload._id,
-            role: signupType,
-          })
-        );
+      if (
+        response &&
+        'payload' in response &&
+        response.payload &&
+        typeof response.payload === 'object'
+      ) {
+        const payload = response.payload as { _id?: string; email?: string };
+
+        if (payload._id) {
+          dispatch(
+            setSignupData({
+              ...signupData,
+              _id: payload._id,
+              role: signupType,
+            })
+          );
+        }
       }
+      console.log('rsponse:', response);
       setCountdown(60);
     } catch (error) {
       console.error('Signup error:', error);
@@ -271,10 +280,11 @@ const SignupPage: React.FC = () => {
       await resendSignupOTP(formData.email, signupType);
       setCountdown(60);
       setFieldErrors((prev) => ({ ...prev, form: '' }));
-    } catch (error: any) {
+    } catch (err: unknown) {
+      const error = err as Error;
       setFieldErrors((prev) => ({
         ...prev,
-        form: error.payload?.message || 'Failed to resend OTP',
+        form: error.message || 'Failed to resend OTP',
       }));
     }
   };
@@ -299,11 +309,12 @@ const SignupPage: React.FC = () => {
     };
     try {
       await verifySignUpOtp(verifyData);
-    } catch (error: any) {
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.log('errorotp:', err)
       setFieldErrors((prev) => ({
         ...prev,
-        form:
-          error.payload?.message || 'Something went wrong. Please try again.',
+        form: error.message || 'Something went wrong. Please try again.',
       }));
     }
   };
