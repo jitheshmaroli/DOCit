@@ -17,3 +17,4 @@ export interface SetAvailabilityResponse {
   availabilities: Availability[];
   conflicts: { date: string; error: string }[];
 }
+export type AvailabilityFilter = 'all' | 'created' | 'booked';

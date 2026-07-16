@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useState, useCallback } from 'react';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import {
@@ -22,6 +21,7 @@ import {
 } from '../../constants/AppConstants';
 import {
   Availability,
+  AvailabilityFilter,
   SetAvailabilityResponse,
   TimeSlot,
 } from '../../types/aailabilityTypes';
@@ -451,8 +451,10 @@ const DoctorAvailability: React.FC = () => {
         return n;
       });
       if (timeSlots.length === 1) setIsModalOpen(false);
-    } catch (err: any) {
-      showError(err.message || 'Failed to remove slot');
+    } catch (err) {
+      const error = err as Error;
+      console.log('error: ', err);
+      showError(error.message || 'Failed to remove slot');
     }
   };
 
@@ -526,7 +528,12 @@ const DoctorAvailability: React.FC = () => {
   const handleSaveSlot = async (index: number) => {
     clearSlotErrors(index);
     const slot = timeSlots[index];
-    const errors: any = {};
+    const errors: {
+      startTime?: string;
+      endTime?: string;
+      reason?: string;
+      general?: string;
+    } = {};
     if (!slot.startTime) errors.startTime = 'Start time is required';
     if (!slot.endTime) errors.endTime = 'End time is required';
     if (
@@ -587,12 +594,13 @@ const DoctorAvailability: React.FC = () => {
         delete n[index];
         return n;
       });
-    } catch (err: any) {
+    } catch (err) {
+      const error = err as Error;
       setFieldErrors((p) => ({
         ...p,
         [index]: {
           ...p[index],
-          general: err.message || 'Failed to update slot',
+          general: error.message || 'Failed to update slot',
         },
       }));
     }
@@ -618,8 +626,9 @@ const DoctorAvailability: React.FC = () => {
         dispatch(getAvailabilityThunk({ startDate: s, endDate: e }));
         setTimeSlots((p) => p.filter((_, i) => i !== selectedSlotIndex));
         setOriginalSlotCount((p) => p - 1);
-      } catch (err: any) {
-        showError(err.message || 'Failed to remove slot');
+      } catch (err) {
+        const error = err as Error;
+        showError(error.message || 'Failed to remove slot');
       }
     }
     setEditDialogOpen(false);
@@ -677,7 +686,12 @@ const DoctorAvailability: React.FC = () => {
     const validNew = newSlots.filter((s) => validateSlot(s, selectedDate));
     if (validNew.length === 0) {
       newSlots.forEach((slot, i) => {
-        const errs: any = {};
+        const errs: {
+          startTime?: string;
+          endTime?: string;
+          reason?: string;
+          general?: string;
+        } = {};
         if (!slot.startTime) errs.startTime = 'Start time is required';
         if (!slot.endTime) errs.endTime = 'End time is required';
         if (
@@ -719,8 +733,9 @@ const DoctorAvailability: React.FC = () => {
       const s = dayjs(selectedDate).startOf('month').toDate(),
         e = dayjs(selectedDate).endOf('month').toDate();
       await dispatch(getAvailabilityThunk({ startDate: s, endDate: e }));
-    } catch (err: any) {
-      showError(err.message || 'Failed to add new slots');
+    } catch (err) {
+      const error = err as Error;
+      showError(error.message || 'Failed to add new slots');
     }
   };
 
@@ -747,7 +762,12 @@ const DoctorAvailability: React.FC = () => {
     }
     const invalidSlots: number[] = [];
     recurringTimeSlots.forEach((slot, index) => {
-      const errs: any = {};
+      const errs: {
+        startTime?: string;
+        endTime?: string;
+        reason?: string;
+        general?: string;
+      } = {};
       if (!slot.startTime) errs.startTime = 'Start time is required';
       if (!slot.endTime) errs.endTime = 'End time is required';
       if (
@@ -830,8 +850,9 @@ const DoctorAvailability: React.FC = () => {
       setRecurringDays([]);
       setRecurringFieldErrors({});
       fetchAvailability();
-    } catch (err: any) {
-      showError(err.message || 'Failed to set recurring availability');
+    } catch (err) {
+      const error = err as Error;
+      showError(error.message || 'Failed to set recurring availability');
     }
   };
 
@@ -936,7 +957,7 @@ const DoctorAvailability: React.FC = () => {
                 label=""
                 value={filterType}
                 options={filterOptions}
-                onChange={(v) => setFilterType(v as any)}
+                onChange={(v) => setFilterType(v as AvailabilityFilter)}
               />
             </div>
           </div>

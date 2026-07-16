@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from 'react';
 import {
   validateName,
@@ -116,7 +115,7 @@ const DoctorProfilePage: React.FC = () => {
           gender: data.gender || '',
           allowFreeBooking: data.allowFreeBooking ?? true,
           experiences:
-            data.experiences?.map((e: any) => ({
+            data.experiences?.map((e: Experience) => ({
               hospitalName: e.hospitalName || '',
               department: e.department || '',
               years: e.years?.toString() || '',
@@ -374,12 +373,13 @@ const DoctorProfilePage: React.FC = () => {
       setLicenseProofFile(null);
       setIsModalOpen(false);
       showSuccess('Profile updated successfully!');
-    } catch (error: any) {
+    } catch (err) {
+      const error = err as Error;
       setPreviewImage(profilePicture);
       setFile(null);
       setLicenseProofFile(null);
       setIsModalOpen(false);
-      showError(error.response?.data?.message || 'Error updating profile');
+      showError(error.message || 'Error updating profile');
     }
   };
 

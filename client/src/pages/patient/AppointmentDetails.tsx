@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
@@ -192,14 +191,14 @@ const AppointmentDetails: React.FC = () => {
           `/api/patients/appointments/${appointmentId}`,
           { withCredentials: true }
         );
-        const appt = response.data;
+        const appt = response.data as Appointment;
         if (typeof appt.patientId === 'string')
           appt.patientId = { _id: appt.patientId, name: 'Unknown Patient' };
         if (typeof appt.doctorId === 'string')
           appt.doctorId = { _id: appt.doctorId, name: 'Unknown Doctor' };
         if (appt.prescriptionId && typeof appt.prescriptionId === 'object') {
           appt.prescription = {
-            medications: appt.prescriptionId.medications.map((med: any) => ({
+            medications: appt.prescriptionId.medications.map((med) => ({
               name: med.name || '',
               dosage: med.dosage || '',
               frequency: med.frequency || '',

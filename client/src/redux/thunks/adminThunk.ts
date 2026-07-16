@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import {
   listDoctors,
@@ -41,18 +40,22 @@ export const listDoctorsThunk = createAsyncThunk<
 >('admin/listDoctors', async (params, { rejectWithValue }) => {
   try {
     return await listDoctors(params);
-  } catch (error: any) {
-    return rejectWithValue(error.message);
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error ? error.message : 'Failed to fetch doctors';
+    return rejectWithValue(errorMessage);
   }
 });
 
 export const createDoctorThunk = createAsyncThunk(
   'admin/createDoctor',
-  async (doctor: any, { rejectWithValue }) => {
+  async (doctor: Partial<Doctor>, { rejectWithValue }) => {
     try {
       return await createDoctor(doctor);
-    } catch (error: any) {
-      return rejectWithValue(error.message || 'Failed to create doctor');
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to create doctor';
+      return rejectWithValue(errorMessage);
     }
   }
 );
@@ -60,13 +63,15 @@ export const createDoctorThunk = createAsyncThunk(
 export const updateDoctorThunk = createAsyncThunk(
   'admin/updateDoctor',
   async (
-    { id, updates }: { id: string; updates: any },
+    { id, updates }: { id: string; updates: Partial<Doctor> },
     { rejectWithValue }
   ) => {
     try {
       return await updateDoctor(id, updates);
-    } catch (error: any) {
-      return rejectWithValue(error.message || 'Failed to update doctor');
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to update Doctor';
+      return rejectWithValue(message);
     }
   }
 );
@@ -76,8 +81,10 @@ export const deleteDoctorThunk = createAsyncThunk(
   async (id: string, { rejectWithValue }) => {
     try {
       return await deleteDoctor(id);
-    } catch (error: any) {
-      return rejectWithValue(error.message || 'Failed to delete doctor');
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to delete Doctor';
+      return rejectWithValue(message);
     }
   }
 );
@@ -90,8 +97,12 @@ export const blockDoctorThunk = createAsyncThunk(
   ) => {
     try {
       return await blockDoctor(id, isBlocked);
-    } catch (error: any) {
-      return rejectWithValue(error.message || 'Failed to block/unblock doctor');
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Failed to block/unblock Doctor';
+      return rejectWithValue(message);
     }
   }
 );
@@ -103,8 +114,10 @@ export const verifyDoctorThunk = createAsyncThunk<
 >('admin/verifyDoctor', async (doctorId, { rejectWithValue }) => {
   try {
     return await verifyDoctor(doctorId);
-  } catch (error: any) {
-    return rejectWithValue(error.message || 'Failed to verify doctor');
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : 'Failed to verify doctor';
+    return rejectWithValue(message);
   }
 });
 
@@ -114,18 +127,22 @@ export const listPatientsThunk = createAsyncThunk<
 >('admin/listPatients', async (params, { rejectWithValue }) => {
   try {
     return await listPatients(params);
-  } catch (error: any) {
-    return rejectWithValue(error.message);
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : 'Failed to list patients';
+    return rejectWithValue(message);
   }
 });
 
 export const createPatientThunk = createAsyncThunk(
   'admin/createPatient',
-  async (patient: any, { rejectWithValue }) => {
+  async (patient: Partial<Patient>, { rejectWithValue }) => {
     try {
       return await createPatient(patient);
-    } catch (error: any) {
-      return rejectWithValue(error.message || 'Failed to create patient');
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to create Patient';
+      return rejectWithValue(message);
     }
   }
 );
@@ -133,13 +150,15 @@ export const createPatientThunk = createAsyncThunk(
 export const updatePatientThunk = createAsyncThunk(
   'admin/updatePatient',
   async (
-    { id, updates }: { id: string; updates: any },
+    { id, updates }: { id: string; updates: Partial<Patient> },
     { rejectWithValue }
   ) => {
     try {
       return await updatePatient(id, updates);
-    } catch (error: any) {
-      return rejectWithValue(error.message || 'Failed to update patient');
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to update patient';
+      return rejectWithValue(message);
     }
   }
 );
@@ -149,8 +168,10 @@ export const deletePatientThunk = createAsyncThunk(
   async (id: string, { rejectWithValue }) => {
     try {
       return await deletePatient(id);
-    } catch (error: any) {
-      return rejectWithValue(error.message || 'Failed to delete patient');
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to delete Patient';
+      return rejectWithValue(message);
     }
   }
 );
@@ -163,10 +184,12 @@ export const blockPatientThunk = createAsyncThunk(
   ) => {
     try {
       return await blockPatient(id, isBlocked);
-    } catch (error: any) {
-      return rejectWithValue(
-        error.message || 'Failed to block/unblock patient'
-      );
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Failed to block/unblock patient';
+      return rejectWithValue(message);
     }
   }
 );
@@ -177,8 +200,10 @@ export const getAllAppointmentsThunk = createAsyncThunk<
 >('admin/getAllAppointments', async (params, { rejectWithValue }) => {
   try {
     return await getAllAppointments(params);
-  } catch (error: any) {
-    return rejectWithValue(error.message);
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : 'Failed to list appointments';
+    return rejectWithValue(message);
   }
 });
 
@@ -189,8 +214,10 @@ export const cancelAppointmentThunk = createAsyncThunk<
 >('admin/cancelAppointment', async (appointmentId, { rejectWithValue }) => {
   try {
     return await cancelAppointment(appointmentId);
-  } catch (error: any) {
-    return rejectWithValue(error.message || 'Failed to cancel appointment');
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : 'Failed to cancel appointment';
+    return rejectWithValue(message);
   }
 });
 
@@ -202,8 +229,10 @@ export const getAllPlansThunk = createAsyncThunk<
   try {
     const response = await getAllPlans({ page, limit, search });
     return response;
-  } catch (error: any) {
-    return rejectWithValue(error.message || 'Failed to fetch plans');
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : 'Failed to list all plans';
+    return rejectWithValue(message);
   }
 });
 
@@ -214,8 +243,10 @@ export const approvePlanThunk = createAsyncThunk<
 >('admin/approvePlan', async (planId, { rejectWithValue }) => {
   try {
     await approvePlan(planId);
-  } catch (error: any) {
-    return rejectWithValue(error.message || 'Failed to approve plan');
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : 'Failed to approve plan';
+    return rejectWithValue(message);
   }
 });
 
@@ -226,8 +257,10 @@ export const rejectPlanThunk = createAsyncThunk<
 >('admin/rejectPlan', async (planId, { rejectWithValue }) => {
   try {
     await rejectPlan(planId);
-  } catch (error: any) {
-    return rejectWithValue(error.message || 'Failed to reject plan');
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : 'Failed to reject plan';
+    return rejectWithValue(message);
   }
 });
 
@@ -238,8 +271,10 @@ export const deletePlanThunk = createAsyncThunk<
 >('admin/deletePlan', async (planId, { rejectWithValue }) => {
   try {
     return await deletePlan(planId);
-  } catch (error: any) {
-    return rejectWithValue(error.message || 'Failed to delete plan');
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : 'Failed to delete plan';
+    return rejectWithValue(message);
   }
 });
 
@@ -253,8 +288,10 @@ export const getAllSpecialitiesThunk = createAsyncThunk<
     try {
       const response = await getAllSpecialities({ page, limit, search });
       return response;
-    } catch (error: any) {
-      return rejectWithValue(error.message || 'Failed to fetch specialities');
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to list specialities';
+      return rejectWithValue(message);
     }
   }
 );
@@ -266,8 +303,10 @@ export const createSpecialityThunk = createAsyncThunk<
 >('admin/createSpeciality', async (name, { rejectWithValue }) => {
   try {
     return await createSpeciality(name);
-  } catch (error: any) {
-    return rejectWithValue(error.message || 'Failed to create speciality');
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : 'Failed to create speciality';
+    return rejectWithValue(message);
   }
 });
 
@@ -275,13 +314,18 @@ export const updateSpecialityThunk = createAsyncThunk<
   Speciality,
   { id: string; specialityName: string },
   { rejectValue: string }
->('admin/updateSpeciality', async ({ id, specialityName }, { rejectWithValue }) => {
-  try {
-    return await updateSpeciality(id, specialityName);
-  } catch (error: any) {
-    return rejectWithValue(error.message || 'Failed to update speciality');
+>(
+  'admin/updateSpeciality',
+  async ({ id, specialityName }, { rejectWithValue }) => {
+    try {
+      return await updateSpeciality(id, specialityName);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to update speciality';
+      return rejectWithValue(message);
+    }
   }
-});
+);
 
 export const deleteSpecialityThunk = createAsyncThunk<
   string,
@@ -290,7 +334,9 @@ export const deleteSpecialityThunk = createAsyncThunk<
 >('admin/deleteSpeciality', async (specialityId, { rejectWithValue }) => {
   try {
     return await deleteSpeciality(specialityId);
-  } catch (error: any) {
-    return rejectWithValue(error.message || 'Failed to delete speciality');
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : 'Failed to delete speciality';
+    return rejectWithValue(message);
   }
 });

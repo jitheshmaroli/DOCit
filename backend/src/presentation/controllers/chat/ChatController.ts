@@ -170,8 +170,14 @@ export class ChatController {
       if (!targetUserId || !targetRole) {
         throw new ValidationError(ResponseMessages.BAD_REQUEST);
       }
+
+      if (!Object.values(UserRole).includes(targetRole as UserRole)) {
+        throw new ValidationError('Invalid target role');
+      }
+
+      const validatedTargetRole = targetRole as UserRole;
       const isOnline = this._socketService.isUserOnline(targetUserId);
-      const lastSeen = await this._socketService.getUserLastSeen(targetUserId, targetRole);
+      const lastSeen = await this._socketService.getUserLastSeen(targetUserId, validatedTargetRole);
       res.status(HttpStatusCode.OK).json({
         userId: targetUserId,
         isOnline,
