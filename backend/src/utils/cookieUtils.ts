@@ -8,13 +8,13 @@ export const setTokensInCookies = (res: Response, accessToken: string, refreshTo
   res.cookie('accessToken', accessToken, {
     httpOnly: true,
     secure: env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
     maxAge: ACCESS_TOKEN_MAX_AGE,
   });
   res.cookie('refreshToken', refreshToken, {
     httpOnly: true,
     secure: env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
     maxAge: REFRESH_TOKEN_MAX_AGE,
   });
 };
