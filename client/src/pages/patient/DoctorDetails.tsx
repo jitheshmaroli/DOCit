@@ -1249,9 +1249,9 @@ const DoctorDetails: React.FC = () => {
 
       {/* ── Payment modal ── */}
       {isPaymentModalOpen && selectedPlan && clientSecret && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-modal border border-surface-border w-full max-w-md animate-scale-in">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-surface-border">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="w-full max-w-md max-h-[90vh] overflow-y-auto overscroll-contain rounded-2xl bg-white border border-surface-border shadow-modal animate-scale-in">
+            <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b border-surface-border bg-white rounded-t-2xl">
               <div>
                 <h2 className="font-display font-bold text-text-primary">
                   Complete Payment
@@ -1262,6 +1262,7 @@ const DoctorDetails: React.FC = () => {
               </div>
               <CreditCard size={20} className="text-primary-500" />
             </div>
+
             <div className="p-6">
               <Elements stripe={stripePromise} options={{ clientSecret }}>
                 <PaymentForm
@@ -1272,6 +1273,7 @@ const DoctorDetails: React.FC = () => {
                   isResume={isResumingPayment}
                 />
               </Elements>
+
               <button
                 onClick={() => {
                   setIsPaymentModalOpen(false);
