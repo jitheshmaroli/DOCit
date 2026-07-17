@@ -28,6 +28,7 @@ const CLIENT_URL = env.CLIENT_URL;
 socketService.initialize(server);
 
 // Middleware setup
+app.set('trust proxy', 1);
 app.use(
   cors({
     origin: CLIENT_URL,
