@@ -763,17 +763,15 @@ const DoctorDetails: React.FC = () => {
                   Experience
                 </p>
                 <div className="space-y-1.5">
-                  {selectedDoctor.experiences!.map(
-                    (exp: Experience, i: number) => (
-                      <div
-                        key={i}
-                        className="flex items-center gap-2 text-sm text-text-secondary"
-                      >
-                        <span className="w-1.5 h-1.5 rounded-full bg-primary-400 flex-shrink-0" />
-                        {exp.hospitalName} — {exp.department} ({exp.years} yrs)
-                      </div>
-                    )
-                  )}
+                  {selectedDoctor.experiences!.map((exp: Experience, i: number) => (
+                    <div
+                      key={i}
+                      className="flex items-center gap-2 text-sm text-text-secondary"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary-400 flex-shrink-0" />
+                      {exp.hospitalName} — {exp.department} ({exp.years} yrs)
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
